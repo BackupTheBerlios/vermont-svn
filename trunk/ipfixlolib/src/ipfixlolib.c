@@ -538,7 +538,13 @@ static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf, int maxelements)
 	*sendbuf = malloc(sizeof(ipfix_sendbuffer));
 
 	// mallocate memory for the entries:
-	(**sendbuf).entries = malloc(maxelements * sizeof(struct iovec*));
+	(**sendbuf).entries = malloc(maxelements * sizeof(struct iovec));
+	/* Bugfix: entries is an array of (struct iovec), not (struct iovec*), */
+	/* so we reserved the wrong amount of memory to it. Mea Culpa, JanP */
+	/*	(**sendbuf).entries = malloc(maxelements * sizeof(struct iovec*)); */
+
+	DPRINTF (" ipfix_init_sendbuffer  sizeof(struct iovec*): %i\n",  sizeof(struct iovec*));
+	DPRINTF (" ipfix_init_sendbuffer  sizeof(struct iovec): %i\n",  sizeof(struct iovec) );
 
 	(**sendbuf).current = HEADER_USED_IOVEC_COUNT; // leave the 0th field blank for the header
 	(**sendbuf).length = maxelements;
