@@ -10,6 +10,7 @@
 /* ??? */
 #define PROTO_RAW 255
 
+#define IPFIX_ENTERPRISE_FLAG (1 << 15)
 
 struct ipfix_identifier {
 	char *name;

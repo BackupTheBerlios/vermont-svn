@@ -291,6 +291,7 @@ int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id);
 
 int ipfix_send(ipfix_exporter *exporter);
 
+int ipfix_enterprise_flag_set(uint16_t id);
 
 #endif
 

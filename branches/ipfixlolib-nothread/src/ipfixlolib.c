@@ -20,6 +20,9 @@
 #define DPRINTF(fmt, args...)
 #endif
 
+#define bit_set(data, bits) ((data & bits) == bits)
+
+
 static int init_rcv_udp_socket(int lport);
 static int init_send_udp_socket(char *serv_ip4_addr, int serv_port);
 static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum ipfix_validity cleanness);
@@ -1298,20 +1301,21 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uin
 
 	DPRINTF("ipfix_put_template_field: B p_pos %u, p_end %u\n", p_pos, p_end);
 
-	// now write the fields to the buffer:
-	char vendor_specific = NOT_VENDOR_SPECIFIC;
-	if(enterprise_id != 0) vendor_specific = VENDOR_SPECIFIC;
+	if(bit_set(type, IPFIX_ENTERPRISE_FLAG)) {
+		DPRINTF("Notice: using enterprise ID %h with data %u\n", fieldID, enterprise_id);
+	}
 
-	// write the vendor specific bit & the field type:
-	ret = write_extension_and_fieldID (&p_pos, p_end, type, vendor_specific);
+	// now write the fields to the buffer:
+	ret = write_extension_and_fieldID(&p_pos, p_end, type);
 	// write the field length
-	ret = write_unsigned16 (&p_pos, p_end, length);
+	ret = write_unsigned16(&p_pos, p_end, length);
 
 	// add the 4 bytes to the written length:
 	(*exporter).template_arr[found_index].fields_length += 4;
 
-	if (enterprise_id != 0) { // write the vendor specific id:
-		ret = write_unsigned32 (&p_pos, p_end, enterprise_id);
+	// write the vendor specific id
+	if (enterprise_id != 0) {
+		ret = write_unsigned32(&p_pos, p_end, enterprise_id);
 		(*exporter).template_arr[found_index].fields_length += 4;
 	}
 
@@ -1399,5 +1403,12 @@ int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template *templ
 	}
 
 	return 0;
+}
+
+
+/* check if the enterprise bit in an ID is set */
+int ipfix_enterprise_flag_set(uint16_t id)
+{
+	return bit_set(id, IPFIX_ENTERPRISE_FLAG);
 }
 

@@ -61,10 +61,6 @@ inline uint64_t ntohll(uint64_t number)
 
 
 /*
- * The remainder was written by Jan Petranek
- */
-
-/*
  * Write an octet
  * Parameters:
  * p_pos is a pointer to a buffer, where the
@@ -423,26 +419,17 @@ int read_octet_array(char **p_pos, char *p_end, char *p_output)
  * will convert it to network byte order).
  * char vendor_specific (either VENDOR_SPECIFIC or NOT_VENDOR_SPECIFIC
  */
-int write_extension_and_fieldID(char** p_pos, char* p_end, uint16_t fieldID, char vendor_specific)
+int write_extension_and_fieldID(char** p_pos, char* p_end, uint16_t fieldID)
 {
 	uint16_t uint16 = htons(fieldID);
-
-	// a uint16_t, where only the leftmost bit is set.
-	// needet for the vendor-Specific bit.
-	uint16_t leading_bit = 1 << 15;
+	//uint16_t leading_bit = 1 << 15;
 
 	if (p_end < ( *p_pos + sizeof(uint16_t)  ) ) {
 		fprintf(stderr, "error in write_unsigned16: buffer too small!\n");
 		return -1;
 	}
-
-	if(vendor_specific == VENDOR_SPECIFIC) {
-		uint16 = uint16 | leading_bit;
-	} else {
-		// make sure, the number does not contain a leading bit
-		uint16 = uint16 & (~leading_bit);
-	}
-	memcpy ( *p_pos, &uint16, sizeof(uint16_t) );
+	
+	memcpy(*p_pos, &uint16, sizeof(uint16_t));
 	*p_pos += sizeof (uint16_t);
 
 	return 0;

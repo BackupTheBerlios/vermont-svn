@@ -195,7 +195,7 @@ uint64_t read_unsigned64 ( char** p_pos, char* p_end);
  * will convert it to network byte order).
  * char vendor_specific (either VENDOR_SPECIFIC or NOT_VENDOR_SPECIFIC
  */
-int write_extension_and_fieldID ( char** p_pos, char* p_end, uint16_t fieldID, char vendor_specific);
+int write_extension_and_fieldID(char **p_pos, char *p_end, uint16_t fieldID);
 
 /*
  * Read the Vendor-specific extension bit and
