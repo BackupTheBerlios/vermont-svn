@@ -222,7 +222,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_
 	int i=0;
 	int searching = TRUE;
 
-	printf (" ipfix_add_collector 0\n");
+	DPRINTF(" ipfix_add_collector 0\n");
 
 	// check, if exporter is valid
 	if (exporter == NULL) {
@@ -238,11 +238,11 @@ int ipfix_add_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_
 		fprintf (stderr, "Collector not added!\n");
 		return -1;
 	}
-	printf (" ipfix_add_collector 1\n");
+	DPRINTF(" ipfix_add_collector 1\n");
 
 	while (searching && ( i< exporter->collector_max_num) ) {
 
-		printf (" ipfix_add_collector searching %i, i %i \n", searching, i);
+		DPRINTF(" ipfix_add_collector searching %i, i %i \n", searching, i);
 		if ( (*exporter).collector_arr[i].valid == FALSE ) {
 			// we have found a free slot:
 			/*
@@ -273,7 +273,6 @@ int ipfix_add_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_
 			exporter->collector_num++;
 			searching = FALSE;
 		}
-		// prepare for next loop:
 		i++;
 	}
 
@@ -887,7 +886,7 @@ int ipfix_send_templates(ipfix_exporter* exporter)
 		for (i = 0; i < exporter->collector_max_num; i++) {
 			// is the collector a valid target?
 			if ((*exporter).collector_arr[i].valid) {
-				printf( "Sending template to exporter %s:%d\n",
+				DPRINTF("Sending template to exporter %s:%d\n",
 					(*exporter).collector_arr[i].ipv4address,
 					(*exporter).collector_arr[i].port_number
 				      );
@@ -1049,7 +1048,7 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t *template_id)
 		= &( (*(*exporter).data_sendbuffer).entries[(*(*exporter).data_sendbuffer).current ]   );
 
 	exporter->data_sendbuffer->current++;
-	printf ("start_data_set:   (*(*exporter).data_sendbuffer).current %i\n",   (*(*exporter).data_sendbuffer).current );
+	DPRINTF("start_data_set:   (*(*exporter).data_sendbuffer).current %i\n",   (*(*exporter).data_sendbuffer).current );
 
 	// initialize the counting of the record's data:
 	exporter->data_sendbuffer->set_manager->data_length = 0;
