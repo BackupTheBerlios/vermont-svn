@@ -780,7 +780,7 @@ int ipfix_deinit_template_array(ipfix_exporter *exporter)
     // try to free all templates:
     ret = ipfix_deinit_template_set (exporter,	&(exporter->template_arr[i]) );
     // for debugging:
-    printf ("ipfix_deinit_template_array deinitialized template %i with success %i \n", i, ret);
+    DPRINTF("ipfix_deinit_template_array deinitialized template %i with success %i \n", i, ret);
     // end debugging
   }
 	free (exporter->template_arr);
@@ -916,11 +916,11 @@ int ipfix_send(ipfix_exporter *exporter)
 
 			// is the collector a valid target?
 			if ((*exporter).collector_arr[i].valid) {
-				printf ("Sending to exporter %s \n", (*exporter).collector_arr[i].ipv4address);
+				DPRINTF("Sending to exporter %s \n", (*exporter).collector_arr[i].ipv4address);
 
 				// debugging output of data buffer:
-				printf ("Sendbuffer contains %u bytes\n",  exporter->data_sendbuffer->commited_data_length );
-				printf ("Sendbuffer contains %u fields\n",  exporter->data_sendbuffer->current );
+				DPRINTF("Sendbuffer contains %u bytes\n",  exporter->data_sendbuffer->commited_data_length );
+				DPRINTF("Sendbuffer contains %u fields\n",  exporter->data_sendbuffer->current );
 				int tested_length = 0;
 				int j;
 				int k;
@@ -1056,19 +1056,17 @@ int ipfix_end_data_set(ipfix_exporter *exporter)
 int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count)
 {
 	// are we updating an existing template?
-#ifdef DEBUG
-	printf ("ipfix_start_template_set: start\n");
-#endif
 	int i;
 	int searching;
 	int found_index = -1;
+
+	DPRINTF("ipfix_start_template_set: start\n");
 	found_index = ipfix_find_template(exporter, template_id, COMMITED);
 
 	// have we found a template?
 	if (found_index >= 0) {
-#ifdef DEBUG
-		printf ("ipfix_start_template_set: template found at index %i \n, found_index");
-#endif
+
+		DPRINTF("ipfix_start_template_set: template found at index %i \n, found_index");
 		// we must overwrite the old template.
 		// first, clean up the old template:
 
@@ -1078,9 +1076,8 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 		(*exporter).template_arr[found_index].template_fields= NULL;
 	} else {
 		/* allocate a new, free slot */
-#ifdef DEBUG
-		printf ("ipfix_start_template_set: making new template\n");
-#endif
+		DPRINTF("ipfix_start_template_set: making new template\n");
+
 		searching = TRUE;
 
 		// check if there is a free slot at all:
@@ -1094,9 +1091,7 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 			return -1;
 		}
 
-#ifdef DEBUG
-		printf ("ipfix_start_template_set: found_index: %i,  searching: %i, maxsize: %i \n", found_index, searching ,(*exporter).ipfix_lo_template_maxsize);
-#endif
+		DPRINTF("ipfix_start_template_set: found_index: %i,  searching: %i, maxsize: %i \n", found_index, searching ,(*exporter).ipfix_lo_template_maxsize);
 		i = 0;
 
 		// search for a free slot:
@@ -1112,9 +1107,7 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 				(*exporter).template_arr[i].template_fields = NULL;
 				// TODO: maybe check, if this field is not null. Might only happen, when
 				// asynchronous threads change the template fields.
-#ifdef DEBUG
-				printf ("ipfix_start_template_set: free slot found at %i \n", found_index);
-#endif
+				DPRINTF("ipfix_start_template_set: free slot found at %i \n", found_index);
 
 			}
 
@@ -1127,9 +1120,7 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 	 test for a valid slot
          */
 	if ( (found_index >= 0 ) && ( found_index < exporter->ipfix_lo_template_maxsize ) ) {
-#ifdef DEBUG
-		printf ("ipfix_start_template_set: initializing new slot\n");
-#endif
+		DPRINTF("ipfix_start_template_set: initializing new slot\n");
 		// allocate memory for the template's fields:
 		// maximum length of the data: 8 bytes / field, as each field contains:
 		// field type, field length (2*2bytes)
@@ -1137,9 +1128,7 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 		// also, reserve 8 bytes space for the header!
 
 		(*exporter).template_arr[found_index].max_fields_length = 8 * field_count + 8;
-#ifdef DEBUG
-		printf ("(*exporter).template_arr[found_index].max_fields_length %u \n", (*exporter).template_arr[found_index].max_fields_length);
-#endif
+		DPRINTF("(*exporter).template_arr[found_index].max_fields_length %u \n", (*exporter).template_arr[found_index].max_fields_length);
 		(*exporter).template_arr[found_index].fields_length = 8;
 
 		(*exporter).template_arr[found_index].template_fields = (char*) malloc (   (*exporter).template_arr[found_index].max_fields_length );
@@ -1175,10 +1164,8 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 
 		// does this work?
 		// (*exporter).template_arr[found_index].fields_length += 8;
-#ifdef DEBUG
-		printf ("ipfix_start_template_set: max_fields_len %u \n", (*exporter).template_arr[found_index].max_fields_length);
-		printf ("ipfix_start_template_set: fieldss_len %u \n", (*exporter).template_arr[found_index].fields_length);
-#endif
+		DPRINTF("ipfix_start_template_set: max_fields_len %u \n", (*exporter).template_arr[found_index].max_fields_length);
+		DPRINTF("ipfix_start_template_set: fieldss_len %u \n", (*exporter).template_arr[found_index].fields_length);
 	} else return -1;
 
 
@@ -1228,19 +1215,15 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uin
 	// end of the buffer
 	p_end = p_pos +  (*exporter).template_arr[found_index].max_fields_length;
 
-#ifdef DEBUG
-	printf ("ipfix_put_template_field: template found at %i\n", found_index);
-	printf ("ipfix_put_template_field: A p_pos %u, p_end %u\n", p_pos, p_end);
-	printf ("ipfix_put_template_field: max_fields_len %u \n", (*exporter).template_arr[found_index].max_fields_length);
-	printf ("ipfix_put_template_field: fieldss_len %u \n", (*exporter).template_arr[found_index].fields_length);
-#endif
+	DPRINTF("ipfix_put_template_field: template found at %i\n", found_index);
+	DPRINTF("ipfix_put_template_field: A p_pos %u, p_end %u\n", p_pos, p_end);
+	DPRINTF("ipfix_put_template_field: max_fields_len %u \n", (*exporter).template_arr[found_index].max_fields_length);
+	DPRINTF("ipfix_put_template_field: fieldss_len %u \n", (*exporter).template_arr[found_index].fields_length);
 
 	// add offset to the buffer's beginning: this is, where we will write to.
 	p_pos += (*exporter).template_arr[found_index].fields_length;
 
-#ifdef DEBUG
-	printf ("ipfix_put_template_field: B p_pos %u, p_end %u\n", p_pos, p_end);
-#endif
+	DPRINTF("ipfix_put_template_field: B p_pos %u, p_end %u\n", p_pos, p_end);
 
 	// now write the fields to the buffer:
 	char vendor_specific = NOT_VENDOR_SPECIFIC;
@@ -1313,41 +1296,35 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id )
 /*
  * removes a template set from the exporter
  * Checks, if the template is in use, before trying to free it.
- * Parameters: 
+ * Parameters:
  *  exporter: exporting process to associate the template with
  *  template* : pointer to the template to be freed
  * Returns: 0  on success, -1 on failure
  * This is an internal function.
  */
 int ipfix_deinit_template_set (ipfix_exporter *exporter, ipfix_lo_template* template) {
-  // note: ipfix_deinit_template_array tries to free all possible templates, many of them
-  // won't be initialized. So you'll get a lot of warning messages, which are just fine...
+	// note: ipfix_deinit_template_array tries to free all possible templates, many of them
+	// won't be initialized. So you'll get a lot of warning messages, which are just fine...
 
-  if (template == NULL) {
-    // debugging
-    fprintf (stderr, "ipfix_deinit_template_set: Cannot free template. Template is already NULL\n!");
-    // end debugging
-    return -1;
-  }
+	if (template == NULL) {
+		DPRINTF("ipfix_deinit_template_set: Cannot free template. Template is already NULL\n!");
+		return -1;
+	}
 
-  // FIXME: make sure, we get a mutex lock on the templates, or else an other process 
-  // might try to write to an unclean template!!!
+	// FIXME: make sure, we get a mutex lock on the templates, or else an other process
+	// might try to write to an unclean template!!!
 
-  // first test, if we can free this template
-  if ( (template->valid == COMMITED) || (template->valid == UNCLEAN )) {
-    template-> valid = UNUSED;
-    free (template-> template_fields);
-    
+	// first test, if we can free this template
+	if ( (template->valid == COMMITED) || (template->valid == UNCLEAN )) {
+		template-> valid = UNUSED;
+		free (template-> template_fields);
 
-  } else {
-    // debugging
-    fprintf (stderr, "ipfix_deinit_template_set: Cannot free template. Template is UNUSED\n");
-    // end debugging
-    return -1;
-  }
+	} else {
+		DPRINTF("ipfix_deinit_template_set: Cannot free template. Template is UNUSED\n");
+		return -1;
+	}
 
-  return 0;
-
+	return 0;
 }
 
 
