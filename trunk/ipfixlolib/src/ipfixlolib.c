@@ -13,6 +13,13 @@
 
 #include "ipfixlolib.h"
 
+/* just printf for now */
+#ifdef DEBUG
+#define DPRINTF(fmt, args...) printf(fmt, ##args)
+#else
+#define DPRINTF(fmt, args...)
+#endif
+
 /********************************************************************/
 /*   Global, Internal variables                                     */
 /********************************************************************/
