@@ -17,6 +17,8 @@
 #include <cstdio>
 #include <ctime>
 #include <cstring>
+#include <stdint.h>
+#include <netinet/in.h>
 
 #include "Globals.h"
 #include "Lock.h"
@@ -24,16 +26,18 @@
 class Packet
 {
 public:
-  // the raw offset at which the IP header starts in the packet
-  // for Ethernet, this is 14 bytes (MAC header size)
-  static int IPHeaderOffset;
-  
-  // The raw packet data
+  /*
+   data: the raw packet data from the wire, including physical header
+   ip_header: start of the IP header: data + (physical dependent) IP header offset
+   transport_header: start of the transport layer header (TCP/UDP): ip_header + variable IP header length
+   */
   void *data;
+  void *ip_header;
+  void *transport_header;
   
   // The length of the packet in bytes
   unsigned int length;
-  
+    
   // when was the packet received?
   struct timeval timestamp;
   
@@ -41,6 +45,8 @@ public:
   Packet(void *packetData, unsigned int len, int numUsers = 1) : users(numUsers), refCountLock()
   {
     data = packetData;
+    ip_header = (uint8_t *)data + IPHeaderOffset;
+    transport_header = (uint8_t *)ip_header + ip_get_transport_offset(ip_header);
     length = len;
   };
   
@@ -76,21 +82,39 @@ public:
   // read data from the IP header
   void getPacketData(int offset, void *dest, int size) const
   {
-    memcpy(dest, (char *)data + offset + IPHeaderOffset, size);
+    memcpy(dest, (char *)ip_header + offset, size);
   }
   
   // return a pointer into the packet to IP header offset given
   void *getPacketData(int offset) const
   {
-    return (char *)data + offset + IPHeaderOffset;
+    return (char *)ip_header + offset;
   }
   
 private:
+  // the raw offset at which the IP header starts in the packet
+  // for Ethernet, this is 14 bytes (MAC header size)
+  static int IPHeaderOffset;
+  
   // Number of concurrent users of this packet. Decremented each time
   // release() is called. After it reaches zero, the packet is deleted.
   int users;
 
   Lock refCountLock;
+  
+  // return the offset the transport header lies; IP knows about variable ip options field
+  inline unsigned int ip_get_transport_offset(void *ip_packet)
+  {
+  	/*
+	 the header length (incl. options field) is:
+	 last 4 bits in the first byte * 4bytes
+	 */
+	uint8_t *header=(uint8_t *)ip_packet;
+	uint8_t len=header[0] & 0xf;
+	
+	return(len * 4);
+  }
+  
 };
 
 #endif
