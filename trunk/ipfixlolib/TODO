@@ -1,0 +1,4 @@
+-write real Makefile
+	-make -C src
+	-make -C tests
+-configure-ize

@@ -1,0 +1,96 @@
+/*
+ * PSAMP Reference Implementation
+ *
+ * Packet.h
+ *
+ * Encapsulates a captured packet with simple, thread-aware
+ * reference-(usage-) counting.
+ *
+ * Author: Michael Drueing <michael@drueing.de>
+ *
+ */
+
+#ifndef PACKET_H
+#define PACKET_H
+
+#include <cstdlib>
+#include <cstdio>
+#include <ctime>
+#include <cstring>
+
+#include "Globals.h"
+#include "Lock.h"
+
+class Packet
+{
+public:
+  // the raw offset at which the IP header starts in the packet
+  // for Ethernet, this is 14 bytes (MAC header size)
+  static int IPHeaderOffset;
+  
+  // The raw packet data
+  void *data;
+  
+  // The length of the packet in bytes
+  unsigned int length;
+  
+  // when was the packet received?
+  struct timeval timestamp;
+  
+  // construct a new Packet for a specified number of 'users'
+  Packet(void *packetData, unsigned int len, int numUsers = 1) : users(numUsers), refCountLock()
+  {
+    data = packetData;
+    length = len;
+  };
+  
+  // Delete the packet and free all data associated with it. Should only be called
+  // if users==0 !
+  ~Packet()
+  {
+    if (users > 0)
+      LOG("Packet: WARNING: freeing in-use packet!\n");
+      
+    free(data);
+  }
+  
+  // call this function after processing the packet, NOT delete()!
+  void release()
+  {
+    int newUsers;
+    
+    refCountLock.lock();
+    --users;
+    newUsers = users;
+    refCountLock.unlock();
+   
+    if (newUsers < 0)
+      LOG("Packet: WARNING: trying to free already freed packet!\n");
+    
+    if (newUsers == 0)
+    {
+      delete this;
+    }	
+  };
+  
+  // read data from the IP header
+  void getPacketData(int offset, void *dest, int size) const
+  {
+    memcpy(dest, (char *)data + offset + IPHeaderOffset, size);
+  }
+  
+  // return a pointer into the packet to IP header offset given
+  void *getPacketData(int offset) const
+  {
+    return (char *)data + offset + IPHeaderOffset;
+  }
+  
+private:
+  // Number of concurrent users of this packet. Decremented each time
+  // release() is called. After it reaches zero, the packet is deleted.
+  int users;
+
+  Lock refCountLock;
+};
+
+#endif
