@@ -212,18 +212,6 @@ int main(int argc, char **argv)
 		exporting = 0;
 	}
 
-	/* test if the template is resent */
-	int i;
-
-	for (i = 0; i < 10000000; i++) {
-	// for (i = 0; i < 1000000000; i++) {
-		  //	for (i = 0; i < 100; i++) {
-		ret = ipfix_send(my_exporter);
-		if (ret != 0)
-			fprintf(stderr, "ipfix_send failed!\n");
-
-	}
-
 	/* if you no longer need the exporter: free resources */
 	ret=ipfix_remove_collector(my_exporter, collector_ip, collector_port);
 	ipfix_deinit_exporter(my_exporter);
