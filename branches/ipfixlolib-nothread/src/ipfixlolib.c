@@ -4,6 +4,8 @@
 
  Header for encoding functions suitable for IPFIX
  Changes by Ronny T. Lampert, 2005-01
+ Changed 03-2005: Had to add a lot of casts for malloc() and friends
+ because of stricter C++ checking
 
  Based upon the original
  by Jan Petranek, University of Tuebingen
@@ -117,7 +119,7 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
 	ipfix_exporter *tmp;
 	int ret;
 
-	if(!(tmp=malloc(sizeof(ipfix_exporter)))) {
+	if(!(tmp=(ipfix_exporter *)malloc(sizeof(ipfix_exporter)))) {
 		goto out;
 	}
 
@@ -538,10 +540,10 @@ static int write_ipfix_message_header(ipfix_header *header, char **p_pos, char *
 static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf, int maxelements)
 {
 	// mallocate memory for the sendbuffer
-	*sendbuf = malloc(sizeof(ipfix_sendbuffer));
+	*sendbuf = (ipfix_sendbuffer *)malloc(sizeof(ipfix_sendbuffer));
 
 	// mallocate memory for the entries:
-	(**sendbuf).entries = malloc(maxelements * sizeof(struct iovec));
+	(**sendbuf).entries = (iovec *)malloc(maxelements * sizeof(struct iovec));
 	/* Bugfix: entries is an array of (struct iovec), not (struct iovec*), */
 	/* so we reserved the wrong amount of memory to it. Mea Culpa, JanP */
 	/*	(**sendbuf).entries = malloc(maxelements * sizeof(struct iovec*)); */
@@ -554,7 +556,7 @@ static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf, int maxelements)
 	(**sendbuf).commited = HEADER_USED_IOVEC_COUNT;
 
 	// allocate memory for the header itself
-	(**sendbuf).header_store = malloc(IPFIX_HEADER_LENGTH) ;
+	(**sendbuf).header_store = (char *)malloc(IPFIX_HEADER_LENGTH) ;
 
 	(**sendbuf).commited_data_length = 0;
 	// initialize an ipfix_set_manager
@@ -620,7 +622,7 @@ static int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_c
 {
 	int i;
 
-	*col=malloc((sizeof(ipfix_receiving_collector) * col_capacity));
+	*col=(ipfix_receiving_collector *)malloc((sizeof(ipfix_receiving_collector) * col_capacity));
 
 	for (i = 0; i< col_capacity; i++) {
 		((*col)[i]).valid = FALSE;
@@ -686,12 +688,12 @@ static int ipfix_init_send_socket(char *serv_ip4_addr, int serv_port, enum ipfix
 static int ipfix_init_set_manager(ipfix_set_manager **set_manager, int max_capacity)
 {
 	// allocate memory for the set manager
-	*set_manager = malloc(sizeof(ipfix_set_manager));
+	*set_manager = (ipfix_set_manager *)malloc(sizeof(ipfix_set_manager));
 
 	// allocate memory for the set header buffer & set values.
 	(**set_manager).set_header_capacity = max_capacity;
 	(**set_manager).set_header_length = 0;
-	(**set_manager).set_header_store = malloc(max_capacity);
+	(**set_manager).set_header_store = (char *)malloc(max_capacity);
 	(**set_manager).header_iovec = NULL;
 
 	(**set_manager).data_length = 0;
@@ -1346,7 +1348,8 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id )
 	// reallocate the memory , i.e. free superfluous memory, as we allocated enough memory to hold
 	// all possible vendor specific IDs.
 	ipfix_lo_template *templ=(&(*exporter).template_arr[found_index]);
-	templ->template_fields=realloc(templ->template_fields, templ->fields_length);
+	/* sometime I'll fuck C++ with a serious chainsaw - casting malloc() et al is DUMB */
+	templ->template_fields=(char *)realloc(templ->template_fields, templ->fields_length);
 
 	/*
 	 write the real length field:
