@@ -1009,7 +1009,7 @@ int ipfix_end_data_set(ipfix_exporter *exporter)
 }
 
 /*******************************************************************/
-/* Generation of a data and option template set                    */
+/* Generation of a data template set and option template set       */
 /*******************************************************************/
 
 /*

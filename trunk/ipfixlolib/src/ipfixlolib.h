@@ -35,6 +35,7 @@
 
 /*
  * amount of iovec, the header consumes
+ * change only, if you change the internal code!
  */
 #define HEADER_USED_IOVEC_COUNT 1
 
@@ -45,17 +46,20 @@
 
 /*
  * maximum number of collectors at a time.
+ * can be specified by user
  */
 #define IPFIX_MAX_COLLECTORS 16
 
 /*
  * maximum number of templates at a time
+ * can be specified by user
  */
 #define IPFIX_MAX_TEMPLATES 16
 
 /*
  * Default time, until templates are re-sent again:
  * 30 seconds:
+ * can be specified by user
  */
 #define IPFIX_DEFAULT_TEMPLATE_TIMER 30
 
