@@ -214,7 +214,7 @@ NOTE: All via ipfix_put_data_field() added data must be valid until this functio
 Retrieve the IPFIX / PSAMP ID of a given string. -1 indicates "not found".
 <hr width="94%" noshade="noshade" align="left" size="1">
 
-<a name=ipfix_id_lookup><code>struct ipfix_identifier * ipfix_id_lookup</a>(int n)</code></a><p>
+<a name=ipfix_id_lookup><code>struct ipfix_identifier * ipfix_id_lookup(int n)</code></a><p>
 Retrieve full info about an IPFIX / PSAMP ID, including name, ID and length (in bytes).<br>
 FIXME: HOW TO DISTINGUISH MULTI-OCTET (OCTET-STRING) FIELDS?
 
@@ -248,6 +248,7 @@ FIXME: HOW TO DISTINGUISH MULTI-OCTET (OCTET-STRING) FIELDS?
 </table>
 
 <p>
+<b>IPFIX</b>
 
 <table border="1" cellspacing="0" cellpadding="2">
 <tr>
@@ -815,5 +816,73 @@ FIXME: HOW TO DISTINGUISH MULTI-OCTET (OCTET-STRING) FIELDS?
 	<td>140</td>
 	<td>mplsTopLabelIPv6Address</td>
 </tr>
+
+</table>
+<p>
+
+<b>PSAMP</b>
+<table border="1" cellspacing="0" cellpadding="2">
+<tr>
+	<td>ID</td>
+	<td>Name</td>
+</tr>
+<tr>
+	<td>1024</td>
+	<td>optionTemplateID</td>
+</tr>
+<tr>
+	<td>1025</td>
+	<td>sequenceNumber</td>
+</tr>
+<tr>
+	<td>1026</td>
+	<td>packetSample</td>
+</tr>
+<tr>
+	<td>1027</td>
+	<td>samplingAlgorithm</td>
+</tr>
+<tr>
+	<td>1028</td>
+	<td>filteringAlgorithm</td>
+</tr>
+<tr>
+	<td>1029</td>
+	<td>samplingPacketInterval</td>
+</tr>
+<tr>
+	<td>1030</td>
+	<td>samplingPacketSpace</td>
+</tr>
+<tr>
+	<td>1031</td>
+	<td>samplingTimeInterval</td>
+</tr>
+<tr>
+	<td>1032</td>
+	<td>samplingTimeSpace</td>
+</tr>
+<tr>
+	<td>1033</td>
+	<td>samplingPopulation</td>
+</tr>
+<tr>
+	<td>1034</td>
+	<td>samplingSize</td>
+</tr>
+<tr>
+	<td>1035</td>
+	<td>samplingProbability</td>
+</tr>
+<tr>
+	<td>1036</td>
+	<td>headerType</td>
+</tr>
+<tr>
+	<td>1037</td>
+	<td>hashFunction</td>
+</tr>
+
+
 
 </table>
