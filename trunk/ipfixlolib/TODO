@@ -1,4 +1,13 @@
--write real Makefile
-	-make -C src
-	-make -C tests
--configure-ize
+-careful error-handling in init_exporter()
+	-free all previous resources if one of many init()-calls fails
+
+-careful mem-freeing in deinit_exporter()
+	-free all memory, also from templates, ...
+
+-decide endianess and make htonll/ntoll in encoding.c a noop,
+if big-endian machine
+	-get info from autoconf OR via <endian.h> ??
+
+-make API _strictly_ host byte order; automatically convert for internal use
+where necessary
+
