@@ -1048,7 +1048,12 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t *template_id)
 	// TODO!
 
 	// check, if there is enough space in the data set buffer
-	// TODO.
+	// the -1 is because, we expect, we want to add at least one data field.
+	if ((*(*exporter).data_sendbuffer).current >= (*(*exporter).data_sendbuffer).length -1 ) { 
+		fprintf (stderr, "ipfix_start_data_set: Sendbuffer too small to handle %i entries!\n", (*(*exporter).data_sendbuffer).current ); 
+		goto out;
+	} 
+
 
 	// write the template id to the data set buffer:
 	// TODO: i know, copy is not that good, but I need a working verions first.
@@ -1065,6 +1070,9 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t *template_id)
 	// initialize the counting of the record's data:
 	exporter->data_sendbuffer->set_manager->data_length = 0;
 	return 0;
+
+out: 
+	return -1;
 }
 
 

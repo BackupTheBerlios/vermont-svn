@@ -106,16 +106,17 @@
   (*(*SENDBUF).set_manager).data_length+= LENGTH; \
 }
 
-
-#define ipfix_put_data_field(EXPORTER, POINTER, LENGTH) { \
-  if ((*(*EXPORTER).data_sendbuffer).current >= (*(*EXPORTER).data_sendbuffer).length-2 ) { \
-    fprintf (stderr, "Error: Sendbuffer too small to handle %i entries!\n", (*(*EXPORTER).data_sendbuffer).current ); \
-    errno = -1; \
-  } \
-  ((*(*EXPORTER).data_sendbuffer).entries[ (*(*EXPORTER).data_sendbuffer).current ]).iov_base = POINTER; \
-  ((*(*EXPORTER).data_sendbuffer).entries[ (*(*EXPORTER).data_sendbuffer).current ]).iov_len =  LENGTH; \
-  (*(*EXPORTER).data_sendbuffer).current++; \
-  (*(*(*EXPORTER).data_sendbuffer).set_manager).data_length+= LENGTH; \
+/* BUGFIX: After the makro found an error condition, it skips accessing data. */
+#define ipfix_put_data_field(EXPORTER, POINTER, LENGTH) {		\
+		if ((*(*EXPORTER).data_sendbuffer).current >= (*(*EXPORTER).data_sendbuffer).length ) { \
+			fprintf (stderr, "Error: Sendbuffer too small to handle %i entries!\n", (*(*EXPORTER).data_sendbuffer).current ); \
+			errno = -1;					\
+		} else {						\
+			((*(*EXPORTER).data_sendbuffer).entries[ (*(*EXPORTER).data_sendbuffer).current ]).iov_base = POINTER; \
+			((*(*EXPORTER).data_sendbuffer).entries[ (*(*EXPORTER).data_sendbuffer).current ]).iov_len =  LENGTH; \
+			(*(*EXPORTER).data_sendbuffer).current++;	\
+			(*(*(*EXPORTER).data_sendbuffer).set_manager).data_length+= LENGTH; \
+		} \
 }
 
 /* Struct containing an ipfix-header */
