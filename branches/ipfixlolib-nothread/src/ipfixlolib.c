@@ -1375,11 +1375,11 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id )
  * Returns: 0  on success, -1 on failure
  * This is an internal function.
  */
-int ipfix_deinit_template_set (ipfix_exporter *exporter, ipfix_lo_template *template) {
+int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template *templ) {
 	// note: ipfix_deinit_template_array tries to free all possible templates, many of them
 	// won't be initialized. So you'll get a lot of warning messages, which are just fine...
 
-	if (template == NULL) {
+	if (templ == NULL) {
 		DPRINTF("ipfix_deinit_template_set: Cannot free template. Template is already NULL\n!");
 		return -1;
 	}
@@ -1388,9 +1388,9 @@ int ipfix_deinit_template_set (ipfix_exporter *exporter, ipfix_lo_template *temp
 	// might try to write to an unclean template!!!
 
 	// first test, if we can free this template
-	if ( (template->valid == COMMITED) || (template->valid == UNCLEAN )) {
-		template->valid = UNUSED;
-		free(template->template_fields);
+	if ( (templ->valid == COMMITED) || (templ->valid == UNCLEAN )) {
+		templ->valid = UNUSED;
+		free(templ->template_fields);
 		exporter->ipfix_lo_template_current_count--;
 
 	} else {

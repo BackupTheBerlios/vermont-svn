@@ -286,7 +286,7 @@ int ipfix_start_template_set(ipfix_exporter *exporter, uint16_t template_id,  ui
 int ipfix_start_options_template_set(ipfix_exporter *exporter, uint16_t template_id, uint16_t scope_length, uint16_t option_length);
 int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uint16_t type, uint16_t length, uint32_t enterprise_id);
 int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id );
-int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template* template);
+int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template* templ);
 int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id);
 
 int ipfix_send(ipfix_exporter *exporter);
