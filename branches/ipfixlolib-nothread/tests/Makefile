@@ -1,12 +1,8 @@
 CC=gcc
-# default flags:
-#CFLAGS=-O -Wall
-# flags for debugging:
-CFLAGS=-g -O0 -Wall
-
+CFLAGS=-O -Wall
 INCLUDES=-I../src
 
-TARGET=init_deinit_test template_generation_test
+TARGET=init_deinit template_generation
 
 all: $(TARGET)
 
@@ -18,8 +14,9 @@ testrun:
 # not there yet
 	echo "not implemented target"
 
-init_deinit_test: init_deinit_test.c
-	$(CC) $(INCLUDES) $(CFLAGS) -o  init_deinit_test init_deinit_test.c ../src/libipfixlo.a
-template_generation_test: template_generation_test.c
-	$(CC) $(INCLUDES) $(CFLAGS)  -o template_generation_test template_generation_test.c ../src/libipfixlo.a
+init_deinit: init_deinit.c
+	$(CC) $(INCLUDES) $(CFLAGS) -o  init_deinit init_deinit.c ../src/libipfixlo.a
+
+template_generation: template_generation.c
+	$(CC) $(INCLUDES) $(CFLAGS)  -o template_generation template_generation.c ../src/libipfixlo.a
 
