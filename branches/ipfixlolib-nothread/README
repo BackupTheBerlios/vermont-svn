@@ -1,0 +1,19 @@
+IPFIX Low Lib
+
+Send IPFIX data using a very low-level interface.
+Cleanups by Ronny T. Lampert
+
+The library is released under LGPL, see file LICENSE.
+All other code (examples, ...) is released under GPL v2.
+
+-- -
+
+Based upon the original ipfixlolib-0.2 by
+
+Jan Petranek
+University of Tuebingen
+Departement for Computer Networks & Internet
+
+e-mail: jan@petranek.de
+
+date: 2004-11-12
