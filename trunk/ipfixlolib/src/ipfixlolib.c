@@ -1382,11 +1382,13 @@ int ipfix_deinit_template_set (ipfix_exporter *exporter, ipfix_lo_template* temp
 	if ( (template->valid == COMMITED) || (template->valid == UNCLEAN )) {
 		template-> valid = UNUSED;
 		free (template-> template_fields);
+		exporter->ipfix_lo_template_current_count--;
 
 	} else {
 		DPRINTF("ipfix_deinit_template_set: Cannot free template. Template is UNUSED\n");
 		return -1;
 	}
+
 
 	return 0;
 }
