@@ -9,7 +9,7 @@
 ARCH ?= BSD
 
 # -- compiler and linker switches ----
-
+CC=gcc
 CFLAGS += -pg -g -Wall -Werror
 LDFLAGS += -pg -g
 
