@@ -28,12 +28,12 @@ class Packet
 public:
   /*
    data: the raw packet data from the wire, including physical header
-   ip_header: start of the IP header: data + (physical dependent) IP header offset
-   transport_header: start of the transport layer header (TCP/UDP): ip_header + variable IP header length
+   ipHeader: start of the IP header: data + (physical dependent) IP header offset
+   transportHeader: start of the transport layer header (TCP/UDP): ip_header + variable IP header length
    */
   void *data;
-  void *ip_header;
-  void *transport_header;
+  void *ipHeader;
+  void *transportHeader;
   
   // The length of the packet in bytes
   unsigned int length;
@@ -45,8 +45,8 @@ public:
   Packet(void *packetData, unsigned int len, int numUsers = 1) : users(numUsers), refCountLock()
   {
     data = packetData;
-    ip_header = (uint8_t *)data + IPHeaderOffset;
-    transport_header = (uint8_t *)ip_header + ip_get_transport_offset(ip_header);
+    ipHeader = (unsigned char *)data + IPHeaderOffset;
+    transportHeader = (unsigned char *)ipHeader + ipTransportHeaderOffset(ipHeader);
     length = len;
   };
   
@@ -82,13 +82,13 @@ public:
   // read data from the IP header
   void getPacketData(int offset, void *dest, int size) const
   {
-    memcpy(dest, (char *)ip_header + offset, size);
+    memcpy(dest, (char *)ipHeader + offset, size);
   }
   
   // return a pointer into the packet to IP header offset given
   void *getPacketData(int offset) const
   {
-    return (char *)ip_header + offset;
+    return (char *)ipHeader + offset;
   }
   
 private:
@@ -103,16 +103,15 @@ private:
   Lock refCountLock;
   
   // return the offset the transport header lies; IP knows about variable ip options field
-  inline unsigned int ip_get_transport_offset(void *ip_packet)
+  static inline unsigned int ipTransportHeaderOffset(void *ipPacket)
   {
-  	/*
-	 the header length (incl. options field) is:
-	 last 4 bits in the first byte * 4bytes
-	 */
-	uint8_t *header=(uint8_t *)ip_packet;
-	uint8_t len=header[0] & 0xf;
-	
-	return(len << 2);
+    /*
+     the header length (incl. options field) is:
+     last 4 bits in the first byte * 4bytes
+    */
+    unsigned char len = *((unsigned char *)ipPacket) & 0x0f;
+
+    return len << 2;
   }
   
 };
