@@ -853,18 +853,15 @@ int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 /*******************************************************************/
 /* Transmission                                                    */
 /*******************************************************************/
-
 /*
- * Send data to collectors
- * Sends all data commited via ipfix_put_data_field to this exporter.
  * If necessary, sends all associated templates
  * Parameters:
  *  exporter sending exporting process
- * Return value: 0 on success, -1 on failure.
+ * Return value: 1 on success, -1 on failure, 0 on no need to send.
  */
-int ipfix_send(ipfix_exporter *exporter)
+int ipfix_send_templates(ipfix_exporter* exporter) 
 {
-	int ret;
+	int ret = 0;
 	int i;
 	// determine, if we need to send the template data:
 	time_t time_now = time(NULL);
@@ -878,6 +875,11 @@ int ipfix_send(ipfix_exporter *exporter)
 
 		// update the sendbuffer header, as we must set the export time & sequence number!
 		ret = ipfix_prepend_header(exporter,  (*(*exporter).template_sendbuffer).commited_data_length,(*exporter).template_sendbuffer);
+
+		if (ret != 0 ) {
+			DPRINTF ("ipfix_send_templates:  ipfix_prepend_header failed!\n");
+			return -1;
+		}
 
 		exporter->last_template_transmition_time = time_now;
 
@@ -898,8 +900,23 @@ int ipfix_send(ipfix_exporter *exporter)
 			}
 		} // end exporter loop
 
+		return 1;
 	} // end if export template.
+	return 0;
 
+}
+
+/*
+ * Send data to collectors
+ * Sends all data commited via ipfix_put_data_field to this exporter.
+ * Parameters:
+ *  exporter sending exporting process
+ * Return value: 0 on success, -1 on failure.
+ */
+int ipfix_send_data(ipfix_exporter* exporter) 
+{
+ 	int ret =0;
+	int i;
 	// send the current data_sendbuffer:
 	int data_length =0;
 
@@ -909,6 +926,10 @@ int ipfix_send(ipfix_exporter *exporter)
 
 		// prepend a header to the sendbuffer
 		ret = ipfix_prepend_header (exporter, data_length, exporter->data_sendbuffer);
+		if (ret != 0) {
+			DPRINTF ("ipfix_send_data: ipfix_prepend_header failed!\n");
+			return -1;
+		}
 
 
 		// send the sendbuffer to all collectors
@@ -927,15 +948,15 @@ int ipfix_send(ipfix_exporter *exporter)
 				for (j =0; j <  exporter->data_sendbuffer->current; j++) {
 					if ( (*(*exporter).data_sendbuffer).entries[j].iov_len > 0 ) {
 						tested_length +=  (*(*exporter).data_sendbuffer).entries[j].iov_len;
-						printf ("Data Buffer  [%i] has %u bytes\n", j,  (*(*exporter).data_sendbuffer).entries[j].iov_len);
+						DPRINTF ("Data Buffer  [%i] has %u bytes\n", j,  (*(*exporter).data_sendbuffer).entries[j].iov_len);
 
 						for (k =0 ; k<  (*(*exporter).data_sendbuffer).entries[j].iov_len; k++) {
-							printf ("Data at  buf_vector[%i] pos %i is %u \n", j,k,   *(  (char*) ( (*(*exporter).data_sendbuffer).entries[j].iov_base+k) ) );
+							DPRINTF ("Data at  buf_vector[%i] pos %i is %u \n", j,k,   *(  (char*) ( (*(*exporter).data_sendbuffer).entries[j].iov_base+k) ) );
 						}
 					}
 
 				}
-				printf ("Sendbuffer really contains %u bytes ! \n", tested_length );
+				DPRINTF ("Sendbuffer really contains %u bytes ! \n", tested_length );
 
 				ret=writev( (*exporter).collector_arr[i].data_socket,
 					    (*(*exporter).data_sendbuffer).entries,
@@ -944,17 +965,55 @@ int ipfix_send(ipfix_exporter *exporter)
 				// TODO: we should also check, what writev returned. NO ERROR HANDLING IMPLEMENTED YET!
 			}
 		} // end exporter loop
+		ret = 1;
 	}  // end if
 
 	// reset the sendbuffer
-	ret = ipfix_reset_sendbuffer(exporter->data_sendbuffer);
+	ipfix_reset_sendbuffer(exporter->data_sendbuffer);
 
-	// update the transmission counters.
-	exporter->sequence_number++;
 
 	// actually, this should return some error handling from writev.
 	// TODO
-	return 0;
+	return ret;
+
+}
+
+/*
+ * Send data to collectors
+ * Sends all data commited via ipfix_put_data_field to this exporter.
+ * If necessary, sends all associated templates
+ * Parameters:
+ *  exporter sending exporting process
+ * Return value: 0 on success, -1 on failure.
+ */
+int ipfix_send(ipfix_exporter *exporter)
+{
+	int ret = 0;
+
+ 	int ret_templates; 
+	ret_templates = ipfix_send_templates(exporter);
+
+
+
+	int ret_data;
+	ret_data = ipfix_send_data (exporter);
+	
+	if ((ret_templates > 0) || (ipfix_send_data > 0) ) {
+		// we did send some data:
+		exporter->sequence_number++;
+		return 0;
+	}
+	if (ret_templates < 0) {
+		DPRINTF ("ipfix_send: sending templates failed!\n");
+		ret = -1;
+	}
+	if (ret_data < 0) {
+		DPRINTF ("ipfix_send: sending data failed!\n");
+		ret = -1;
+	}
+
+	return ret;
+
 }
 
 /*******************************************************************/
