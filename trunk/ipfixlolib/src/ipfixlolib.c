@@ -93,8 +93,7 @@ int ipfix_lock_mutex(ipfix_exporter* exporter, enum ipfix_lock_target target) {
 	switch (target){
 	case EXPORTER:
 		// printf ("TARGET: Exporter\n");
-		// we already have our lock!
-		return 0;
+		my_mutex = &exporter-> exporter_mutex;
 		break;
 			
 	case DATA:
@@ -128,8 +127,13 @@ int ipfix_lock_mutex(ipfix_exporter* exporter, enum ipfix_lock_target target) {
 			DPRINTF (" pthread_mutex_lock returned %i; Thread %i \n", ret,  pthread_self());
 		
 			return -1;
-		}	
+		}
 		DPRINTF ("Thread %i locked EXPORTER\n", pthread_self());
+		if (target == EXPORTER) {
+			// we have all we need!
+			return 0;
+		}
+
 
 		/* now, try to obtain our lock */
 		ret = pthread_mutex_trylock (my_mutex);
@@ -501,6 +505,7 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
 
         /* finally attach new exporter to the pointer we were given */
 	*exporter=tmp;
+	ipfix_unlock_mutex (tmp, EXPORTER);
 
 	return 0;
 
@@ -554,6 +559,10 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter)
 	// close sockets etc.
 	// (currently, nothing to do)
 	// FIXME: Really nothing to do?
+
+	// reset the sendbuffers
+	ret = ipfix_reset_sendbuffer (exporter->data_sendbuffer);
+	ret = ipfix_reset_sendbuffer (exporter->template_sendbuffer);
 
 	// free all children
 

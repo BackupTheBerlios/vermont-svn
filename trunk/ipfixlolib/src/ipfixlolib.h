@@ -35,7 +35,7 @@
  * EXPERIMENTAL!
  */
 #define IPFIX_THREADED 1
-//#define DEBUG 1
+#define DEBUG 1
 
 #ifdef IPFIX_THREADED
 #include <pthread.h>

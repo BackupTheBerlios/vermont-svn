@@ -31,6 +31,7 @@
 #define MAX_TEST_EXPORTERS 1
 #define MAX_TEST_TEMPLATES 3
 
+// what cycle do we test?
 #define TEST_DATA 1
 #define TEST_TEMPLATE 1
 #define TEST_COLLECTOR 1
