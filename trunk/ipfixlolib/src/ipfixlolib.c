@@ -432,9 +432,9 @@ static int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipf
 
 	ipfix_header header;
 	time_t export_time;
-	uint16_t total_length = 0;
 	int ret;
-	int header_length = 4* sizeof(uint32_t);
+	uint16_t total_length = 0;
+	int header_length = 4 * sizeof(uint32_t);
 
 	// did the user set the data_length field?
 	if (data_length != 0) {
@@ -872,8 +872,8 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
  */
 static int ipfix_send_templates(ipfix_exporter* exporter)
 {
-	int ret = 0;
 	int i;
+	int ret=0;
 	// determine, if we need to send the template data:
 	time_t time_now = time(NULL);
 
@@ -926,10 +926,10 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
  */
 static int ipfix_send_data(ipfix_exporter* exporter)
 {
- 	int ret =0;
 	int i;
+	int ret=0;
 	// send the current data_sendbuffer:
-	int data_length =0;
+	int data_length=0;
 
 	// is there data to send?
 	if (exporter->data_sendbuffer->commited_data_length > 0 ) {
@@ -999,17 +999,13 @@ static int ipfix_send_data(ipfix_exporter* exporter)
  */
 int ipfix_send(ipfix_exporter *exporter)
 {
+	int ret_templates, ret_data;
 	int ret = 0;
 
- 	int ret_templates; 
 	ret_templates = ipfix_send_templates(exporter);
-
-
-
-	int ret_data;
-	ret_data = ipfix_send_data (exporter);
+	ret_data = ipfix_send_data(exporter);
 	
-	if ((ret_templates > 0) || (ipfix_send_data > 0) ) {
+	if ((ret_templates > 0) || (ret_data > 0) ) {
 		// we did send some data:
 		exporter->sequence_number++;
 		return 0;
@@ -1024,7 +1020,6 @@ int ipfix_send(ipfix_exporter *exporter)
 	}
 
 	return ret;
-
 }
 
 /*******************************************************************/
@@ -1061,7 +1056,7 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t *template_id)
 	exporter->data_sendbuffer->set_manager->set_header_length = 2;
 
 	// save the iovec slot for the header
-	(*(*(*exporter).data_sendbuffer).set_manager).header_iovec
+	exporter->data_sendbuffer->set_manager->header_iovec
 		= &( (*(*exporter).data_sendbuffer).entries[(*(*exporter).data_sendbuffer).current ]   );
 
 	exporter->data_sendbuffer->current++;
@@ -1221,8 +1216,8 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 		// also, write the template header fields into the buffer (except the lenght field);
 
 		//  int ret;
-		char* p_pos;
-		char* p_end;
+		char *p_pos;
+		char *p_end;
 
 		// beginning of the buffer
 		p_pos =  (*exporter).template_arr[found_index].template_fields;
@@ -1277,8 +1272,8 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uin
 	int found_index;
 	/* set pointers to the buffer */
 	int ret;
-	char* p_pos;
-	char* p_end;
+	char *p_pos;
+	char *p_end;
 
 	found_index=ipfix_find_template(exporter, template_id,  UNCLEAN);
 
@@ -1305,10 +1300,10 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uin
 
 	// now write the fields to the buffer:
 	char vendor_specific = NOT_VENDOR_SPECIFIC;
-	if (enterprise_id != 0) vendor_specific = VENDOR_SPECIFIC;
+	if(enterprise_id != 0) vendor_specific = VENDOR_SPECIFIC;
 
 	// write the vendor specific bit & the field type:
-	ret =  write_extension_and_fieldID (&p_pos, p_end, type, vendor_specific);
+	ret = write_extension_and_fieldID (&p_pos, p_end, type, vendor_specific);
 	// write the field length
 	ret = write_unsigned16 (&p_pos, p_end, length);
 
@@ -1333,8 +1328,8 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uin
 int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id )
 {
 	int found_index;
-	char* p_pos;
-	char* p_end;
+	char *p_pos;
+	char *p_end;
 
 	found_index=ipfix_find_template(exporter, template_id, UNCLEAN);
 
@@ -1380,7 +1375,7 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id )
  * Returns: 0  on success, -1 on failure
  * This is an internal function.
  */
-int ipfix_deinit_template_set (ipfix_exporter *exporter, ipfix_lo_template* template) {
+int ipfix_deinit_template_set (ipfix_exporter *exporter, ipfix_lo_template *template) {
 	// note: ipfix_deinit_template_array tries to free all possible templates, many of them
 	// won't be initialized. So you'll get a lot of warning messages, which are just fine...
 
@@ -1394,15 +1389,14 @@ int ipfix_deinit_template_set (ipfix_exporter *exporter, ipfix_lo_template* temp
 
 	// first test, if we can free this template
 	if ( (template->valid == COMMITED) || (template->valid == UNCLEAN )) {
-		template-> valid = UNUSED;
-		free (template-> template_fields);
+		template->valid = UNUSED;
+		free(template->template_fields);
 		exporter->ipfix_lo_template_current_count--;
 
 	} else {
 		DPRINTF("ipfix_deinit_template_set: Cannot free template. Template is UNUSED\n");
 		return -1;
 	}
-
 
 	return 0;
 }
