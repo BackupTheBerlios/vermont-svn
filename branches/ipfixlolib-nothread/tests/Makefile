@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-O -Wall
 INCLUDES=-I../src
 
-TARGET=init_deinit template_generation
+TARGET=init_deinit template_generation identifier_naming
 
 all: $(TARGET)
 
@@ -20,3 +20,5 @@ init_deinit: init_deinit.c
 template_generation: template_generation.c
 	$(CC) $(INCLUDES) $(CFLAGS)  -o template_generation template_generation.c ../src/libipfixlo.a
 
+identifier_naming: identifier_naming.c
+	$(CC) $(INCLUDES) $(CFLAGS)  -o identifier_naming identifier_naming.c ../src/libipfixlo.a
