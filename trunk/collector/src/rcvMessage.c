@@ -36,7 +36,7 @@ void* listenerUdpIpv4(void* handleP) {
 		n = recvfrom(handle, data, MAX_MSG_LEN, 0, (struct sockaddr*)&clientAddress, &clientAddressLen);
 
 		if (n < 0) {
-			debugs("recvfrom returned without data, terminating listener thread");
+			debug("recvfrom returned without data, terminating listener thread");
 			break;
 			}
       
@@ -104,6 +104,6 @@ int rcvMessageUdpIpv4(uint16 port) {
 	}
 
 void rcvMessageClose(int handle) {
-	debugs("closing handle");
+	debug("closing handle");
 	close(handle);
 	}

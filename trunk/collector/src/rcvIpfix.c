@@ -4,6 +4,10 @@ IPFIX Collector module
 Copyright (C) 2004 Christoph Sommer
 http://www.deltadevelopment.de/users/christoph/ipfix
 
+FIXME: Basic support for NetflowV9 packets, templates and flow records
+is provided. Will break when fed options templates or field
+types with type IDs >= 32768 (highest bit set).
+
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
 as published by the Free Software Foundation; either version 2
@@ -30,6 +34,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 /***** Constants ************************************************************/
 
+#define SUPPORT_NETFLOWV9
+
+#define NetflowV9_SetId_Template  0
 
 /***** Data Types ************************************************************/
 
@@ -46,6 +53,20 @@ typedef struct {
 	byte   data;
 	} IpfixHeader;
 
+/**
+ * NetflowV9 header helper.
+ * Constitutes the first bytes of every NetflowV9 Message
+ */
+typedef struct {
+	uint16 version;                 /**< Expected to be 0x0009 */
+	uint16 setCount;
+	uint32 uptime;
+	uint32 exportTime;
+	uint32 sequenceNo;
+	uint32 sourceId;
+	byte   data;
+	} NetflowV9Header;
+                                                                  
 /**
  * IPFIX "Set" helper.
  * Constitutes the first bytes of every IPFIX Template Set, Options Template Set or Data Set
@@ -94,10 +115,6 @@ static TemplateCallbackFunction* templateCallbackFunction;
 static DataTemplateCallbackFunction* dataTemplateCallbackFunction;
 static OptionsTemplateCallbackFunction* optionsTemplateCallbackFunction;
 
-static TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
-static DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
-static OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
-
 static DataRecordCallbackFunction* dataRecordCallbackFunction;
 static OptionsRecordCallbackFunction* optionsRecordCallbackFunction;
 static DataDataRecordCallbackFunction* dataDataRecordCallbackFunction;
@@ -126,22 +143,21 @@ void processTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 		bt->recordLength = 0;
 		bt->setID = ntoh(set->id);
 		bt->templateInfo = ti;
-		bt->templateDestructionCallbackFunction = templateDestructionCallbackFunction;
 		ti->userData = 0;
 		ti->fieldCount = ntoh(th->fieldCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
 		boolean lengthVarying = false;
 		uint16 fieldNo;
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
-			ti->fieldInfo[fieldNo].type = ntoh(*(uint16*)((byte*)record+0));
-			ti->fieldInfo[fieldNo].length = ntoh(*(uint16*)((byte*)record+2));
-			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].length;
-			if (ti->fieldInfo[fieldNo].length == 65535) lengthVarying=true;
-			if (ti->fieldInfo[fieldNo].type & 0x80) {
-				ti->fieldInfo[fieldNo].enterpriseNo = ntoh(*(uint32*)((byte*)record+4));
+			ti->fieldInfo[fieldNo].typeX.id = ntoh(*(uint16*)((byte*)record+0));
+			ti->fieldInfo[fieldNo].typeX.length = ntoh(*(uint16*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].typeX.length;
+			if (ti->fieldInfo[fieldNo].typeX.length == 65535) lengthVarying=true;
+			if (ti->fieldInfo[fieldNo].typeX.id & 0x80) {
+				ti->fieldInfo[fieldNo].typeX.eid = ntoh(*(uint32*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
 				} else {
-				ti->fieldInfo[fieldNo].enterpriseNo = 0;
+				ti->fieldInfo[fieldNo].typeX.eid = 0;
 				record = (byte*)((byte*)record+4);
 				}
 			}
@@ -173,7 +189,6 @@ void processOptionsTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 		bt->recordLength = 0;
 		bt->setID = ntoh(set->id);
 		bt->optionsTemplateInfo = ti;
-		bt->optionsTemplateDestructionCallbackFunction = optionsTemplateDestructionCallbackFunction;
 		ti->userData = 0;
 		ti->scopeCount = ntoh(th->scopeCount);
 		ti->scopeInfo = (FieldInfo*)malloc(ti->scopeCount * sizeof(FieldInfo));
@@ -182,29 +197,29 @@ void processOptionsTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 		boolean lengthVarying = false;
 		uint16 scopeNo;
 		for (scopeNo = 0; scopeNo < ti->scopeCount; scopeNo++) {
-			ti->scopeInfo[scopeNo].type = ntoh(*(uint16*)((byte*)record+0));
-			ti->scopeInfo[scopeNo].length = ntoh(*(uint16*)((byte*)record+2));
-			ti->scopeInfo[scopeNo].offset = bt->recordLength; bt->recordLength+=ti->scopeInfo[scopeNo].length;
-			if (ti->scopeInfo[scopeNo].length == 65535) lengthVarying=true;
-			if (ti->scopeInfo[scopeNo].type & 0x80) {
-				ti->scopeInfo[scopeNo].enterpriseNo = ntoh(*(uint32*)((byte*)record+4));
+			ti->scopeInfo[scopeNo].typeX.id = ntoh(*(uint16*)((byte*)record+0));
+			ti->scopeInfo[scopeNo].typeX.length = ntoh(*(uint16*)((byte*)record+2));
+			ti->scopeInfo[scopeNo].offset = bt->recordLength; bt->recordLength+=ti->scopeInfo[scopeNo].typeX.length;
+			if (ti->scopeInfo[scopeNo].typeX.length == 65535) lengthVarying=true;
+			if (ti->scopeInfo[scopeNo].typeX.id & 0x80) {
+				ti->scopeInfo[scopeNo].typeX.eid = ntoh(*(uint32*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
 				} else {
-				ti->fieldInfo[scopeNo].enterpriseNo = 0;
+				ti->fieldInfo[scopeNo].typeX.eid = 0;
 				record = (byte*)((byte*)record+4);
 				}
 			}
 		uint16 fieldNo;
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
-			ti->fieldInfo[fieldNo].type = ntoh(*(uint16*)((byte*)record+0));
-			ti->fieldInfo[fieldNo].length = ntoh(*(uint16*)((byte*)record+2));
-			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].length;
-			if (ti->fieldInfo[fieldNo].length == 65535) lengthVarying=true;
-			if (ti->fieldInfo[fieldNo].type & 0x80) {
-				ti->fieldInfo[fieldNo].enterpriseNo = ntoh(*(uint32*)((byte*)record+4));
+			ti->fieldInfo[fieldNo].typeX.id = ntoh(*(uint16*)((byte*)record+0));
+			ti->fieldInfo[fieldNo].typeX.length = ntoh(*(uint16*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].typeX.length;
+			if (ti->fieldInfo[fieldNo].typeX.length == 65535) lengthVarying=true;
+			if (ti->fieldInfo[fieldNo].typeX.id & 0x80) {
+				ti->fieldInfo[fieldNo].typeX.eid = ntoh(*(uint32*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
 				} else {
-				ti->fieldInfo[fieldNo].enterpriseNo = 0;
+				ti->fieldInfo[fieldNo].typeX.eid = 0;
 				record = (byte*)((byte*)record+4);
 				}
 			}
@@ -237,7 +252,6 @@ void processDataTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 		bt->recordLength = 0;
 		bt->setID = ntoh(set->id);
 		bt->dataTemplateInfo = ti;
-		bt->dataTemplateDestructionCallbackFunction = dataTemplateDestructionCallbackFunction;
 		ti->userData = 0;
 		ti->fieldCount = th->fieldCount;
 		ti->dataCount = th->dataCount;
@@ -245,15 +259,15 @@ void processDataTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 		boolean lengthVarying = false;
 		uint16 fieldNo;
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
-			ti->fieldInfo[fieldNo].type = ntoh(*(uint16*)((byte*)record+0));
-			ti->fieldInfo[fieldNo].length = ntoh(*(uint16*)((byte*)record+2));
-			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].length;
-			if (ti->fieldInfo[fieldNo].length == 65535) lengthVarying=true;
-			if (ti->fieldInfo[fieldNo].type & 0x80) {
-				ti->fieldInfo[fieldNo].enterpriseNo = ntoh(*(uint32*)((byte*)record+4));
+			ti->fieldInfo[fieldNo].typeX.id = ntoh(*(uint16*)((byte*)record+0));
+			ti->fieldInfo[fieldNo].typeX.length = ntoh(*(uint16*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].typeX.length;
+			if (ti->fieldInfo[fieldNo].typeX.length == 65535) lengthVarying=true;
+			if (ti->fieldInfo[fieldNo].typeX.id & 0x80) {
+				ti->fieldInfo[fieldNo].typeX.eid = ntoh(*(uint32*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
 				} else {
-				ti->fieldInfo[fieldNo].enterpriseNo = 0;
+				ti->fieldInfo[fieldNo].typeX.eid = 0;
 				record = (byte*)((byte*)record+4);
 				}
 			}
@@ -264,24 +278,24 @@ void processDataTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 
 		ti->dataInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
 		for (fieldNo = 0; fieldNo < ti->dataCount; fieldNo++) {
-			ti->dataInfo[fieldNo].type = ntoh(*(uint16*)((byte*)record+0));
-			ti->dataInfo[fieldNo].length = ntoh(*(uint16*)((byte*)record+2));
-			if (ti->dataInfo[fieldNo].type & 0x80) {
-				ti->dataInfo[fieldNo].enterpriseNo = ntoh(*(uint32*)((byte*)record+4));
+			ti->dataInfo[fieldNo].typeX.id = ntoh(*(uint16*)((byte*)record+0));
+			ti->dataInfo[fieldNo].typeX.length = ntoh(*(uint16*)((byte*)record+2));
+			if (ti->dataInfo[fieldNo].typeX.id & 0x80) {
+				ti->dataInfo[fieldNo].typeX.eid = ntoh(*(uint32*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
 				} else {
-				ti->dataInfo[fieldNo].enterpriseNo = 0;
+				ti->dataInfo[fieldNo].typeX.eid = 0;
 				record = (byte*)((byte*)record+4);
 				}
 			ti->dataInfo[fieldNo].offset = (record - &th->data);
-			if (ti->dataInfo[fieldNo].length == 65535) {
+			if (ti->dataInfo[fieldNo].typeX.length == 65535) {
 				if (*(byte*)record < 255) {
-					ti->dataInfo[fieldNo].length = *(byte*)record;
+					ti->dataInfo[fieldNo].typeX.length = *(byte*)record;
 					} else {
-					ti->dataInfo[fieldNo].length = *(uint16*)(record+1);
+					ti->dataInfo[fieldNo].typeX.length = *(uint16*)(record+1);
 					}
 				}
-			record = record + ti->dataInfo[fieldNo].length;
+			record = record + ti->dataInfo[fieldNo].typeX.length;
 			}
 
 		// Copy fixed data block
@@ -304,11 +318,15 @@ void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
 	BufferedTemplate* bt = getBufferedTemplate(sourceId, ntoh(set->id));
 
 	if (bt == 0) {
-		error("Template %d unknown to collecting process", ntoh(set->id));
+		errorf("Template %d unknown to collecting process", ntoh(set->id));
 		return;
 		}
 	
+	#ifdef SUPPORT_NETFLOWV9
+	if ((bt->setID == IPFIX_SetId_Template) || (bt->setID == NetflowV9_SetId_Template)) {
+	#else
 	if (bt->setID == IPFIX_SetId_Template) {
+	#endif
   		if (dataRecordCallbackFunction == 0) return;
 
 		TemplateInfo* ti = bt->templateInfo;
@@ -331,8 +349,8 @@ void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
 				int i;
 				for (i = 0; i < ti->fieldCount; i++) {
 					int fieldLength = 0;
-					if (ti->fieldInfo[i].length < 65535) {
-						fieldLength = ti->fieldInfo[i].length;
+					if (ti->fieldInfo[i].typeX.length < 65535) {
+						fieldLength = ti->fieldInfo[i].typeX.length;
 						} else {
 						if (*(byte*)record < 255) {
 							fieldLength = *(byte*)record;
@@ -340,7 +358,7 @@ void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
 							fieldLength = *(uint16*)(record+1);
 							}
 						}
-					ti->fieldInfo[i].length = fieldLength;
+					ti->fieldInfo[i].typeX.length = fieldLength;
 					ti->fieldInfo[i].offset = recordLength;
 					recordLength += fieldLength;
 					}
@@ -370,8 +388,8 @@ void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
 				int i;
 				for (i = 0; i < ti->scopeCount; i++) {
 					int fieldLength = 0;
-					if (ti->scopeInfo[i].length < 65535) {
-						fieldLength = ti->scopeInfo[i].length;
+					if (ti->scopeInfo[i].typeX.length < 65535) {
+						fieldLength = ti->scopeInfo[i].typeX.length;
 						} else {
 						if (*(byte*)record < 255) {
 							fieldLength = *(byte*)record;
@@ -379,14 +397,14 @@ void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
 							fieldLength = *(uint16*)(record+1);
 							}
 						}
-					ti->scopeInfo[i].length = fieldLength;
+					ti->scopeInfo[i].typeX.length = fieldLength;
 					ti->scopeInfo[i].offset = recordLength;
 					recordLength += fieldLength;
 					}
 				for (i = 0; i < ti->fieldCount; i++) {
 					int fieldLength = 0;
-					if (ti->fieldInfo[i].length < 65535) {
-						fieldLength = ti->fieldInfo[i].length;
+					if (ti->fieldInfo[i].typeX.length < 65535) {
+						fieldLength = ti->fieldInfo[i].typeX.length;
 						} else {
 						if (*(byte*)record < 255) {
 							fieldLength = *(byte*)record;
@@ -394,7 +412,7 @@ void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
 							fieldLength = *(uint16*)(record+1);
 							}
 						}
-					ti->fieldInfo[i].length = fieldLength;
+					ti->fieldInfo[i].typeX.length = fieldLength;
 					ti->fieldInfo[i].offset = recordLength;
 					recordLength += fieldLength;
 					}
@@ -424,8 +442,8 @@ void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
 				int i;
 				for (i = 0; i < ti->fieldCount; i++) {
 					int fieldLength = 0;
-					if (ti->fieldInfo[i].length < 65535) {
-						fieldLength = ti->fieldInfo[i].length;
+					if (ti->fieldInfo[i].typeX.length < 65535) {
+						fieldLength = ti->fieldInfo[i].typeX.length;
 						} else {
 						if (*(byte*)record < 255) {
 							fieldLength = *(byte*)record;
@@ -433,7 +451,7 @@ void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
 							fieldLength = *(uint16*)(record+1);
 							}
 						}
-					ti->fieldInfo[i].length = fieldLength;
+					ti->fieldInfo[i].typeX.length = fieldLength;
 					ti->fieldInfo[i].offset = recordLength;
 					recordLength += fieldLength;
 					}
@@ -442,19 +460,38 @@ void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
 				}
 			}
 		} else {
-		fatal("Data Set based on known but unhandled template type %d", bt->setID);
+		fatalf("Data Set based on known but unhandled template type %d", bt->setID);
 		}
 	}
 	
-boolean processMessage(byte* message, uint16 length) {
-	IpfixHeader* header = (IpfixHeader*)message;
-	if (ntoh(header->version) != 0x000a) {
- 		error("Bad message version - expected 0x000a, got %#06x", ntoh(header->version));
-		return false;
+
+boolean processNetflowV9Packet(byte* message, uint16 length) {
+	NetflowV9Header* header = (NetflowV9Header*)message;
+	
+	// pointer to first set
+	IpfixSetHeader* set = (IpfixSetHeader*)&header->data;
+
+	int i;
+	for (i = 0; i < header->setCount; i++) {
+		if (ntoh(set->id) == NetflowV9_SetId_Template) {
+  			processTemplateSet(ntoh(header->sourceId), set);
+  			} else
+		if (ntoh(set->id) >= IPFIX_SetId_Data_Start) {
+  			processDataSet(ntoh(header->sourceId), set);
+  			} else {
+			errorf("Unsupported Set ID - expected 0/256+, got %d", ntoh(set->id));
+  			}
+		set = (IpfixSetHeader*)((byte*)set + ntoh(set->length));
 		}
 
+	return true;
+	}
+
+boolean processIpfixPacket(byte* message, uint16 length) {
+	IpfixHeader* header = (IpfixHeader*)message;
+
 	if (ntoh(header->length) != length) {
- 		error("Bad message length - expected %#06x, got %#06x", length, ntoh(header->length));
+ 		errorf("Bad message length - expected %#06x, got %#06x", length, ntoh(header->length));
 		return false;
  		}
 
@@ -477,7 +514,7 @@ boolean processMessage(byte* message, uint16 length) {
 		if (ntoh(set->id) >= IPFIX_SetId_Data_Start) {
   			processDataSet(ntoh(header->sourceId), set);
   			} else {
-			error("Unsupported Set ID - expected 2/3/4/256+, got %d", ntoh(set->id));
+			errorf("Unsupported Set ID - expected 2/3/4/256+, got %d", ntoh(set->id));
   			}
 		set = (IpfixSetHeader*)((byte*)set + ntoh(set->length));
 		}
@@ -486,6 +523,112 @@ boolean processMessage(byte* message, uint16 length) {
 	}
 
 
+boolean processMessage(byte* message, uint16 length) {
+	IpfixHeader* header = (IpfixHeader*)message;
+	if (ntoh(header->version) == 0x000a) {
+		return processIpfixPacket(message, length);
+		}
+	#ifdef SUPPORT_NETFLOWV9
+	if (ntoh(header->version) == 0x0009) {
+		return processNetflowV9Packet(message, length);
+		}
+	errorf("Bad message version - expected 0x009 or 0x000a, got %#06x", ntoh(header->version));
+	return false;
+	#else
+	error("Bad message version - expected 0x000a, got %#06x", ntoh(header->version));
+	return false;
+	#endif
+	}
+	
+void printIPv4(FieldType type, FieldData* data) {
+	int octet1 = 0;
+	int octet2 = 0;
+	int octet3 = 0;
+	int octet4 = 0;
+	int imask = 0;
+	if (type.length >= 1) octet1 = data[0];
+	if (type.length >= 2) octet2 = data[1];
+	if (type.length >= 3) octet3 = data[2];
+	if (type.length >= 4) octet4 = data[3];
+	if (type.length >= 5) imask = data[4];
+	if (type.length > 5) {
+		errorf("IPv4 Address with length %d unparseable", type.length);
+		return;
+		}
+	
+	if (type.length < 5) {
+		printf("%d.%d.%d.%d", octet1, octet2, octet3, octet4);
+		} else {
+		printf("%d.%d.%d.%d/%d", octet1, octet2, octet3, octet4, 32-imask);
+		}
+	}
+
+void printPort(FieldType type, FieldData* data) {
+	if (type.length == 0) {
+		printf("zero-length Port");
+		return;
+		}
+	if (type.length == 2) {
+		int port = ((uint16)data[0] << 8)+data[1];
+		printf("%d", port);
+		return;
+		}
+	if ((type.length >= 4) && ((type.length % 4) == 0)) {
+		int i;
+		for (i = 0; i < type.length; i+=4) {
+			int starti = ((uint16)data[i+0] << 8)+data[i+1];
+			int endi = ((uint16)data[i+2] << 8)+data[i+3];
+			if (i > 0) printf(",");
+			if (starti != endi) {
+				printf("%d:%d", starti, endi);
+				} else {
+				printf("%d", starti);
+				}
+			} 
+		return;
+		}
+	
+	errorf("Port with length %d unparseable", type.length);
+	}
+
+void printProtocol(FieldType type, FieldData* data) {
+	if (type.length != 1) {
+		errorf("Protocol with length %d unparseable", type.length);
+		return;
+		}
+	if (data[0] == IPFIX_protocolIdentifier_ICMP) printf("ICMP");
+	else if (data[0] == IPFIX_protocolIdentifier_TCP) printf("TCP");
+	else if (data[0] == IPFIX_protocolIdentifier_UDP) printf("UDP");
+	else if (data[0] == IPFIX_protocolIdentifier_RAW) printf("RAW");
+	else printf("unknownProtocol");
+	}
+
+void printUint(FieldType type, FieldData* data) {
+	if (type.length == 1) {
+		uint32 i = (data[0] << 0);
+		printf("%d",i);		
+		return;
+		}
+	if (type.length == 2) {
+		uint32 i = (data[0] << 8)+(data[1] << 0);
+		printf("%d",i);		
+		return;
+		}
+	if (type.length == 4) {
+		uint32 i = (data[0] << 24)+(data[1] << 16)+(data[2] << 8)+(data[3] << 0);
+		printf("%d",i);		
+		return;
+		}
+	if (type.length == 8) {
+		uint32 i = (data[0] << 24)+(data[1] << 16)+(data[2] << 8)+(data[3] << 0);
+		uint32 j = (data[4] << 24)+(data[5] << 16)+(data[6] << 8)+(data[7] << 0);
+		printf("%d'%d",i,j);
+		return;
+		}
+	
+	errorf("Uint with length %d unparseable", type.length);
+	}
+	
 /***** Exported Functions ****************************************************/
 
 boolean initializeRcvIpfix() {
@@ -493,9 +636,6 @@ boolean initializeRcvIpfix() {
 	templateCallbackFunction = 0;
 	dataTemplateCallbackFunction = 0;
 	optionsTemplateCallbackFunction = 0;
-	templateDestructionCallbackFunction = 0;
-	dataTemplateDestructionCallbackFunction = 0;
-	optionsTemplateDestructionCallbackFunction = 0;
 	dataRecordCallbackFunction = 0;
 	optionsRecordCallbackFunction = 0;
 	dataDataRecordCallbackFunction = 0;
@@ -512,8 +652,79 @@ boolean deinitializeRcvIpfix() {
 	return true;
 	}
 
+void printFieldData(FieldType type, FieldData* pattern) {
+	char* s;
+	
+	switch (type.id) {
+		case IPFIX_TYPEID_protocolIdentifier:
+			printf("protocolIdentifier:");
+			printProtocol(type, pattern);
+			break;
+		case IPFIX_TYPEID_sourceIPv4Address:
+			printf("sourceIPv4Address:");
+			printIPv4(type, pattern);
+			break;
+		case IPFIX_TYPEID_destinationIPv4Address:
+			printf("destinationIPv4Address:");
+			printIPv4(type, pattern);
+			break;				
+		case IPFIX_TYPEID_sourceTransportPort:
+			printf("sourceTransportPort:");
+			printPort(type, pattern);
+			break;
+		case IPFIX_TYPEID_destinationtransportPort:
+			printf("destinationtransportPort:");
+			printPort(type, pattern);
+			break;
+		default:
+			s = typeid2string(type.id);
+			if (s != NULL) {
+				printf("%s:", s);
+				printUint(type, pattern);
+				} else {
+				errorf("Field with ID %d unparseable", type.id);
+				}
+			break;
+		}
+	}
 
+FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type) {
+	int i;
+	
+	for (i = 0; i < ti->fieldCount; i++) {
+		if ((ti->fieldInfo[i].typeX.id == type->id) && (ti->fieldInfo[i].typeX.eid == type->eid)) {
+			return &ti->fieldInfo[i];
+			}
+		}
 
+	return NULL;		
+	}
+
+FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type) {
+	int i;
+	
+	for (i = 0; i < ti->fieldCount; i++) {
+		if ((ti->fieldInfo[i].typeX.id == type->id) && (ti->fieldInfo[i].typeX.eid == type->eid)) {
+			return &ti->fieldInfo[i];
+			}
+		}
+
+	return NULL;		
+	}
+
+FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type) {
+	int i;
+	
+	for (i = 0; i < ti->dataCount; i++) {
+		if ((ti->dataInfo[i].typeX.id == type->id) && (ti->dataInfo[i].typeX.eid == type->eid)) {
+			return &ti->dataInfo[i];
+			}
+		}
+
+	return NULL;		
+	}
+	
+	
 void setTemplateCallback(TemplateCallbackFunction* templateCallbackFunction_) {
 	templateCallbackFunction = templateCallbackFunction_;
 	}
@@ -524,19 +735,6 @@ void setOptionsTemplateCallback(OptionsTemplateCallbackFunction* optionsTemplate
 
 void setDataTemplateCallback(DataTemplateCallbackFunction* dataTemplateCallbackFunction_) {
 	dataTemplateCallbackFunction = dataTemplateCallbackFunction_;
-	}
-
-
-void setTemplateDestructionCallback(TemplateDestructionCallbackFunction* templateDestructionCallbackFunction_) {
-	templateDestructionCallbackFunction = templateDestructionCallbackFunction_;
-	}
-
-void setOptionsTemplateDestructionCallback(OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction_) {
-	optionsTemplateDestructionCallbackFunction = optionsTemplateDestructionCallbackFunction_;
-	}
-
-void setDataTemplateDestructionCallback(DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction_) {
-	dataTemplateDestructionCallbackFunction = dataTemplateDestructionCallbackFunction_;
 	}
 
 

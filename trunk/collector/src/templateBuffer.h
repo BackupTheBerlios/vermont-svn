@@ -7,7 +7,7 @@
 #define TEMPLATEBUFFER_H
 
 #include "rcvIpfix.h"
-#include "tools.h"
+#include "common.h"
 #include "time.h"
 
 /***** Constants ************************************************************/
@@ -22,17 +22,12 @@ typedef struct {
 	SourceID	sourceID;		/**< source identifier of exporter that sent this template */
 	TemplateID	templateID;		/**< template# this template defines */
 	uint16		recordLength;	/**< length of one record in the data set. Variable-length carry -1 */
-	TemplateID	setID;			/**< should be 2,3,4 and determines the type of pointer used in the unions */
+	TemplateID	setID;			/**< should be 2,3,4 and determines the type of pointer used in the union */
 	time_t		expires;	/**< Timestamp when this Template will expire or 0 if it will never expire */
 	union {
 		TemplateInfo* templateInfo;
 		OptionsTemplateInfo* optionsTemplateInfo;
 		DataTemplateInfo* dataTemplateInfo;
-		};
-	union {
-		TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
-		DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
-		OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
 		};
 	byte*       next;           /**< Pointer to next buffered Template */
 	} BufferedTemplate;
@@ -44,5 +39,6 @@ void deinitializeTemplateBuffer();
 BufferedTemplate* getBufferedTemplate(SourceID sourceId, TemplateID templateId);
 void destroyBufferedTemplate(SourceID sourceId, TemplateID id);
 void bufferTemplate(BufferedTemplate* bt);
+void destroyBufferedTemplates();
 
 #endif

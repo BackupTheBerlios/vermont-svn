@@ -7,7 +7,7 @@
 #ifndef RCVIPFIX_H
 #define RCVIPFIX_H
 
-#include "tools.h"
+#include "common.h"
 
 /***** Constants ************************************************************/
 
@@ -15,13 +15,28 @@
 
 /***** Data Types ***********************************************************/
 
+typedef uint16 SourceID;
+typedef uint16 TemplateID;
+typedef uint16 TypeId;
+typedef uint16 FieldLength;
+typedef uint16 EnterpriseNo;
+typedef byte FieldData;
+
+/**
+ * IPFIX field type and length.
+ * if "id" is < 0x8000, i.e. no user-defined type, "eid" is 0
+ */ 
+typedef struct {
+	TypeId id;          /**< type tag of this field, according to [INFO] */
+	FieldLength length; /**< length in bytes of this field */	
+	EnterpriseNo eid;   /**< enterpriseNo for user-defined data types (i.e. type >= 0x8000) */	
+	} FieldType;
+
 /**
  * Information describing a single field in the fields passed via various callback functions.
  */
 typedef struct {
-	uint16 type;           /**< type tag of this field, according to [INFO] */
-	uint16 length;         /**< length in bytes of this field */
-	uint32 enterpriseNo;   /**< enterpriseNo for user-defined data types (type >= 0x8000) */
+	FieldType typeX;
 	uint16 offset;         /**< offset in bytes from a data start pointer. 65535 means unknown */
 	} FieldInfo;
 
@@ -54,7 +69,7 @@ typedef struct {
 	FieldInfo* fieldInfo;   /**< array of FieldInfos describing each of these fields */
 	uint16     dataCount;   /**< number of fixed-value fields */
 	FieldInfo* dataInfo;    /**< array of FieldInfos describing each of these fields */
-	byte*      data;        /**< data start pointer for fixed-value fields */
+	FieldData* data;        /**< data start pointer for fixed-value fields */
 	byte*      userData;    /**< pointer to a field that can be used by higher-level modules */
 	} DataTemplateInfo;
 
@@ -83,34 +98,6 @@ typedef boolean(OptionsTemplateCallbackFunction)(SourceID sourceID, OptionsTempl
  */
 typedef boolean(DataTemplateCallbackFunction)(SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 
-/*** Template Destruction Callbacks ***/
-
-/**
- * Callback function invoked when a Template is being destroyed.
- * Particularly useful for cleaning up userData associated with this Template
- * @param sourceId SourceID of the exporter that sent this Template
- * @param templateInfo Pointer to a structure defining this Template
- * @return true if packet handled successfully, false otherwise
- */
-typedef boolean(TemplateDestructionCallbackFunction)(SourceID sourceID, TemplateInfo* templateInfo);
-
-/**
- * Callback function invoked when a OptionsTemplate is being destroyed.
- * Particularly useful for cleaning up userData associated with this Template
- * @param sourceId SourceID of the exporter that sent this OptionsTemplate
- * @param optionsTemplateInfo Pointer to a structure defining this OptionsTemplate
- * @return true if packet handled successfully, false otherwise
- */
-typedef boolean(OptionsTemplateDestructionCallbackFunction)(SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo);
-
-/**
- * Callback function invoked when a DataTemplate is being destroyed.
- * Particularly useful for cleaning up userData associated with this Template
- * @param sourceId SourceID of the exporter that sent this DataTemplate
- * @return true if packet handled successfully, false otherwise
- */
-typedef boolean(DataTemplateDestructionCallbackFunction)(SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
-
 /*** Data Callbacks ***/
 
 /**
@@ -121,7 +108,7 @@ typedef boolean(DataTemplateDestructionCallbackFunction)(SourceID sourceID, Data
  * @param data Pointer to a data block containing all fields
  * @return true if packet handled successfully, false otherwise
  */
-typedef boolean(DataRecordCallbackFunction)(SourceID sourceID, TemplateInfo* templateInfo, uint16 length, byte* data);
+typedef boolean(DataRecordCallbackFunction)(SourceID sourceID, TemplateInfo* templateInfo, uint16 length, FieldData* data);
 
 /**
  * Callback function invoked when a new Options Record arrives.
@@ -131,7 +118,7 @@ typedef boolean(DataRecordCallbackFunction)(SourceID sourceID, TemplateInfo* tem
  * @param data Pointer to a data block containing all fields
  * @return true if packet handled successfully, false otherwise
  */
-typedef boolean(OptionsRecordCallbackFunction)(SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16 length, byte* data);
+typedef boolean(OptionsRecordCallbackFunction)(SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16 length, FieldData* data);
 
 /**
  * Callback function invoked when a new Data Record with associated Fixed Values arrives.
@@ -141,7 +128,7 @@ typedef boolean(OptionsRecordCallbackFunction)(SourceID sourceID, OptionsTemplat
  * @param data Pointer to a data block containing all variable fields
  * @return true if packet handled successfully, false otherwise
  */
-typedef boolean(DataDataRecordCallbackFunction)(SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16 length, byte* data);
+typedef boolean(DataDataRecordCallbackFunction)(SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16 length, FieldData* data);
 
 /***** Prototypes ***********************************************************/
 
@@ -160,6 +147,35 @@ boolean initializeRcvIpfix();
  * @return true if call succeeded, false otherwise
  */
 boolean deinitializeRcvIpfix();
+
+/**
+ * Prints a string representation of FieldData to stdout.
+ */
+void printFieldData(FieldType type, FieldData* pattern);
+
+/**
+ * Gets a Template's FieldInfo by field id.
+ * @param ti Template to search in
+ * @param type Field id and field eid to look for, length is ignored
+ * @return NULL if not found
+ */
+FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type);
+
+/**
+ * Gets a DataTemplate's FieldInfo by field id.
+ * @param ti DataTemplate to search in
+ * @param type Field id and field eid to look for, length is ignored
+ * @return NULL if not found
+ */
+FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type);
+
+/**
+ * Gets a DataTemplate's Data-FieldInfo by field id.
+ * @param ti DataTemplate to search in
+ * @param type Field id and field eid to look for, length is ignored
+ * @return NULL if not found
+ */
+FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
 
 /**
  * Prepares a UDP/IPv4 socket.
@@ -210,32 +226,6 @@ void setOptionsTemplateCallback(OptionsTemplateCallbackFunction* optionsTemplate
  * @return true if call succeeded, false otherwise
  */
 void setDataTemplateCallback(DataTemplateCallbackFunction* dataTemplateCallbackFunction);
-
-/*** Template Destruction Callbacks ***/
-
-/**
- * Sets the callback function to invoke when a Template is being destroyed.
- * Particularly useful for cleaning up userData associated with this Template
- * @param templateDestructionCallbackFunction pointer to the callback function
- * @return true if call succeeded, false otherwise
- */
-void setTemplateDestructionCallback(TemplateDestructionCallbackFunction* templateDestructionCallbackFunction);
-
-/**
- * Sets the callback function to invoke when a OptionsTemplate is being destroyed.
- * Particularly useful for cleaning up userData associated with this Template
- * @param optionsTemplateDestructionCallbackFunction pointer to the callback function
- * @return true if call succeeded, false otherwise
- */
-void setOptionsTemplateDestructionCallback(OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction);
-
-/**
- * Sets the callback function to invoke when a DataTemplate is being destroyed.
- * Particularly useful for cleaning up userData associated with this Template
- * @param dataTemplateDestructionCallbackFunction pointer to the callback function
- * @return true if call succeeded, false otherwise
- */
-void setDataTemplateDestructionCallback(DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction);
 
 /*** Data Callbacks ***/
 

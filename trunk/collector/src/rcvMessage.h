@@ -6,7 +6,7 @@
 #ifndef RCVMESSAGE_H
 #define RCVMESSAGE_H
 
-#include "tools.h"
+#include "common.h"
 
 /***** Constants ************************************************************/
 
