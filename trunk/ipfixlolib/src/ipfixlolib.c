@@ -245,7 +245,12 @@ int ipfix_add_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_
 		printf (" ipfix_add_collector searching %i, i %i \n", searching, i);
 		if ( (*exporter).collector_arr[i].valid == FALSE ) {
 			// we have found a free slot:
-			(*exporter).collector_arr[i].ipv4address = coll_ip4_addr;
+			/*
+			 FIXME: only a quick fix to make that work
+                         Must be copied, else pointered data must be around forever
+			 Better use binary/u_int32_t representation
+                         */
+			strncpy((*exporter).collector_arr[i].ipv4address, coll_ip4_addr, 16);
 			(*exporter).collector_arr[i].port_number = coll_port;
 			(*exporter).collector_arr[i].protocol = proto;
 

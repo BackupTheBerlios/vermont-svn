@@ -223,7 +223,7 @@ typedef struct {
  */
 typedef struct {
 	int valid; // indicates, wheter this collector is valid. .
-	char *ipv4address;
+	char ipv4address[16];
 	int port_number;
 	enum ipfix_transport_protocol protocol;
 	// warning! To use SCTP, we will need several ports!
