@@ -20,6 +20,35 @@
 #define DPRINTF(fmt, args...)
 #endif
 
+#ifdef IPFIX_THREADED
+//#define SUPERLOCK(exporter) pthread_mutex_lock(&ipfix_g_mutex);
+//#define SUPERUNLOCK() pthread_mutex_unlock(&ipfix_g_mutex);
+#define IPFIX_MUTEX_ATTR NULL
+#else 
+#define SUPERLOCK() 
+#define SUPERUNLOCK()
+#endif
+
+#ifdef IPFIX_THREADED
+#define SUPERLOCK() ret = pthread_mutex_lock(&ipfix_g_mutex); \
+	if (ret !=0 ) {\
+		fprintf (stderr, "ipfix_lock_mutex on global mutex failed!\n"); \
+		DPRINTF (" pthread_mutex_lock(&ipfix_g_mutex) returned %i \n", ret); \
+		return -1; \
+	} else DPRINTF ("SUPERLOCK obtained with res %i\n", ret);
+
+#define SUPERUNLOCK() ret = pthread_mutex_unlock(&ipfix_g_mutex); \
+	if (ret !=0 ) {\
+		fprintf (stderr, "ipfix_unlock_mutex on global mutex failed!\n"); \
+		DPRINTF (" pthread_mutex_unlock(&ipfix_g_mutex) returned %i \n", ret); \
+		return -1; \
+		} else DPRINTF ("SUPERUNLOCK freed with res %i\n", ret);
+#endif
+
+
+
+enum ipfix_lock_target {DATA, TEMPLATE, COLLECTOR, EXPORTER};
+
 static int init_rcv_udp_socket(int lport);
 static int init_send_udp_socket(char *serv_ip4_addr, int serv_port);
 static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum ipfix_validity cleanness);
@@ -39,6 +68,300 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter);
 static int ipfix_update_template_sendbuffer(ipfix_exporter *exporter);
 static int ipfix_send_templates(ipfix_exporter* exporter);
 static int ipfix_send_data(ipfix_exporter* exporter);
+
+
+/********************************************************************/
+/* Mutex locking / unlocking                                        */
+/********************************************************************/
+
+/*
+ * Helper function: obtain a mutex from an exporter
+ * Is likely to block the current thread, if used with threads.
+ */
+int ipfix_lock_mutex(ipfix_exporter* exporter, enum ipfix_lock_target target) {
+#ifdef IPFIX_THREADED
+	int ret = 0;
+	int success = FALSE;
+	pthread_mutex_t* my_mutex;
+	// is our exporter possibly invalid?
+	if (exporter == NULL) {
+		("ipfix_lock_mutex failed: Exporter is NULL!\n");
+		return -1;
+	}
+
+	/* determine our mutex: */
+	switch (target){
+	case EXPORTER:
+		// printf ("TARGET: Exporter\n");
+		// we already have our lock!
+		return 0;
+		break;
+			
+	case DATA:
+		my_mutex = &exporter-> data_sendbuffer_mutex;
+		break;
+
+	case TEMPLATE:
+		my_mutex = &exporter-> template_sendbuffer_mutex;
+		break;
+
+	case COLLECTOR:
+		my_mutex = &exporter->  collector_array_mutex;
+		break;
+
+	default:
+		fprintf (stderr, "Ipfix_lock_mutex: invalid type %i!\n", target);
+		DPRINTF ("++++++++++++++++++++++++++++++++++++++++++\n");
+		return -1;
+	}
+
+	
+
+
+
+	while (!success) { // success loop
+
+		// try to lock the exporter (superlock)
+		ret = pthread_mutex_lock( &(exporter->exporter_mutex));
+		if (ret !=0 ) {
+			fprintf (stderr, "ipfix_lock_mutex on exporter mutex failed!\n");
+			DPRINTF (" pthread_mutex_lock returned %i; Thread %i \n", ret,  pthread_self());
+		
+			return -1;
+		}	
+		DPRINTF ("Thread %i locked EXPORTER\n", pthread_self());
+
+		/* now, try to obtain our lock */
+		ret = pthread_mutex_trylock (my_mutex);
+
+
+		if (ret == 0 ) {
+			// we are successful
+			success = TRUE;
+			DPRINTF ("Locked mutex No. %i, Thread %i \n", target, pthread_self());
+		} else {
+			// check for serious error conditions:
+			if (errno == EINVAL) {
+				fprintf (stderr, "ipfix_lock_mutex: the mutex has not been properly initialized\n");
+				DPRINTF ("++++++++++++++++++++++++++++++++++++++++++\n");
+				// do not forget to unlock the exporter!
+			}
+			
+		}
+		// unlock the exporter again:
+		ret = pthread_mutex_unlock(&(exporter->exporter_mutex));
+		if (ret !=0 ) {
+			fprintf (stderr, "ipfix_lock_mutex unlocking exporter mutex failed!\n");
+			DPRINTF ("pthread_mutex_unlock returned %i, Thread %i \n", ret, pthread_self() );
+			return -1;
+		}
+		DPRINTF ("Thread %i unlocked EXPORTER\n", pthread_self());
+
+	} // end loop
+
+#else
+	// we may just as well check, if the exporter is valid:
+	if (exporter == NULL) {
+		DPRINTF ("ipfix_lock_mutex failed: Exporter is NULL!\n");
+		return -1;
+	}
+#endif
+	return 0;
+
+}
+
+
+
+/*
+ * Helper function: release a mutex from an exporter
+ */
+int ipfix_unlock_mutex(ipfix_exporter* exporter, enum ipfix_lock_target target){
+#ifdef IPFIX_THREADED
+	int ret = 0;
+	pthread_mutex_t* my_mutex;
+	switch (target){
+
+	case DATA:
+		my_mutex = &exporter-> data_sendbuffer_mutex;
+		break;
+
+	case TEMPLATE:
+		my_mutex = &exporter-> template_sendbuffer_mutex;
+		break;
+
+	case COLLECTOR:
+		my_mutex = &exporter->  collector_array_mutex;
+		break;
+	case EXPORTER:
+		my_mutex = &exporter-> exporter_mutex;
+		break;
+	default:
+		fprintf (stderr, "Ipfix_unlock_mutex: invalid type %i!\n", target);
+		DPRINTF ("++++++++++++++++++++++++++++++++++++++++++\n");
+		return -1;
+	}
+	ret = pthread_mutex_unlock ( (my_mutex));
+	DPRINTF ("UNLocked mutex No. %i, Thread %i\n", target, pthread_self() );
+	if (ret != 0 ) DPRINTF ("ipfix_unlock_mutex : unlock returned %i\n", ret);
+	return ret;
+#else 
+	return 0;
+#endif
+}
+
+
+/*
+ * Helper function: obtain two mutexes from an exporter
+ * Is likely to block the current thread, if used with threads.
+ */
+int ipfix_double_lock_mutex(ipfix_exporter* exporter, enum ipfix_lock_target t1, enum ipfix_lock_target t2) {
+#ifdef IPFIX_THREADED
+	int ret = 0;
+	int success = FALSE;
+	pthread_mutex_t* my_mutex1;
+	pthread_mutex_t* my_mutex2;
+	// is our exporter possibly invalid?
+	if (exporter == NULL) {
+		("ipfix_double_lock_mutex failed: Exporter is NULL!\n");
+		return -1;
+	}
+
+	// sanity check: are both targets the same?
+	if (t1 == t2) {
+		fprintf (stderr, "ipfix_double_lock_mutex: cannot lock the same target twice.\n");
+		return -1;
+	}
+	
+	
+	/* determine our first mutex: */
+	switch (t1){
+	case DATA:
+		my_mutex1 = &exporter-> data_sendbuffer_mutex;
+		break;
+
+	case TEMPLATE:
+		my_mutex1 = &exporter-> template_sendbuffer_mutex;
+		break;
+
+	case COLLECTOR:
+		my_mutex1 = &exporter->  collector_array_mutex;
+		break;
+
+	default:
+		fprintf (stderr, "Ipfix_double_lock_mutex: invalid type %i!\n", t1);
+		fprintf (stderr, "Ipfix_double_lock_mutex: cannot be used on EXPORTER\n");			
+		DPRINTF ("++++++++++++++++++++++++++++++++++++++++++\n");
+		ret = pthread_mutex_unlock( &(exporter->exporter_mutex));
+		if (ret !=0 ) {
+			fprintf (stderr, "ipfix_double_lock_mutex unlocking exporter mutex failed!\n");
+			DPRINTF ("pthread_mutex_unlock returned %i, Thread %i \n", ret, pthread_self());
+			return -1;
+		}
+		return -1;
+	}
+	/* determine our second mutex: */
+	switch (t2){
+	case DATA:
+		my_mutex2 = &exporter-> data_sendbuffer_mutex;
+		break;
+
+	case TEMPLATE:
+		my_mutex2 = &exporter-> template_sendbuffer_mutex;
+		break;
+
+	case COLLECTOR:
+		my_mutex2 = &exporter->  collector_array_mutex;
+		break;
+
+	default:
+		fprintf (stderr, "Ipfix_double_lock_mutex: invalid type %i!\n", t2);
+		fprintf (stderr, "Ipfix_double_lock_mutex: cannot be used on EXPORTER\n");			
+		DPRINTF ("++++++++++++++++++++++++++++++++++++++++++\n");
+		ret = pthread_mutex_unlock( &(exporter->exporter_mutex));
+		if (ret !=0 ) {
+			fprintf (stderr, "ipfix_double_lock_mutex unlocking exporter mutex failed!\n");
+			DPRINTF ("pthread_mutex_unlock returned %i, Thread %i \n", ret, pthread_self());
+			return -1;
+		}
+		return -1;
+	}
+
+
+	while (!success) { // success loop
+
+		// try to lock the exporter (superlock)
+		ret = pthread_mutex_lock( &(exporter->exporter_mutex));
+		DPRINTF (" Thread %i Locked exporter \n", pthread_self() );
+		if (ret !=0 ) {
+			fprintf (stderr, "ipfix_double_lock_mutex on exporter mutex failed!\n");
+			DPRINTF (" pthread_mutex_lock returned %i, Thread %i \n", ret,  pthread_self());
+			return -1;
+		}
+
+		/* now, try to obtain our first lock */
+		ret = pthread_mutex_trylock (my_mutex1);
+
+
+		if (ret == 0 ) {
+			DPRINTF ("Locked 1st. mutex No. %i, Thread %i\n", t1, pthread_self() );
+			// try to lock the 2nd target
+			ret = pthread_mutex_trylock (my_mutex2);
+			
+			// 2nd lock
+			if (ret == 0 ) {
+				// we are successful
+				success = TRUE;
+				DPRINTF ("Locked 2nd. mutex No. %i, Thread %i\n", t2, pthread_self());
+			} else {  
+				// check for serious error conditions:
+				if (errno == EINVAL) {
+					fprintf (stderr, "ipfix_double_lock_mutex: the mutex has not been properly initialized\n");
+					DPRINTF ("++++++++++++++++++++++++++++++++++++++++++\n");
+				}
+				// unlock the first lock!
+				ret = pthread_mutex_unlock(my_mutex1);
+				if (ret !=0 ) {
+					fprintf (stderr, "ipfix_double_lock_mutex unlocking first mutex failed!\n");
+					DPRINTF ("pthread_mutex_unlock returned %i, Thread %i \n", ret, pthread_self());
+				        // cannot exit here.
+				}
+
+			} // end 2nd lock
+			
+		} else {
+			// check for serious error conditions:
+			if (errno == EINVAL) {
+				fprintf (stderr, "ipfix_lock_mutex: the mutex has not been properly initialized\n");
+				DPRINTF ("++++++++++++++++++++++++++++++++++++++++++\n");
+			}
+			
+		}
+		// unlock the exporter again:
+		ret = pthread_mutex_unlock(&(exporter->exporter_mutex));
+		DPRINTF ("UNLocked exporter\n");
+		if (ret !=0 ) {
+			fprintf (stderr, "ipfix_double_lock_mutex unlocking exporter mutex failed!\n");
+			DPRINTF ("pthread_mutex_unlock returned %i, Thread %i \n", ret, pthread_self());
+			return -1;
+		}
+		DPRINTF ("Thread %i UNLocked exporter\n", pthread_self());
+	} // end loop
+
+#else
+	// we may just as well check, if the exporter is valid:
+	if (exporter == NULL) {
+		DPRINTF ("ipfix_lock_mutex failed: Exporter is NULL!\n");
+		
+		return -1;
+	}
+#endif
+	return 0;
+
+}
+
+/********************************************************************/
+/* Initializing network sockets                                     */
+/********************************************************************/
 
 /*
  * Initializes a UDP-socket to listen to.
@@ -118,6 +441,23 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
 		goto out;
 	}
 
+#ifdef IPFIX_THREADED
+	// init all mutexes
+	pthread_mutex_init(&(tmp->exporter_mutex), NULL);
+	pthread_mutex_init(&(tmp->data_sendbuffer_mutex), NULL);
+	pthread_mutex_init(&(tmp->template_sendbuffer_mutex), NULL);
+	pthread_mutex_init(&(tmp->collector_array_mutex), NULL);
+#endif
+
+	// obtain a lock on this object
+	ret = ipfix_lock_mutex (tmp, EXPORTER);
+
+	// FIXME: maybe, we need yet another target than out
+	if (ret != 0) goto out; 
+	
+	DPRINTF ("ipfix_init_exporter locked exporter\n");
+	
+
 	tmp->source_id=source_id;
 	tmp->sequence_number = 0;
 	tmp->collector_num = 0; // valgrind kindly asked me to inititalize this value JanP
@@ -171,6 +511,7 @@ out3:
 out2:
         ipfix_deinit_sendbuffer(&(tmp->template_sendbuffer));
 out1:
+	ipfix_unlock_mutex (tmp, EXPORTER);
         free(tmp);
 out:
 	/* we have nothing to free */
@@ -180,13 +521,39 @@ out:
 
 /*
  * cleanup an exporter process
+ * Warning: If used in multithreaded environments, make sure, ALL processes 
+ * using this exporter are TERMINATED first!
  */
 int ipfix_deinit_exporter(ipfix_exporter *exporter)
 {
 	// cleanup processes
 	int ret;
+
+	// lock this exporter... 
+	ret = ipfix_lock_mutex (exporter, EXPORTER);
+
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_deinit_exporter: Locking exporter failed!\n");
+		return -1;
+	} 
+	
+
+#ifdef IPFIX_THREADED
+	/* 
+	 * get the other mutexes
+	 */
+	ret = pthread_mutex_lock (&(exporter->collector_array_mutex));
+	DPRINTF ("DEINIT: locking collector with res %i\n", ret);
+	pthread_mutex_lock (&(exporter->data_sendbuffer_mutex));
+	DPRINTF ("DEINIT: locking data with res %i\n", ret);
+	pthread_mutex_lock (&(exporter-> template_sendbuffer_mutex));
+	DPRINTF ("DEINIT: locking template with res %i\n", ret);
+
+#endif
+
 	// close sockets etc.
 	// (currently, nothing to do)
+	// FIXME: Really nothing to do?
 
 	// free all children
 
@@ -202,6 +569,19 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter)
 
 	// deinitialize the collectors
 	ret=ipfix_deinit_collector_array(&(exporter->collector_arr));
+
+#ifdef IPFIX_THREADED
+	// destroy all mutexes
+	pthread_mutex_unlock (&(exporter->data_sendbuffer_mutex));
+	pthread_mutex_destroy (&(exporter->data_sendbuffer_mutex));
+	pthread_mutex_unlock (&(exporter-> template_sendbuffer_mutex));
+	pthread_mutex_destroy (&(exporter-> template_sendbuffer_mutex));
+
+	pthread_mutex_unlock (&(exporter->collector_array_mutex));
+	pthread_mutex_destroy (&(exporter->collector_array_mutex));
+	pthread_mutex_unlock (&(exporter->exporter_mutex));
+	pthread_mutex_destroy (&(exporter->exporter_mutex));
+#endif
 
 	// free own memory
 	free(exporter);
@@ -223,24 +603,34 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter)
  */
 int ipfix_add_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_port, enum ipfix_transport_protocol proto)
 {
+	int ret;
 	int i=0;
 	int searching = TRUE;
 
+	/* lock the colletor array from the exporter */
+        ret =  ipfix_lock_mutex(exporter, COLLECTOR);
+	if (ret != 0 ) {
+		fprintf (stderr, "ipfix_add_collector: Obtaining mutex failed!\n");
+		return -1;
+	}
+
+
 	DPRINTF(" ipfix_add_collector 0\n");
 
+	// obsoleted by ipfix_lock_mutex
 	// check, if exporter is valid
-	if (exporter == NULL) {
-	  fprintf (stderr, "ipfix_add_collector: Cannot add collector to NULL exporter!\n");
-	  fprintf (stderr, "Error probably fatal. Exiting!\n");
-	  exit (-1);
+/* 	if (exporter == NULL) { */
+/* 	  fprintf (stderr, "ipfix_add_collector: Cannot add collector to NULL exporter!\n"); */
+/* 	  fprintf (stderr, "Error probably fatal. Exiting!\n"); */
+/* 	  exit (-1); */
 
-	}
+/* 	} */
 
 	// check if there is a free slot at all:
 	if ( exporter->collector_num >= exporter->collector_max_num ) {
 		fprintf (stderr, "No more free slots for new collectors available.\n");
 		fprintf (stderr, "Collector not added!\n");
-		return -1;
+		goto out;
 	}
 	DPRINTF(" ipfix_add_collector 1\n");
 
@@ -264,7 +654,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_
 			// error handling, in case we were unable to open the port:
 			if ( (*exporter).collector_arr[i].data_socket < 0 ) {
 				fprintf (stderr, "Initializing socket for %s:%i failed - skipping.\n", coll_ip4_addr, coll_port);
-				return -1;
+				goto out;
 			}
 			// currently, the data socket and the template socket are the same.
 			// TODO, when SCTP is added!
@@ -279,8 +669,23 @@ int ipfix_add_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_
 		}
 		i++;
 	}
+	/* unlock the colletor array from the exporter */
+        ret =  ipfix_unlock_mutex(exporter, COLLECTOR);
+	if (ret != 0 ) {
+		fprintf (stderr, "ipfix_add_collector: Freeing mutex failed!\n");
+		return -1;
+	}
 
 	return 0;
+
+out: 
+	/* unlock the colletor array from the exporter */
+        ret =  ipfix_unlock_mutex(exporter, COLLECTOR);
+	if (ret != 0 ) {
+		fprintf (stderr, "ipfix_add_collector: Freeing mutex failed!\n");
+		return -1;
+	}
+	return -1;
 }
 
 /*
@@ -292,8 +697,16 @@ int ipfix_add_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_
 int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_port)
 {
 	// find the collector in the exporter
+	int ret;
 	int i=0;
 	int searching = TRUE;
+
+	/* lock the colletor array from the exporter */
+        ret =  ipfix_lock_mutex(exporter, COLLECTOR);
+	if (ret != 0 ) {
+		fprintf (stderr, "ipfix_remove_collector: Obtaining mutex failed!\n");
+		return -1;
+	}
 
 	while(searching && ( i< exporter->collector_max_num) ) {
 		if( ( strcmp( (*exporter).collector_arr[i].ipv4address, coll_ip4_addr) == 0 )
@@ -315,12 +728,28 @@ int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int co
 	}
 	if (searching) {
 		fprintf (stderr, "Exporter %s not found, removing exporter failed!\n", coll_ip4_addr);
-		return -1;
+		goto out;
 
 	}
 
+
         exporter->collector_num--;
-        return 0;
+
+	/* unlock the colletor array from the exporter */
+        ret =  ipfix_unlock_mutex(exporter, COLLECTOR);
+	if (ret != 0 ) {
+		fprintf (stderr, "ipfix_remove_collector: Freeing mutex failed!\n");
+		return -1;
+	}
+	return 0;
+out: 
+	/* unlock the colletor array from the exporter */
+        ret =  ipfix_unlock_mutex(exporter, COLLECTOR);
+	if (ret != 0 ) {
+		fprintf (stderr, "ipfix_remove_collector: Freeing mutex failed!\n");
+		return -1;
+	}
+	return -1;
 }
 
 /************************************************************************************/
@@ -390,7 +819,15 @@ static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, e
  */
 int ipfix_remove_template(ipfix_exporter *exporter, uint16_t template_id)
 {
-	int ret = 0;
+	int ret;
+	/* lock the templates from the exporter */
+        ret =  ipfix_lock_mutex(exporter, TEMPLATE);
+	if (ret != 0 ) {
+		fprintf (stderr, "ipfix_remove_template: Obtaining mutex failed!\n");
+		return -1;
+	}
+
+	ret = 0;
 	
 	// TODO: maybe, we have to clean up unclean templates too:
 	int found_index = ipfix_find_template(exporter,template_id, COMMITED);
@@ -402,11 +839,23 @@ int ipfix_remove_template(ipfix_exporter *exporter, uint16_t template_id)
 
 	}else {
 		fprintf(stderr, "Template ID %u not found, removing template failed!\n", template_id);
+		/* unlock the templates from the exporter */
+		ret =  ipfix_unlock_mutex(exporter, TEMPLATE);
+		if (ret != 0 ) {
+			fprintf (stderr, "ipfix_remove_template: Freeing mutex failed!\n");
+		 
+		}
 		return -1;
 
 	}
 
-
+	/* unlock the templates from the exporter */
+	ret =  ipfix_unlock_mutex(exporter, TEMPLATE);
+	if (ret != 0 ) {
+		fprintf (stderr, "ipfix_remove_template: Freeing mutex failed!\n");
+		return -1;
+		
+	}
 	return ret;
 }
 
@@ -534,6 +983,7 @@ static int write_ipfix_message_header(ipfix_header *header, char **p_pos, char *
  */
 static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf, int maxelements)
 {
+	DPRINTF (" ipfix_init_sendbuffef maxelements: %i\n", maxelements);
 	// mallocate memory for the sendbuffer
 	*sendbuf = malloc(sizeof(ipfix_sendbuffer));
 
@@ -557,6 +1007,7 @@ static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf, int maxelements)
 	// initialize an ipfix_set_manager
 	ipfix_init_set_manager( (&(**sendbuf).set_manager), IPFIX_MAX_SET_HEADER_LENGTH);
 
+	DPRINTF (" ipfix_init_sendbuffer length: %i\n", (**sendbuf).length);
 	return 0;
 }
 
@@ -869,14 +1320,28 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
  * Parameters:
  *  exporter sending exporting process
  * Return value: 1 on success, -1 on failure, 0 on no need to send.
+ * WARNING: Return value does not match the coding style!
  */
 static int ipfix_send_templates(ipfix_exporter* exporter)
 {
+	int real_ret = 0;
 	int i;
 	int ret=0;
 	// determine, if we need to send the template data:
 	time_t time_now = time(NULL);
 
+
+	/*
+	 * Obtain a lock on the exporter and on the templates 
+	 */
+	ret = ipfix_double_lock_mutex (exporter, COLLECTOR, TEMPLATE);
+
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_send_templates: Locking collector & template failed!\n");
+		return -1;
+	} 
+
+ 
 	// has the timer expired?
 	if ( (time_now - exporter->last_template_transmition_time) >  exporter->template_transmition_timer) {
 
@@ -889,7 +1354,8 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 
 		if (ret != 0 ) {
 			DPRINTF ("ipfix_send_templates:  ipfix_prepend_header failed!\n");
-			return -1;
+			real_ret = -1;
+			goto out;
 		}
 
 		exporter->last_template_transmition_time = time_now;
@@ -911,10 +1377,24 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 			}
 		} // end exporter loop
 
-		return 1;
+		real_ret = 1;
 	} // end if export template.
-	return 0;
 
+
+out:
+	// unlock both locks
+	ret = ipfix_unlock_mutex (exporter, COLLECTOR);
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_send_templates: Unlocking collector failed!\n");
+		real_ret = -1;
+	} 
+	// unlock at least the template
+	ret = ipfix_unlock_mutex (exporter, TEMPLATE);
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_send_templates: Unlocking templates failed!\n");
+		real_ret = -1;
+	} 
+	return real_ret;
 }
 
 /*
@@ -926,10 +1406,22 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
  */
 static int ipfix_send_data(ipfix_exporter* exporter)
 {
+	int real_ret = 0;
 	int i;
 	int ret=0;
 	// send the current data_sendbuffer:
 	int data_length=0;
+
+	/*
+	 * Obtain a lock on the exporter and on the data
+	 */
+	ret = ipfix_double_lock_mutex (exporter, COLLECTOR, DATA);
+
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_send_templates: Locking collector & data failed!\n");
+		return -1;
+	} 
+
 
 	// is there data to send?
 	if (exporter->data_sendbuffer->commited_data_length > 0 ) {
@@ -939,7 +1431,8 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 		ret = ipfix_prepend_header (exporter, data_length, exporter->data_sendbuffer);
 		if (ret != 0) {
 			DPRINTF ("ipfix_send_data: ipfix_prepend_header failed!\n");
-			return -1;
+			real_ret = -1;
+			goto out;
 		}
 
 
@@ -976,7 +1469,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 				// TODO: we should also check, what writev returned. NO ERROR HANDLING IMPLEMENTED YET!
 			}
 		} // end exporter loop
-		ret = 1;
+		real_ret = 1;
 	}  // end if
 
 	// reset the sendbuffer
@@ -985,8 +1478,20 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 
 	// actually, this should return some error handling from writev.
 	// TODO
-	return ret;
-
+out:
+	// unlock both locks
+	ret = ipfix_unlock_mutex (exporter, COLLECTOR);
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_send_templates: Unlocking collector failed!\n");
+		real_ret = -1;
+	} 
+	// unlock at least the template
+	ret = ipfix_unlock_mutex (exporter, DATA);
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_send_templates: Unlocking data failed!\n");
+		real_ret = -1;
+	} 
+	return real_ret;
 }
 
 /*
@@ -1039,8 +1544,19 @@ int ipfix_send(ipfix_exporter *exporter)
 // calculate via put datafield.
 int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t *template_id)
 {
+	int ret = 0;
 	// obtain locks
-	// TODO!
+	// lock this template... 
+	ret = ipfix_lock_mutex (exporter, DATA);
+
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_start_data_set: Locking data failed!\n");
+		return -1;
+	} 
+
+
+
+
 
 	// check, if there is enough space in the data set buffer
 	// the -1 is because, we expect, we want to add at least one data field.
@@ -1060,13 +1576,29 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t *template_id)
 		= &( (*(*exporter).data_sendbuffer).entries[(*(*exporter).data_sendbuffer).current ]   );
 
 	exporter->data_sendbuffer->current++;
-	DPRINTF("start_data_set:   (*(*exporter).data_sendbuffer).current %i\n",   (*(*exporter).data_sendbuffer).current );
+
+	DPRINTF("start_data_set:   (*(*exporter).data_sendbuffer).current %i;  length %i\n",
+		(*(*exporter).data_sendbuffer).current, 	(*(*exporter).data_sendbuffer).length );
+
 
 	// initialize the counting of the record's data:
 	exporter->data_sendbuffer->set_manager->data_length = 0;
+	DPRINTF("start_data_set: stopped ok, (*(*exporter).data_sendbuffer).current %i\n", 
+		(*(*exporter).data_sendbuffer).current);
+
+
+	// DO NOT UNLOCK THE DATA, until it is committed by ipfix_end_data_set ! 
 	return 0;
 
-out: 
+
+out:
+	// unlock the data 
+	ret = ipfix_unlock_mutex (exporter, DATA);
+
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_start_template_set: Locking templates failed!\n");
+		return -1;
+	} 
 	return -1;
 }
 
@@ -1078,14 +1610,20 @@ out:
  */
 int ipfix_end_data_set(ipfix_exporter *exporter)
 {
+	int ret = 0;
 	// write the correct header data:
 
 	char *p_base = exporter->data_sendbuffer->set_manager->set_header_store;
 	char *p_pos = p_base;
 	char *p_end = p_base + exporter->data_sendbuffer->set_manager->set_header_capacity;
 
+
+	DPRINTF("end_data_set: begin, (*(*exporter).data_sendbuffer).current %i\n", 
+		(*(*exporter).data_sendbuffer).current);
+
 	// calculate the total lenght of the record:
 	uint16_t record_length = exporter->data_sendbuffer->set_manager->data_length;
+
 	record_length += IPFIX_MAX_SET_HEADER_LENGTH;
 
 	// we already wrote the set id:
@@ -1100,6 +1638,15 @@ int ipfix_end_data_set(ipfix_exporter *exporter)
 	// commit the header to the iovec
 	exporter->data_sendbuffer->set_manager->header_iovec->iov_base = p_base;
 	exporter->data_sendbuffer->set_manager->header_iovec->iov_len = IPFIX_MAX_SET_HEADER_LENGTH;
+	// unlock the data 
+	ret = ipfix_unlock_mutex (exporter, DATA);
+
+	DPRINTF("end_data_set: end, (*(*exporter).data_sendbuffer).current %i\n", 
+		(*(*exporter).data_sendbuffer).current);
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_start_template_set: Locking templates failed!\n");
+		return -1;
+	} 
 	return 0;
 }
 
@@ -1125,14 +1672,27 @@ int ipfix_end_data_set(ipfix_exporter *exporter)
 /*
  * Will allocate memory and stuff for a new template
  * End_data_template set will add this template to the exporter
+ *
+ * Warning: This will lock the template array from the exporter, until ipfix_end_template_set!
  */
 int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count)
 {
-	// are we updating an existing template?
+
 	int i;
+	int ret;
 	int searching;
 	int found_index = -1;
 
+	// lock this template... 
+	ret = ipfix_lock_mutex (exporter, TEMPLATE);
+
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_start_template_set: Locking templates failed!\n");
+		return -1;
+	} 
+
+
+	// are we updating an existing template?
 	DPRINTF("ipfix_start_template_set: start\n");
 	found_index = ipfix_find_template(exporter, template_id, COMMITED);
 
@@ -1161,7 +1721,7 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 			// do error handling:
 			found_index = -1;
 			searching = FALSE;
-			return -1;
+			goto out;
 		}
 
 		DPRINTF("ipfix_start_template_set: found_index: %i,  searching: %i, maxsize: %i \n", found_index, searching ,(*exporter).ipfix_lo_template_maxsize);
@@ -1239,10 +1799,21 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 		// (*exporter).template_arr[found_index].fields_length += 8;
 		DPRINTF("ipfix_start_template_set: max_fields_len %u \n", (*exporter).template_arr[found_index].max_fields_length);
 		DPRINTF("ipfix_start_template_set: fieldss_len %u \n", (*exporter).template_arr[found_index].fields_length);
-	} else return -1;
+	} else goto out;
 
-
+	// DO NOT UNLOCK THIS TEMPLATE, until it is committed by ipfix_end_template_set ! 
 	return 0;
+
+out:
+	// unlock this template... 
+	ret = ipfix_unlock_mutex (exporter, TEMPLATE);
+
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_start_template_set: Locking templates failed!\n");
+		return -1;
+	} 
+	return -1;
+
 }
 /*
  * Marks the beginning of an option template set
@@ -1327,7 +1898,7 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uin
  */
 int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id )
 {
-	int found_index;
+	int found_index, ret;
 	char *p_pos;
 	char *p_end;
 
@@ -1336,7 +1907,7 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id )
 	// test for a valid slot:
 	if ( (found_index < 0 ) || ( found_index >= exporter->ipfix_lo_template_maxsize ) ) {
 		fprintf (stderr, "Template not found. \n");
-		return -1;
+		goto out;
 	}
 
 	// reallocate the memory , i.e. free superfluous memory, as we allocated enough memory to hold
@@ -1363,7 +1934,23 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id )
 	// commit the template buffer to the sendbuffer
 	ipfix_update_template_sendbuffer(exporter);
 
+	
+	// finally, unlock this template... 
+	ret = ipfix_unlock_mutex (exporter, TEMPLATE);
+
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_start_template_set: Locking templates failed!\n");
+		return -1;
+	} 
 	return 0;
+
+out: // early unlocking:
+	ret = ipfix_unlock_mutex (exporter, TEMPLATE);
+	if (ret != 0) {
+		fprintf (stderr, "ipfix_start_template_set: Locking templates failed!\n");
+	} 
+	return -1;
+
 }
 
 /*

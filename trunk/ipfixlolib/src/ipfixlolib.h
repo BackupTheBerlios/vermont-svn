@@ -31,6 +31,17 @@
 #include "encoding.h"
 
 /*
+ * support multithreaded applications
+ * EXPERIMENTAL!
+ */
+#define IPFIX_THREADED 1
+//#define DEBUG 1
+
+#ifdef IPFIX_THREADED
+#include <pthread.h>
+#endif
+
+/*
  * version number of the ipfix-protocol
  */
 #define IPFIX_VERSION_NUMBER 0x000a
@@ -105,6 +116,7 @@
   (*SENDBUF).current++; \
   (*(*SENDBUF).set_manager).data_length+= LENGTH; \
 }
+
 
 /* BUGFIX: After the makro found an error condition, it skips accessing data. */
 #define ipfix_put_data_field(EXPORTER, POINTER, LENGTH) {		\
@@ -268,6 +280,12 @@ typedef struct {
 	int ipfix_lo_template_maxsize;
 	int ipfix_lo_template_current_count;
 	ipfix_lo_template *template_arr;
+#ifdef IPFIX_THREADED
+	pthread_mutex_t exporter_mutex;
+	pthread_mutex_t data_sendbuffer_mutex;
+	pthread_mutex_t template_sendbuffer_mutex;
+	pthread_mutex_t collector_array_mutex;
+#endif
 
 } ipfix_exporter;
 
