@@ -18,7 +18,7 @@ int main()
 		hash_id=ipfix_name_lookup(x->name);
 
                 /* I love short circuit */
-                if((strcmp(x->name, "RESERVED") != 0) && (x->id != hash_id)) {
+                if((strcasecmp(x->name, "RESERVED") != 0) && (x->id != hash_id)) {
 			printf("Failure in mapping hash!\n");
                         return -1;
 		}
