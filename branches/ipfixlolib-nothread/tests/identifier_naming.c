@@ -36,7 +36,7 @@ static int test(int start, int end)
                 printf("Possibly not all IDs have been iterated!\n");
 		return -1;
 	}
-	printf("Check completed; %d IDs (%d:%d)\n", end-start, start, end);
+	printf("Check completed; %d IDs (%d:%d)\n", end-start+1, start, end);
         return 0;
 }
 
