@@ -125,27 +125,29 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
 	ret=ipfix_init_sendbuffer(&(tmp->data_sendbuffer), IPFIX_MAX_SENDBUFSIZE);
 	if (ret != 0) {
 		fprintf (stderr, "ipfix_init_exporter : Initializing data sendbuffer failed!\n");
-		return -1;
+		goto out1;
 	}
 
 	ret=ipfix_init_sendbuffer(&(tmp->template_sendbuffer), IPFIX_MAX_SENDBUFSIZE);
 	if (ret != 0) {
 		fprintf (stderr, "ipfix_init_exporter : Initializing template  sendbuffer failed!\n");
-		return -1;
+		goto out2;
 	}
 
 	// intialize the collectors to zero
 	ret=ipfix_init_collector_array( &(tmp->collector_arr), IPFIX_MAX_COLLECTORS);
 	if (ret !=0) {
 		fprintf (stderr, "ipfix_init_exporter: Initializing collectors failed!\n");
-		return ret;
+		goto out3;
 	}
 
 	tmp->collector_max_num = IPFIX_MAX_COLLECTORS;
 
 	// initialize an array to hold the templates.
 	// TODO: own function:
-	ret=ipfix_init_template_array(tmp, IPFIX_MAX_TEMPLATES);
+        if(ipfix_init_template_array(tmp, IPFIX_MAX_TEMPLATES)) {
+		goto out4;
+        }
 	/*   (**exporter).ipfix_lo_template_maxsize  = IPFIX_MAX_TEMPLATES; */
 	/*   (**exporter).ipfix_lo_template_current_count = 0 ; */
 	/*   (**exporter).template_arr =  (ipfix_lo_template*) malloc (IPFIX_MAX_TEMPLATES * sizeof(ipfix_lo_template) ); */
@@ -158,6 +160,14 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
 
 	return 0;
 
+out4:
+        ipfix_deinit_collector_array(&(tmp->collector_arr));
+out3:
+        ipfix_deinit_sendbuffer(&(tmp->data_sendbuffer));
+out2:
+        ipfix_deinit_sendbuffer(&(tmp->template_sendbuffer));
+out1:
+        free(tmp);
 out:
 	/* we have nothing to free */
 	return -1;

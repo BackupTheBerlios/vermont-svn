@@ -1,37 +1,10 @@
--careful error-handling in init_exporter()
-	-free all previous resources if one of many init()-calls fails
-
 -careful mem-freeing in deinit_exporter()
 	-free all memory, also from templates, ...
 
--decide endianess and make htonll/ntoll in encodigin.c a noop,
+-decide endianess and make htonll/ntoll in encoding.c a noop,
 if big-endian machine
 	-get info from autoconf OR via <endian.h> ??
 
 -make API _strictly_ host byte order; automatically convert for internal use
 where necessary
-
--fix memory leak:
-template_generation_test.c:
-
-==4135== ERROR SUMMARY: 98 errors from 1 contexts (suppressed: 0 from 0)
-==4135== malloc/free: in use at exit: 34436 bytes in 110 blocks.
-==4135== malloc/free: 199930 allocs, 199820 frees, 6041840 bytes allocated.
-==4135== For counts of detected errors, rerun with: -v
-==4135== searching for pointers to 110 not-freed blocks.
-==4135== checked 3504636 bytes.
-==4135== 
-==4135== 
-==4135== 1164 bytes in 97 blocks are definitely lost in loss record 8 of 9
-==4135==    at 0x4002627C: realloc (vg_replace_malloc.c:310)
-==4135==    by 0x804A98D: ipfix_end_template_set (ipfixlolib.c:1245)
-==4135==    by 0x8048925: main (template_generation_test.c:52)
-==4135==    by 0x4023BA11: __libc_start_main (in /lib/libc-2.3.2.so)
-==4135== 
-==4135== LEAK SUMMARY:
-==4135==    definitely lost: 1164 bytes in 97 blocks.
-==4135==    possibly lost:   0 bytes in 0 blocks.
-==4135==    still reachable: 33272 bytes in 13 blocks.
-==4135==         suppressed: 0 bytes in 0 blocks.
-
 
