@@ -423,26 +423,28 @@ int read_octet_array(char **p_pos, char *p_end, char *p_output)
  * will convert it to network byte order).
  * char vendor_specific (either VENDOR_SPECIFIC or NOT_VENDOR_SPECIFIC
  */
-int write_extension_and_fieldID ( char** p_pos, char* p_end, uint16_t fieldID, char vendor_specific)
+int write_extension_and_fieldID(char** p_pos, char* p_end, uint16_t fieldID, char vendor_specific)
 {
-	if (p_end < ( *p_pos + sizeof(uint16_t)  ) ) {
-		fprintf(stderr, "error in write_unsigned16: buffer too small!\n");
-		return -1;
-	}
-	uint16_t  uint16 = htons (fieldID);
+	uint16_t uint16 = htons(fieldID);
 
 	// a uint16_t, where only the leftmost bit is set.
 	// needet for the vendor-Specific bit.
 	uint16_t leading_bit = 1 << 15;
 
-	if (vendor_specific == VENDOR_SPECIFIC) {
+	if (p_end < ( *p_pos + sizeof(uint16_t)  ) ) {
+		fprintf(stderr, "error in write_unsigned16: buffer too small!\n");
+		return -1;
+	}
+
+	if(vendor_specific == VENDOR_SPECIFIC) {
 		uint16 = uint16 | leading_bit;
-	} else { // make sure, the number does not contain a leading bit
-		// mask out the first bit (by & with binary 01111111 )
+	} else {
+		// make sure, the number does not contain a leading bit
 		uint16 = uint16 & (~leading_bit);
 	}
 	memcpy ( *p_pos, &uint16, sizeof(uint16_t) );
 	*p_pos += sizeof (uint16_t);
+
 	return 0;
 }
 
@@ -459,59 +461,50 @@ int write_extension_and_fieldID ( char** p_pos, char* p_end, uint16_t fieldID, c
  * returns VENDOR_SPECIFIC or NOT_VENDOR_SPECIFIC or, in case
  * of an error, -1
  */
-int read_extension_bit ( char** p_pos, char* p_end)
+int read_extension_bit(char **p_pos, char *p_end)
 {
+	// a uint16_t, where only the leftmost bit is set.
+	// needet for the vendor-Specific bit.
+	uint16_t leading_bit = 1 << 15;
+	uint16_t n = *( (uint16_t*) *p_pos);
+
 	if (p_end < ( *p_pos + sizeof(uint16_t)  ) ) {
 		fprintf(stderr, "error in write_unsigned16: buffer too small!\n");
 		return -1;
 	}
 
-	// a uint16_t, where only the leftmost bit is set.
-	// needet for the vendor-Specific bit.
-	uint16_t leading_bit = 1 << 15;
-
-
-	uint16_t n = *( (uint16_t*) *p_pos);
-	if ( ( n & leading_bit) > 0 ) return VENDOR_SPECIFIC;
-	else return NOT_VENDOR_SPECIFIC;
+	if((n & leading_bit) > 0 ) {
+		return VENDOR_SPECIFIC;
+	} else {
+		return NOT_VENDOR_SPECIFIC;
+	}
 }
 
 
 /*
- * Read the field ID. Call this after read_extension_bit!
+ * Read the field ID.
  * Parameters:
  * p_pos is a pointer to a buffer, where the
  * data is read from. It will be incremented by
  * the amount of read data.
  * returns the fieldID
  */
-uint16_t read_fieldID ( char** p_pos, char* p_end)
+uint16_t read_fieldID(char **p_pos, char *p_end)
 {
 	if (p_end < ( *p_pos + sizeof(uint16_t)  ) ) {
 		fprintf(stderr, "error in read_unsigned16: buffer too small!\n");
 		return -1;
 	}
 
-	// a uint16_t, where only the leftmost bit is set.
-	// needet for the vendor-Specific bit.
-	uint16_t leading_bit = 1 << 15;
-
-	// **p_pos is a pointer pointer.
 	// first, we dereference the pointer to the real char* data.
 	// then, we cast this pointer to a pointer of type uint16_t
 	// finally, we dereference that pointer and get the real value
 	uint16_t n = *( (uint16_t*) *p_pos);
 
-
-
-	// firsts, strip the leading bit
-	n = n & (~leading_bit);
-
 	// and convert it back to host byte order
-	n = ntohs (n);
+	n = ntohs(n);
 	*p_pos += sizeof(uint16_t);
+
 	return n;
 }
-
-
 
