@@ -115,6 +115,10 @@ static TemplateCallbackFunction* templateCallbackFunction;
 static DataTemplateCallbackFunction* dataTemplateCallbackFunction;
 static OptionsTemplateCallbackFunction* optionsTemplateCallbackFunction;
 
+static TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
+static DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
+static OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
+  	   	 
 static DataRecordCallbackFunction* dataRecordCallbackFunction;
 static OptionsRecordCallbackFunction* optionsRecordCallbackFunction;
 static DataDataRecordCallbackFunction* dataDataRecordCallbackFunction;
@@ -143,6 +147,7 @@ void processTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 		bt->recordLength = 0;
 		bt->setID = ntoh(set->id);
 		bt->templateInfo = ti;
+		bt->templateDestructionCallbackFunction = templateDestructionCallbackFunction;
 		ti->userData = 0;
 		ti->fieldCount = ntoh(th->fieldCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
@@ -189,6 +194,7 @@ void processOptionsTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 		bt->recordLength = 0;
 		bt->setID = ntoh(set->id);
 		bt->optionsTemplateInfo = ti;
+		bt->optionsTemplateDestructionCallbackFunction = optionsTemplateDestructionCallbackFunction;
 		ti->userData = 0;
 		ti->scopeCount = ntoh(th->scopeCount);
 		ti->scopeInfo = (FieldInfo*)malloc(ti->scopeCount * sizeof(FieldInfo));
@@ -252,6 +258,7 @@ void processDataTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 		bt->recordLength = 0;
 		bt->setID = ntoh(set->id);
 		bt->dataTemplateInfo = ti;
+		bt->dataTemplateDestructionCallbackFunction = dataTemplateDestructionCallbackFunction;
 		ti->userData = 0;
 		ti->fieldCount = th->fieldCount;
 		ti->dataCount = th->dataCount;
@@ -636,6 +643,9 @@ boolean initializeRcvIpfix() {
 	templateCallbackFunction = 0;
 	dataTemplateCallbackFunction = 0;
 	optionsTemplateCallbackFunction = 0;
+	templateDestructionCallbackFunction = 0;
+	dataTemplateDestructionCallbackFunction = 0;
+	optionsTemplateDestructionCallbackFunction = 0;
 	dataRecordCallbackFunction = 0;
 	optionsRecordCallbackFunction = 0;
 	dataDataRecordCallbackFunction = 0;
@@ -735,6 +745,19 @@ void setOptionsTemplateCallback(OptionsTemplateCallbackFunction* optionsTemplate
 
 void setDataTemplateCallback(DataTemplateCallbackFunction* dataTemplateCallbackFunction_) {
 	dataTemplateCallbackFunction = dataTemplateCallbackFunction_;
+	}
+
+
+void setTemplateDestructionCallback(TemplateDestructionCallbackFunction* templateDestructionCallbackFunction_) {
+	templateDestructionCallbackFunction = templateDestructionCallbackFunction_;
+	}
+
+void setOptionsTemplateDestructionCallback(OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction_) {
+	optionsTemplateDestructionCallbackFunction = optionsTemplateDestructionCallbackFunction_;
+	}
+
+void setDataTemplateDestructionCallback(DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction_) {
+	dataTemplateDestructionCallbackFunction = dataTemplateDestructionCallbackFunction_;
 	}
 
 

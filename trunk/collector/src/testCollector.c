@@ -22,6 +22,11 @@ boolean templateCallbackTest(SourceID sourceID, TemplateInfo* ti) {
 	return true;
 	}
 
+boolean templateDestructionCallbackTest(SourceID sourceID, TemplateInfo* ti) {
+	debug("--- Template destroyed");
+	return true;
+	}
+
 boolean dataRecordCallbackTest(SourceID sourceID, TemplateInfo* ti, uint16 length, FieldData* data) {
 	int i;
 	debug("--- Got a Data Record");
@@ -54,6 +59,7 @@ int main(int argc, char *argv[]) {
 	initializeRcvIpfix();
 		
  	setTemplateCallback(templateCallbackTest);
+	setTemplateDestructionCallback(templateDestructionCallbackTest);
 
  	setDataRecordCallback(dataRecordCallbackTest);
 	setOptionsRecordCallback(optionsRecordCallbackTest);

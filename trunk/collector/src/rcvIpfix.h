@@ -98,6 +98,34 @@ typedef boolean(OptionsTemplateCallbackFunction)(SourceID sourceID, OptionsTempl
  */
 typedef boolean(DataTemplateCallbackFunction)(SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 
+/*** Template Destruction Callbacks ***/
+  	 
+/**
+ * Callback function invoked when a Template is being destroyed.
+ * Particularly useful for cleaning up userData associated with this Template
+ * @param sourceId SourceID of the exporter that sent this Template
+ * @param templateInfo Pointer to a structure defining this Template
+ * @return true if packet handled successfully, false otherwise
+ */
+typedef boolean(TemplateDestructionCallbackFunction)(SourceID sourceID, TemplateInfo* templateInfo);
+
+/**
+ * Callback function invoked when a OptionsTemplate is being destroyed.
+ * Particularly useful for cleaning up userData associated with this Template
+ * @param sourceId SourceID of the exporter that sent this OptionsTemplate
+ * @param optionsTemplateInfo Pointer to a structure defining this OptionsTemplate
+ * @return true if packet handled successfully, false otherwise
+ */
+typedef boolean(OptionsTemplateDestructionCallbackFunction)(SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo);
+
+/**
+ * Callback function invoked when a DataTemplate is being destroyed.
+ * Particularly useful for cleaning up userData associated with this Template
+ * @param sourceId SourceID of the exporter that sent this DataTemplate
+ * @return true if packet handled successfully, false otherwise
+ */
+typedef boolean(DataTemplateDestructionCallbackFunction)(SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
+
 /*** Data Callbacks ***/
 
 /**
@@ -226,6 +254,32 @@ void setOptionsTemplateCallback(OptionsTemplateCallbackFunction* optionsTemplate
  * @return true if call succeeded, false otherwise
  */
 void setDataTemplateCallback(DataTemplateCallbackFunction* dataTemplateCallbackFunction);
+
+/*** Template Destruction Callbacks ***/
+
+/**
+ * Sets the callback function to invoke when a Template is being destroyed.
+ * Particularly useful for cleaning up userData associated with this Template
+ * @param templateDestructionCallbackFunction pointer to the callback function
+ * @return true if call succeeded, false otherwise
+ */
+void setTemplateDestructionCallback(TemplateDestructionCallbackFunction* templateDestructionCallbackFunction);
+
+/**
+ * Sets the callback function to invoke when a OptionsTemplate is being destroyed.
+ * Particularly useful for cleaning up userData associated with this Template
+ * @param optionsTemplateDestructionCallbackFunction pointer to the callback function
+ * @return true if call succeeded, false otherwise
+ */
+void setOptionsTemplateDestructionCallback(OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction);
+
+/**
+ * Sets the callback function to invoke when a DataTemplate is being destroyed.
+ * Particularly useful for cleaning up userData associated with this Template
+ * @param dataTemplateDestructionCallbackFunction pointer to the callback function
+ * @return true if call succeeded, false otherwise
+ */
+void setDataTemplateDestructionCallback(DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction);
 
 /*** Data Callbacks ***/
 

@@ -66,18 +66,21 @@ void destroyBufferedTemplate(SourceID sourceId, TemplateID templateId) {
 		}
 	if (bt->setID == IPFIX_SetId_Template) {
 		free(bt->templateInfo->fieldInfo);
-		free(bt->templateInfo->userData);
+		if (bt->templateDestructionCallbackFunction) bt->templateDestructionCallbackFunction(sourceId, bt->templateInfo);
+		free(bt->templateInfo);
 		} else
 	if (bt->setID == IPFIX_SetId_OptionsTemplate) {
 		free(bt->optionsTemplateInfo->scopeInfo);
 		free(bt->optionsTemplateInfo->fieldInfo);
-		free(bt->optionsTemplateInfo->userData);
+		if (bt->optionsTemplateDestructionCallbackFunction) bt->optionsTemplateDestructionCallbackFunction(sourceId, bt->optionsTemplateInfo);
+		free(bt->optionsTemplateInfo);
 		} else
 	if (bt->setID == IPFIX_SetId_DataTemplate) {
 		free(bt->dataTemplateInfo->fieldInfo);
 		free(bt->dataTemplateInfo->dataInfo);
 		free(bt->dataTemplateInfo->data);
-		free(bt->dataTemplateInfo->userData);
+		if (bt->dataTemplateDestructionCallbackFunction) bt->dataTemplateDestructionCallbackFunction(sourceId, bt->dataTemplateInfo);
+		free(bt->dataTemplateInfo);
 		} else {
 		fatalf("Unknown template type requested to be freed: %d", bt->setID);
 		}
