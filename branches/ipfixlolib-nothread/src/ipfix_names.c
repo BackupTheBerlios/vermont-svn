@@ -1,7 +1,7 @@
 #include <string.h>
 #include "ipfix_names.h"
 
-static struct ipfix_identifier IDTAB[] = {
+static struct ipfix_identifier IPFIXTAB[] = {
 	{ "RESERVED", 0, 0 },
 	{ "inoctetdeltacount", 1, 8 },
 	{ "inpacketdeltacount", 2, 8 },
@@ -146,89 +146,85 @@ static struct ipfix_identifier IDTAB[] = {
 };
 
 
-/*
- ANSI-C code produced by gperf version 2.7
- Command-line: gperf -D -C -t -L ANSI-C
- */
+static struct ipfix_identifier PSAMPTAB[] = {
+	{ "optiontemplateid", 1024, 2 },
+	{ "sequencenumber", 1025, 4 },
+
+	/* FIXME: OCTET STRING */
+	{ "packetsample", 1026, 0 },
+
+	{ "samplingalgorithm", 1027, 1 },
+	{ "filteringalgorithm", 1028, 1 },
+	{ "samplingpacketinterval", 1029, 4 },
+	{ "samplingpacketspace", 1030, 4 },
+
+	/* dateTimeMicroSeconds = 4 ? */
+	{ "samplingtimeinterval", 1031, 4 },
+	{ "samplingtimespace", 1032, 4 },
+
+	{ "samplingpopulation", 1033, 4 },
+	{ "samplingsize", 1034, 4 },
+	{ "samplingprobability", 1035, 4 },
+	{ "headertype", 1036, 1 },
+	{ "hashfunction", 1037, 1 }
+};
+
+
+/* ANSI-C code produced by gperf version 2.7 */
+/* Command-line: gperf -D -C -t -L ANSI-C  */
 struct ipfix_midentifier {
 	char *name;
 	uint16_t id;
 };
 
-#define TOTAL_KEYWORDS 141
+#define TOTAL_KEYWORDS 155
 #define MIN_WORD_LENGTH 8
 #define MAX_WORD_LENGTH 24
-#define MIN_HASH_VALUE 10
-#define MAX_HASH_VALUE 136
-/* maximum key range = 127, duplicates = 79 */
+#define MIN_HASH_VALUE 8
+#define MAX_HASH_VALUE 156
+/* maximum key range = 149, duplicates = 80 */
 
 static unsigned int hash (register const char *str, register unsigned int len)
 {
 	static const unsigned char asso_values[] = {
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137,   5,   5,
-		10,  20,  15,  25,   0,  30,  35,  40, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137,  60,  10,
-		50,   0,  52, 137,  40,  40, 137,  25,   0,   0,
-		15,  61,  15, 137,   0,  15,  52, 137, 137, 137,
-		20, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137, 137, 137, 137, 137,
-		137, 137, 137, 137, 137, 137
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157,  15,   5,
+		10,  45,   0,  20,  15,  30,  35,  40, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157,  70,  90,
+		0,  30, 110, 157, 100,  78, 157,  40,  70,   0,
+		20,  15,  25, 157,   0,  55,  15, 157, 157, 157,
+		5,   0, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157, 157, 157, 157, 157,
+		157, 157, 157, 157, 157, 157
 	};
 
 	return len + asso_values[(unsigned char)str[len - 1]] + asso_values[(unsigned char)str[0]];
 }
 
+#ifdef __GNUC__
+__inline
+#endif
 const struct ipfix_midentifier * in_word_set (register const char *str, register unsigned int len)
 {
-	static const struct ipfix_midentifier wordlist[] = {
-		{"minimumttl", 52},
-		{"maximumttl", 53},
-		{"egressinterface", 14},
-		{"mplstoplabeltype", 46},
-		{"mplslabelstackentry6", 75},
-		{"mplslabelstackentry1", 70},
-		{"mplslabelstackentry10", 79},
-		{"classofserviceipv6", 137},
-		{"mplslabelstackentry2", 71},
-		{"protocolidentifier", 4},
-		{"exporteripv4address", 130},
-		{"exporteripv6address", 131},
-		{"mplslabelstackentry4", 73},
-		{"mplstoplabelipv4address", 47},
-		{"mplstoplabelipv6address", 140},
-		{"mplslabelstackentry3", 72},
-		{"classofserviceipv4", 5},
-		{"mplslabelstackentry5", 74},
-		{"sourcemacaddress", 56},
-		{"sourceipv4address", 8},
-		{"sourceipv6address", 27},
-		{"igmptype", 33},
-		{"mplslabelstackentry7", 76},
-		{"sourceipv4prefix", 44},
-		{"icmptypecode", 32},
-		{"sourceipv4mask", 9},
-		{"sourceipv6mask", 29},
-		{"mplslabelstackentry8", 77},
-		{"ingressinterface", 10},
-		{"ipnexthopasnumber", 129},
+	static const struct ipfix_midentifier wordlist[] =
+	{
 		{"reserved", 0},
 		{"reserved", 127},
 		{"reserved", 126},
@@ -295,81 +291,127 @@ const struct ipfix_midentifier * in_word_set (register const char *str, register
 		{"reserved", 38},
 		{"reserved", 35},
 		{"reserved", 34},
-		{"minimumpacketlength", 25},
-		{"maximumpacketlength", 26},
-		{"mplslabelstackentry9", 78},
-		{"flowendtime", 21},
-		{"ipversion", 60},
-		{"flowlabelipv6", 31},
-		{"flowcreationtime", 22},
-		{"exportedflowcount", 42},
-		{"exportedoctetcount", 40},
-		{"exportedpacketcount", 41},
-		{"ipv6optionheaders", 64},
-		{"identificationipv4", 54},
-		{"ipnexthopipv4address", 15},
-		{"ipnexthopipv6address", 62},
-		{"bgpsourceasnumber", 16},
-		{"bgpnexthopasnumber", 128},
-		{"flowendreason", 136},
-		{"tcpcontrolbits", 6},
-		{"bgpdestinationasnumber", 17},
-		{"packettotalcount", 86},
-		{"packetdeltacount", 139},
-		{"sourcetransportport", 7},
-		{"destinationipv4address", 12},
-		{"destinationipv6address", 28},
+		{"mplslabelstackentry4", 73},
+		{"mplslabelstackentry1", 70},
 		{"destinationipv4prefix", 45},
-		{"destinationipv4mask", 13},
-		{"destinationipv6mask", 30},
-		{"bgpnexthopipv4address", 18},
-		{"bgpnexthopipv6address", 63},
-		{"inoctetdeltacount", 1},
-		{"inpacketdeltacount", 2},
-		{"totalflowcount", 3},
-		{"flowactivetimeout", 36},
-		{"flowinactivetimeout", 37},
+		{"mplslabelstackentry2", 71},
+		{"optiontemplateid", 1024},
+		{"mplslabelstackentry6", 75},
+		{"mplslabelstackentry10", 79},
 		{"droppedoctetdeltacount", 132},
 		{"droppedoctettotalcount", 134},
 		{"droppedpacketdeltacount", 133},
 		{"droppedpackettotalcount", 135},
 		{"destinationtransportport", 11},
+		{"mplslabelstackentry5", 74},
+		{"protocolidentifier", 4},
+		{"totalflowcount", 3},
 		{"octettotalcount", 85},
 		{"octetdeltacount", 138},
+		{"mplstoplabeltype", 46},
 		{"outoctetdeltacount", 23},
 		{"outpacketdeltacount", 24},
+		{"mplslabelstackentry7", 76},
 		{"outmulticastoctetcount", 20},
-		{"outmulticastpacketcount", 19}
+		{"outmulticastpacketcount", 19},
+		{"mplslabelstackentry8", 77},
+		{"packettotalcount", 86},
+		{"packetdeltacount", 139},
+		{"destinationipv4mask", 13},
+		{"destinationipv6mask", 30},
+		{"mplslabelstackentry9", 78},
+		{"exportedflowcount", 42},
+		{"exportedoctetcount", 40},
+		{"exportedpacketcount", 41},
+		{"mplslabelstackentry3", 72},
+		{"packetsample", 1026},
+		{"sequencenumber", 1025},
+		{"samplingalgorithm", 1027},
+		{"samplingprobability", 1035},
+		{"egressinterface", 14},
+		{"sourceipv4prefix", 44},
+		{"destinationipv4address", 12},
+		{"destinationipv6address", 28},
+		{"mplstoplabelipv4address", 47},
+		{"mplstoplabelipv6address", 140},
+		{"minimumttl", 52},
+		{"maximumttl", 53},
+		{"tcpcontrolbits", 6},
+		{"bgpsourceasnumber", 16},
+		{"bgpnexthopasnumber", 128},
+		{"sourcetransportport", 7},
+		{"bgpdestinationasnumber", 17},
+		{"samplingpopulation", 1033},
+		{"ipnexthopasnumber", 129},
+		{"identificationipv4", 54},
+		{"samplingsize", 1034},
+		{"samplingtimespace", 1032},
+		{"exporteripv4address", 130},
+		{"samplingpacketspace", 1030},
+		{"exporteripv6address", 131},
+		{"ipversion", 60},
+		{"classofserviceipv4", 5},
+		{"sourceipv4mask", 9},
+		{"sourceipv6mask", 29},
+		{"inoctetdeltacount", 1},
+		{"inpacketdeltacount", 2},
+		{"igmptype", 33},
+		{"minimumpacketlength", 25},
+		{"maximumpacketlength", 26},
+		{"icmptypecode", 32},
+		{"classofserviceipv6", 137},
+		{"ingressinterface", 10},
+		{"sourcemacaddress", 56},
+		{"sourceipv4address", 8},
+		{"sourceipv6address", 27},
+		{"filteringalgorithm", 1028},
+		{"hashfunction", 1037},
+		{"flowlabelipv6", 31},
+		{"headertype", 1036},
+		{"flowactivetimeout", 36},
+		{"flowendreason", 136},
+		{"flowinactivetimeout", 37},
+		{"samplingtimeinterval", 1031},
+		{"bgpnexthopipv4address", 18},
+		{"bgpnexthopipv6address", 63},
+		{"samplingpacketinterval", 1029},
+		{"ipv6optionheaders", 64},
+		{"flowendtime", 21},
+		{"ipnexthopipv4address", 15},
+		{"ipnexthopipv6address", 62},
+		{"flowcreationtime", 22}
 	};
 
 	static const short lookup[] = {
 		-1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-		-1,   -1, -153, -141,   -2,   -1,   -1,    2,
-		3,   -1,   -1,   -1,    4,   -1,   -1,   -1,
-		-1,    5,    6,   -1,    7,   -1,    8,   -1,
-		-1,    9, -178,   12, -131,   -2, -183,   -1,
-		15, -128,   -2,   16,   -1,   17,   18, -245,
-		21,   -1,   22,   23,   24,   -1, -243,   27,
-		28,   29, -208, -203,   98,  -45,   -2,   99,
-		100,  101, -111,  -66,  102,  103,  104,  105,
-		106,  107,   -1, -234,   -1,  110,  111,   -1,
-		112,  113,  114, -226,  -26,   -2,  117, -230,
-		-23,   -2,   -1,  120,  -33,   -2, -241,   -1,
-		-239,  -18,   -2,  -20,   -2, -116,   -2, -122,
-		-2,   -1,   -1,   -1,   -1,  125,  126,   -1,
-		-1,   -1,   -1,   -1,   -1,   -1,  127,  -11,
-		-2,  128,   -1,  129, -261, -275,  134,   -1,
-		-271,   -6,   -2,  137,  138,   -9,   -2,  139,
-		140
+		-165, -155,  -66,   -1,   -1,   -1,   -1,   -1,
+		-1,   -1,   -1,   -1,   66,   -1,   -1,   -1,
+		-1,   67,   68,   -1,   -1,   -1,   69,   70,
+		-1,   -1,   -1,   71,   72, -256, -197,   77,
+		78,  -80,   -2,   79,   80, -254,   83,   -1,
+		84,   85,   86,   -1,   87,   88,   -1,   89,
+		-213,  -65,   -2, -226,   94,   -1,   95,   96,
+		97,   98,   -1,   99,   -1,  100,  -63,   -2,
+		101,   -1,  102,  103,  104, -246, -241,   -1,
+		-237,  -46,   -2,   -1,  111,  -48,   -2,  112,
+		113,  114,  -50,   -2,  115,  116,   -1,  117,
+		118,  119,  -74,   -2,  -82,   -2,  120,   -1,
+		-261,  -34,   -3,  124,  125, -268,  128,  129,
+		-29,   -2,   -1,   -1,  130,   -1,   -1, -277,
+		133,  -24,   -2,  134,  135,   -1,  136, -285,
+		139,  -18,   -2,   -1,  140,   -1,   -1,   -1,
+		-1,   -1,  141,   -1,  142,   -1,  143,  144,
+		145,  146, -304,  149,   -8,   -2,  150,  151,
+		-1, -310,   -3,   -2,  154
 	};
 
 	if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH) {
 		register int key = hash (str, len);
 
-		if (key <= MAX_HASH_VALUE && key >= 0) {
+		if(key <= MAX_HASH_VALUE && key >= 0) {
 			register int index = lookup[key];
 
-			if (index >= 0) {
+			if(index >= 0) {
 				register const char *s = wordlist[index].name;
 
 				if (*str == *s && !strcmp (str + 1, s + 1))
@@ -390,6 +432,7 @@ const struct ipfix_midentifier * in_word_set (register const char *str, register
 			}
 		}
 	}
+
 	return 0;
 }
 
@@ -397,11 +440,19 @@ const struct ipfix_midentifier * in_word_set (register const char *str, register
 /* lookup a certain ipfix ID into its name */
 struct ipfix_identifier * ipfix_id_lookup(int n)
 {
-	if(n >= 0 && n < sizeof(IDTAB)/sizeof(*IDTAB)) {
-		return &IDTAB[n];
+	/* ID is IPFIX one */
+	if(n >= 0 && n < sizeof(IPFIXTAB)/sizeof(*IPFIXTAB)) {
+		return &IPFIXTAB[n];
 	}
 
-        return NULL;
+	/* ID is PSAMP one */
+	if(n >= 1024 && n < 1024 + (sizeof(PSAMPTAB)/sizeof(*PSAMPTAB))) {
+		/* have to normalize */
+		n -= 1024;
+		return &PSAMPTAB[n];
+	}
+
+	return NULL;
 }
 
 
@@ -411,12 +462,12 @@ struct ipfix_identifier * ipfix_id_lookup(int n)
  */
 int ipfix_name_lookup(char *name)
 {
-        const struct ipfix_midentifier *tmp;
+	const struct ipfix_midentifier *tmp;
 
-        if(!(tmp=in_word_set(name, strlen(name)))) {
-                /* not found */
-                return -1;
-        }
+	if(!(tmp=in_word_set(name, strlen(name)))) {
+		/* not found */
+		return -1;
+	}
 
-        return (int)tmp->id;
+	return (int)tmp->id;
 }

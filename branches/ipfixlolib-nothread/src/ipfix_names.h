@@ -3,6 +3,14 @@
 
 #include <stdint.h>
 
+/* FIXME:
+ dirty defines for the moment; full naming defines should follow
+ */
+#define IPFIX_ID_MIN 1
+#define IPFIX_ID_MAX 140
+#define PSAMP_ID_MIN 1024
+#define PSAMP_ID_MAX 1037
+
 #define PROTO_ICMP 1
 #define PROTO_IGMP 2
 #define PROTO_TCP 6

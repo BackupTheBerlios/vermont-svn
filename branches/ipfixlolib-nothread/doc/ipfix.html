@@ -211,11 +211,12 @@ NOTE: All via ipfix_put_data_field() added data must be valid until this functio
 <hr width="94%" noshade="noshade" align="left" size="1">
 
 <a name=ipfix_name_lookup><code>int ipfix_name_lookup(char *name)</code></a><p>
-Retrieve the IPFIX ID of a given string. -1 indicates "not found".
+Retrieve the IPFIX / PSAMP ID of a given string. -1 indicates "not found".
 <hr width="94%" noshade="noshade" align="left" size="1">
 
 <a name=ipfix_id_lookup><code>struct ipfix_identifier * ipfix_id_lookup</a>(int n)</code></a><p>
-Retrieve full info about an IPFIX ID, including name, ID and length (in bytes).
+Retrieve full info about an IPFIX / PSAMP ID, including name, ID and length (in bytes).<br>
+FIXME: HOW TO DISTINGUISH MULTI-OCTET (OCTET-STRING) FIELDS?
 
 <hr width="94%" noshade="noshade" align="left" size="1">
 
