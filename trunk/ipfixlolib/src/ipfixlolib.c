@@ -388,26 +388,28 @@ static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, e
  * Returns: 0 on success, -1 on failure
  * This will free the templates data store!
  */
-int ipfix_remove_template(ipfix_exporter *exporter, uint16_t template_id)
+int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
 {
+	int ret = 0;
+	
 	// TODO: maybe, we have to clean up unclean templates too:
 	int found_index = ipfix_find_template(exporter,template_id, COMMITED);
+	
 
 	if (found_index >= 0) {
-		(*exporter).template_arr[found_index].valid = UNUSED;
-		exporter->ipfix_lo_template_current_count--;
 
-		// free memory from the template
-		free( (*exporter).template_arr[found_index].template_fields);
-		(*exporter).template_arr[found_index].template_fields = NULL;
+		ret = ipfix_deinit_template_set (exporter, &((*exporter).template_arr[found_index]));
+
 	}else {
 		fprintf(stderr, "Template ID %u not found, removing template failed!\n", template_id);
 		return -1;
 
 	}
 
-	return 0;
+
+	return ret;
 }
+
 /************************************************************************************/
 /* End of Template management                                                       */
 /************************************************************************************/
@@ -1390,15 +1392,3 @@ int ipfix_deinit_template_set (ipfix_exporter *exporter, ipfix_lo_template* temp
 }
 
 
-/*
- * removes a template set from the exporter
- * Parameters:
- *  exporter: exporting process to associate the template with
- *  template_id: the template's ID (in host byte order)
- * Returns: 0 on success, -1 on failure
- */
-int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
-{
-	printf("remote_template_set() not implemented\n");
-        return -1;
-}
