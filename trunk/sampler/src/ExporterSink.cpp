@@ -12,7 +12,10 @@
  
 #include "ExporterSink.h"
 #include "Globals.h"
+
+extern "C" {
 #include "ipfixlolib.h"
+}
 
 using namespace std;
 

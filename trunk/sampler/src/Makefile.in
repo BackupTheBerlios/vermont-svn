@@ -56,7 +56,7 @@ am_sampler_OBJECTS = Observer.$(OBJEXT) PacketSink.$(OBJEXT) \
 	Test.$(OBJEXT) SystematicSampler.$(OBJEXT) Filter.$(OBJEXT) \
 	ConfigManager.$(OBJEXT) RandomSampler.$(OBJEXT) \
 	Template.$(OBJEXT) Packet.$(OBJEXT) IPHeaderFilter.$(OBJEXT) \
-	ExporterSink.$(OBJEXT) encoding.$(OBJEXT) ipfixlolib.$(OBJEXT)
+	ExporterSink.$(OBJEXT)
 sampler_OBJECTS = $(am_sampler_OBJECTS)
 sampler_DEPENDENCIES =
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
@@ -69,8 +69,7 @@ am__depfiles_maybe = depfiles
 @AMDEP_TRUE@	./$(DEPDIR)/PacketSink.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/RandomSampler.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/SystematicSampler.Po \
-@AMDEP_TRUE@	./$(DEPDIR)/Template.Po ./$(DEPDIR)/Test.Po \
-@AMDEP_TRUE@	./$(DEPDIR)/encoding.Po ./$(DEPDIR)/ipfixlolib.Po
+@AMDEP_TRUE@	./$(DEPDIR)/Template.Po ./$(DEPDIR)/Test.Po
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
 LTCXXCOMPILE = $(LIBTOOL) --mode=compile $(CXX) $(DEFS) \
@@ -185,10 +184,10 @@ INCLUDES = $(all_includes)
 
 # the library search path.
 sampler_LDFLAGS = $(all_libraries) 
-sampler_SOURCES = Observer.cpp PacketSink.cpp Test.cpp SystematicSampler.cpp Filter.cpp ConfigManager.cpp RandomSampler.cpp Template.cpp Packet.cpp IPHeaderFilter.cpp ExporterSink.cpp encoding.cpp ipfixlolib.cpp
-sampler_LDADD = -lpcap -lpthread
-AM_CFLAGS = -DDEBUG
-AM_CXXFLAGS = -DDEBUG
+sampler_SOURCES = Observer.cpp PacketSink.cpp Test.cpp SystematicSampler.cpp Filter.cpp ConfigManager.cpp RandomSampler.cpp Template.cpp Packet.cpp IPHeaderFilter.cpp ExporterSink.cpp
+sampler_LDADD = -lpcap -lpthread -lipfixlo -L../../ipfixlolib/src
+AM_CFLAGS = -DDEBUG -I../../ipfixlolib/src
+AM_CXXFLAGS = -DDEBUG -I../../ipfixlolib/src
 noinst_HEADERS = PacketProcessor.h Thread.h Globals.h Lock.h Observer.h Packet.h PacketSink.h Semaphore.h ConcurrentQueue.h SystematicSampler.h Filter.h ConfigManager.h TimeoutLock.h RandomSampler.h ConfigFile.h Template.h IPHeaderFilter.h IPHeaderFilter.h ExporterSink.h
 all: all-am
 
@@ -272,8 +271,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/SystematicSampler.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Template.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/encoding.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ipfixlolib.Po@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	if $(CXXCOMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \

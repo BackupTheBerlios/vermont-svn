@@ -16,7 +16,9 @@
 #include "PacketReceiver.h"
 #include "Thread.h"
 #include "Template.h"
+extern "C" {
 #include "ipfixlolib.h"
+}
 
 // the maximum number of packets to be queued
 #define MAX_PACKETS 1024
@@ -66,7 +68,7 @@ public:
 
   ~ExporterSink()
   {
-    ipfix_deinit_exporter(&exporter);
+    ipfix_deinit_exporter(exporter);
   };
 
   inline void runSink()
