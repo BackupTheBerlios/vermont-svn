@@ -112,7 +112,7 @@ private:
 	uint8_t *header=(uint8_t *)ip_packet;
 	uint8_t len=header[0] & 0xf;
 	
-	return(len * 4);
+	return(len << 2);
   }
   
 };
