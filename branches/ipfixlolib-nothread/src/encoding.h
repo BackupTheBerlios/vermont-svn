@@ -19,11 +19,14 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/uio.h>
-
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VENDOR_SPECIFIC 1
 #define NOT_VENDOR_SPECIFIC 2
-
 
 /*
  I took the 64-bit functions from
@@ -278,5 +281,9 @@ int write_ipv4Address ( char** p_pos,  char* p_end, uint32_t n);
  */
 uint32_t read_ipv4Address ( char** p_pos,  char* p_end);
 
+
+#ifdef __cplusplus
+}
 #endif
 
+#endif

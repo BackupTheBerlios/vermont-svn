@@ -30,6 +30,11 @@
 
 #include "encoding.h"
 #include "ipfix_names.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * version number of the ipfix-protocol
  */
@@ -293,5 +298,9 @@ int ipfix_send(ipfix_exporter *exporter);
 
 int ipfix_enterprise_flag_set(uint16_t id);
 
+
+#ifdef __cplusplus
+}
 #endif
 
+#endif

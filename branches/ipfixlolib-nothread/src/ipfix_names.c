@@ -1,6 +1,10 @@
 #include <string.h>
 #include "ipfix_names.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static struct ipfix_identifier IPFIXTAB[] = {
 	{ "RESERVED", 0, 0 },
 	{ "inoctetdeltacount", 1, 8 },
@@ -471,3 +475,8 @@ int ipfix_name_lookup(char *name)
 
 	return (int)tmp->id;
 }
+
+
+#ifdef __cplusplus
+}
+#endif

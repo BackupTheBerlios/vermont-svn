@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* FIXME:
  dirty defines for the moment; full naming defines should follow
  */
@@ -29,5 +33,9 @@ struct ipfix_identifier {
 struct ipfix_identifier * ipfix_id_lookup(int n);
 int ipfix_name_lookup(char *name);
 
+
+#ifdef __cplusplus
+}
 #endif
 
+#endif

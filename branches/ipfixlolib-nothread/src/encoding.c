@@ -10,9 +10,12 @@
  2004-11-12
  jan@petranek.de
  */
-
-
 #include "encoding.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * I took the 64-bit functions from
  * http://komssys.sourceforge.net/html/MNRTPNetTypes_8h-source.html
@@ -495,3 +498,7 @@ uint16_t read_fieldID(char **p_pos, char *p_end)
 	return n;
 }
 
+
+#ifdef __cplusplus
+}
+#endif

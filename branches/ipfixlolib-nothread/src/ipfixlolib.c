@@ -12,8 +12,11 @@
  2004-11-12
  jan@petranek.de
  */
-
 #include "ipfixlolib.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* just printf for now */
 #ifdef DEBUG
@@ -543,7 +546,7 @@ static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf, int maxelements)
 	*sendbuf = (ipfix_sendbuffer *)malloc(sizeof(ipfix_sendbuffer));
 
 	// mallocate memory for the entries:
-	(**sendbuf).entries = (iovec *)malloc(maxelements * sizeof(struct iovec));
+	(**sendbuf).entries = (struct iovec *)malloc(maxelements * sizeof(struct iovec));
 	/* Bugfix: entries is an array of (struct iovec), not (struct iovec*), */
 	/* so we reserved the wrong amount of memory to it. Mea Culpa, JanP */
 	/*	(**sendbuf).entries = malloc(maxelements * sizeof(struct iovec*)); */
@@ -1415,3 +1418,7 @@ int ipfix_enterprise_flag_set(uint16_t id)
 	return bit_set(id, IPFIX_ENTERPRISE_FLAG);
 }
 
+
+#ifdef __cplusplus
+}
+#endif
