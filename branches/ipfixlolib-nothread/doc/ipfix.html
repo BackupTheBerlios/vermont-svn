@@ -49,6 +49,16 @@ int <a href=#ipfix_end_data_set>ipfix_end_data_set</a>(ipfix_exporter *exporter)
 
 int <a href=#ipfix_send>ipfix_send</a>(ipfix_exporter *exporter)
 
+int <a href=#ipfix_name_lookup>ipfix_name_lookup</a>(char *name)
+struct ipfix_identifier * <a href=#ipfix_id_lookup>ipfix_id_lookup</a>(int n)
+
+struct ipfix_identifier {
+        char *name;
+        uint16_t id;
+        uint8_t length;
+};
+
+
 <a href=#template_fields>List of valid field identifiers</a>
 </pre>
 <hr width="94%" noshade="noshade" align="left" size="1">
@@ -200,6 +210,14 @@ exporter: the exporter<br>
 NOTE: All via ipfix_put_data_field() added data must be valid until this function returns.
 <hr width="94%" noshade="noshade" align="left" size="1">
 
+<a name=ipfix_name_lookup><code>int ipfix_name_lookup(char *name)</code></a><p>
+Retrieve the IPFIX ID of a given string. -1 indicates "not found".
+<hr width="94%" noshade="noshade" align="left" size="1">
+
+<a name=ipfix_id_lookup><code>struct ipfix_identifier * ipfix_id_lookup</a>(int n)</code></a><p>
+Retrieve full info about an IPFIX ID, including name, ID and length (in bytes).
+
+<hr width="94%" noshade="noshade" align="left" size="1">
 
 <h3>Appendix</h3>
 <a name=template_fields>1. List of all valid field types:</a>

@@ -29,7 +29,7 @@
 #include <string.h>
 
 #include "encoding.h"
-
+#include "ipfix_names.h"
 /*
  * version number of the ipfix-protocol
  */
