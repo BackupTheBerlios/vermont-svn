@@ -1,3 +1,5 @@
+#ifndef IPFIXLOLIB_H
+#define IPFIXLOLIB_H
 /*
  This file is part of the ipfixlolib.
  Release under LGPL.
@@ -437,4 +439,5 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id );
  */
 int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id);
 
+#endif
 

@@ -1,3 +1,5 @@
+#ifndef ENCODING_H
+#define ENCODING_H
 /*
  This file is part of the ipfixlolib.
  Release under LGPL.
@@ -11,7 +13,6 @@
  jan@petranek.de
  */
 
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -22,7 +23,6 @@
 #include <stdint.h>
 #define VENDOR_SPECIFIC 1
 #define NOT_VENDOR_SPECIFIC 2
-
 
 
 /*
@@ -277,3 +277,6 @@ int write_ipv4Address ( char** p_pos,  char* p_end, uint32_t n);
  * returns the IP-Address in host byte order
  */
 uint32_t read_ipv4Address ( char** p_pos,  char* p_end);
+
+#endif
+
