@@ -1341,8 +1341,8 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id )
 
 	// reallocate the memory , i.e. free superfluous memory, as we allocated enough memory to hold
 	// all possible vendor specific IDs.
-	ipfix_lo_template *template=(&(*exporter).template_arr[found_index]);
-	template->template_fields=realloc(template->template_fields, template->fields_length);
+	ipfix_lo_template *templ=(&(*exporter).template_arr[found_index]);
+	templ->template_fields=realloc(templ->template_fields, templ->fields_length);
 
 	/*
 	 write the real length field:
@@ -1356,9 +1356,9 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id )
 	p_pos += 2;
 
 	// write the lenght field
-	write_unsigned16 (&p_pos, p_end, template->fields_length);
+	write_unsigned16 (&p_pos, p_end, templ->fields_length);
 	// call the template valid
-	template->valid = COMMITED;
+	templ->valid = COMMITED;
 
 	// commit the template buffer to the sendbuffer
 	ipfix_update_template_sendbuffer(exporter);
@@ -1400,5 +1400,4 @@ int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template *templ
 
 	return 0;
 }
-
 
