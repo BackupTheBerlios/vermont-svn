@@ -159,43 +159,52 @@ int main(int argc, char **argv)
 
 			/* start a data-set */
 			ret=ipfix_start_data_set(my_exporter, &my_n_template_id);
-			printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", (*(*my_exporter).data_sendbuffer).current);
+			
+			if (ret != 0 ) {
+				// do not try use ipfix_put_data_field or  ipfix_put_end_field,
+				// if  ret=ipfix_start_data_set has failed!
 
-			/*
-			 now fill the pre-defined data fields
+				fprintf(stderr, "ipfix_start_data_set failed!\n");	
+			} else {
+				printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n",
+				       (*(*my_exporter).data_sendbuffer).current);
 
-			 NOTE: supplied data is NOT copied and has to
-			 stay valid until the ipfix_send() below!
-                         */
-			ipfix_put_data_field(my_exporter, &(my_meter_data.ip_src_addr), 4);
-			printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
+				/*
+				  now fill the pre-defined data fields
 
-			ipfix_put_data_field(my_exporter, &(my_meter_data.ip_dst_addr), 4);
-			printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
+				  NOTE: supplied data is NOT copied and has to
+				  stay valid until the ipfix_send() below!
+				*/
+				ipfix_put_data_field(my_exporter, &(my_meter_data.ip_src_addr), 4);
+				printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
 
-			ipfix_put_data_field(my_exporter, &(my_meter_data.src_port), 2);
-			printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
+				ipfix_put_data_field(my_exporter, &(my_meter_data.ip_dst_addr), 4);
+				printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
 
-			ipfix_put_data_field(my_exporter, &(my_meter_data.dst_port), 2);
-			printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
+				ipfix_put_data_field(my_exporter, &(my_meter_data.src_port), 2);
+				printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
 
-			ipfix_put_data_field(my_exporter, &(my_meter_data.byte_count), 8);
-			printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
+				ipfix_put_data_field(my_exporter, &(my_meter_data.dst_port), 2);
+				printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
 
-			ipfix_put_data_field(my_exporter, &(my_meter_data.packet_count), 8);
-			printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
+				ipfix_put_data_field(my_exporter, &(my_meter_data.byte_count), 8);
+				printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
 
-                        /* FIXME ??? */
-			/* Note: the user may specify a large buffer, as in the template example */
-			/* The user MAY (probably should) add more records, before he calls send */
-                        /* FIXME ??? */
+				ipfix_put_data_field(my_exporter, &(my_meter_data.packet_count), 8);
+				printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
 
-			/* finish the data-set */
-			ret=ipfix_end_data_set(my_exporter);
-			printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
+				/* FIXME ??? */
+				/* Note: the user may specify a large buffer, as in the template example */
+				/* The user MAY (probably should) add more records, before he calls send */
+				/* FIXME ??? */
 
-			if (ret != 0)
-				fprintf(stderr, "ipfix_end_data_set failed!\n");
+				/* finish the data-set */
+				ret=ipfix_end_data_set(my_exporter);
+				printf("main:   (*(*my_exporter).data_sendbuffer).current %i\n", my_exporter->data_sendbuffer->current);
+
+				if (ret != 0)
+					fprintf(stderr, "ipfix_end_data_set failed!\n");
+			}
 		}
 
 		/*
