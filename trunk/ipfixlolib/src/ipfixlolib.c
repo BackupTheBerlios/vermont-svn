@@ -388,7 +388,7 @@ static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, e
  * Returns: 0 on success, -1 on failure
  * This will free the templates data store!
  */
-int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
+int ipfix_remove_template(ipfix_exporter *exporter, uint16_t template_id)
 {
 	int ret = 0;
 	
