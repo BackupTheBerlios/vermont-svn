@@ -19,6 +19,7 @@ typedef uint16 SourceID;
 typedef uint16 TemplateID;
 typedef uint16 TypeId;
 typedef uint16 FieldLength;
+/* FIXME: The additional Enterprise IDs are 32bits afaik */
 typedef uint16 EnterpriseNo;
 typedef byte FieldData;
 

@@ -24,7 +24,7 @@ pthread_mutex_t receiverMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /***** Internal Functions ****************************************************/
 
-void* listenerUdpIpv4(void* handleP) {
+static void * listenerUdpIpv4(void* handleP) {
 	int handle = *(int*)handleP; free(handleP);
 	struct sockaddr_in clientAddress;
 	socklen_t clientAddressLen;

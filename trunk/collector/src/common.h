@@ -2,8 +2,8 @@
  * Generic constants, data types and functions.
  */
  
-#ifndef TOOLS_H
-#define TOOLS_H
+#ifndef COMMON_H
+#define COMMON_H
 
 #include <stdio.h>
 #include <stdint.h>

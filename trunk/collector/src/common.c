@@ -9,6 +9,7 @@ int is_in(char letter, char* alphabet) {
 	return 0;
 	}
 
+/* FIXME: bad algorithm, has at least O(n^2) because of repeated strlen! */
 void rtrim(char* text) {
 	while ((*text != 0) && is_in(text[strlen(text)-1], " \n\t")) text[strlen(text)-1] = 0;
 	}

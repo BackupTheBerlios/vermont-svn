@@ -125,16 +125,16 @@ static DataDataRecordCallbackFunction* dataDataRecordCallbackFunction;
 
 /***** Internal Functions ****************************************************/
 
-void processDataSet(SourceID sourceID, IpfixSetHeader* set);
-void processTemplateSet(SourceID sourceID, IpfixSetHeader* set);
-void processDataTemplateSet(SourceID sourceID, IpfixSetHeader* set);
-void processOptionsTemplateSet(SourceID sourceId, IpfixSetHeader* set);
+static void processDataSet(SourceID sourceID, IpfixSetHeader* set);
+static void processTemplateSet(SourceID sourceID, IpfixSetHeader* set);
+static void processDataTemplateSet(SourceID sourceID, IpfixSetHeader* set);
+static void processOptionsTemplateSet(SourceID sourceId, IpfixSetHeader* set);
 
 /**
  * Processes an IPFIX template set.
  * Called by processMessage
  */
-void processTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
+static void processTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 	IpfixTemplateHeader* th = (IpfixTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntoh(set->length);
 	byte* record = (byte*)&th->data;
@@ -181,7 +181,7 @@ void processTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
  * Processes an IPFIX Options Template Set.
  * Called by processMessage
  */
-void processOptionsTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
+static void processOptionsTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 	IpfixOptionsTemplateHeader* th = (IpfixOptionsTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntoh(set->length);
 	byte* record = (byte*)&th->data;
@@ -245,7 +245,7 @@ void processOptionsTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
  * Processes an IPFIX DataTemplate set.
  * Called by processMessage
  */
-void processDataTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
+static void processDataTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
 	IpfixDataTemplateHeader* th = (IpfixDataTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntoh(set->length);
 	byte* record = (byte*)&th->data;
@@ -321,7 +321,7 @@ void processDataTemplateSet(SourceID sourceId, IpfixSetHeader* set) {
  * Processes an IPFIX data set.
  * Called by processMessage
  */
-void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
+static void processDataSet(SourceID sourceId, IpfixSetHeader* set) {
 	BufferedTemplate* bt = getBufferedTemplate(sourceId, ntoh(set->id));
 
 	if (bt == 0) {
@@ -547,7 +547,7 @@ boolean processMessage(byte* message, uint16 length) {
 	#endif
 	}
 	
-void printIPv4(FieldType type, FieldData* data) {
+static void printIPv4(FieldType type, FieldData* data) {
 	int octet1 = 0;
 	int octet2 = 0;
 	int octet3 = 0;
@@ -570,7 +570,7 @@ void printIPv4(FieldType type, FieldData* data) {
 		}
 	}
 
-void printPort(FieldType type, FieldData* data) {
+static void printPort(FieldType type, FieldData* data) {
 	if (type.length == 0) {
 		printf("zero-length Port");
 		return;
@@ -598,7 +598,7 @@ void printPort(FieldType type, FieldData* data) {
 	errorf("Port with length %d unparseable", type.length);
 	}
 
-void printProtocol(FieldType type, FieldData* data) {
+static void printProtocol(FieldType type, FieldData* data) {
 	if (type.length != 1) {
 		errorf("Protocol with length %d unparseable", type.length);
 		return;
@@ -610,7 +610,7 @@ void printProtocol(FieldType type, FieldData* data) {
 	else printf("unknownProtocol");
 	}
 
-void printUint(FieldType type, FieldData* data) {
+static void printUint(FieldType type, FieldData* data) {
 	if (type.length == 1) {
 		uint32 i = (data[0] << 0);
 		printf("%d",i);		
@@ -735,42 +735,42 @@ FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type) {
 	}
 	
 	
-void setTemplateCallback(TemplateCallbackFunction* templateCallbackFunction_) {
-	templateCallbackFunction = templateCallbackFunction_;
+void setTemplateCallback(TemplateCallbackFunction *f) {
+	templateCallbackFunction = f;
 	}
 
-void setOptionsTemplateCallback(OptionsTemplateCallbackFunction* optionsTemplateCallbackFunction_) {
-	optionsTemplateCallbackFunction = optionsTemplateCallbackFunction_;
+void setOptionsTemplateCallback(OptionsTemplateCallbackFunction *f) {
+	optionsTemplateCallbackFunction = f;
 	}
 
-void setDataTemplateCallback(DataTemplateCallbackFunction* dataTemplateCallbackFunction_) {
-	dataTemplateCallbackFunction = dataTemplateCallbackFunction_;
-	}
-
-
-void setTemplateDestructionCallback(TemplateDestructionCallbackFunction* templateDestructionCallbackFunction_) {
-	templateDestructionCallbackFunction = templateDestructionCallbackFunction_;
-	}
-
-void setOptionsTemplateDestructionCallback(OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction_) {
-	optionsTemplateDestructionCallbackFunction = optionsTemplateDestructionCallbackFunction_;
-	}
-
-void setDataTemplateDestructionCallback(DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction_) {
-	dataTemplateDestructionCallbackFunction = dataTemplateDestructionCallbackFunction_;
+void setDataTemplateCallback(DataTemplateCallbackFunction *f) {
+	dataTemplateCallbackFunction = f;
 	}
 
 
-void setDataRecordCallback(DataRecordCallbackFunction* dataRecordCallbackFunction_) {
-	dataRecordCallbackFunction = dataRecordCallbackFunction_;
+void setTemplateDestructionCallback(TemplateDestructionCallbackFunction *f) {
+	templateDestructionCallbackFunction = f;
 	}
 
-void setOptionsRecordCallback(OptionsRecordCallbackFunction* optionsRecordCallbackFunction_) {
-	optionsRecordCallbackFunction = optionsRecordCallbackFunction_;
+void setOptionsTemplateDestructionCallback(OptionsTemplateDestructionCallbackFunction *f) {
+	optionsTemplateDestructionCallbackFunction = f;
 	}
 
-void setDataDataRecordCallback(DataDataRecordCallbackFunction* dataDataRecordCallbackFunction_) {
-	dataDataRecordCallbackFunction = dataDataRecordCallbackFunction_;
+void setDataTemplateDestructionCallback(DataTemplateDestructionCallbackFunction *f) {
+	dataTemplateDestructionCallbackFunction = f;
+	}
+
+
+void setDataRecordCallback(DataRecordCallbackFunction *f) {
+	dataRecordCallbackFunction = f;
+	}
+
+void setOptionsRecordCallback(OptionsRecordCallbackFunction *f) {
+	optionsRecordCallbackFunction = f;
+	}
+
+void setDataDataRecordCallback(DataDataRecordCallbackFunction *f) {
+	dataDataRecordCallbackFunction = f;
 	}
 
 int rcvIpfixUdpIpv4(uint16 port) {
