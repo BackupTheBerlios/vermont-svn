@@ -20,28 +20,32 @@
 #define DPRINTF(fmt, args...)
 #endif
 
-/********************************************************************/
-/*   Global, Internal variables                                     */
-/********************************************************************/
-
-
-// ipfix_receiving_collector collectors[IPFIX_MAX_COLLECTORS];
-
-
-/********************************************************************/
-/* Function definitions                                             */
-/********************************************************************/
-
-
-
-// TODO: set up sockets for TCP and SCTP (in case it will be implemented)
+static int init_rcv_udp_socket(int lport);
+static int init_send_udp_socket(char *serv_ip4_addr, int serv_port);
+static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum ipfix_validity cleanness);
+static int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf);
+static int write_ipfix_message_header(ipfix_header *header, char **p_pos, char *p_end );
+static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf, int maxelements);
+static int ipfix_reset_sendbuffer(ipfix_sendbuffer *sendbuf);
+static int ipfix_deinit_sendbuffer(ipfix_sendbuffer **sendbuf);
+static int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_capacity);
+static int ipfix_deinit_collector_array(ipfix_receiving_collector **col);
+static int ipfix_init_send_socket(char *serv_ip4_addr, int serv_port, enum ipfix_transport_protocol protocol);
+static int ipfix_init_set_manager(ipfix_set_manager **set_manager, int max_capacity);
+static int ipfix_reset_set_manager(ipfix_set_manager *set_manager);
+static int ipfix_deinit_set_manager(ipfix_set_manager **set_manager);
+static int ipfix_init_template_array(ipfix_exporter *exporter, int template_capacity);
+static int ipfix_deinit_template_array(ipfix_exporter *exporter);
+static int ipfix_update_template_sendbuffer(ipfix_exporter *exporter);
+static int ipfix_send_templates(ipfix_exporter* exporter);
+static int ipfix_send_data(ipfix_exporter* exporter);
 
 /*
  * Initializes a UDP-socket to listen to.
  * Parameters: lport the UDP-portnumber to listen to.
  * Returns: a socket to read from. -1 on failure.
  */
-int init_rcv_udp_socket(int lport)
+static int init_rcv_udp_socket(int lport)
 {
 	int s;
         struct sockaddr_in serv_addr;
@@ -72,7 +76,7 @@ int init_rcv_udp_socket(int lport)
  * serv_port the UDP-portnumber of the server.
  * Returns: a socket to write to. -1 on failure
  */
-int init_send_udp_socket(char *serv_ip4_addr, int serv_port){
+static int init_send_udp_socket(char *serv_ip4_addr, int serv_port){
 
 	int s;
 	struct sockaddr_in serv_addr;
@@ -334,7 +338,7 @@ int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int co
  * Returns: the index of the template in the exporter or -1 on failure.
  */
 
-int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum ipfix_validity cleanness)
+static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum ipfix_validity cleanness)
 {
 	int i=0;
 	int searching;
@@ -421,7 +425,7 @@ int ipfix_remove_template(ipfix_exporter *exporter, uint16_t template_id)
  *
  * Note: the first HEADER_USED_IOVEC_COUNT  iovec struct are reserved for the header! These will be overwritten!
  */
-int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf)
+static int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf)
 {
 
 	ipfix_header header;
@@ -491,7 +495,7 @@ int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_send
  *
  * Note: The user is supposed to call ipfix_send_array instead.
  */
-int write_ipfix_message_header(ipfix_header *header, char **p_pos, char *p_end )
+static int write_ipfix_message_header(ipfix_header *header, char **p_pos, char *p_end )
 {
 	// check for available space
 	if (*p_pos + IPFIX_HEADER_LENGTH < p_end ) {
@@ -526,7 +530,7 @@ int write_ipfix_message_header(ipfix_header *header, char **p_pos, char *p_end )
  * Parameters: ipfix_sendbuffer** sendbuf pointerpointer to an ipfix-sendbuffer
  * maxelements: Maximum capacity of elements, this sendbuffer will accomodate.
  */
-int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf, int maxelements)
+static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf, int maxelements)
 {
 	// mallocate memory for the sendbuffer
 	*sendbuf = malloc(sizeof(ipfix_sendbuffer));
@@ -554,7 +558,7 @@ int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf, int maxelements)
  * be filled with data.
  * (Present headers are also purged).
  */
-int ipfix_reset_sendbuffer(ipfix_sendbuffer *sendbuf)
+static int ipfix_reset_sendbuffer(ipfix_sendbuffer *sendbuf)
 {
 	if (sendbuf == NULL ) {
 		fprintf (stderr, "Sendbuffer is NULL\n");
@@ -575,7 +579,7 @@ int ipfix_reset_sendbuffer(ipfix_sendbuffer *sendbuf)
 /*
  * Deinitialize (free) an ipfix_sendbuffer
  */
-int ipfix_deinit_sendbuffer(ipfix_sendbuffer **sendbuf)
+static int ipfix_deinit_sendbuffer(ipfix_sendbuffer **sendbuf)
 {
 	// cleanup the set manager
 	ipfix_deinit_set_manager( (&(**sendbuf).set_manager));
@@ -601,7 +605,7 @@ int ipfix_deinit_sendbuffer(ipfix_sendbuffer **sendbuf)
  * col: collector array to initialize
  * col_capacity: maximum amount of collectors to store in this array
  */
-int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_capacity)
+static int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_capacity)
 {
 	int i;
 
@@ -620,7 +624,7 @@ int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_capacity
  * Parameters:
  * col: collector array to clean up
  */
-int ipfix_deinit_collector_array(ipfix_receiving_collector **col)
+static int ipfix_deinit_collector_array(ipfix_receiving_collector **col)
 {
 	free(*col);
 	*col=NULL;
@@ -636,7 +640,7 @@ int ipfix_deinit_collector_array(ipfix_receiving_collector **col)
  * serv_port: port
  * protocol: transport protocol
  */
-int ipfix_init_send_socket(char *serv_ip4_addr, int serv_port, enum ipfix_transport_protocol protocol)
+static int ipfix_init_send_socket(char *serv_ip4_addr, int serv_port, enum ipfix_transport_protocol protocol)
 {
 	int sock = -1;
 
@@ -668,7 +672,7 @@ int ipfix_init_send_socket(char *serv_ip4_addr, int serv_port, enum ipfix_transp
  * set_manager: set manager to initialize
  * max_capacity: maximum lenght, a header is allowed to have
  */
-int ipfix_init_set_manager(ipfix_set_manager **set_manager, int max_capacity)
+static int ipfix_init_set_manager(ipfix_set_manager **set_manager, int max_capacity)
 {
 	// allocate memory for the set manager
 	*set_manager = malloc(sizeof(ipfix_set_manager));
@@ -688,7 +692,7 @@ int ipfix_init_set_manager(ipfix_set_manager **set_manager, int max_capacity)
  * reset ipfix_set_manager
  * Resets the contents of an ipfix_set_manager
  */
-int ipfix_reset_set_manager(ipfix_set_manager *set_manager)
+static int ipfix_reset_set_manager(ipfix_set_manager *set_manager)
 {
 	if (set_manager == NULL ) {
 		fprintf (stderr, "Setmanager is NULL\n");
@@ -711,7 +715,7 @@ int ipfix_reset_set_manager(ipfix_set_manager *set_manager)
  * this function will refuse, unless the pointer to the header's iovec
  * (set_manager.header_iovec) is null!
  */
-int ipfix_deinit_set_manager(ipfix_set_manager **set_manager)
+static int ipfix_deinit_set_manager(ipfix_set_manager **set_manager)
 {
 	/*
 	 WARNING: this will blow, if the header's content is still in
@@ -746,7 +750,7 @@ int ipfix_deinit_set_manager(ipfix_set_manager **set_manager)
  * exporter: exporter, whose template array we'll initialize
  * template_capacity: maximum amount of templates to store in this array
  */
-int ipfix_init_template_array(ipfix_exporter *exporter, int template_capacity)
+static int ipfix_init_template_array(ipfix_exporter *exporter, int template_capacity)
 {
 	int i;
 
@@ -767,7 +771,7 @@ int ipfix_init_template_array(ipfix_exporter *exporter, int template_capacity)
  * Parameters:
  * exporter: exporter, whose template store will be purged
  */
-int ipfix_deinit_template_array(ipfix_exporter *exporter)
+static int ipfix_deinit_template_array(ipfix_exporter *exporter)
 {
   /* FIXME: free all templates in the array!
      This was our memory leak.
@@ -796,7 +800,7 @@ int ipfix_deinit_template_array(ipfix_exporter *exporter)
  * Updates the template sendbuffer
  * will be called, after a template has been added or removed
  */
-int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
+static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 {
 	int ret;
 	int i;
@@ -858,7 +862,7 @@ int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
  *  exporter sending exporting process
  * Return value: 1 on success, -1 on failure, 0 on no need to send.
  */
-int ipfix_send_templates(ipfix_exporter* exporter) 
+static int ipfix_send_templates(ipfix_exporter* exporter)
 {
 	int ret = 0;
 	int i;
@@ -912,7 +916,7 @@ int ipfix_send_templates(ipfix_exporter* exporter)
  *  exporter sending exporting process
  * Return value: 0 on success, -1 on failure.
  */
-int ipfix_send_data(ipfix_exporter* exporter) 
+static int ipfix_send_data(ipfix_exporter* exporter)
 {
  	int ret =0;
 	int i;
