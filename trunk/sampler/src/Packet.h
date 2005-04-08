@@ -51,12 +51,9 @@ public:
     length = len;
 
     /*
-     FIXME: HOW ABOUT BSD WITH TIMEZONE HERE?
-     this will probably lead to performance problems
-     better use a replacement function that partially caches the time
-     lookup at SUN
+     DO NOT SET TIMESTAMP HERE
+     IS SET IN OBSERVER!
      */
-    gettimeofday(&timestamp, NULL);
   };
   
   // Delete the packet and free all data associated with it. Should only be called
