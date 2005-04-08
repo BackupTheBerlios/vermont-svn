@@ -19,6 +19,7 @@
 #include <cstring>
 #include <stdint.h>
 #include <netinet/in.h>
+#include <sys/time.h>
 
 #include "Globals.h"
 #include "Lock.h"
@@ -48,6 +49,14 @@ public:
     ipHeader = (unsigned char *)data + IPHeaderOffset;
     transportHeader = (unsigned char *)ipHeader + ipTransportHeaderOffset(ipHeader);
     length = len;
+
+    /*
+     FIXME: HOW ABOUT BSD WITH TIMEZONE HERE?
+     this will probably lead to performance problems
+     better use a replacement function that partially caches the time
+     lookup at SUN
+     */
+    gettimeofday(&timestamp, NULL);
   };
   
   // Delete the packet and free all data associated with it. Should only be called
