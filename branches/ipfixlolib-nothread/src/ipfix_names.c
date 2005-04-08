@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-static struct ipfix_identifier IPFIXTAB[] = {
+static const struct ipfix_identifier IPFIXTAB[] = {
 	{ "RESERVED", 0, 0 },
 	{ "inoctetdeltacount", 1, 8 },
 	{ "inpacketdeltacount", 2, 8 },
@@ -150,7 +150,7 @@ static struct ipfix_identifier IPFIXTAB[] = {
 };
 
 
-static struct ipfix_identifier PSAMPTAB[] = {
+static const struct ipfix_identifier PSAMPTAB[] = {
 	{ "optiontemplateid", 1024, 2 },
 	{ "sequencenumber", 1025, 4 },
 
@@ -442,7 +442,7 @@ const struct ipfix_midentifier * in_word_set (register const char *str, register
 
 
 /* lookup a certain ipfix ID into its name */
-struct ipfix_identifier * ipfix_id_lookup(int n)
+const struct ipfix_identifier * ipfix_id_lookup(int n)
 {
 	/* ID is IPFIX one */
 	if(n >= 0 && n < sizeof(IPFIXTAB)/sizeof(*IPFIXTAB)) {
