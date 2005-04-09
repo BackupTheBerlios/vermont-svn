@@ -40,20 +40,28 @@ void *Observer::observerThread(void *arg)
   obs->captureDevice=pcap_open_live(obs->captureInterface, CAPTURE_LENGTH,
       1, 2000, obs->errorBuffer);
   // check for errors
-  if (!obs->captureDevice)
+  if(!obs->captureDevice)
   {
     LOG("Observer: Error initializing pcap interface: %s\n", obs->errorBuffer);
     return NULL;
   }
   
-  while (!obs->exitFlag)
+  while(!obs->exitFlag)
   {
     // get next packet (no zero-copy possible *sigh*)
     rawPacketData = pcap_next(obs->captureDevice, &packetHeader);
-    if (!rawPacketData)
+    if(!rawPacketData)
       continue; // no packet data was available
     
-    myPacketData = malloc(packetHeader.caplen);
+    if(!(myPacketData=malloc(packetHeader.caplen))) {
+    	/*
+	 FIXME!
+	 ALARM - no more memory available
+	 1) Start throwing away packets !
+	 2) Notify user !
+	 3) Try to resolve (?)
+	 */
+    }
     memcpy(myPacketData, rawPacketData, packetHeader.caplen);
     
     p = new Packet(myPacketData, packetHeader.caplen, numReceivers);
@@ -62,7 +70,7 @@ void *Observer::observerThread(void *arg)
     //    p->timestamp.tv_sec, p->timestamp.tv_usec / 1000, packetHeader.caplen);
     
     // broadcast packet to all receivers
-    for (vector<ConcurrentQueue<Packet> *>::iterator it = obs->receivers.begin();
+    for(vector<ConcurrentQueue<Packet> *>::iterator it = obs->receivers.begin();
       it != obs->receivers.end(); ++it)
     {
       (*it)->push(p);
