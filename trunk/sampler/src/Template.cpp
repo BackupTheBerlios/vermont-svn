@@ -17,27 +17,63 @@
 
 using namespace std;
 
+
+bool Template::addField(uint16_t id, uint16_t len)
+{
+	uint16_t offset;
+
+	switch(id) {
+	
+	case FT_SRCIP4:
+		offset=12;
+		break;
+		
+	case FT_DSTIP4:
+		offset=16;
+		break;
+		
+	case FT_PROTO:
+		offset=9;
+		break;
+		
+	case FT_SRCPORT:
+		offset=20;
+		break;
+	
+	case FT_DSTPORT:
+		offset=22;
+		break;
+	default:
+		LOG("ID %d currently not supported\n", id);
+		return false;	
+	}
+
+	addFieldWithOffset(id, len, offset);
+	return true;
+}
+
+
 void AddFieldFromString(Template *temp, const char *field)
 {
   if (strncasecmp(field, "SRCIP4", 6) == 0)
   {
-    temp->addField(FT_SRCIP4, 4, 12); // source address is as offset 12    
+    temp->addFieldWithOffset(FT_SRCIP4, 4, 12); // source address is as offset 12    
   }
   else if (strncasecmp(field, "DSTIP4", 6) == 0)
   {
-    temp->addField(FT_DSTIP4, 4, 16); // dest address is at offset 16
+    temp->addFieldWithOffset(FT_DSTIP4, 4, 16); // dest address is at offset 16
   }
   else if (strncasecmp(field, "PROTO", 5) == 0)
   {
-    temp->addField(FT_PROTO, 2, 9); // protocol is at offset 9
+    temp->addFieldWithOffset(FT_PROTO, 2, 9); // protocol is at offset 9
   }
   else if (strncasecmp(field, "SRCPORT", 7) == 0)
   {
-    temp->addField(FT_SRCPORT, 2, 20);  // source port is as offset 20 (TCP offset 0)
+    temp->addFieldWithOffset(FT_SRCPORT, 2, 20);  // source port is as offset 20 (TCP offset 0)
   }
   else if (strncasecmp(field, "DSTPORT", 7) == 0)
   {
-    temp->addField(FT_DSTPORT, 2, 22); // dest port is at offset 22 (TCP offset 2)
+    temp->addFieldWithOffset(FT_DSTPORT, 2, 22); // dest port is at offset 22 (TCP offset 2)
   }
 }
 

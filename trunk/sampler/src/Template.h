@@ -54,7 +54,7 @@ public:
     return fieldCount;
   };
   
-  void addField(unsigned short type, unsigned short length, unsigned short offset)
+  void addFieldWithOffset(unsigned short type, unsigned short length, unsigned short offset)
   {
     //LOG("Adding field type %d, length %d, offset %d\n", type, length, offset);
     fieldType[fieldCount] = type;
@@ -76,6 +76,8 @@ public:
   }
   
   static Template *readFromFile(const char *fileName);
+  bool Template::addField(uint16_t id, uint16_t len);
+
 };
 
 #endif
