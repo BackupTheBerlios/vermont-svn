@@ -12,6 +12,7 @@
 #ifndef TEMPLATE_H
 #define TEMPLATE_H
 
+#include <stdint.h>
 #include "Globals.h"
 
 #define MAX_TEMPLATE_FIELDS 512
