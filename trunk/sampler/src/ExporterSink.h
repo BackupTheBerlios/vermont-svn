@@ -22,12 +22,15 @@ extern "C" {
 
 // the maximum number of packets to be queued
 #define MAX_PACKETS 1024
+// the default maximum of IPFIX packet per big IPFIX packet sent
+#define IPFIX_PACKETS_MAX 10
 
 class ExporterSink : public PacketReceiver
 {
 public:
-  ExporterSink(Template *tmpl, int sID) 
-    : sourceID(sID), templ(tmpl), thread(ExporterSink::exporterSinkProcess), exitFlag(false), numPacketsToRelease(0)
+    ExporterSink(Template *tmpl, int sID) : sourceID(sID),
+        templ(tmpl), thread(ExporterSink::exporterSinkProcess), exitFlag(false),
+        numPacketsToRelease(0), ipfix_maxpackets(IPFIX_PACKETS_MAX)
   {
     int ret, i, tmplid;
     unsigned short ttype, tlength, toffset;
@@ -129,6 +132,20 @@ public:
     numPacketsToRelease = 0;
   }
 
+
+  /* max packets per big IPFIX packet */
+  bool setMaxIpfixPP(int x)
+  {
+      ipfix_maxpackets=x;
+
+      return true;
+  }
+
+  int getMaxIpfixPP()
+  {
+      return ipfix_maxpackets;
+  }
+
 protected:
   int sourceID;
   Template *templ;
@@ -140,6 +157,8 @@ protected:
   // these packets need to be release()'d after we send the current IPFIX packet
   int numPacketsToRelease;
   Packet *packetsToRelease[MAX_PACKETS];
+
+  int ipfix_maxpackets;
 
 public:
   bool exitFlag;

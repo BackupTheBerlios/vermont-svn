@@ -26,7 +26,6 @@ void *ExporterSink::exporterSinkProcess(void *arg)
   Packet *p;
   int pckCount = 0;
   int deadline = 400; // timeout in msec after first packet has been added
-  const int maxpackets = 10; // do not put more than this many packets in one IPFIX packet
   
   LOG("ExporterSink started\n");
   while (!sink->exitFlag)
@@ -38,7 +37,7 @@ void *ExporterSink::exporterSinkProcess(void *arg)
     sink->StartNewPacketStream();
     sink->AddPacket(p);
     
-    while (pckCount < maxpackets)
+    while (pckCount < ipfix_maxpackets)
     {
       // TODO: add time constraint here (max. wait time)
       p = queue->pop(); 
