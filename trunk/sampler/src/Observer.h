@@ -44,6 +44,9 @@ public:
     {
       LOG("  Name=%s, DESC=%s\n", dev->name, dev->description);
     }
+
+    LOG("Observer: Setting pcap snaplen to %d\n", capturelen);
+
   };
 
   ~Observer()
