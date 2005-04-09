@@ -19,7 +19,4 @@
 #define LOG(fmt, ...)      do { } while (0);
 #endif
 
-// pcap packet capture length
-#define CAPTURE_LENGTH 128
-
 #endif

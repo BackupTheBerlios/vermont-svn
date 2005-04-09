@@ -12,6 +12,13 @@
 #ifndef OBSERVER_H
 #define OBSERVER_H
 
+// default pcap packet capture length
+#define CAPTURE_LENGTH 128
+/*
+ maximum physical packet length
+ you may want to adjust this on a special jumbo-framed GBit network
+ */
+#define CAPTURE_PHYSICAL_MAX 1526
 #include <vector>
 #include "Globals.h"
 #include "Thread.h"
@@ -24,7 +31,7 @@ class Observer
 {
 public:
   // ObserverThread constructor
-  Observer() : thread(Observer::observerThread), exitFlag(false)
+  Observer() : thread(Observer::observerThread), exitFlag(false), capturelen(CAPTURE_LENGTH)
   {    
     // query all available capture devices
     LOG("Observer: Finding devices\n");
@@ -64,6 +71,22 @@ public:
   {
     receivers.push_back(recv->getQueue());
   };
+  
+  bool Observer::setCaptureLen(int x)
+  {
+      if(x > CAPTURE_PHYSICAL_MAX) {
+          LOG("Capture length %d exceeds physical MTU %d (with header)\n", x, CAPTURE_PHYSICAL_MAX);
+          return false;
+      }
+      capturelen=x;
+
+      return true;
+  }
+
+  int Observer::getCaptureLen()
+  {
+      return capturelen;
+  }
 
 protected:
   Thread thread;
@@ -72,6 +95,7 @@ protected:
   pcap_if_t *allDevices;
   pcap_t *captureDevice;
   char errorBuffer[PCAP_ERRBUF_SIZE];
+  int capturelen;
 
   static void *observerThread(void *);
 
