@@ -37,7 +37,7 @@ void *ExporterSink::exporterSinkProcess(void *arg)
     sink->StartNewPacketStream();
     sink->AddPacket(p);
     
-    while (pckCount < ipfix_maxpackets)
+    while (pckCount < sink->ipfix_maxpackets)
     {
       // TODO: add time constraint here (max. wait time)
       p = queue->pop(); 
