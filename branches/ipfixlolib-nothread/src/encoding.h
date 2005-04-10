@@ -60,11 +60,17 @@ extern "C" {
  with the authors.
 */
 
+#if __BYTE_ORDER == __BIG_ENDIAN
+/* on big endian machines this is a NOOP */
+#define htonll(x) (x)
+#define ntohll(x) (x)
 
+#else
 /* both assumes little-endianness */
 uint64_t htonll(uint64_t number);
 inline uint64_t ntohll(uint64_t number);
 
+#endif
 /*
  * Write an octet
  * Parameters:

@@ -10,7 +10,9 @@
  2004-11-12
  jan@petranek.de
  */
+#include <endian.h>
 #include "encoding.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,8 +50,16 @@ extern "C" {
  */
 
 
-// both assumes little-endianness.
-// inline uint64_t htonll(uint64_t number);
+#if __BYTE_ORDER == __BIG_ENDIAN
+/* on big endian machines this is a NOOP */
+#define htonll(x) (x)
+#define ntohll(x) (x)
+
+#else
+
+/*
+ both assumes little-endianness.
+ */
 uint64_t htonll(uint64_t number)
 {
 	return ( htonl( (number >> 32) & 0xFFFFFFFF) |
@@ -61,7 +71,7 @@ inline uint64_t ntohll(uint64_t number)
 	return ( htonl( (number >> 32) & 0xFFFFFFFF) |
 		 ((uint64_t) (htonl(number & 0xFFFFFFFF))  << 32));
 }
-
+#endif
 
 /*
  * Write an octet
