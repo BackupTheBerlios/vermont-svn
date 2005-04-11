@@ -1147,7 +1147,7 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 	// have we found a template?
 	if (found_index >= 0) {
 
-		DPRINTF("ipfix_start_template_set: template found at index %i \n, found_index");
+		DPRINTF("ipfix_start_template_set: template found at index %i\n", found_index);
 		// we must overwrite the old template.
 		// first, clean up the old template:
 
