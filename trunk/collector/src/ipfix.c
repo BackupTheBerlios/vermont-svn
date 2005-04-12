@@ -1,3 +1,10 @@
+/** @file
+ * IPFIX protocol constants.
+ *
+ * This function provides constants and functions necessary or useful for interpretation of IPFIX messages.
+ *
+ */
+
 #include <string.h>
 #include "ipfix.h"
 

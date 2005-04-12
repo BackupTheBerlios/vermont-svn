@@ -1,38 +1,43 @@
-#include <string.h>
+/** \file
+ * Generic constants, data types and functions.
+ *
+ * This module provides stuff useful throughout the application.
+ *
+ */
+
+#include <netinet/in.h>
 #include "common.h"
 
-int is_in(char letter, char* alphabet) {
-	int i;
-	for (i = 0; i < strlen(alphabet); i++) {
-		if (alphabet[i] == letter) return 1;
-		}
-	return 0;
+/**
+ * Converts a uint64_t from network byte order to host byte order
+ */
+uint64_t ntohll(uint64_t i) {
+	union {
+		uint64_t ui64;
+		struct {
+			uint32_t a;
+			uint32_t b;
+			} ui32;
+		} u;
+	u.ui64 = i;
+	uint64_t word0 = ntohl(u.ui32.a);
+	uint64_t word1 = ntohl(u.ui32.b);
+	uint64_t reslt = (word0 << 32) ^ (word1 << 0);
+	return reslt;
 	}
 
-/* FIXME: bad algorithm, has at least O(n^2) because of repeated strlen! */
-void rtrim(char* text) {
-	while ((*text != 0) && is_in(text[strlen(text)-1], " \n\t")) text[strlen(text)-1] = 0;
+/**
+ * Converts a uint64_t from host byte order to network byte order
+ */
+uint64_t htonll(uint64_t i) {
+	union {
+		uint64_t ui64;
+		struct {
+			uint32_t a;
+			uint32_t b;
+			} ui32;
+		} u;
+	u.ui32.a = htonl(i >> 32);
+	u.ui32.b = htonl(i >> 0);
+	return u.ui64;
 	}
-
-char* ltrim(char* text) {
-	while ((*text != 0) && is_in(*text, " \n\t")) ++text;
-	return text;
-	}
-
-char* get_next_token(char** text, char* delim) {
-	char* p = *text;
-
-	if (**text == 0) return NULL;
-
-	for (; **text != 0; ++*text) {
-		if (is_in(**text, delim)) {
-			**text = 0; ++*text;
-			while ((**text != 0) && (is_in(**text, delim))) {
-				++*text;
-				}
-			break;
-			}
-		}
-	return p;	
-	}
-

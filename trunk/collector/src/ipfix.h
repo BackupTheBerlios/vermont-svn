@@ -2,9 +2,9 @@
 #define IPFIX_LENGTH_unsigned16 2
 #define IPFIX_LENGTH_unsigned32 4
 #define IPFIX_LENGTH_unsigned64 8
-#define IPFIX_LENGTH_ipv4Address 32
-#define IPFIX_LENGTH_ipv6Address 64
-#define IPFIX_LENGTH_dateTimeSeconds 32
+#define IPFIX_LENGTH_ipv4Address 4
+#define IPFIX_LENGTH_ipv6Address 8
+#define IPFIX_LENGTH_dateTimeSeconds 4
 
 #define IPFIX_protocolIdentifier_ICMP         1
 #define IPFIX_protocolIdentifier_TCP          6

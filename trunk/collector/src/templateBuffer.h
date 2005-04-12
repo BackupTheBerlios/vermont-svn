@@ -1,29 +1,24 @@
-/** \file
- * Template Buffer.
- * Used by rcvIpfix to store Templates of all kinds
- */
-
 #ifndef TEMPLATEBUFFER_H
 #define TEMPLATEBUFFER_H
 
 #include "rcvIpfix.h"
-#include "common.h"
 #include "time.h"
 
 /***** Constants ************************************************************/
 
+#define TEMPLATE_EXPIRE_SECS  15
 
 /***** Data Types ************************************************************/
 
 /**
- * FIXME
+ * FIXME: add description
  */
 typedef struct {
-	SourceID	sourceID;		/**< source identifier of exporter that sent this template */
-	TemplateID	templateID;		/**< template# this template defines */
-	uint16		recordLength;	/**< length of one record in the data set. Variable-length carry -1 */
-	TemplateID	setID;			/**< should be 2,3,4 and determines the type of pointer used in the unions */
-	time_t		expires;	/**< Timestamp when this Template will expire or 0 if it will never expire */
+	SourceID	sourceID;     /**< source identifier of exporter that sent this template */
+	TemplateID	templateID;   /**< template# this template defines */
+	uint16_t	recordLength; /**< length of one record in the data set. Variable-length carry -1 */
+	TemplateID	setID;        /**< should be 2,3,4 and determines the type of pointer used in the unions */
+	time_t		expires;      /**< Timestamp when this Template will expire or 0 if it will never expire */
 	union {
 		TemplateInfo* templateInfo;
 		OptionsTemplateInfo* optionsTemplateInfo;
@@ -34,15 +29,23 @@ typedef struct {
 		DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
 		OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
 		};
-	byte*       next;           /**< Pointer to next buffered Template */
+	void*	next;             /**< Pointer to next buffered Template */
 	} BufferedTemplate;
+
+/**
+ * FIXME: add description
+ */	
+typedef struct {
+	BufferedTemplate* head;
+	} TemplateBuffer;
+
 
 /***** Prototypes ************************************************************/
 
-void initializeTemplateBuffer();
-void deinitializeTemplateBuffer();
-BufferedTemplate* getBufferedTemplate(SourceID sourceId, TemplateID templateId);
-void destroyBufferedTemplate(SourceID sourceId, TemplateID id);
-void bufferTemplate(BufferedTemplate* bt);
+TemplateBuffer* createTemplateBuffer();
+void destroyTemplateBuffer(TemplateBuffer* templateBuffer);
+BufferedTemplate* getBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, TemplateID templateId);
+void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, TemplateID id);
+void bufferTemplate(TemplateBuffer* templateBuffer, BufferedTemplate* bt);
 
 #endif

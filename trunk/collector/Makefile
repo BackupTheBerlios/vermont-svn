@@ -9,7 +9,6 @@
 ARCH ?= BSD
 
 # -- compiler and linker switches ----
-CC=gcc
 CFLAGS += -pg -g -Wall -Werror
 LDFLAGS += -pg -g
 
@@ -26,7 +25,7 @@ PROGS = testCollector
 ARCHS = ipfixCollector.a
 
 testCollector = testCollector.o ipfixCollector.a
-ipfixCollector.a = rcvMessage.o rcvIpfix.o templateBuffer.o common.o ipfix.o
+ipfixCollector.a = rcvIpfix.o templateBuffer.o common.o ipfix.o
 
 # -- generic and phony targets ----
 

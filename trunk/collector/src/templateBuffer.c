@@ -1,8 +1,16 @@
+/** \file
+ * Template Buffer for rcvIpfix.
+ *
+ * Used by rcvIpfix to store Templates of all kinds
+ *
+ */
+
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "templateBuffer.h"
+#include "common.h"
 
 /***** Constants ************************************************************/
 
@@ -12,7 +20,6 @@
 
 /***** Global Variables ******************************************************/
 
-static BufferedTemplate* firstBufferedTemplate;
 
 /***** Internal Functions ****************************************************/
 
@@ -21,13 +28,13 @@ static BufferedTemplate* firstBufferedTemplate;
 /**
  * Returns a TemplateInfo, OptionsTemplateInfo, DataTemplateInfo or NULL
  */
-BufferedTemplate* getBufferedTemplate(SourceID sourceId, TemplateID templateId) {
+BufferedTemplate* getBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, TemplateID templateId) {
 	time_t now = time(0);
-	BufferedTemplate* bt = firstBufferedTemplate;
+	BufferedTemplate* bt = templateBuffer->head;
 	while (bt != 0) {
 		if ((bt->sourceID == sourceId) && (bt->templateID == templateId)) {
 			if ((bt->expires) && (bt->expires < now)) {
-				destroyBufferedTemplate(sourceId, templateId);
+				destroyBufferedTemplate(templateBuffer, sourceId, templateId);
 				return 0;
 				}
 			return bt;
@@ -40,19 +47,19 @@ BufferedTemplate* getBufferedTemplate(SourceID sourceId, TemplateID templateId) 
 /**
  * Saves a TemplateInfo, OptionsTemplateInfo, DataTemplateInfo overwriting existing Templates
  */
-void bufferTemplate(BufferedTemplate* bt) {
-	destroyBufferedTemplate(bt->sourceID, bt->templateID);
-	bt->next = (byte*)firstBufferedTemplate;
+void bufferTemplate(TemplateBuffer* templateBuffer, BufferedTemplate* bt) {
+	destroyBufferedTemplate(templateBuffer, bt->sourceID, bt->templateID);
+	bt->next = templateBuffer->head;
 	bt->expires = 0;
-	firstBufferedTemplate = bt;
+	templateBuffer->head = bt;
 	}
 
 /**
  * Frees memory, marks Template unused.
  */
-void destroyBufferedTemplate(SourceID sourceId, TemplateID templateId) {
+void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, TemplateID templateId) {
 	BufferedTemplate* predecessor = 0;
-	BufferedTemplate* bt = firstBufferedTemplate;
+	BufferedTemplate* bt = templateBuffer->head;
 	while (bt != 0) {
 		if ((bt->sourceID == sourceId) && (bt->templateID == templateId)) break;
 		predecessor = bt;
@@ -60,9 +67,9 @@ void destroyBufferedTemplate(SourceID sourceId, TemplateID templateId) {
 		}
 	if (bt == 0) return;
 	if (predecessor != 0) {
-		predecessor->next = (byte*)bt->next;
+		predecessor->next = bt->next;
 		} else {
-		firstBufferedTemplate = (BufferedTemplate*)bt->next;
+		templateBuffer->head = (BufferedTemplate*)bt->next;
 		}
 	if (bt->setID == IPFIX_SetId_Template) {
 		free(bt->templateInfo->fieldInfo);
@@ -90,19 +97,24 @@ void destroyBufferedTemplate(SourceID sourceId, TemplateID templateId) {
 /**
  * initializes the buffer
  */
-void initializeTemplateBuffer() {
-	firstBufferedTemplate = 0;
+TemplateBuffer* createTemplateBuffer() {
+	TemplateBuffer* templateBuffer = (TemplateBuffer*)malloc(sizeof(TemplateBuffer));
+	
+	templateBuffer->head = 0;
+	
+	return templateBuffer;
 	}
 
 /**
  * Destroys all buffered templates
  */
-void deinitializeTemplateBuffer() {
-	while (firstBufferedTemplate != 0) {
-		BufferedTemplate* bt = firstBufferedTemplate;
+void destroyTemplateBuffer(TemplateBuffer* templateBuffer) {
+	while (templateBuffer->head != 0) {
+		BufferedTemplate* bt = templateBuffer->head;
  		BufferedTemplate* bt2 = (BufferedTemplate*)bt->next;
- 		destroyBufferedTemplate(bt->sourceID, bt->templateID);
- 		firstBufferedTemplate = bt2;
+ 		destroyBufferedTemplate(templateBuffer, bt->sourceID, bt->templateID);
+ 		templateBuffer->head = bt2;
  		}
+	free(templateBuffer);
 	}
 
