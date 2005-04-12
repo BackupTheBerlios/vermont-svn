@@ -42,6 +42,9 @@ build/%.o: src/%.c src/%.h
 clean:
 	rm -f $(PROGS) gmon.out build/*
 
+doc: Doxyfile
+	doxygen
+
 # -- macro-generated targets ----
 
 define PROGSMACRO
