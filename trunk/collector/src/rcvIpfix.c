@@ -324,7 +324,7 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 			record = record + ti->dataInfo[fieldNo].type.length;
 			}
 
-		// Copy fixed data block
+		/* Copy fixed data block */
 		int dataLength = (record - &th->data);
 		ti->data = (byte*)malloc(dataLength);
 		memcpy(ti->data,&th->data,dataLength);
@@ -499,7 +499,7 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 static int processNetflowV9Packet(IpfixReceiver* ipfixReceiver, byte* message, uint16_t length) {
 	NetflowV9Header* header = (NetflowV9Header*)message;
 	
-	// pointer to first set
+	/* pointer to first set */
 	IpfixSetHeader* set = (IpfixSetHeader*)&header->data;
 
 	int i;
@@ -530,10 +530,10 @@ static int processIpfixPacket(IpfixReceiver* ipfixReceiver, byte* message, uint1
 		return -1;
  		}
 
-	// pointer to first set
+	/* pointer to first set */
 	IpfixSetHeader* set = (IpfixSetHeader*)&header->data;
 
-	// pointer beyond message
+	/* pointer beyond message */
 	IpfixSetHeader* setX = (IpfixSetHeader*)((char*)message + length); 
 
 	while (set < setX) {
@@ -820,7 +820,8 @@ FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type) {
 	
 /**
  * Sets the callback function to invoke when a new Template arrives.
- * @param templateCallbackFunction_ pointer to the callback function
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param f pointer to the callback function
  */
 void setTemplateCallback(IpfixReceiver* ipfixReceiver, TemplateCallbackFunction* f) {
 	ipfixReceiver->templateCallbackFunction = f;
@@ -828,7 +829,8 @@ void setTemplateCallback(IpfixReceiver* ipfixReceiver, TemplateCallbackFunction*
 
 /**
  * Sets the callback function to invoke when a new OptionsTemplate arrives.
- * @param optionsTemplateCallbackFunction_ pointer to the callback function
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param f pointer to the callback function
  */
 void setOptionsTemplateCallback(IpfixReceiver* ipfixReceiver, OptionsTemplateCallbackFunction* f) {
 	ipfixReceiver->optionsTemplateCallbackFunction = f;
@@ -836,7 +838,8 @@ void setOptionsTemplateCallback(IpfixReceiver* ipfixReceiver, OptionsTemplateCal
 
 /**
  * Sets the callback function to invoke when a new DataTemplate arrives.
- * @param dataTemplateCallbackFunction_ pointer to the callback function
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param f pointer to the callback function
  */
 void setDataTemplateCallback(IpfixReceiver* ipfixReceiver, DataTemplateCallbackFunction* f) {
 	ipfixReceiver->dataTemplateCallbackFunction = f;
@@ -846,7 +849,8 @@ void setDataTemplateCallback(IpfixReceiver* ipfixReceiver, DataTemplateCallbackF
 /**
  * Sets the callback function to invoke when a Template is being destroyed.
  * Particularly useful for cleaning up userData associated with this Template
- * @param templateDestructionCallbackFunction_ pointer to the callback function
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param f pointer to the callback function
  */
 void setTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, TemplateDestructionCallbackFunction* f) {
 	ipfixReceiver->templateDestructionCallbackFunction = f;
@@ -855,7 +859,8 @@ void setTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, TemplateDestru
 /**
  * Sets the callback function to invoke when a OptionsTemplate is being destroyed.
  * Particularly useful for cleaning up userData associated with this Template
- * @param optionsTemplateDestructionCallbackFunction_ pointer to the callback function
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param f pointer to the callback function
  */
 void setOptionsTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, OptionsTemplateDestructionCallbackFunction* f) {
 	ipfixReceiver->optionsTemplateDestructionCallbackFunction = f;
@@ -864,7 +869,8 @@ void setOptionsTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, Options
 /**
  * Sets the callback function to invoke when a DataTemplate is being destroyed.
  * Particularly useful for cleaning up userData associated with this Template
- * @param dataTemplateDestructionCallbackFunction_ pointer to the callback function
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param f pointer to the callback function
  */
 void setDataTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, DataTemplateDestructionCallbackFunction* f) {
 	ipfixReceiver->dataTemplateDestructionCallbackFunction = f;
@@ -873,7 +879,8 @@ void setDataTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, DataTempla
 
 /**
  * Sets the callback function to invoke when a new Data Record arrives.
- * @param dataRecordCallbackFunction_ pointer to the callback function
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param f pointer to the callback function
  */
 void setDataRecordCallback(IpfixReceiver* ipfixReceiver, DataRecordCallbackFunction* f) {
 	ipfixReceiver->dataRecordCallbackFunction = f;
@@ -881,7 +888,8 @@ void setDataRecordCallback(IpfixReceiver* ipfixReceiver, DataRecordCallbackFunct
 
 /**
  * Sets the callback function to invoke when a new Options Record arrives.
- * @param optionsRecordCallbackFunction_ pointer to the callback function
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param f pointer to the callback function
  */
 void setOptionsRecordCallback(IpfixReceiver* ipfixReceiver, OptionsRecordCallbackFunction* f) {
 	ipfixReceiver->optionsRecordCallbackFunction = f;
@@ -889,7 +897,8 @@ void setOptionsRecordCallback(IpfixReceiver* ipfixReceiver, OptionsRecordCallbac
 
 /**
  * Sets the callback function to invoke when a new Data Record with fixed fields arrives.
- * @param dataDataRecordCallbackFunction_ pointer to the callback function
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param f pointer to the callback function
  */
 void setDataDataRecordCallback(IpfixReceiver* ipfixReceiver, DataDataRecordCallbackFunction* f) {
 	ipfixReceiver->dataDataRecordCallbackFunction = f;
@@ -959,7 +968,7 @@ void stopRcvIpfix(IpfixReceiver* ipfixReceiver) {
 
 /**
  * Closes a socket.
- * @param handle Handle returned by rcvIpfixUdpIpv4()
+ * @param ipfixReceiver Handle returned by @c rcvIpfixUdpIpv4()
  */
 void rcvIpfixClose(IpfixReceiver* ipfixReceiver) {
 	close(ipfixReceiver->socket);
