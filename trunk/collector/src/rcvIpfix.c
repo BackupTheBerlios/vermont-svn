@@ -911,6 +911,7 @@ void setDataDataRecordCallback(IpfixReceiver* ipfixReceiver, DataDataRecordCallb
  * @return handle for further interaction
  */
 IpfixReceiver* rcvIpfixUdpIpv4(uint16_t port) {
+	/* FIXME: really check return code */
 	IpfixReceiver* ipfixReceiver = (IpfixReceiver*)malloc(sizeof(IpfixReceiver));
 	ipfixReceiver->templateCallbackFunction = 0;
 	ipfixReceiver->dataTemplateCallbackFunction = 0;
@@ -925,7 +926,8 @@ IpfixReceiver* rcvIpfixUdpIpv4(uint16_t port) {
 	ipfixReceiver->templateBuffer = createTemplateBuffer();
 	
 	pthread_mutex_lock(&ipfixReceiver->mutex);
-
+	
+	/* FIXME: defined cleaning up on error, free all previously allocated resources */
 	ipfixReceiver->socket = socket(AF_INET, SOCK_DGRAM, 0);
 	if(ipfixReceiver->socket < 0) {
 		perror("socket");
@@ -936,14 +938,16 @@ IpfixReceiver* rcvIpfixUdpIpv4(uint16_t port) {
 	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 	serverAddress.sin_port = htons(port);
+	
+	/* FIXME: defined cleaning up on error, free all previously allocated resources */
 	int i = bind(ipfixReceiver->socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in));
 	if(i < 0) {
 		perror("bind");
 		return NULL;
 		}
 
-	pthread_t thread; 
-	pthread_create(&thread, 0, listenerUdpIpv4, ipfixReceiver);
+	/* FIXME: defined cleaning up on error, free all previously allocated resources */
+	pthread_create(&(ipfixReceiver->thread), 0, listenerUdpIpv4, ipfixReceiver);
 	//listenerUdpIpv4(ipfixReceiver); //debug - single-threaded
 	
 	return ipfixReceiver;
