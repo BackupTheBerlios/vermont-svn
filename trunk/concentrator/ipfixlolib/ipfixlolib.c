@@ -3,6 +3,11 @@
  Release under LGPL.
 
  Header for encoding functions suitable for IPFIX
+
+ Changes by Christoph Sommer, 2005-04-14
+   Modified ipfixlolib-nothread Rev. 80
+   Added support for DataTemplates (SetID 4)
+
  Changes by Ronny T. Lampert, 2005-01
  Changed 03-2005: Had to add a lot of casts for malloc() and friends
  because of stricter C++ checking
@@ -17,8 +22,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-//define DEBUG
 
 /* just printf for now */
 #ifdef DEBUG
@@ -1136,7 +1139,7 @@ int ipfix_end_data_set(ipfix_exporter *exporter)
  * Will allocate memory and stuff for a new template
  * End_data_template set will add this template to the exporter
  */
-int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count)
+int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count, uint16_t fixedfield_count)
 {
 	// are we updating an existing template?
 	int i;
@@ -1149,7 +1152,7 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 	// have we found a template?
 	if (found_index >= 0) {
 
-		DPRINTF("ipfix_start_template_set: template found at index %i \n", found_index);
+		DPRINTF("ipfix_start_template_set: template found at index %i\n", found_index);
 		// we must overwrite the old template.
 		// first, clean up the old template:
 
@@ -1210,9 +1213,9 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 		// and may contain an Enterprise Number (4 bytes)
 		// also, reserve 8 bytes space for the header!
 
-		(*exporter).template_arr[found_index].max_fields_length = 8 * field_count + 8;
+		(*exporter).template_arr[found_index].max_fields_length = 8 * (field_count + fixedfield_count) + ((fixedfield_count==0)?8:12);
 		DPRINTF("(*exporter).template_arr[found_index].max_fields_length %u \n", (*exporter).template_arr[found_index].max_fields_length);
-		(*exporter).template_arr[found_index].fields_length = 8;
+		(*exporter).template_arr[found_index].fields_length = (fixedfield_count==0)?8:12;
 
 		(*exporter).template_arr[found_index].template_fields = (char*) malloc (   (*exporter).template_arr[found_index].max_fields_length );
 
@@ -1236,8 +1239,8 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 		// add offset to the buffer's beginning: this is, where we will write to.
 		//  p_pos +=  (*exporter).template_arr[found_index].fields_length;
 
-		// set ID is 2 for a template:
-		write_unsigned16 (&p_pos, p_end, 2);
+		// set ID is 2 for a template, 4 for a template with fixed fields:
+		write_unsigned16 (&p_pos, p_end, (fixedfield_count==0)?2:4);
 		// write 0 to the lenght field; this will be overwritten with end_template
 		write_unsigned16 (&p_pos, p_end, 0);
 		// write the template ID:
@@ -1245,6 +1248,13 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
 		// write the field count:
 		write_unsigned16 (&p_pos, p_end, field_count);
 
+		if (fixedfield_count > 0) {
+			// write the fixedfield count:
+			write_unsigned16 (&p_pos, p_end, fixedfield_count);
+			// write the reserved field:
+			write_unsigned16 (&p_pos, p_end, 0);
+			}
+		
 		// does this work?
 		// (*exporter).template_arr[found_index].fields_length += 8;
 		DPRINTF("ipfix_start_template_set: max_fields_len %u \n", (*exporter).template_arr[found_index].max_fields_length);
@@ -1329,6 +1339,58 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uin
 	return 0;
 }
 
+int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count) {
+	return ipfix_start_datatemplate_set(exporter, template_id, field_count, 0);
+	}
+
+int ipfix_put_template_fixedfield(ipfix_exporter *exporter, uint16_t template_id, uint16_t type, uint16_t length, uint32_t enterprise_id) {
+	return ipfix_put_template_field(exporter, template_id, type, length, enterprise_id);
+	}
+
+int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void* data, uint16_t data_length) {
+	int found_index;
+	/* set pointers to the buffer */
+	int ret;
+	char *p_pos;
+	char *p_end;
+
+	found_index=ipfix_find_template(exporter, template_id,  UNCLEAN);
+
+	/* test for a valid slot */
+	if ( found_index < 0 || found_index >= exporter->ipfix_lo_template_maxsize ) {
+		fprintf (stderr, "Template not found. \n");
+		return -1;
+	}
+
+	ipfix_lo_template *templ=(&(*exporter).template_arr[found_index]);
+	templ->max_fields_length += data_length;
+	templ->template_fields=(char *)realloc(templ->template_fields, templ->max_fields_length);
+	
+	/* beginning of the buffer */
+	p_pos =  (*exporter).template_arr[found_index].template_fields;
+	// end of the buffer
+	p_end = p_pos +  (*exporter).template_arr[found_index].max_fields_length;
+
+	DPRINTF("ipfix_put_template_data: template found at %i\n", found_index);
+	DPRINTF("ipfix_put_template_data: A p_pos %u, p_end %u\n", p_pos, p_end);
+	DPRINTF("ipfix_put_template_data: max_fields_len %u \n", (*exporter).template_arr[found_index].max_fields_length);
+	DPRINTF("ipfix_put_template_data: fieldss_len %u \n", (*exporter).template_arr[found_index].fields_length);
+
+	// add offset to the buffer's beginning: this is, where we will write to.
+	p_pos += (*exporter).template_arr[found_index].fields_length;
+
+	DPRINTF("ipfix_put_template_data: B p_pos %u, p_end %u\n", p_pos, p_end);
+
+	int i;
+	for (i = 0; i < data_length; i++) {
+		ret = write_octet(&p_pos, p_end, *(((uint8_t*)data)+i) );
+		}
+
+	// add to the written length:
+	(*exporter).template_arr[found_index].fields_length += data_length;
+
+	return 0;
+	}
 
 /*
  * Marks the end of a template set

@@ -119,8 +119,9 @@ typedef struct {
  */
 typedef struct {
 	uint16_t templateId;
-	uint8_t fieldCount;
-	uint8_t dataCount;
+	uint16_t fieldCount;
+	uint16_t dataCount;
+	uint16_t reserved;
 	byte data;
 	} IpfixDataTemplateHeader;
 
@@ -268,6 +269,7 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 	IpfixDataTemplateHeader* th = (IpfixDataTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntohs(set->length);
 	byte* record = (byte*)&th->data;
+
 	/* DataTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
@@ -279,8 +281,8 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 		bt->dataTemplateInfo = ti;
 		bt->dataTemplateDestructionCallbackFunction = ipfixReceiver->dataTemplateDestructionCallbackFunction;
 		ti->userData = 0;
-		ti->fieldCount = th->fieldCount;
-		ti->dataCount = th->dataCount;
+		ti->fieldCount = ntohs(th->fieldCount);
+		ti->dataCount = ntohs(th->dataCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
 		int isLengthVarying = 0;
 		uint16_t fieldNo;
@@ -298,9 +300,9 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 				}
 			}
 		if (isLengthVarying) {
-  			bt->recordLength = 65535;
+			bt->recordLength = 65535;
 			for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) ti->fieldInfo[fieldNo].offset = 65535;
-  			}
+			}
 
 		ti->dataInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
 		for (fieldNo = 0; fieldNo < ti->dataCount; fieldNo++) {
@@ -313,22 +315,34 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 				ti->dataInfo[fieldNo].type.eid = 0;
 				record = (byte*)((byte*)record+4);
 				}
-			ti->dataInfo[fieldNo].offset = (record - &th->data);
+			}
+		
+		/* done with reading dataInfo, @c record now points to the fixed data block */
+		byte* dataStart = record;
+		
+		int dataLength = 0;
+		for (fieldNo = 0; fieldNo < ti->dataCount; fieldNo++) {
+			ti->dataInfo[fieldNo].offset = dataLength;
 			if (ti->dataInfo[fieldNo].type.length == 65535) {
-				if (*(byte*)record < 255) {
-					ti->dataInfo[fieldNo].type.length = *(byte*)record;
-					} else {
-					ti->dataInfo[fieldNo].type.length = *(uint16_t*)(record+1);
+				/* This is a variable-length field, get length from first byte and advance offset */
+				ti->dataInfo[fieldNo].type.length = *(uint8_t*)(dataStart + ti->dataInfo[fieldNo].offset);
+				ti->dataInfo[fieldNo].offset += 1;
+				if (ti->dataInfo[fieldNo].type.length == 255) {
+					/* First byte did not suffice, length is stored in next two bytes. Advance offset */
+					ti->dataInfo[fieldNo].type.length = *(uint16_t*)(dataStart + ti->dataInfo[fieldNo].offset);
+					ti->dataInfo[fieldNo].offset += 2;
 					}
 				}
-			record = record + ti->dataInfo[fieldNo].type.length;
+			dataLength += ti->dataInfo[fieldNo].type.length;
 			}
-
+			
 		/* Copy fixed data block */
-		int dataLength = (record - &th->data);
 		ti->data = (byte*)malloc(dataLength);
-		memcpy(ti->data,&th->data,dataLength);
+		memcpy(ti->data,dataStart,dataLength);
 
+		/* Advance record to end of fixed data block, i.e. start of next template*/
+		record += dataLength;
+		
 		bufferTemplate(ipfixReceiver->templateBuffer, bt); bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 		if (ipfixReceiver->dataTemplateCallbackFunction != 0) {
 			ipfixReceiver->dataTemplateCallbackFunction(sourceId, ti);

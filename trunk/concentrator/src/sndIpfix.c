@@ -111,8 +111,20 @@ void sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
 			splitFields++;
 			}
 		}
-				
-	ipfix_start_template_set(exporter, my_template_id, dataTemplateInfo->fieldCount + splitFields);
+
+	/* Count number of IPv4 fields with length 5 */	
+	int splitFixedfields = 0;
+	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
+		FieldInfo* fi = &dataTemplateInfo->dataInfo[i];
+		if ((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
+			splitFixedfields++;
+			}
+		else if ((fi->type.id == IPFIX_TYPEID_destinationIPv4Address) && (fi->type.length == 5)) {
+			splitFixedfields++;
+			}
+		}
+						
+	ipfix_start_datatemplate_set(exporter, my_template_id, dataTemplateInfo->fieldCount + splitFields, dataTemplateInfo->dataCount + splitFixedfields);
 
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
 		FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
@@ -130,6 +142,33 @@ void sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
 			ipfix_put_template_field(exporter, my_template_id, fi->type.id, fi->type.length, fi->type.eid);
 			}
 		}
+
+	debugf("%d data fields", dataTemplateInfo->dataCount);
+	
+	int dataLength = 0;
+	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
+		FieldInfo* fi = &dataTemplateInfo->dataInfo[i];
+		
+		dataLength += fi->type.length;
+		
+		/* Split IPv4 fields with length 5, i.e. fields with network mask attached */
+		if ((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
+			ipfix_put_template_fixedfield(exporter, my_template_id, IPFIX_TYPEID_sourceIPv4Address, 4, 0);
+			ipfix_put_template_fixedfield(exporter, my_template_id, IPFIX_TYPEID_sourceIPv4Mask, 1, 0);
+			}
+		else if ((fi->type.id == IPFIX_TYPEID_destinationIPv4Address) && (fi->type.length == 5)) {
+			ipfix_put_template_fixedfield(exporter, my_template_id, IPFIX_TYPEID_destinationIPv4Address, 4, 0);
+			ipfix_put_template_fixedfield(exporter, my_template_id, IPFIX_TYPEID_destinationIPv4Mask, 1, 0);
+			}
+		else {
+			ipfix_put_template_fixedfield(exporter, my_template_id, fi->type.id, fi->type.length, fi->type.eid);
+			}
+		}
+	
+	debugf("%d data length", dataLength);
+
+	/* FIXME: split fixed fields */
+	ipfix_put_template_data(exporter, my_template_id, dataTemplateInfo->data, dataLength);
 		
 	ipfix_end_template_set(exporter, my_template_id);
 	}
