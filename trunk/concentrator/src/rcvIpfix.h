@@ -159,6 +159,7 @@ typedef int(DataDataRecordCallbackFunction)(SourceID sourceID, DataTemplateInfo*
 typedef struct {
 	int socket;
 	pthread_mutex_t mutex;  /**< Mutex to pause receiving thread */
+	pthread_t thread;	/**< Thread ID for this particular instance, to sync against etc */
 	
 	TemplateCallbackFunction* templateCallbackFunction;
 	DataTemplateCallbackFunction* dataTemplateCallbackFunction;

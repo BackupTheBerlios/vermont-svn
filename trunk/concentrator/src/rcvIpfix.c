@@ -673,6 +673,10 @@ static void printUint(FieldType type, FieldData* data) {
 		}
 	}
 
+/*
+ FIXME: implement clean exiting
+ Use pthread_sigmask() ?
+ */
 static void* listenerUdpIpv4(void* ipfixReceiver_) {
 	IpfixReceiver* ipfixReceiver = (IpfixReceiver*)ipfixReceiver_;
 	
@@ -911,7 +915,12 @@ void setDataDataRecordCallback(IpfixReceiver* ipfixReceiver, DataDataRecordCallb
  * @return handle for further interaction
  */
 IpfixReceiver* rcvIpfixUdpIpv4(uint16_t port) {
-	IpfixReceiver* ipfixReceiver = (IpfixReceiver*)malloc(sizeof(IpfixReceiver));
+	IpfixReceiver* ipfixReceiver;
+	struct sockaddr_in serverAddress;
+	
+	if(!(ipfixReceiver=(IpfixReceiver*)malloc(sizeof(IpfixReceiver)))) {
+		goto out;
+	}
 	ipfixReceiver->templateCallbackFunction = 0;
 	ipfixReceiver->dataTemplateCallbackFunction = 0;
 	ipfixReceiver->optionsTemplateCallbackFunction = 0;
@@ -922,32 +931,43 @@ IpfixReceiver* rcvIpfixUdpIpv4(uint16_t port) {
 	ipfixReceiver->optionsRecordCallbackFunction = 0;
 	ipfixReceiver->dataDataRecordCallbackFunction = 0;
 	
-	ipfixReceiver->templateBuffer = createTemplateBuffer();
+	if(!(ipfixReceiver->templateBuffer = createTemplateBuffer())) {
+		goto out1;
+	}
 	
 	pthread_mutex_lock(&ipfixReceiver->mutex);
 
 	ipfixReceiver->socket = socket(AF_INET, SOCK_DGRAM, 0);
 	if(ipfixReceiver->socket < 0) {
 		perror("socket");
-		return NULL;
-		}
+		goto out2;
+	}
 
-	struct sockaddr_in serverAddress;
 	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 	serverAddress.sin_port = htons(port);
-	int i = bind(ipfixReceiver->socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in));
-	if(i < 0) {
+	if(bind(ipfixReceiver->socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in)) < 0) {
 		perror("bind");
-		return NULL;
-		}
+		goto out3;
+	}
 
-	pthread_t thread; 
-	pthread_create(&thread, 0, listenerUdpIpv4, ipfixReceiver);
+	if(pthread_create(&(ipfixReceiver->thread), 0, listenerUdpIpv4, ipfixReceiver) != 0) {
+		goto out3;
+	}
 	//listenerUdpIpv4(ipfixReceiver); //debug - single-threaded
 	
 	return ipfixReceiver;
-	}
+
+out3:
+	close(ipfixReceiver->socket);
+out2:
+	destroyTemplateBuffer(ipfixReceiver->templateBuffer);
+out1:
+	free(ipfixReceiver);
+out:
+	return NULL;
+
+}
 
 /**
  * Starts processing messages.
