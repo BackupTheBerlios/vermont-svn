@@ -119,8 +119,8 @@ int main(int argc, char **argv)
 
 	 exporter: the exporter
 	 template_id: the template ID chosen beforehand
-	 length: sizeof() datatype
 	 type: the IPFIX field ID for this entry
+	 length: sizeof() datatype
 	 enterprise: FIXME ???
 	 */
 	ret=ipfix_put_template_field(my_exporter, my_template_id, 8, 4, 0);
