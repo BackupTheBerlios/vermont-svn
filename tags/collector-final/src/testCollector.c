@@ -69,9 +69,9 @@ int main(int argc, char *argv[]) {
 	
 	startRcvIpfix(ipfixReceiver);
 
-	printf("Listening on Port %d. Hit Ctrl+C to quit", COL_LISTEN_PORT);
+	printf("Listening on Port %d. Hit Ctrl+C to quit\n", COL_LISTEN_PORT);
 	pause();
-	printf("Stopping threads and tidying up.");
+	printf("Stopping threads and tidying up.\n");
 	
 	stopRcvIpfix(ipfixReceiver);
 	rcvIpfixClose(ipfixReceiver);
