@@ -9,6 +9,8 @@
 #include "rcvIpfix.h"
 #include "common.h"
 
+#define COL_LISTEN_PORT 1500
+
 void sigint() {
 	}
 
@@ -58,7 +60,7 @@ int main(int argc, char *argv[]) {
 
 	initializeRcvIpfix();
 
-	IpfixReceiver* ipfixReceiver = rcvIpfixUdpIpv4(1501);
+	IpfixReceiver* ipfixReceiver = rcvIpfixUdpIpv4(COL_LISTEN_PORT);
  	setTemplateCallback(ipfixReceiver, templateCallbackTest);
 	setTemplateDestructionCallback(ipfixReceiver, templateDestructionCallbackTest);
  	setDataRecordCallback(ipfixReceiver, dataRecordCallbackTest);
@@ -67,9 +69,9 @@ int main(int argc, char *argv[]) {
 	
 	startRcvIpfix(ipfixReceiver);
 
-	debug("Listening on Port 1500. Hit Ctrl+C to quit");
+	printf("Listening on Port %d. Hit Ctrl+C to quit", COL_LISTEN_PORT);
 	pause();
-	debug("Stopping threads and tidying up.");
+	printf("Stopping threads and tidying up.");
 	
 	stopRcvIpfix(ipfixReceiver);
 	rcvIpfixClose(ipfixReceiver);
