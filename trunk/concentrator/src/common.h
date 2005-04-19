@@ -20,6 +20,12 @@
 #define debug(message) fprintf(stderr, "[DEBUG] %s l.%d: " message "\n", \
 	__FILE__, __LINE__)
 
+#define info(message) fprintf(stderr, "[INFO] %s l.%d: " message "\n", \
+	__FILE__, __LINE__)
+
+#define error(message) fprintf(stderr, "[ERROR] %s l.%d: " message "\n", \
+	__FILE__, __LINE__)
+
 #define fatal(message) fprintf(stderr, "[FATAL] %s l.%d: " message "\n", \
 	__FILE__, __LINE__)
 

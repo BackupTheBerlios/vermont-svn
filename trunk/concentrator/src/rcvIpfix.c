@@ -377,6 +377,11 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 	
 		if (bt->recordLength < 65535) {
 			byte* recordX = record+length;
+
+			if (record >= recordX - (bt->recordLength - 1)) {
+				error("Got a Data Set that contained not a single full record");
+				}
+
 			/* We stop processing when no full record is left */
 			while (record < recordX - (bt->recordLength - 1)) {
 				ipfixReceiver->dataRecordCallbackFunction(sourceId, ti, bt->recordLength, record);
@@ -384,6 +389,11 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 				}
 			} else {
 			byte* recordX = record+length;
+
+			if (record >= recordX - 3) {
+				error("Got a Data Set that contained not a single full record");
+				}
+
 			/* We assume that all variable-length records are >= 4 byte, so we stop processing when only 3 bytes are left */
 			while (record < recordX - 3) {
 				int recordLength=0;

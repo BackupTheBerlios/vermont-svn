@@ -1,5 +1,5 @@
 /** \file
- * Separate Program to test "ipfixCollector"
+ * Separate Program to test the collector
  * Dumps received flows to stdout
  */
 

@@ -90,7 +90,7 @@ void stopSndIpfix(IpfixSender* ipfixSender) {
  * Announces a new Template
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-void sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
+int sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
 	uint16_t my_template_id = ++lastTemplateId;
 
 	/* put Template ID in Template's userData */
@@ -171,14 +171,17 @@ void sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
 	ipfix_put_template_data(exporter, my_template_id, dataTemplateInfo->data, dataLength);
 		
 	ipfix_end_template_set(exporter, my_template_id);
+
+	return 0;
 	}
 
 /**
  * Invalidates a template; Does NOT free dataTemplateInfo
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-void sndDestroyDataTemplate(DataTemplateInfo* dataTemplateInfo) {
+int sndDestroyDataTemplate(DataTemplateInfo* dataTemplateInfo) {
 	free(dataTemplateInfo->userData);
+	return 0;
 	}
 	
 /**
@@ -187,7 +190,7 @@ void sndDestroyDataTemplate(DataTemplateInfo* dataTemplateInfo) {
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-void sndDataDataRecord(DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
+int sndDataDataRecord(DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
 	int i;
 	
 	/* print Data Record */
@@ -212,7 +215,7 @@ void sndDataDataRecord(DataTemplateInfo* dataTemplateInfo, uint16_t length, Fiel
 	
 	if (ipfix_start_data_set(exporter, &my_n_template_id) != 0 ) {
 		fatal("ipfix_start_data_set failed!");
-		return;
+		return -1;
 		}
 		
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
@@ -239,12 +242,13 @@ void sndDataDataRecord(DataTemplateInfo* dataTemplateInfo, uint16_t length, Fiel
 
 	if (ipfix_end_data_set(exporter) != 0) {
 		fatal("ipfix_end_data_set failed");
-		return;
+		return -1;
 		}
 
 	if (ipfix_send(exporter) != 0) {
 		fatal("ipfix_send failed");
-		return;
+		return -1;
 		}
 	
+	return 0;
 	}

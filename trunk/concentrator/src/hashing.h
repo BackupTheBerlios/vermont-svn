@@ -7,13 +7,35 @@
 #include <stdlib.h>
 #include "rcvIpfix.h"
 #include "rules.h"
-#include "config.h"
 
 /***** Constants ************************************************************/
 
 #define HASHTABLE_SIZE	65536
 
 /***** Data Types ***********************************************************/
+
+/**
+ * Callback function invoked when a new DataTemplate should be exported.
+ * @param dataTemplateInfo Pointer to a structure defining this Template
+ * @return 0 if packet handled successfully
+ */	
+typedef int(NewDataTemplateCallbackFunction)(DataTemplateInfo* dataTemplateInfo);
+
+/**
+ * Callback function invoked when a new DataDataRecord should be exported.
+ * @param dataTemplateInfo Pointer to a structure defining this Template
+ * @param length Length of the data block supplied
+ * @param data Pointer to a data block containing all fields
+ * @return 0 if packet handled successfully
+ */	
+typedef int(NewDataDataRecordCallbackFunction)(DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+
+/**
+ * Callback function invoked when a DataTemplate should be destroyed.
+ * @param dataTemplateInfo Pointer to a structure defining this Template
+ * @return 0 if packet handled successfully
+ */	
+typedef int(NewDataTemplateDestructionCallbackFunction)(DataTemplateInfo* dataTemplateInfo);
 
 /**
  * Single Bucket containing one buffered flow's variable data.
@@ -31,21 +53,31 @@ typedef struct {
  * This is where outbound flows are aggregated while waiting to be exported.
  */	
 typedef struct {
-	Config* config;                      /**< pointer to Config defining min/max buffer times */
 	int bucketCount;                     /**< size of this hashtable (must be HASHTABLE_SIZE) */
 	HashBucket* bucket[HASHTABLE_SIZE];  /**< array of pointers to hash buckets at start of spill chain. Members are NULL where no entry present */
 	
 	DataTemplateInfo* dataTemplate;      /**< structure describing both variable and fixed fields and containing fixed data */
 	uint16_t fieldLength;                /**< length in bytes of all variable-length fields */
 	FieldModifier* fieldModifier;        /**< specifies what modifier to apply to a given field */
+
+	uint16_t minBufferTime;              /**< If for a buffered flow no new aggregatable flows arrive for this many seconds, export it */
+	uint16_t maxBufferTime;              /**< If a buffered flow was kept buffered for this many seconds, export it */
+
+	NewDataTemplateCallbackFunction* dataTemplateCallback;     /**< Callback function invoked when a new DataTemplate should be exported */
+	NewDataDataRecordCallbackFunction* dataDataRecordCallback; /**< Callback function invoked when a new DataDataRecord should be exported */
+	NewDataTemplateDestructionCallbackFunction* dataTemplateDestructionCallback;     /**< Callback function invoked when a new DataTemplate should be destroyed */
 	} Hashtable;
 	
 /***** Prototypes ***********************************************************/
 
-Hashtable* createHashtable(Config* config, Rule* rule);
+Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime);
 
-void bufferTemplateData(TemplateInfo* ti, FieldData* data, Hashtable* ht);
-void bufferDataTemplateData(DataTemplateInfo* ti, FieldData* data, Hashtable* ht);
+void setNewDataTemplateCallback(Hashtable* ht, NewDataTemplateCallbackFunction* f);
+void setNewDataDataRecordCallback(Hashtable* ht, NewDataDataRecordCallbackFunction* f);
+void setNewDataTemplateDestructionCallback(Hashtable* ht, NewDataTemplateDestructionCallbackFunction* f);
+
+void aggregateTemplateData(Hashtable* ht, TemplateInfo* ti, FieldData* data);
+void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* data);
 
 void destroyHashtable(Hashtable* ht);
 

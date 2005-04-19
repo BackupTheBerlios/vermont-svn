@@ -1,13 +1,14 @@
 /** @file
  * Hashing module.
  *
- * The hashing module receives flows from higher levels (see @c bufferTemplateData(), @c bufferDataTemplateData()), 
- * collects them in Buffers (@c Hashtable), then passes them on to lower levels.
+ * The hashing module receives flows from higher levels (see @c aggregateTemplateData(), @c aggregateDataTemplateData()), 
+ * collects them in Buffers (@c Hashtable), then passes them on to lower levels by calling the 
+ * appropriate callback functions (see @c setNewDataTemplateCallback(), @c setNewDataDataRecordCallback(), @c setNewDataTemplateDestructionCallback()).
  *
  * Flows that differ only in aggregatable fields (like @c IPFIX_TYPEID_inOctetDeltaCount) are 
  * aggregated (see @c aggregateFlow()).
- * If for a buffered flow no new aggregatable flows arrive for a certain timespan (see @c Config::minBufferTime) 
- * or the flow was kept buffered for a certain amount of time (see @c Config::maxBufferTime) it is
+ * If for a buffered flow no new aggregatable flows arrive for a certain timespan (@c Hashtable::minBufferTime) 
+ * or the flow was kept buffered for a certain amount of time (@c Hashtable::maxBufferTime) it is
  * passed on to lower levels (i.e. exported) and removed from the hashtable.
  *
  * Polling for expired flows is accomplished by periodically calling @c expireFlows().
@@ -47,15 +48,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "common.h"
 #include "hashing.h"
 #include "crc16.h"
-#include "sndIpfix.h"
  
 /**
  * Initializes memory for a new bucket in @c ht containing @c data
  */
 HashBucket* createBucket(Hashtable* ht, FieldData* data) {
 	HashBucket* bucket = (HashBucket*)malloc(sizeof(HashBucket));
-	bucket->expireTime = time(0) + ht->config->minBufferTime;
-	bucket->forceExpireTime = time(0) + ht->config->maxBufferTime;
+	bucket->expireTime = time(0) + ht->minBufferTime;
+	bucket->forceExpireTime = time(0) + ht->maxBufferTime;
 	bucket->data = data;
 	bucket->next = 0;
 
@@ -67,7 +67,7 @@ HashBucket* createBucket(Hashtable* ht, FieldData* data) {
  */
 void exportBucket(Hashtable* ht, HashBucket* bucket) {
 	/* Pass Data Record to exporter interface */
-	sndDataDataRecord(ht->dataTemplate, ht->fieldLength, bucket->data);
+	if (ht->dataDataRecordCallback) ht->dataDataRecordCallback(ht->dataTemplate, ht->fieldLength, bucket->data);
 	}
 
 /**
@@ -81,13 +81,18 @@ void destroyBucket(Hashtable* ht, HashBucket* bucket) {
 /**
  * Creates and initializes a new hashtable buffer for flows matching @c rule
  */
-Hashtable* createHashtable(Config* config, Rule* rule) {
+Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime) {
 	int i;
 	int dataLength = 0; /**< length in bytes of the @c ht->data field */
 	
 	Hashtable* ht = (Hashtable*)malloc(sizeof(Hashtable));
 	
-	ht->config = config;
+	ht->dataTemplateCallback = 0;
+	ht->dataDataRecordCallback = 0;
+	ht->dataTemplateDestructionCallback = 0;
+	ht->minBufferTime = minBufferTime;
+	ht->maxBufferTime = maxBufferTime;
+
 	
 	ht->bucketCount = HASHTABLE_SIZE;
 	for (i = 0; i < ht->bucketCount; i++) ht->bucket[i] = NULL;
@@ -131,8 +136,7 @@ Hashtable* createHashtable(Config* config, Rule* rule) {
 			
 		}
 	
-	/* Inform Exporter of new Data Template */
-	sndNewDataTemplate(ht->dataTemplate);
+	/* Informing the Exporter of a new Data Template is done when setting the callback function */
 	
 	return ht;
 	}
@@ -154,7 +158,7 @@ void destroyHashtable(Hashtable* ht) {
  		}
 
 	/* Inform Exporter of Data Template destruction */
-	sndDestroyDataTemplate(ht->dataTemplate);
+	if (ht->dataTemplateDestructionCallback) ht->dataTemplateDestructionCallback(ht->dataTemplate);
 			
 	free(ht->dataTemplate->fieldInfo);
 	free(ht->fieldModifier);
@@ -427,7 +431,7 @@ void bufferDataBlock(Hashtable* ht, FieldData* data) {
 		if (equalFlow(ht, bucket->data, data)) {
 			debug("appending to bucket");
 			aggregateFlow(ht, bucket->data, data);
-			bucket->expireTime = time(0) + ht->config->minBufferTime;
+			bucket->expireTime = time(0) + ht->minBufferTime;
 			/* The flow's data block is no longer needed */
 			free(data);
 			break;
@@ -522,7 +526,7 @@ void copyData(FieldType* dstType, FieldData* dstData, FieldType* srcType, FieldD
 /**
  * Buffer passed flow in Hashtable @c ht
  */	
-void bufferTemplateData(TemplateInfo* ti, FieldData* data, Hashtable* ht) {
+void aggregateTemplateData(Hashtable* ht, TemplateInfo* ti, FieldData* data) {
 	int i;
 	
 	/* Create data block to be inserted into buffer... */
@@ -579,7 +583,7 @@ void bufferTemplateData(TemplateInfo* ti, FieldData* data, Hashtable* ht) {
 /**
  * Buffer passed flow (containing fixed-value fields) in Hashtable @c ht
  */	
-void bufferDataTemplateData(DataTemplateInfo* ti, FieldData* data, Hashtable* ht) {
+void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* data) {
 	int i;
 	
 	/* Create data block to be inserted into buffer... */
@@ -675,5 +679,18 @@ void bufferDataTemplateData(DataTemplateInfo* ti, FieldData* data, Hashtable* ht
 	
 	/* ...then buffer it */
 	bufferDataBlock(ht, htdata);
+	}
+
+void setNewDataTemplateCallback(Hashtable* ht, NewDataTemplateCallbackFunction* f) {
+	ht->dataTemplateCallback = f;
+	if (ht->dataTemplateCallback) ht->dataTemplateCallback(ht->dataTemplate);
+	}
+
+void setNewDataDataRecordCallback(Hashtable* ht, NewDataDataRecordCallbackFunction* f) {
+	ht->dataDataRecordCallback = f;
+	}
+
+void setNewDataTemplateDestructionCallback(Hashtable* ht, NewDataTemplateDestructionCallbackFunction* f) {
+	ht->dataTemplateDestructionCallback = f;
 	}
 

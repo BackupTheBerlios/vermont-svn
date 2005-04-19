@@ -27,8 +27,8 @@ void sndIpfixClose(IpfixSender* ipfixSender);
 void startSndIpfix(IpfixSender* ipfixSender);
 void stopSndIpfix(IpfixSender* ipfixSender);
 
-void sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo);
-void sndDestroyDataTemplate(DataTemplateInfo* dataTemplateInfo);
-void sndDataDataRecord(DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+int sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo);
+int sndDestroyDataTemplate(DataTemplateInfo* dataTemplateInfo);
+int sndDataDataRecord(DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
 #endif

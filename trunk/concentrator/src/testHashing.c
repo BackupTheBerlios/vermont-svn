@@ -1,5 +1,5 @@
 /** \file
- * Separate Program to test "ipfixCollector"
+ * Separate Program to test the concentrator
  * Dumps received flows to stdout
  */
 
@@ -13,7 +13,6 @@
 #include "config.h"
 #include "sndIpfix.h"
 
-Hashtable* hashtable;
 Rules* rules;
 Config* config;
 int mayRun;
@@ -22,14 +21,7 @@ void sigint() {
 	mayRun = 0;
 	}
 
-int templateCallbackTest(SourceID sourceID, TemplateInfo* ti) {
-	/*
-	debug("--- Got a Template");
-	*/
-	return 0;
-	}
-
-int dataRecordCallbackTest(SourceID sourceID, TemplateInfo* ti, uint16_t length, FieldData* data) {
+int processDataRecord(SourceID sourceID, TemplateInfo* ti, uint16_t length, FieldData* data) {
 	int i;
 	debug("Got a Data Record");
 
@@ -37,22 +29,22 @@ int dataRecordCallbackTest(SourceID sourceID, TemplateInfo* ti, uint16_t length,
 		if (templateDataMatchesRule(ti, data, rules->rule[i])) {
 			debugf("rule %d matches", i);
 			
-			bufferTemplateData(ti, data, rules->rule[i]->hashtable);
+			aggregateTemplateData(rules->rule[i]->hashtable, ti, data);
 			}
 		}
 	
 	return 0;
 	}
 
-int dataDataRecordCallbackTest(SourceID sourceID, DataTemplateInfo* ti, uint16_t length, FieldData* data) {
+int processDataDataRecord(SourceID sourceID, DataTemplateInfo* ti, uint16_t length, FieldData* data) {
 	int i;
-	printf("\nDataData Record\n");
+	debug("Got a DataData Record");
 
 	for (i = 0; i < rules->count; i++) {
 		if (dataTemplateDataMatchesRule(ti, data, rules->rule[i])) {
 			debugf("rule %d matches", i);
 			
-			bufferDataTemplateData(ti, data, rules->rule[i]->hashtable);
+			aggregateDataTemplateData(rules->rule[i]->hashtable, ti, data);
 			}
 		}
 	
@@ -82,16 +74,17 @@ int main(int argc, char *argv[]) {
 	rules = parseRulesFromFile("aggregation_rules.conf");
 	for (i = 0; i < rules->count; i++) {
 		printRule(rules->rule[i]);
-		rules->rule[i]->hashtable = createHashtable(config, rules->rule[i]);
+		rules->rule[i]->hashtable = createHashtable(rules->rule[i], config->minBufferTime, config->maxBufferTime);
+		setNewDataTemplateCallback(rules->rule[i]->hashtable, sndNewDataTemplate);
+		setNewDataDataRecordCallback(rules->rule[i]->hashtable, sndDataDataRecord);
+		setNewDataTemplateDestructionCallback(rules->rule[i]->hashtable, sndDestroyDataTemplate);
 		}
 
 			
 	debug("starting collector");
 	IpfixReceiver* ipfixReceiver = rcvIpfixUdpIpv4(1500);
-	setTemplateCallback(ipfixReceiver, templateCallbackTest);
-	setDataRecordCallback(ipfixReceiver, dataRecordCallbackTest);
-	setDataDataRecordCallback(ipfixReceiver, dataDataRecordCallbackTest);
-	
+	setDataRecordCallback(ipfixReceiver, processDataRecord);
+	setDataDataRecordCallback(ipfixReceiver, processDataDataRecord);
 	startRcvIpfix(ipfixReceiver);
 
 	debug("Listening on Port 1500. Hit Ctrl+C to quit");
