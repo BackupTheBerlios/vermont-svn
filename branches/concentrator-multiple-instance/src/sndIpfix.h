@@ -24,8 +24,8 @@ int deinitializeSndIpfix();
 IpfixSender* sndIpfixUdpIpv4(char* ip, uint16_t port);
 void sndIpfixClose(IpfixSender* ipfixSender);
 
-void startSndIpfix(IpfixSender* ipfixSender);
-void stopSndIpfix(IpfixSender* ipfixSender);
+int startSndIpfix(IpfixSender* ipfixSender);
+int stopSndIpfix(IpfixSender* ipfixSender);
 
 int sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo);
 int sndDestroyDataTemplate(DataTemplateInfo* dataTemplateInfo);

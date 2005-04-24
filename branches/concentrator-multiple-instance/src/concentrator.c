@@ -14,43 +14,46 @@
 #include "config.h"
 #include "sndIpfix.h"
 
-Rules* rules;
-IpfixSender* ipfixSender;
-IpfixReceiver* ipfixReceiver;
+#include "concentrator.h"
+
+//Rules* rules;
+//IpfixSender* ipfixSender;
+//IpfixReceiver* ipfixReceiver;
 
 /**
  * Injects new DataRecords into the Aggregator.
  * @param sourceID ignored
  */
-int processDataRecord(SourceID sourceID, TemplateInfo* ti, uint16_t length, FieldData* data) {
+int processDataRecord(Rules *rules, SourceID sourceID, TemplateInfo* ti, uint16_t length, FieldData* data) {
 	int i;
 	debug("Got a Data Record");
 
-	if (!rules) {
+	if(!rules) {
 		fatal("Aggregator not started");
 		return -1;
-		}
+	}
 
-	for (i = 0; i < rules->count; i++) {
+	for(i = 0; i < rules->count; i++) {
 		if (templateDataMatchesRule(ti, data, rules->rule[i])) {
 			debugf("rule %d matches", i);
 			
 			aggregateTemplateData(rules->rule[i]->hashtable, ti, data);
-			}
 		}
+	}
 	
 	return 0;
-	}
+}
 
 /**
  * Injects new DataRecords with fixed fields into the Aggregator.
  * @param sourceID ignored
  */
-int processDataDataRecord(SourceID sourceID, DataTemplateInfo* ti, uint16_t length, FieldData* data) {
+int processDataDataRecord(Rules *rules, SourceID sourceID, DataTemplateInfo* ti, uint16_t length, FieldData* data) {
 	int i;
+
 	debug("Got a DataData Record");
 
-	if (!rules) {
+	if(!rules) {
 		fatal("Aggregator not started");
 		return -1;
 		}
@@ -69,122 +72,117 @@ int processDataDataRecord(SourceID sourceID, DataTemplateInfo* ti, uint16_t leng
 /**
  * Initializes Memory. Call this on application startup.
  */
-void initializeConcentrator() {
-	ipfixSender = 0;
-	rules = 0;
-	ipfixReceiver = 0;
-	}
+struct concentrator * initializeConcentrator() {
+	return((struct concentrator *)calloc(1, sizeof(struct concentrator)));
+}
 
 /**
  * Starts the Exporter.
  */
-void startExporter(char* ip, uint16_t port) {
-	if (ipfixSender) {
+int startExporter(struct concentrator *c, char* ip, uint16_t port) {
+	if(c->ipfixSender) {
 		fatal("Exporter already started");
-		return;
-		}
+		return -1;
+	}
 
 	debug("initializing exporter");
 	initializeSndIpfix();
 
 	debug("starting exporter");
-	ipfixSender = sndIpfixUdpIpv4(ip, port);
-	startSndIpfix(ipfixSender);
-	}
+	if(!(c->ipfixSender=sndIpfixUdpIpv4(ip, port))) {
+		fatal("Cannot initialize sndIpfixUdpIpv4");
+                return -1;
+	};
+	return startSndIpfix(c->ipfixSender);
+}
 
 /**
  * Starts the Aggregator. Exporter must be running.
  */
-void startAggregator(char* ruleFile, uint16_t minBufferTime, uint16_t maxBufferTime) {
+int startAggregator(Rules *rules, char* ruleFile, uint16_t minBufferTime, uint16_t maxBufferTime) {
 	int i;
 
-	if (!ipfixSender) {
-		fatal("Exporter not started");
-		return;
-		}
-	if (rules) {
-		fatal("Concentrator already started");
-		return;
-		}	
-
 	debug("reading ruleset and creating hashtables");
-	rules = parseRulesFromFile(ruleFile);
+	if(!(rules = parseRulesFromFile(ruleFile))) {
+		fatal("Cannot parse rules");
+                return 1;
+	}
+
 	for (i = 0; i < rules->count; i++) {
 		rules->rule[i]->hashtable = createHashtable(rules->rule[i], minBufferTime, maxBufferTime);
 		setNewDataTemplateCallback(rules->rule[i]->hashtable, sndNewDataTemplate);
 		setNewDataDataRecordCallback(rules->rule[i]->hashtable, sndDataDataRecord);
 		setNewDataTemplateDestructionCallback(rules->rule[i]->hashtable, sndDestroyDataTemplate);
-		}
 	}
+
+        c->rules=rules;
+	return 0;
+}
 
 /**
  * Starts the Collector. Aggregator must be running.
  */
-void startCollector(uint16_t port) {
-	if (!ipfixSender) {
-		fatal("Exporter not started");
-		return;
-		}
-	if (!rules) {
-		fatal("Aggregator not started");
-		return;
-		}
-	if (ipfixReceiver) {
-		fatal("Collector already started");
-		return;
-		}
+int startCollector(IpfixReceiver *ipfixReceiver, uint16_t port) {
 
 	debug("initializing collector");
 	initializeRcvIpfix();
 			
 	debug("starting collector");
-	ipfixReceiver = rcvIpfixUdpIpv4(port);
+	if(!(ipfixReceiver = rcvIpfixUdpIpv4(port))) {
+		fatal("Cannot start rcvIpfixUdpIpv4");
+                return 1;
+	}
 	setDataRecordCallback(ipfixReceiver, processDataRecord);
 	setDataDataRecordCallback(ipfixReceiver, processDataDataRecord);
-	startRcvIpfix(ipfixReceiver);
-	}
+
+	return(startRcvIpfix(ipfixReceiver));
+}
 
 /**
  * Exports aggregated flows; needs to be periodically called.
  */
-void pollAggregator() {
+void pollAggregator(Rules *rules) {
 	int i;
 
-	stopRcvIpfix(ipfixReceiver);
+	stopRcvIpfix(c->ipfixReceiver);
 	for (i = 0; i < rules->count; i++) {
 		expireFlows(rules->rule[i]->hashtable);
 		}
-	startRcvIpfix(ipfixReceiver);
+	startRcvIpfix(c->ipfixReceiver);
 	}
 
 /**
  * Frees all memory. Call this when the application terminates
  */
-void destroyConcentrator() {
+void destroyConcentrator(struct concentrator *c) {
 	int i;
 
-	if (ipfixReceiver) {
+	IpfixReceiver *ipfixReceiver=c->ipfixReceiver;
+	Rules *rules=c->rules;
+        IpfixSender *ipfixSender=c->ipfixSender;
+
+	if(ipfixReceiver) {
 		debug("stopping collector");
 		stopRcvIpfix(ipfixReceiver);
 		rcvIpfixClose(ipfixReceiver);
 		deinitializeRcvIpfix();
 		ipfixReceiver = 0;
-		}
+	}
 	
-	if (rules) {
+	if(rules) {
 		debug("stopping aggregator");
 		for (i = 0; i < rules->count; i++) {
 			destroyHashtable(rules->rule[i]->hashtable);
 			}
 		destroyRules(rules);
 		rules = 0;
-		}
+	}
 
-	if (ipfixSender) {
+	if(ipfixSender) {
 		debug("stopping exporter");
 		stopSndIpfix(ipfixSender);
 		sndIpfixClose(ipfixSender);
 		deinitializeSndIpfix();	
 		ipfixSender = 0;
-		}
 	}
+}

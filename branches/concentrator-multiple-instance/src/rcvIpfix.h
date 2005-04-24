@@ -190,8 +190,8 @@ FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
 IpfixReceiver* rcvIpfixUdpIpv4(uint16_t port);
 void rcvIpfixClose(IpfixReceiver* ipfixReceiver);
 
-void startRcvIpfix(IpfixReceiver* ipfixReceiver);
-void stopRcvIpfix(IpfixReceiver* ipfixReceiver);
+int startRcvIpfix(IpfixReceiver* ipfixReceiver);
+int stopRcvIpfix(IpfixReceiver* ipfixReceiver);
 
 /*** Template Callbacks ***/
 void setTemplateCallback(IpfixReceiver* ipfixReceiver, TemplateCallbackFunction* f);

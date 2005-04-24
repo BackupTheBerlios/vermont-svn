@@ -998,17 +998,18 @@ out:
  * All sockets prepared by calls to rcvIpfixUdpIpv4() will start
  * receiving messages until stopRcvIpfix() is called.
  */
-void startRcvIpfix(IpfixReceiver* ipfixReceiver) {
-	pthread_mutex_unlock(&ipfixReceiver->mutex);
-	}
+int startRcvIpfix(IpfixReceiver* ipfixReceiver) {
+	return(pthread_mutex_unlock(&ipfixReceiver->mutex));
+}
 	
 /**
  * Stops processing messages.
  * No more messages will be processed until the next startRcvIpfix() call.
  */
-void stopRcvIpfix(IpfixReceiver* ipfixReceiver) {
-	pthread_mutex_lock(&ipfixReceiver->mutex);
-	}
+/* FIXME: this may block and deadlock ! */
+int stopRcvIpfix(IpfixReceiver* ipfixReceiver) {
+	return(pthread_mutex_lock(&ipfixReceiver->mutex));
+}
 
 /**
  * Closes a socket.

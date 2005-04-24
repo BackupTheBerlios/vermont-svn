@@ -78,13 +78,21 @@ void sndIpfixClose(IpfixSender* ipfixSender) {
 	free(ipfixSender);
 	}
 
-void startSndIpfix(IpfixSender* ipfixSender) {
-	/* unimplemented, we can't be paused - TODO: or should we? */
-	}
+int startSndIpfix(IpfixSender* ipfixSender) {
+	/*
+         FIXME - yes we should
+	 unimplemented, we can't be paused - TODO: or should we?
+	 */
+        return 0;
+}
 
-void stopSndIpfix(IpfixSender* ipfixSender) {
-	/* unimplemented, we can't be paused - TODO: or should we? */
-	}
+int stopSndIpfix(IpfixSender* ipfixSender) {
+	/*
+         FIXME - yes we should
+	 unimplemented, we can't be paused - TODO: or should we?
+	 */
+        return 0;
+}
 
 /**
  * Announces a new Template
