@@ -42,7 +42,9 @@ int deinitializeSndIpfix() {
 	}
 
 /**
- * Adds a new collector to send Records to
+ * Adds a new collector to send Records to. Do not forget to call @c startSndIpfix() to begin sending
+ * @param ip destination collector's address
+ * @param port destination collector's port
  * @return handle to use when calling @c sndIpfixClose()
  */
 IpfixSender* sndIpfixUdpIpv4(char* ip, uint16_t port) {
@@ -79,16 +81,25 @@ void sndIpfixClose(IpfixSender* ipfixSender) {
 	free(ipfixSender);
 	}
 
+/**
+ * Starts or resumes sending messages
+ * @param ipfixSender handle to the Exporter
+ */
 void startSndIpfix(IpfixSender* ipfixSender) {
 	/* unimplemented, we can't be paused - TODO: or should we? */
 	}
 
+/**
+ * Temporarily pauses sending messages
+ * @param ipfixSender handle to the Exporter
+ */
 void stopSndIpfix(IpfixSender* ipfixSender) {
 	/* unimplemented, we can't be paused - TODO: or should we? */
 	}
 
 /**
  * Announces a new Template
+ * @param ipfixSender_ handle to the Exporter
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int sndNewDataTemplate(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo) {
@@ -217,6 +228,7 @@ int sndNewDataTemplate(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo) {
 
 /**
  * Invalidates a template; Does NOT free dataTemplateInfo
+ * @param ipfixSender_ handle to the Exporter
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int sndDestroyDataTemplate(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo) {
@@ -226,6 +238,7 @@ int sndDestroyDataTemplate(void* ipfixSender_, DataTemplateInfo* dataTemplateInf
 	
 /**
  * Put new Data Record in outbound exporter queue
+ * @param ipfixSender_ handle to the Exporter
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields

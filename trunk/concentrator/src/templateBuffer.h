@@ -24,11 +24,6 @@ typedef struct {
 		OptionsTemplateInfo* optionsTemplateInfo;
 		DataTemplateInfo* dataTemplateInfo;
 		};
-	union {
-		TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
-		DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
-		OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
-		};
 	void*	next;             /**< Pointer to next buffered Template */
 	} BufferedTemplate;
 
@@ -37,6 +32,11 @@ typedef struct {
  */	
 typedef struct {
 	BufferedTemplate* head;
+
+	void* ipfixAggregator; /**< handle passed to the callback functions */
+	TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
+	DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
+	OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
 	} TemplateBuffer;
 
 

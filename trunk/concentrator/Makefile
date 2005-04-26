@@ -22,17 +22,14 @@ endif
 
 # -- programs, archives and their components ----
 
-PROGS = testRules testCollector testHashing testConcentrator
+PROGS = testCollector testAggregator testConcentrator
 ARCHS = ipfixCollector.a
 
-testConcentrator = testConcentrator.o concentrator.o rules.o common.o ipfix.o crc16.o hashing.o config.o sndIpfix.o \
+testConcentrator = testConcentrator.o concentrator.o aggregator.o rules.o common.o ipfix.o crc16.o hashing.o sndIpfix.o \
 	ipfixCollector.a ../ipfixlolib/libipfixlo.a
 
-testHashing = testHashing.o rules.o common.o ipfix.o crc16.o hashing.o config.o sndIpfix.o \
+testAggregator = testAggregator.o aggregator.o rules.o common.o ipfix.o crc16.o hashing.o sndIpfix.o \
 	ipfixCollector.a ../ipfixlolib/libipfixlo.a
-
-testRules = testRules.o rules.o common.o ipfix.o \
-	ipfixCollector.a
 
 testCollector = testCollector.o common.o \
 	ipfixCollector.a

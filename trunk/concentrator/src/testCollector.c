@@ -17,17 +17,17 @@ void printField(FieldInfo fi, FieldData* data) {
 	printf("\n");
 	}
 
-int templateCallbackTest(SourceID sourceID, TemplateInfo* ti) {
+int templateCallbackTest(void* ipfixAggregator, SourceID sourceID, TemplateInfo* ti) {
 	debug("--- Got a Template");
 	return 0;
 	}
 
-int templateDestructionCallbackTest(SourceID sourceID, TemplateInfo* ti) {
+int templateDestructionCallbackTest(void* ipfixAggregator, SourceID sourceID, TemplateInfo* ti) {
 	debug("--- Template destroyed");
 	return 0;
 	}
 
-int dataTemplateCallbackTest(SourceID sourceID, DataTemplateInfo* ti) {
+int dataTemplateCallbackTest(void* ipfixAggregator, SourceID sourceID, DataTemplateInfo* ti) {
 	int i;
 	
 	debug("--- Got a DataTemplate");
@@ -36,12 +36,12 @@ int dataTemplateCallbackTest(SourceID sourceID, DataTemplateInfo* ti) {
 	return 0;
 	}
 
-int dataTemplateDestructionCallbackTest(SourceID sourceID, DataTemplateInfo* ti) {
+int dataTemplateDestructionCallbackTest(void* ipfixAggregator, SourceID sourceID, DataTemplateInfo* ti) {
 	debug("--- DataTemplate destroyed");
 	return 0;
 	}
 
-int dataRecordCallbackTest(SourceID sourceID, TemplateInfo* ti, uint16_t length, FieldData* data) {
+int dataRecordCallbackTest(void* ipfixAggregator, SourceID sourceID, TemplateInfo* ti, uint16_t length, FieldData* data) {
 	int i;
 	debug("--- Got a Data Record");
 	for (i = 0; i < ti->fieldCount; i++) printField(ti->fieldInfo[i], data);
@@ -49,7 +49,7 @@ int dataRecordCallbackTest(SourceID sourceID, TemplateInfo* ti, uint16_t length,
 	return 0;
 	}
 
-int optionsRecordCallbackTest(SourceID sourceID, OptionsTemplateInfo* ti, uint16_t length, FieldData* data) {
+int optionsRecordCallbackTest(void* ipfixAggregator, SourceID sourceID, OptionsTemplateInfo* ti, uint16_t length, FieldData* data) {
 	int i;
 	debug("--- Got an Options Data Record");
 	for (i = 0; i < ti->scopeCount; i++) printField(ti->scopeInfo[i], data);
@@ -58,7 +58,7 @@ int optionsRecordCallbackTest(SourceID sourceID, OptionsTemplateInfo* ti, uint16
 	return 0;
 	}
 
-int dataDataRecordCallbackTest(SourceID sourceID, DataTemplateInfo* ti, uint16_t length, FieldData* data) {
+int dataDataRecordCallbackTest(void* ipfixAggregator, SourceID sourceID, DataTemplateInfo* ti, uint16_t length, FieldData* data) {
 	int i;
 	debug("--- Got a Data Record with fixed fields");
 	debug("fixed fields:");
@@ -75,13 +75,13 @@ int main(int argc, char *argv[]) {
 	initializeRcvIpfix();
 
 	IpfixReceiver* ipfixReceiver = rcvIpfixUdpIpv4(1501);
- 	setTemplateCallback(ipfixReceiver, templateCallbackTest);
-	setTemplateDestructionCallback(ipfixReceiver, templateDestructionCallbackTest);
- 	setDataTemplateCallback(ipfixReceiver, dataTemplateCallbackTest);
-	setDataTemplateDestructionCallback(ipfixReceiver, dataTemplateDestructionCallbackTest);
- 	setDataRecordCallback(ipfixReceiver, dataRecordCallbackTest);
-	setOptionsRecordCallback(ipfixReceiver, optionsRecordCallbackTest);
-	setDataDataRecordCallback(ipfixReceiver, dataDataRecordCallbackTest);
+ 	setTemplateCallback(ipfixReceiver, templateCallbackTest, NULL);
+	setTemplateDestructionCallback(ipfixReceiver, templateDestructionCallbackTest, NULL);
+ 	setDataTemplateCallback(ipfixReceiver, dataTemplateCallbackTest, NULL);
+	setDataTemplateDestructionCallback(ipfixReceiver, dataTemplateDestructionCallbackTest, NULL);
+ 	setDataRecordCallback(ipfixReceiver, dataRecordCallbackTest, NULL);
+	setOptionsRecordCallback(ipfixReceiver, optionsRecordCallbackTest, NULL);
+	setDataDataRecordCallback(ipfixReceiver, dataDataRecordCallbackTest, NULL);
 	
 	startRcvIpfix(ipfixReceiver);
 

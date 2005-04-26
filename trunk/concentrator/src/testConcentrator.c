@@ -19,12 +19,12 @@ int main(int argc, char *argv[]) {
 
 	initializeConcentrator();
 	startExporter("127.0.0.1", 1501);
-	startAggregator("aggregation_rules.conf", 5, 15);
+	startMyAggregator("aggregation_rules.conf", 5, 15);
 	startCollector(1500);
 
 	debug("Listening on Port 1500. Hit Ctrl+C to quit");
 	while (mayRun) {
-		pollAggregator();
+		pollMyAggregator();
 		sleep(1);
 		}
 

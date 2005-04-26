@@ -1,5 +1,5 @@
 /** @file
- * Hashing module.
+ * Hashing sub-module.
  *
  * The hashing module receives flows from higher levels (see @c aggregateTemplateData(), @c aggregateDataTemplateData()), 
  * collects them in Buffers (@c Hashtable), then passes them on to lower levels by calling the 
@@ -685,10 +685,10 @@ void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* d
 /**
  * Sets the function to call when a new DataTemplate has to be exported
  * @param ht handle of Hashtable for which to set this callback function
- * @param ipfixSender handle to pass to callback function. Forced to be the same for all of a Hashtable's Callback functions
  * @param f function to call, @c handle get passed to this function
+ * @param ipfixSender handle to pass to callback function. Forced to be the same for all of a Hashtable's Callback functions
  */
-void setNewDataTemplateCallback(Hashtable* ht, void* ipfixSender, NewDataTemplateCallbackFunction* f) {
+void setHashingDataTemplateCallback(Hashtable* ht, NewDataTemplateCallbackFunction* f, void* ipfixSender) {
 	ht->ipfixSender = ipfixSender;
 	ht->dataTemplateCallback = f;
 
@@ -699,10 +699,10 @@ void setNewDataTemplateCallback(Hashtable* ht, void* ipfixSender, NewDataTemplat
 /**
  * Sets the function to call when a new Data Record with fixed fields has to be exported
  * @param ht handle of Hashtable for which to set this callback function
- * @param ipfixSender handle to pass to callback function. Forced to be the same for all of a Hashtable's Callback functions
  * @param f function to call, @c handle get passed to this function
+ * @param ipfixSender handle to pass to callback function. Forced to be the same for all of a Hashtable's Callback functions
  */
-void setNewDataDataRecordCallback(Hashtable* ht, void* ipfixSender, NewDataDataRecordCallbackFunction* f) {
+void setHashingDataDataRecordCallback(Hashtable* ht, NewDataDataRecordCallbackFunction* f, void* ipfixSender) {
 	ht->ipfixSender = ipfixSender;
 	ht->dataDataRecordCallback = f;
 	}
@@ -710,10 +710,10 @@ void setNewDataDataRecordCallback(Hashtable* ht, void* ipfixSender, NewDataDataR
 /**
  * Sets the function to call when a DataTemplate is invalidated
  * @param ht handle of Hashtable for which to set this callback function
- * @param ipfixSender handle to pass to callback function. Forced to be the same for all of a Hashtable's Callback functions
  * @param f function to call, @c handle get passed to this function
+ * @param ipfixSender handle to pass to callback function. Forced to be the same for all of a Hashtable's Callback functions
  */
-void setNewDataTemplateDestructionCallback(Hashtable* ht, void* ipfixSender, NewDataTemplateDestructionCallbackFunction* f) {
+void setHashingDataTemplateDestructionCallback(Hashtable* ht, NewDataTemplateDestructionCallbackFunction* f, void* ipfixSender) {
 	ht->ipfixSender = ipfixSender;
 	ht->dataTemplateDestructionCallback = f;
 	}

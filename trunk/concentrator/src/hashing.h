@@ -76,9 +76,9 @@ typedef struct {
 
 Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime);
 
-void setNewDataTemplateCallback(Hashtable* ht, void* ipfixSender, NewDataTemplateCallbackFunction* f);
-void setNewDataDataRecordCallback(Hashtable* ht, void* ipfixSender, NewDataDataRecordCallbackFunction* f);
-void setNewDataTemplateDestructionCallback(Hashtable* ht, void* ipfixSender, NewDataTemplateDestructionCallbackFunction* f);
+void setHashingDataTemplateCallback(Hashtable* ht, NewDataTemplateCallbackFunction* f, void* ipfixSender);
+void setHashingDataDataRecordCallback(Hashtable* ht, NewDataDataRecordCallbackFunction* f, void* ipfixSender);
+void setHashingDataTemplateDestructionCallback(Hashtable* ht, NewDataTemplateDestructionCallbackFunction* f, void* ipfixSender);
 
 void aggregateTemplateData(Hashtable* ht, TemplateInfo* ti, FieldData* data);
 void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* data);

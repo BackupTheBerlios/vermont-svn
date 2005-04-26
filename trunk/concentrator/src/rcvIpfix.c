@@ -163,7 +163,6 @@ static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, 
 		bt->recordLength = 0;
 		bt->setID = ntohs(set->id);
 		bt->templateInfo = ti;
-		bt->templateDestructionCallbackFunction = ipfixReceiver->templateDestructionCallbackFunction;
 		ti->userData = 0;
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
@@ -192,7 +191,7 @@ static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, 
 		// bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 		
 		if (ipfixReceiver->templateCallbackFunction != 0) {
-			ipfixReceiver->templateCallbackFunction(sourceId, ti);
+			ipfixReceiver->templateCallbackFunction(ipfixReceiver->ipfixAggregator, sourceId, ti);
 			}
   		}
 	}
@@ -214,7 +213,6 @@ static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sou
 		bt->recordLength = 0;
 		bt->setID = ntohs(set->id);
 		bt->optionsTemplateInfo = ti;
-		bt->optionsTemplateDestructionCallbackFunction = ipfixReceiver->optionsTemplateDestructionCallbackFunction;
 		ti->userData = 0;
 		ti->scopeCount = ntohs(th->scopeCount);
 		ti->scopeInfo = (FieldInfo*)malloc(ti->scopeCount * sizeof(FieldInfo));
@@ -256,7 +254,7 @@ static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sou
   			}
 		bufferTemplate(ipfixReceiver->templateBuffer, bt); bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 		if (ipfixReceiver->optionsTemplateCallbackFunction != 0) {
-			ipfixReceiver->optionsTemplateCallbackFunction(sourceId, ti);
+			ipfixReceiver->optionsTemplateCallbackFunction(ipfixReceiver->ipfixAggregator, sourceId, ti);
 			}
   		}
 	}
@@ -279,7 +277,6 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 		bt->recordLength = 0;
 		bt->setID = ntohs(set->id);
 		bt->dataTemplateInfo = ti;
-		bt->dataTemplateDestructionCallbackFunction = ipfixReceiver->dataTemplateDestructionCallbackFunction;
 		ti->userData = 0;
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->dataCount = ntohs(th->dataCount);
@@ -345,7 +342,7 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 		
 		bufferTemplate(ipfixReceiver->templateBuffer, bt); bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 		if (ipfixReceiver->dataTemplateCallbackFunction != 0) {
-			ipfixReceiver->dataTemplateCallbackFunction(sourceId, ti);
+			ipfixReceiver->dataTemplateCallbackFunction(ipfixReceiver->ipfixAggregator, sourceId, ti);
 			}
   		}
 	}
@@ -384,7 +381,7 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 
 			/* We stop processing when no full record is left */
 			while (record < recordX - (bt->recordLength - 1)) {
-				ipfixReceiver->dataRecordCallbackFunction(sourceId, ti, bt->recordLength, record);
+				ipfixReceiver->dataRecordCallbackFunction(ipfixReceiver->ipfixAggregator, sourceId, ti, bt->recordLength, record);
 				record = record + bt->recordLength;
 				}
 			} else {
@@ -413,7 +410,7 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 					ti->fieldInfo[i].offset = recordLength;
 					recordLength += fieldLength;
 					}
-				ipfixReceiver->dataRecordCallbackFunction(sourceId, ti, recordLength, record);
+				ipfixReceiver->dataRecordCallbackFunction(ipfixReceiver->ipfixAggregator, sourceId, ti, recordLength, record);
 				record = record + recordLength;
 				}
 			}
@@ -429,7 +426,7 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 		if (bt->recordLength < 65535) {
 			byte* recordX = record+length;
 			while (record < recordX) {
-				ipfixReceiver->optionsRecordCallbackFunction(sourceId, ti, bt->recordLength, record);
+				ipfixReceiver->optionsRecordCallbackFunction(ipfixReceiver->ipfixAggregator, sourceId, ti, bt->recordLength, record);
 				record = record + bt->recordLength;
 				}
 			} else {
@@ -467,7 +464,7 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 					ti->fieldInfo[i].offset = recordLength;
 					recordLength += fieldLength;
 					}
-				ipfixReceiver->optionsRecordCallbackFunction(sourceId, ti, recordLength, record);
+				ipfixReceiver->optionsRecordCallbackFunction(ipfixReceiver->ipfixAggregator, sourceId, ti, recordLength, record);
 				record = record + recordLength;
 				}
 			}
@@ -483,7 +480,7 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 		if (bt->recordLength < 65535) {
 			byte* recordX = record+length;
 			while (record < recordX) {
-				ipfixReceiver->dataDataRecordCallbackFunction(sourceId, ti, bt->recordLength, record);
+				ipfixReceiver->dataDataRecordCallbackFunction(ipfixReceiver->ipfixAggregator, sourceId, ti, bt->recordLength, record);
 				record = record + bt->recordLength;
 				}
 			} else {
@@ -506,7 +503,7 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 					ti->fieldInfo[i].offset = recordLength;
 					recordLength += fieldLength;
 					}
-				ipfixReceiver->dataDataRecordCallbackFunction(sourceId, ti, recordLength, record);
+				ipfixReceiver->dataDataRecordCallbackFunction(ipfixReceiver->ipfixAggregator, sourceId, ti, recordLength, record);
 				record = record + recordLength;
 				}
 			}
@@ -850,8 +847,10 @@ FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type) {
  * Sets the callback function to invoke when a new Template arrives.
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param f pointer to the callback function
+ * @param ipfixAggregator handle to be passed to the callback function. Forced to be the same for all if a ipfixReceiver's callback functions
  */
-void setTemplateCallback(IpfixReceiver* ipfixReceiver, TemplateCallbackFunction* f) {
+void setTemplateCallback(IpfixReceiver* ipfixReceiver, TemplateCallbackFunction* f, void* ipfixAggregator) {
+	ipfixReceiver->ipfixAggregator = ipfixAggregator;
 	ipfixReceiver->templateCallbackFunction = f;
 	}
 
@@ -859,8 +858,10 @@ void setTemplateCallback(IpfixReceiver* ipfixReceiver, TemplateCallbackFunction*
  * Sets the callback function to invoke when a new OptionsTemplate arrives.
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param f pointer to the callback function
+ * @param ipfixAggregator handle to be passed to the callback function. Forced to be the same for all if a ipfixReceiver's callback functions
  */
-void setOptionsTemplateCallback(IpfixReceiver* ipfixReceiver, OptionsTemplateCallbackFunction* f) {
+void setOptionsTemplateCallback(IpfixReceiver* ipfixReceiver, OptionsTemplateCallbackFunction* f, void* ipfixAggregator) {
+	ipfixReceiver->ipfixAggregator = ipfixAggregator;
 	ipfixReceiver->optionsTemplateCallbackFunction = f;
 	}
 
@@ -868,8 +869,10 @@ void setOptionsTemplateCallback(IpfixReceiver* ipfixReceiver, OptionsTemplateCal
  * Sets the callback function to invoke when a new DataTemplate arrives.
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param f pointer to the callback function
+ * @param ipfixAggregator handle to be passed to the callback function. Forced to be the same for all if a ipfixReceiver's callback functions
  */
-void setDataTemplateCallback(IpfixReceiver* ipfixReceiver, DataTemplateCallbackFunction* f) {
+void setDataTemplateCallback(IpfixReceiver* ipfixReceiver, DataTemplateCallbackFunction* f, void* ipfixAggregator) {
+	ipfixReceiver->ipfixAggregator = ipfixAggregator;
 	ipfixReceiver->dataTemplateCallbackFunction = f;
 	}
 
@@ -879,9 +882,12 @@ void setDataTemplateCallback(IpfixReceiver* ipfixReceiver, DataTemplateCallbackF
  * Particularly useful for cleaning up userData associated with this Template
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param f pointer to the callback function
+ * @param ipfixAggregator handle to be passed to the callback function. Forced to be the same for all if a ipfixReceiver's callback functions
  */
-void setTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, TemplateDestructionCallbackFunction* f) {
+void setTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, TemplateDestructionCallbackFunction* f, void* ipfixAggregator) {
+	ipfixReceiver->ipfixAggregator = ipfixAggregator;
 	ipfixReceiver->templateDestructionCallbackFunction = f;
+	((TemplateBuffer*)ipfixReceiver->templateBuffer)->templateDestructionCallbackFunction = f;
 	}
 
 /**
@@ -889,9 +895,12 @@ void setTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, TemplateDestru
  * Particularly useful for cleaning up userData associated with this Template
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param f pointer to the callback function
+ * @param ipfixAggregator handle to be passed to the callback function. Forced to be the same for all if a ipfixReceiver's callback functions
  */
-void setOptionsTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, OptionsTemplateDestructionCallbackFunction* f) {
+void setOptionsTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, OptionsTemplateDestructionCallbackFunction* f, void* ipfixAggregator) {
+	ipfixReceiver->ipfixAggregator = ipfixAggregator;
 	ipfixReceiver->optionsTemplateDestructionCallbackFunction = f;
+	((TemplateBuffer*)ipfixReceiver->templateBuffer)->optionsTemplateDestructionCallbackFunction = f;
 	}
 
 /**
@@ -899,9 +908,12 @@ void setOptionsTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, Options
  * Particularly useful for cleaning up userData associated with this Template
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param f pointer to the callback function
+ * @param ipfixAggregator handle to be passed to the callback function. Forced to be the same for all if a ipfixReceiver's callback functions
  */
-void setDataTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, DataTemplateDestructionCallbackFunction* f) {
+void setDataTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, DataTemplateDestructionCallbackFunction* f, void* ipfixAggregator) {
+	ipfixReceiver->ipfixAggregator = ipfixAggregator;
 	ipfixReceiver->dataTemplateDestructionCallbackFunction = f;
+	((TemplateBuffer*)ipfixReceiver->templateBuffer)->dataTemplateDestructionCallbackFunction = f;
 	}
 
 
@@ -909,8 +921,10 @@ void setDataTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, DataTempla
  * Sets the callback function to invoke when a new Data Record arrives.
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param f pointer to the callback function
+ * @param ipfixAggregator handle to be passed to the callback function. Forced to be the same for all if a ipfixReceiver's callback functions
  */
-void setDataRecordCallback(IpfixReceiver* ipfixReceiver, DataRecordCallbackFunction* f) {
+void setDataRecordCallback(IpfixReceiver* ipfixReceiver, DataRecordCallbackFunction* f, void* ipfixAggregator) {
+	ipfixReceiver->ipfixAggregator = ipfixAggregator;
 	ipfixReceiver->dataRecordCallbackFunction = f;
 	}
 
@@ -918,8 +932,10 @@ void setDataRecordCallback(IpfixReceiver* ipfixReceiver, DataRecordCallbackFunct
  * Sets the callback function to invoke when a new Options Record arrives.
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param f pointer to the callback function
+ * @param ipfixAggregator handle to be passed to the callback function. Forced to be the same for all if a ipfixReceiver's callback functions
  */
-void setOptionsRecordCallback(IpfixReceiver* ipfixReceiver, OptionsRecordCallbackFunction* f) {
+void setOptionsRecordCallback(IpfixReceiver* ipfixReceiver, OptionsRecordCallbackFunction* f, void* ipfixAggregator) {
+	ipfixReceiver->ipfixAggregator = ipfixAggregator;
 	ipfixReceiver->optionsRecordCallbackFunction = f;
 	}
 
@@ -927,8 +943,10 @@ void setOptionsRecordCallback(IpfixReceiver* ipfixReceiver, OptionsRecordCallbac
  * Sets the callback function to invoke when a new Data Record with fixed fields arrives.
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param f pointer to the callback function
+ * @param ipfixAggregator handle to be passed to the callback function. Forced to be the same for all if a ipfixReceiver's callback functions
  */
-void setDataDataRecordCallback(IpfixReceiver* ipfixReceiver, DataDataRecordCallbackFunction* f) {
+void setDataDataRecordCallback(IpfixReceiver* ipfixReceiver, DataDataRecordCallbackFunction* f, void* ipfixAggregator) {
+	ipfixReceiver->ipfixAggregator = ipfixAggregator;
 	ipfixReceiver->dataDataRecordCallbackFunction = f;
 	}
 
@@ -958,7 +976,11 @@ IpfixReceiver* rcvIpfixUdpIpv4(uint16_t port) {
 	if(!(ipfixReceiver->templateBuffer = createTemplateBuffer())) {
 		goto out1;
 	}
-	
+	TemplateBuffer* tb = ipfixReceiver->templateBuffer;
+	tb->templateDestructionCallbackFunction = ipfixReceiver->templateDestructionCallbackFunction;
+	tb->optionsTemplateDestructionCallbackFunction = ipfixReceiver->optionsTemplateDestructionCallbackFunction;
+	tb->dataTemplateDestructionCallbackFunction = ipfixReceiver->dataTemplateDestructionCallbackFunction;
+
 	pthread_mutex_lock(&ipfixReceiver->mutex);
 
 	ipfixReceiver->socket = socket(AF_INET, SOCK_DGRAM, 0);

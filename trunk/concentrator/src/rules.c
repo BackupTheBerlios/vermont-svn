@@ -1,7 +1,7 @@
 //FIXME: split source into internal and exported functions?
 
 /** @file
- * Rule management module.
+ * Rule management sub-module.
  *
  * Reads in aggregation rules from a file (see @c parseRulesFromFile()),
  * checks if a flow matches a given rule (see @c templateDataMatchesRule(), @c dataTemplateDataMatchesRule())
