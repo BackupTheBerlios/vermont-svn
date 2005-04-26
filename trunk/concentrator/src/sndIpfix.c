@@ -92,6 +92,10 @@ void stopSndIpfix(IpfixSender* ipfixSender) {
  */
 int sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
 	uint16_t my_template_id = ++lastTemplateId;
+	if (lastTemplateId > 60000) {
+		/* FIXME: Does not always work, e.g. if more than 50000 new Templates per minute are created */
+		lastTemplateId = 10000;
+		}
 
 	/* put Template ID in Template's userData */
 	int* p = (int*)malloc(sizeof(int));
@@ -167,9 +171,27 @@ int sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
 	
 	debugf("%d data length", dataLength);
 
-	/* FIXME: split fixed fields */
-	ipfix_put_template_data(exporter, my_template_id, dataTemplateInfo->data, dataLength);
+	char* data = (char*)malloc(dataLength);
+	memcpy(data, dataTemplateInfo->data, dataLength);
+	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
+		FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
+
+		/* Invert imask of IPv4 fields with length 5, i.e. fields with network mask attached */
+		if ((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
+			uint8_t* mask = (uint8_t*)(data + fi->offset + 4);
+			*mask = 32 - *mask;
+			}
+		else if ((fi->type.id == IPFIX_TYPEID_destinationIPv4Address) && (fi->type.length == 5)) {
+			uint8_t* mask = (uint8_t*)(data + fi->offset + 4);
+			*mask = 32 - *mask;
+			}
+		else {
+			}
 		
+		}
+	ipfix_put_template_data(exporter, my_template_id, data, dataLength);
+	free(data);
+
 	ipfix_end_template_set(exporter, my_template_id);
 
 	return 0;
