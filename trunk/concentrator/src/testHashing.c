@@ -75,9 +75,9 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i < rules->count; i++) {
 		printRule(rules->rule[i]);
 		rules->rule[i]->hashtable = createHashtable(rules->rule[i], config->minBufferTime, config->maxBufferTime);
-		setNewDataTemplateCallback(rules->rule[i]->hashtable, sndNewDataTemplate);
-		setNewDataDataRecordCallback(rules->rule[i]->hashtable, sndDataDataRecord);
-		setNewDataTemplateDestructionCallback(rules->rule[i]->hashtable, sndDestroyDataTemplate);
+		setNewDataTemplateCallback(rules->rule[i]->hashtable, ipfixSender, sndNewDataTemplate);
+		setNewDataDataRecordCallback(rules->rule[i]->hashtable, ipfixSender, sndDataDataRecord);
+		setNewDataTemplateDestructionCallback(rules->rule[i]->hashtable, ipfixSender, sndDestroyDataTemplate);
 		}
 
 			

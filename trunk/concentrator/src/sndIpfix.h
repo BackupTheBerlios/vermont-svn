@@ -12,8 +12,10 @@
  * Create with @c sndIpfixUdpIpv4()
  */
 typedef struct {
-	char ip[128];
-	uint16_t port;
+	void* ipfixExporter; /**< underlying ipfix_exporter structure. Cast from void* to minimize header dependencies */
+	uint16_t lastTemplateId; /**< Template ID of last created Template */
+	char ip[128]; /**< IP of Collector we export to */
+	uint16_t port; /**< Port of Collector we export to */
 	} IpfixSender;
 
 /***** Prototypes ***********************************************************/
@@ -27,8 +29,8 @@ void sndIpfixClose(IpfixSender* ipfixSender);
 void startSndIpfix(IpfixSender* ipfixSender);
 void stopSndIpfix(IpfixSender* ipfixSender);
 
-int sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo);
-int sndDestroyDataTemplate(DataTemplateInfo* dataTemplateInfo);
-int sndDataDataRecord(DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+int sndNewDataTemplate(void* ipfixSender, DataTemplateInfo* dataTemplateInfo);
+int sndDestroyDataTemplate(void* ipfixSender, DataTemplateInfo* dataTemplateInfo);
+int sndDataDataRecord(void* ipfixSender, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
 #endif

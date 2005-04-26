@@ -16,9 +16,6 @@
 
 /***** Global Variables ******************************************************/
 
-ipfix_exporter* exporter;
-uint16_t lastTemplateId;
-
 static uint8_t ringbufferPos = 0; /**< Pointer to next free slot in @c conversionRingbuffer. */
 static uint8_t conversionRingbuffer[1 << (8 * sizeof(ringbufferPos))]; /**< Ringbuffer used to store converted imasks between @c ipfix_put_data_field() and @c ipfix_send() */
 
@@ -32,11 +29,6 @@ static uint8_t conversionRingbuffer[1 << (8 * sizeof(ringbufferPos))]; /**< Ring
  * @return 0 on success
  */
 int initializeSndIpfix() {
-	lastTemplateId = 10000;
-	if (ipfix_init_exporter(SND_SOURCE_ID, &exporter) != 0) {
-		fatal("ipfix_init_exporter failed");
-		return -1;
-		}
 	return 0;
 	}
 
@@ -46,7 +38,6 @@ int initializeSndIpfix() {
  * @return 0 on success
  */
 int deinitializeSndIpfix() {
-	ipfix_deinit_exporter(exporter);
 	return 0;
 	}
 
@@ -56,10 +47,17 @@ int deinitializeSndIpfix() {
  */
 IpfixSender* sndIpfixUdpIpv4(char* ip, uint16_t port) {
 	IpfixSender* ipfixSender = (IpfixSender*)malloc(sizeof(IpfixSender));
+	ipfix_exporter** exporterP = (ipfix_exporter**)&ipfixSender->ipfixExporter;
 	strcpy(ipfixSender->ip, ip);
 	ipfixSender->port = port;
+
+	ipfixSender->lastTemplateId = 10000;
+	if (ipfix_init_exporter(SND_SOURCE_ID, exporterP) != 0) {
+		fatal("ipfix_init_exporter failed");
+		return NULL;
+		}
 	
-	if (ipfix_add_collector(exporter, ipfixSender->ip, ipfixSender->port, UDP) != 0) {
+	if (ipfix_add_collector(*exporterP, ipfixSender->ip, ipfixSender->port, UDP) != 0) {
 		fatal("ipfix_add_collector failed");
 		return NULL;
 		}
@@ -72,9 +70,12 @@ IpfixSender* sndIpfixUdpIpv4(char* ip, uint16_t port) {
  * @param ipfixSender handle obtained by calling @c sndIpfixUdpIpv4()
  */
 void sndIpfixClose(IpfixSender* ipfixSender) {
+	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
+
 	if (ipfix_remove_collector(exporter, ipfixSender->ip, ipfixSender->port) != 0) {
 		fatal("ipfix_remove_collector failed");
 		}
+	ipfix_deinit_exporter(exporter);
 	free(ipfixSender);
 	}
 
@@ -90,11 +91,18 @@ void stopSndIpfix(IpfixSender* ipfixSender) {
  * Announces a new Template
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
-	uint16_t my_template_id = ++lastTemplateId;
-	if (lastTemplateId > 60000) {
+int sndNewDataTemplate(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo) {
+	IpfixSender* ipfixSender = ipfixSender_;
+	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
+	if (!exporter) {
+		fatal("Exporter not set");
+		return -1;
+		}
+
+	uint16_t my_template_id = ++ipfixSender->lastTemplateId;
+	if (ipfixSender->lastTemplateId > 60000) {
 		/* FIXME: Does not always work, e.g. if more than 50000 new Templates per minute are created */
-		lastTemplateId = 10000;
+		ipfixSender->lastTemplateId = 10000;
 		}
 
 	/* put Template ID in Template's userData */
@@ -128,7 +136,10 @@ int sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
 			}
 		}
 						
-	ipfix_start_datatemplate_set(exporter, my_template_id, dataTemplateInfo->fieldCount + splitFields, dataTemplateInfo->dataCount + splitFixedfields);
+	if (0 != ipfix_start_datatemplate_set(exporter, my_template_id, dataTemplateInfo->fieldCount + splitFields, dataTemplateInfo->dataCount + splitFixedfields)) {
+		fatal("ipfix_start_datatemplate_set failed");
+		return -1;
+		}
 
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
 		FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
@@ -189,10 +200,17 @@ int sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
 			}
 		
 		}
-	ipfix_put_template_data(exporter, my_template_id, data, dataLength);
+
+	if (0 != ipfix_put_template_data(exporter, my_template_id, data, dataLength)) {
+		fatal("ipfix_put_template_data failed");
+		return -1;
+		}
 	free(data);
 
-	ipfix_end_template_set(exporter, my_template_id);
+	if (0 != ipfix_end_template_set(exporter, my_template_id)) {
+		fatal("ipfix_end_template_set failed");
+		return -1;
+		}
 
 	return 0;
 	}
@@ -201,7 +219,7 @@ int sndNewDataTemplate(DataTemplateInfo* dataTemplateInfo) {
  * Invalidates a template; Does NOT free dataTemplateInfo
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int sndDestroyDataTemplate(DataTemplateInfo* dataTemplateInfo) {
+int sndDestroyDataTemplate(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo) {
 	free(dataTemplateInfo->userData);
 	return 0;
 	}
@@ -212,10 +230,13 @@ int sndDestroyDataTemplate(DataTemplateInfo* dataTemplateInfo) {
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int sndDataDataRecord(DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
+int sndDataDataRecord(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
+	IpfixSender* ipfixSender = ipfixSender_;
+	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
+
 	int i;
 	
-	/* print Data Record */
+	/* TODO - debugging only: print Data Record */
 	printf("\n-+--- exporting Record\n");
 	printf(" `- fixed data\n"); 
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {

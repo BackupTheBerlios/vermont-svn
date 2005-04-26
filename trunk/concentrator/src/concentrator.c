@@ -111,9 +111,9 @@ void startAggregator(char* ruleFile, uint16_t minBufferTime, uint16_t maxBufferT
 	rules = parseRulesFromFile(ruleFile);
 	for (i = 0; i < rules->count; i++) {
 		rules->rule[i]->hashtable = createHashtable(rules->rule[i], minBufferTime, maxBufferTime);
-		setNewDataTemplateCallback(rules->rule[i]->hashtable, sndNewDataTemplate);
-		setNewDataDataRecordCallback(rules->rule[i]->hashtable, sndDataDataRecord);
-		setNewDataTemplateDestructionCallback(rules->rule[i]->hashtable, sndDestroyDataTemplate);
+		setNewDataTemplateCallback(rules->rule[i]->hashtable, ipfixSender, sndNewDataTemplate);
+		setNewDataDataRecordCallback(rules->rule[i]->hashtable, ipfixSender, sndDataDataRecord);
+		setNewDataTemplateDestructionCallback(rules->rule[i]->hashtable, ipfixSender, sndDestroyDataTemplate);
 		}
 	}
 

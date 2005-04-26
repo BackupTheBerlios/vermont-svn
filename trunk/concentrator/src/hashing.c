@@ -67,7 +67,7 @@ HashBucket* createBucket(Hashtable* ht, FieldData* data) {
  */
 void exportBucket(Hashtable* ht, HashBucket* bucket) {
 	/* Pass Data Record to exporter interface */
-	if (ht->dataDataRecordCallback) ht->dataDataRecordCallback(ht->dataTemplate, ht->fieldLength, bucket->data);
+	if (ht->dataDataRecordCallback) ht->dataDataRecordCallback(ht->ipfixSender, ht->dataTemplate, ht->fieldLength, bucket->data);
 	}
 
 /**
@@ -87,6 +87,7 @@ Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBuffe
 	
 	Hashtable* ht = (Hashtable*)malloc(sizeof(Hashtable));
 	
+	ht->ipfixSender = 0;
 	ht->dataTemplateCallback = 0;
 	ht->dataDataRecordCallback = 0;
 	ht->dataTemplateDestructionCallback = 0;
@@ -158,7 +159,7 @@ void destroyHashtable(Hashtable* ht) {
  		}
 
 	/* Inform Exporter of Data Template destruction */
-	if (ht->dataTemplateDestructionCallback) ht->dataTemplateDestructionCallback(ht->dataTemplate);
+	if (ht->dataTemplateDestructionCallback) ht->dataTemplateDestructionCallback(ht->ipfixSender, ht->dataTemplate);
 			
 	free(ht->dataTemplate->fieldInfo);
 	free(ht->fieldModifier);
@@ -681,16 +682,39 @@ void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* d
 	bufferDataBlock(ht, htdata);
 	}
 
-void setNewDataTemplateCallback(Hashtable* ht, NewDataTemplateCallbackFunction* f) {
+/**
+ * Sets the function to call when a new DataTemplate has to be exported
+ * @param ht handle of Hashtable for which to set this callback function
+ * @param ipfixSender handle to pass to callback function. Forced to be the same for all of a Hashtable's Callback functions
+ * @param f function to call, @c handle get passed to this function
+ */
+void setNewDataTemplateCallback(Hashtable* ht, void* ipfixSender, NewDataTemplateCallbackFunction* f) {
+	ht->ipfixSender = ipfixSender;
 	ht->dataTemplateCallback = f;
-	if (ht->dataTemplateCallback) ht->dataTemplateCallback(ht->dataTemplate);
+
+	/* we now know who to pass the Hashtable's DataTemplate to, so we immediately pass it on */
+	if (ht->dataTemplateCallback) ht->dataTemplateCallback(ht->ipfixSender, ht->dataTemplate);
 	}
 
-void setNewDataDataRecordCallback(Hashtable* ht, NewDataDataRecordCallbackFunction* f) {
+/**
+ * Sets the function to call when a new Data Record with fixed fields has to be exported
+ * @param ht handle of Hashtable for which to set this callback function
+ * @param ipfixSender handle to pass to callback function. Forced to be the same for all of a Hashtable's Callback functions
+ * @param f function to call, @c handle get passed to this function
+ */
+void setNewDataDataRecordCallback(Hashtable* ht, void* ipfixSender, NewDataDataRecordCallbackFunction* f) {
+	ht->ipfixSender = ipfixSender;
 	ht->dataDataRecordCallback = f;
 	}
 
-void setNewDataTemplateDestructionCallback(Hashtable* ht, NewDataTemplateDestructionCallbackFunction* f) {
+/**
+ * Sets the function to call when a DataTemplate is invalidated
+ * @param ht handle of Hashtable for which to set this callback function
+ * @param ipfixSender handle to pass to callback function. Forced to be the same for all of a Hashtable's Callback functions
+ * @param f function to call, @c handle get passed to this function
+ */
+void setNewDataTemplateDestructionCallback(Hashtable* ht, void* ipfixSender, NewDataTemplateDestructionCallbackFunction* f) {
+	ht->ipfixSender = ipfixSender;
 	ht->dataTemplateDestructionCallback = f;
 	}
 

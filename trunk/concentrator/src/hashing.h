@@ -16,26 +16,29 @@
 
 /**
  * Callback function invoked when a new DataTemplate should be exported.
+ * @param handle Handle passed to the Callback function each time it is invoked. Can be used by the Callback function to distinguish between multiple instances and/or operation modes
  * @param dataTemplateInfo Pointer to a structure defining this Template
  * @return 0 if packet handled successfully
  */	
-typedef int(NewDataTemplateCallbackFunction)(DataTemplateInfo* dataTemplateInfo);
+typedef int(NewDataTemplateCallbackFunction)(void* handle, DataTemplateInfo* dataTemplateInfo);
 
 /**
  * Callback function invoked when a new DataDataRecord should be exported.
+ * @param handle Handle passed to the Callback function each time it is invoked. Can be used by the Callback function to distinguish between multiple instances and/or operation modes
  * @param dataTemplateInfo Pointer to a structure defining this Template
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all fields
  * @return 0 if packet handled successfully
  */	
-typedef int(NewDataDataRecordCallbackFunction)(DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+typedef int(NewDataDataRecordCallbackFunction)(void* handle, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
 /**
  * Callback function invoked when a DataTemplate should be destroyed.
+ * @param handle Handle passed to the Callback function each time it is invoked. Can be used by the Callback function to distinguish between multiple instances and/or operation modes
  * @param dataTemplateInfo Pointer to a structure defining this Template
  * @return 0 if packet handled successfully
  */	
-typedef int(NewDataTemplateDestructionCallbackFunction)(DataTemplateInfo* dataTemplateInfo);
+typedef int(NewDataTemplateDestructionCallbackFunction)(void* handle, DataTemplateInfo* dataTemplateInfo);
 
 /**
  * Single Bucket containing one buffered flow's variable data.
@@ -63,6 +66,7 @@ typedef struct {
 	uint16_t minBufferTime;              /**< If for a buffered flow no new aggregatable flows arrive for this many seconds, export it */
 	uint16_t maxBufferTime;              /**< If a buffered flow was kept buffered for this many seconds, export it */
 
+	void* ipfixSender; /**< Handle to pass to callback function */
 	NewDataTemplateCallbackFunction* dataTemplateCallback;     /**< Callback function invoked when a new DataTemplate should be exported */
 	NewDataDataRecordCallbackFunction* dataDataRecordCallback; /**< Callback function invoked when a new DataDataRecord should be exported */
 	NewDataTemplateDestructionCallbackFunction* dataTemplateDestructionCallback;     /**< Callback function invoked when a new DataTemplate should be destroyed */
@@ -72,9 +76,9 @@ typedef struct {
 
 Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime);
 
-void setNewDataTemplateCallback(Hashtable* ht, NewDataTemplateCallbackFunction* f);
-void setNewDataDataRecordCallback(Hashtable* ht, NewDataDataRecordCallbackFunction* f);
-void setNewDataTemplateDestructionCallback(Hashtable* ht, NewDataTemplateDestructionCallbackFunction* f);
+void setNewDataTemplateCallback(Hashtable* ht, void* ipfixSender, NewDataTemplateCallbackFunction* f);
+void setNewDataDataRecordCallback(Hashtable* ht, void* ipfixSender, NewDataDataRecordCallbackFunction* f);
+void setNewDataTemplateDestructionCallback(Hashtable* ht, void* ipfixSender, NewDataTemplateDestructionCallbackFunction* f);
 
 void aggregateTemplateData(Hashtable* ht, TemplateInfo* ti, FieldData* data);
 void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* data);
