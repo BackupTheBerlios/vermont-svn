@@ -154,7 +154,7 @@ void pollAggregator(IpfixAggregator* ipfixAggregator) {
  * @param ipfixAggregator IpfixAggregator to set the callback function for
  * @param handles set of callback functions
  */
-void aggregatorAddCallbacks(IpfixAggregator* ipfixAggregator, CallbackInfo handles) {
+void addAggregatorCallbacks(IpfixAggregator* ipfixAggregator, CallbackInfo handles) {
 	Rules* rules = ((IpfixAggregator*)ipfixAggregator)->rules;
 
 	int i;

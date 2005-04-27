@@ -24,7 +24,7 @@ static uint8_t conversionRingbuffer[1 << (8 * sizeof(ringbufferPos))]; /**< Ring
  * To be called on application startup
  * @return 0 on success
  */
-int initializeSndIpfix() {
+int initializeIpfixSenders() {
 	return 0;
 	}
 
@@ -33,18 +33,18 @@ int initializeSndIpfix() {
  * To be called on application shutdown
  * @return 0 on success
  */
-int deinitializeSndIpfix() {
+int deinitializeIpfixSenders() {
 	return 0;
 	}
 
 /**
- * Creates a new IPFIX Exporter. Do not forget to call @c startSndIpfix() to begin sending
+ * Creates a new IPFIX Exporter. Do not forget to call @c startIpfixSender() to begin sending
  * @param sourceID Source ID this exporter will report
  * @param ip destination collector's address
  * @param port destination collector's port
- * @return handle to use when calling @c sndIpfixClose()
+ * @return handle to use when calling @c destroyIpfixSender()
  */
-IpfixSender* sndIpfixUdpIpv4(SourceID sourceID, char* ip, uint16_t port) {
+IpfixSender* createIpfixSender(SourceID sourceID, char* ip, uint16_t port) {
 	IpfixSender* ipfixSender = (IpfixSender*)malloc(sizeof(IpfixSender));
 	ipfix_exporter** exporterP = (ipfix_exporter**)&ipfixSender->ipfixExporter;
 	strcpy(ipfixSender->ip, ip);
@@ -66,9 +66,9 @@ IpfixSender* sndIpfixUdpIpv4(SourceID sourceID, char* ip, uint16_t port) {
 
 /**
  * Removes a collector from the list of Collectors to send Records to
- * @param ipfixSender handle obtained by calling @c sndIpfixUdpIpv4()
+ * @param ipfixSender handle obtained by calling @c createIpfixSender()
  */
-void sndIpfixClose(IpfixSender* ipfixSender) {
+void destroyIpfixSender(IpfixSender* ipfixSender) {
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
 
 	if (ipfix_remove_collector(exporter, ipfixSender->ip, ipfixSender->port) != 0) {
@@ -82,7 +82,7 @@ void sndIpfixClose(IpfixSender* ipfixSender) {
  * Starts or resumes sending messages
  * @param ipfixSender handle to the Exporter
  */
-void startSndIpfix(IpfixSender* ipfixSender) {
+void startIpfixSender(IpfixSender* ipfixSender) {
 	/* unimplemented, we can't be paused - TODO: or should we? */
 	}
 
@@ -90,7 +90,7 @@ void startSndIpfix(IpfixSender* ipfixSender) {
  * Temporarily pauses sending messages
  * @param ipfixSender handle to the Exporter
  */
-void stopSndIpfix(IpfixSender* ipfixSender) {
+void stopIpfixSender(IpfixSender* ipfixSender) {
 	/* unimplemented, we can't be paused - TODO: or should we? */
 	}
 
@@ -309,7 +309,7 @@ int sndDataDataRecord(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* d
 	return 0;
 	}
 
-CallbackInfo getSenderCallbackInfo(IpfixSender* ipfixSender) {
+CallbackInfo getIpfixSenderCallbackInfo(IpfixSender* ipfixSender) {
 	CallbackInfo ci;
 	bzero(&ci, sizeof(CallbackInfo));
 	ci.handle = ipfixSender;

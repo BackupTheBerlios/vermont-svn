@@ -9,7 +9,7 @@
 
 /***** Data Types ***********************************************************/
 
-typedef uint16_t SourceID;
+typedef uint32_t SourceID;
 typedef uint16_t TemplateID;
 typedef uint16_t TypeId;
 typedef uint16_t FieldLength;
@@ -71,95 +71,95 @@ typedef struct {
 
 /**
  * Callback function invoked when a new Template arrives.
- * @param ipfixAggregator handle passed to the callback function to differentiate different instances and/or operation modes
+ * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
  * @param sourceId SourceID of the exporter that sent this Template
  * @param templateInfo Pointer to a structure defining this Template
  * @return 0 if packet handled successfully
  */
-typedef int(TemplateCallbackFunction)(void* ipfixAggregator, SourceID sourceID, TemplateInfo* templateInfo);
+typedef int(TemplateCallbackFunction)(void* handle, SourceID sourceID, TemplateInfo* templateInfo);
 
 /**
  * Callback function invoked when a new OptionsTemplate arrives.
- * @param ipfixAggregator handle passed to the callback function to differentiate different instances and/or operation modes
+ * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
  * @param sourceId SourceID of the exporter that sent this OptionsTemplate
  * @param optionsTemplateInfo Pointer to a structure defining this OptionsTemplate
  * @return 0 if packet handled successfully
  */
-typedef int(OptionsTemplateCallbackFunction)(void* ipfixAggregator, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo);
+typedef int(OptionsTemplateCallbackFunction)(void* handle, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo);
 
 /**
  * Callback function invoked when a new DataTemplate arrives.
- * @param ipfixAggregator handle passed to the callback function to differentiate different instances and/or operation modes
+ * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
  * @param sourceId SourceID of the exporter that sent this DataTemplate
  * @return 0 if packet handled successfully
  */
-typedef int(DataTemplateCallbackFunction)(void* ipfixAggregator, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
+typedef int(DataTemplateCallbackFunction)(void* handle, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 
 /*** Template Destruction Callbacks ***/
   	 
 /**
  * Callback function invoked when a Template is being destroyed.
  * Particularly useful for cleaning up userData associated with this Template
- * @param ipfixAggregator handle passed to the callback function to differentiate different instances and/or operation modes
+ * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
  * @param sourceId SourceID of the exporter that sent this Template
  * @param templateInfo Pointer to a structure defining this Template
  * @return 0 if packet handled successfully
  */
-typedef int(TemplateDestructionCallbackFunction)(void* ipfixAggregator, SourceID sourceID, TemplateInfo* templateInfo);
+typedef int(TemplateDestructionCallbackFunction)(void* handle, SourceID sourceID, TemplateInfo* templateInfo);
 
 /**
  * Callback function invoked when a OptionsTemplate is being destroyed.
  * Particularly useful for cleaning up userData associated with this Template
- * @param ipfixAggregator handle passed to the callback function to differentiate different instances and/or operation modes
+ * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
  * @param sourceId SourceID of the exporter that sent this OptionsTemplate
  * @param optionsTemplateInfo Pointer to a structure defining this OptionsTemplate
  * @return 0 if packet handled successfully
  */
-typedef int(OptionsTemplateDestructionCallbackFunction)(void* ipfixAggregator, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo);
+typedef int(OptionsTemplateDestructionCallbackFunction)(void* handle, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo);
 
 /**
  * Callback function invoked when a DataTemplate is being destroyed.
  * Particularly useful for cleaning up userData associated with this Template
- * @param ipfixAggregator handle passed to the callback function to differentiate different instances and/or operation modes
+ * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
  * @param sourceId SourceID of the exporter that sent this DataTemplate
  * @return 0 if packet handled successfully
  */
-typedef int(DataTemplateDestructionCallbackFunction)(void* ipfixAggregator, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
+typedef int(DataTemplateDestructionCallbackFunction)(void* handle, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 
 /*** Data Callbacks ***/
 
 /**
  * Callback function invoked when a new Data Record arrives.
- * @param ipfixAggregator handle passed to the callback function to differentiate different instances and/or operation modes
+ * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
  * @param sourceId SourceID of the exporter that sent this Record
  * @param templateInfo Pointer to a structure defining the Template used
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all fields
  * @return 0 if packet handled successfully
  */
-typedef int(DataRecordCallbackFunction)(void* ipfixAggregator, SourceID sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
+typedef int(DataRecordCallbackFunction)(void* handle, SourceID sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
 
 /**
  * Callback function invoked when a new Options Record arrives.
- * @param ipfixAggregator handle passed to the callback function to differentiate different instances and/or operation modes
+ * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
  * @param sourceId SourceID of the exporter that sent this Record
  * @param optionsTemplateInfo Pointer to a structure defining the OptionsTemplate used
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all fields
  * @return 0 if packet handled successfully
  */
-typedef int(OptionsRecordCallbackFunction)(void* ipfixAggregator, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data);
+typedef int(OptionsRecordCallbackFunction)(void* handle, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data);
 
 /**
  * Callback function invoked when a new Data Record with associated Fixed Values arrives.
- * @param ipfixAggregator handle passed to the callback function to differentiate different instances and/or operation modes
+ * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
  * @param sourceId SourceID of the exporter that sent this Record
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  * @return 0 if packet handled successfully
  */
-typedef int(DataDataRecordCallbackFunction)(void* ipfixAggregator, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+typedef int(DataDataRecordCallbackFunction)(void* handle, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
 typedef struct {
 	void* handle; /**< handle passed to the callback function to differentiate different instances and/or operation modes */
@@ -179,7 +179,7 @@ typedef struct {
 
 /**
  * Represents a Collector.
- * Create with @c rcvIpfixUdpIpv4()
+ * Create with @c createIpfixReceiver()
  */
 typedef struct {
 	int socket;
@@ -194,8 +194,8 @@ typedef struct {
 
 /***** Prototypes ***********************************************************/
 
-int initializeRcvIpfix();
-int deinitializeRcvIpfix();
+int initializeIpfixReceivers();
+int deinitializeIpfixReceivers();
 
 void printFieldData(FieldType type, FieldData* pattern);
 
@@ -203,12 +203,12 @@ FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type);
 FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type);
 FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
 
-IpfixReceiver* rcvIpfixUdpIpv4(uint16_t port);
-void rcvIpfixClose(IpfixReceiver* ipfixReceiver);
+IpfixReceiver* createIpfixReceiver(uint16_t port);
+void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
-void startRcvIpfix(IpfixReceiver* ipfixReceiver);
-void stopRcvIpfix(IpfixReceiver* ipfixReceiver);
+void startIpfixReceiver(IpfixReceiver* ipfixReceiver);
+void stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
-void rcvAddCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
+void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
 
 #endif

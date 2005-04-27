@@ -73,9 +73,9 @@ int dataDataRecordCallbackTest(void* ipfixAggregator, SourceID sourceID, DataTem
 int main(int argc, char *argv[]) {
 	signal(SIGINT, sigint);
 
-	initializeRcvIpfix();
+	initializeIpfixReceivers();
 
-	IpfixReceiver* ipfixReceiver = rcvIpfixUdpIpv4(1501);
+	IpfixReceiver* ipfixReceiver = createIpfixReceiver(1501);
 
 	CallbackInfo ci;
 	bzero(&ci, sizeof(CallbackInfo));
@@ -86,17 +86,17 @@ int main(int argc, char *argv[]) {
 	ci.dataDataRecordCallbackFunction = dataDataRecordCallbackTest;
 	ci.templateDestructionCallbackFunction = templateDestructionCallbackTest;
 	ci.dataTemplateDestructionCallbackFunction = dataTemplateDestructionCallbackTest;
-	rcvAddCallbacks(ipfixReceiver, ci);
+	addIpfixReceiverCallbacks(ipfixReceiver, ci);
 	
-	startRcvIpfix(ipfixReceiver);
+	startIpfixReceiver(ipfixReceiver);
 
 	debug("Listening on Port 1501. Hit Ctrl+C to quit");
 	pause();
 	debug("Stopping threads and tidying up.");
 	
-	stopRcvIpfix(ipfixReceiver);
-	rcvIpfixClose(ipfixReceiver);
- 	deinitializeRcvIpfix();	
+	stopIpfixReceiver(ipfixReceiver);
+	destroyIpfixReceiver(ipfixReceiver);
+ 	deinitializeIpfixReceivers();	
 
 	return 0;
 	}

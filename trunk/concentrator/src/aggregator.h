@@ -33,7 +33,7 @@ int aggregateDataDataRecord(void* ipfixAggregator, SourceID sourceID, DataTempla
 
 void pollAggregator(IpfixAggregator* ipfixAggregator);
 
-void aggregatorAddCallbacks(IpfixAggregator* ipfixAggregator, CallbackInfo handles);
+void addAggregatorCallbacks(IpfixAggregator* ipfixAggregator, CallbackInfo handles);
 
 CallbackInfo getAggregatorCallbackInfo(IpfixAggregator* ipfixAggregator);
 

@@ -9,7 +9,7 @@
 
 /**
  * Represents an Exporter.
- * Create with @c sndIpfixUdpIpv4()
+ * Create with @c createIpfixSender()
  */
 typedef struct {
 	void* ipfixExporter; /**< underlying ipfix_exporter structure. Cast from void* to minimize header dependencies */
@@ -20,19 +20,19 @@ typedef struct {
 
 /***** Prototypes ***********************************************************/
 
-int initializeSndIpfix();
-int deinitializeSndIpfix();
+int initializeIpfixSenders();
+int deinitializeIpfixSenders();
 
-IpfixSender* sndIpfixUdpIpv4(SourceID sourceID, char* ip, uint16_t port);
-void sndIpfixClose(IpfixSender* ipfixSender);
+IpfixSender* createIpfixSender(SourceID sourceID, char* ip, uint16_t port);
+void destroyIpfixSender(IpfixSender* ipfixSender);
 
-void startSndIpfix(IpfixSender* ipfixSender);
-void stopSndIpfix(IpfixSender* ipfixSender);
+void startIpfixSender(IpfixSender* ipfixSender);
+void stopIpfixSender(IpfixSender* ipfixSender);
 
 int sndNewDataTemplate(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 int sndDestroyDataTemplate(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 int sndDataDataRecord(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
-CallbackInfo getSenderCallbackInfo(IpfixSender* ipfixSender);
+CallbackInfo getIpfixSenderCallbackInfo(IpfixSender* ipfixSender);
 
 #endif

@@ -766,7 +766,7 @@ static void* listenerUdpIpv4(void* ipfixReceiver_) {
  * Call once before using any function in this module
  * @return 0 if call succeeded
  */
-int initializeRcvIpfix() {
+int initializeIpfixReceivers() {
 	return 0;
 	}
 
@@ -775,7 +775,7 @@ int initializeRcvIpfix() {
  * Call once to tidy up. Do not use any function in this module afterwards
  * @return 0 if call succeeded
  */
-int deinitializeRcvIpfix() {
+int deinitializeIpfixReceivers() {
 	return 0;
 	}
 
@@ -877,19 +877,19 @@ FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type) {
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param handles set of callback functions
  */
-void rcvAddCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles) {
+void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles) {
 	int n = ++ipfixReceiver->callbackCount;
 	ipfixReceiver->callbackInfo = (CallbackInfo*)realloc(ipfixReceiver->callbackInfo, n * sizeof(CallbackInfo));
 	memcpy(&ipfixReceiver->callbackInfo[n-1], &handles, sizeof(CallbackInfo));
 	}
 
 /**
- * Creates a new Collector.
- * Call startRcvIpfix() to start processing messages.
+ * Creates a new IpfixReceiver.
+ * Call @c startIpfixReceiver() to start processing messages.
  * @param port Port to listen on
  * @return handle for further interaction
  */
-IpfixReceiver* rcvIpfixUdpIpv4(uint16_t port) {
+IpfixReceiver* createIpfixReceiver(uint16_t port) {
 	IpfixReceiver* ipfixReceiver;
 	struct sockaddr_in serverAddress;
 	
@@ -938,26 +938,26 @@ out:
 
 /**
  * Starts processing messages.
- * All sockets prepared by calls to rcvIpfixUdpIpv4() will start
- * receiving messages until stopRcvIpfix() is called.
+ * All sockets prepared by calls to createIpfixReceiver() will start
+ * receiving messages until stopIpfixReceiver() is called.
  */
-void startRcvIpfix(IpfixReceiver* ipfixReceiver) {
+void startIpfixReceiver(IpfixReceiver* ipfixReceiver) {
 	pthread_mutex_unlock(&ipfixReceiver->mutex);
 	}
 	
 /**
  * Stops processing messages.
- * No more messages will be processed until the next startRcvIpfix() call.
+ * No more messages will be processed until the next startIpfixReceiver() call.
  */
-void stopRcvIpfix(IpfixReceiver* ipfixReceiver) {
+void stopIpfixReceiver(IpfixReceiver* ipfixReceiver) {
 	pthread_mutex_lock(&ipfixReceiver->mutex);
 	}
 
 /**
- * Closes a socket.
- * @param ipfixReceiver Handle returned by @c rcvIpfixUdpIpv4()
+ * Frees memory used by a IpfixReceiver.
+ * @param ipfixReceiver Handle returned by @c createIpfixReceiver()
  */
-void rcvIpfixClose(IpfixReceiver* ipfixReceiver) {
+void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver) {
 	close(ipfixReceiver->socket);
 	pthread_mutex_unlock(&ipfixReceiver->mutex);
 	destroyTemplateBuffer(ipfixReceiver->templateBuffer);
