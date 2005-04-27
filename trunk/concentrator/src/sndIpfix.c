@@ -10,10 +10,6 @@
 #include "common.h"
 #include "../ipfixlolib/ipfixlolib.h"
 
-/***** Definitions ***********************************************************/
-
-#define SND_SOURCE_ID 70538
-
 /***** Global Variables ******************************************************/
 
 static uint8_t ringbufferPos = 0; /**< Pointer to next free slot in @c conversionRingbuffer. */
@@ -42,19 +38,20 @@ int deinitializeSndIpfix() {
 	}
 
 /**
- * Adds a new collector to send Records to. Do not forget to call @c startSndIpfix() to begin sending
+ * Creates a new IPFIX Exporter. Do not forget to call @c startSndIpfix() to begin sending
+ * @param sourceID Source ID this exporter will report
  * @param ip destination collector's address
  * @param port destination collector's port
  * @return handle to use when calling @c sndIpfixClose()
  */
-IpfixSender* sndIpfixUdpIpv4(char* ip, uint16_t port) {
+IpfixSender* sndIpfixUdpIpv4(SourceID sourceID, char* ip, uint16_t port) {
 	IpfixSender* ipfixSender = (IpfixSender*)malloc(sizeof(IpfixSender));
 	ipfix_exporter** exporterP = (ipfix_exporter**)&ipfixSender->ipfixExporter;
 	strcpy(ipfixSender->ip, ip);
 	ipfixSender->port = port;
 
 	ipfixSender->lastTemplateId = 10000;
-	if (ipfix_init_exporter(SND_SOURCE_ID, exporterP) != 0) {
+	if (ipfix_init_exporter(sourceID, exporterP) != 0) {
 		fatal("ipfix_init_exporter failed");
 		return NULL;
 		}
@@ -100,9 +97,10 @@ void stopSndIpfix(IpfixSender* ipfixSender) {
 /**
  * Announces a new Template
  * @param ipfixSender_ handle to the Exporter
+ * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int sndNewDataTemplate(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo) {
+int sndNewDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
 	IpfixSender* ipfixSender = ipfixSender_;
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
 	if (!exporter) {
@@ -229,9 +227,10 @@ int sndNewDataTemplate(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo) {
 /**
  * Invalidates a template; Does NOT free dataTemplateInfo
  * @param ipfixSender_ handle to the Exporter
+ * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int sndDestroyDataTemplate(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo) {
+int sndDestroyDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
 	free(dataTemplateInfo->userData);
 	return 0;
 	}
@@ -239,11 +238,12 @@ int sndDestroyDataTemplate(void* ipfixSender_, DataTemplateInfo* dataTemplateInf
 /**
  * Put new Data Record in outbound exporter queue
  * @param ipfixSender_ handle to the Exporter
+ * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int sndDataDataRecord(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
+int sndDataDataRecord(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
 	IpfixSender* ipfixSender = ipfixSender_;
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
 
@@ -307,4 +307,14 @@ int sndDataDataRecord(void* ipfixSender_, DataTemplateInfo* dataTemplateInfo, ui
 		}
 	
 	return 0;
+	}
+
+CallbackInfo getSenderCallbackInfo(IpfixSender* ipfixSender) {
+	CallbackInfo ci;
+	bzero(&ci, sizeof(CallbackInfo));
+	ci.handle = ipfixSender;
+	ci.dataTemplateCallbackFunction = sndNewDataTemplate;
+	ci.dataDataRecordCallbackFunction = sndDataDataRecord;
+	ci.dataTemplateDestructionCallbackFunction = sndDestroyDataTemplate;
+	return ci;
 	}

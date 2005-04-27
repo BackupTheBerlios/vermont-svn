@@ -1,6 +1,7 @@
 #ifndef AGGREGATOR_H
 #define AGGREGATOR_H
 
+#include "rcvIpfix.h"
 #include "rules.h"
 #include "hashing.h"
 
@@ -32,8 +33,8 @@ int aggregateDataDataRecord(void* ipfixAggregator, SourceID sourceID, DataTempla
 
 void pollAggregator(IpfixAggregator* ipfixAggregator);
 
-void setAggregatorDataTemplateCallback(IpfixAggregator* ipfixAggregator, NewDataTemplateCallbackFunction* f, void* ipfixExporter);
-void setAggregatorDataDataRecordCallback(IpfixAggregator* ipfixAggregator, NewDataDataRecordCallbackFunction* f, void* ipfixExporter);
-void setAggregatorDataTemplateDestructionCallback(IpfixAggregator* ipfixAggregator, NewDataTemplateDestructionCallbackFunction* f, void* ipfixExporter);
+void aggregatorAddCallbacks(IpfixAggregator* ipfixAggregator, CallbackInfo handles);
+
+CallbackInfo getAggregatorCallbackInfo(IpfixAggregator* ipfixAggregator);
 
 #endif

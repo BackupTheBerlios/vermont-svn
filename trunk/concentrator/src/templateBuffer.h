@@ -11,7 +11,7 @@
 /***** Data Types ************************************************************/
 
 /**
- * FIXME: add description
+ * Represents a single Buffered Template
  */
 typedef struct {
 	SourceID	sourceID;     /**< source identifier of exporter that sent this template */
@@ -28,21 +28,17 @@ typedef struct {
 	} BufferedTemplate;
 
 /**
- * FIXME: add description
+ * Represents a Template Buffer
  */	
 typedef struct {
-	BufferedTemplate* head;
-
-	void* ipfixAggregator; /**< handle passed to the callback functions */
-	TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
-	DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
-	OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
+	BufferedTemplate* head; /**< Start of BufferedTemplate chain */
+	IpfixReceiver* ipfixReceiver; /**< Pointer to the ipfixReceiver which instantiated this TemplateBuffer */
 	} TemplateBuffer;
 
 
 /***** Prototypes ************************************************************/
 
-TemplateBuffer* createTemplateBuffer();
+TemplateBuffer* createTemplateBuffer(IpfixReceiver* parentIpfixReceiver);
 void destroyTemplateBuffer(TemplateBuffer* templateBuffer);
 BufferedTemplate* getBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, TemplateID templateId);
 void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, TemplateID id);

@@ -150,47 +150,24 @@ void pollAggregator(IpfixAggregator* ipfixAggregator) {
 	}
 
 /**
- * Sets the callback function to pass generated DataTemplates to
- * @param ipfixAggregator IpfixReceiver to set the callback function for
- * @param f pointer to the callback function
- * @param ipfixExporter handle to be passed to the callback function. Forced to be the same for all if a ipfixAggregator's callback functions
+ * Adds a set of callback functions to the list of functions to call when Templates or Records have to be sent
+ * @param ipfixAggregator IpfixAggregator to set the callback function for
+ * @param handles set of callback functions
  */
-void setAggregatorDataTemplateCallback(IpfixAggregator* ipfixAggregator, NewDataTemplateCallbackFunction* f, void* ipfixExporter) {
+void aggregatorAddCallbacks(IpfixAggregator* ipfixAggregator, CallbackInfo handles) {
 	Rules* rules = ((IpfixAggregator*)ipfixAggregator)->rules;
 
 	int i;
 	for (i = 0; i < rules->count; i++) {
-		setHashingDataTemplateCallback(rules->rule[i]->hashtable, f, ipfixExporter);
+		hashingAddCallbacks(rules->rule[i]->hashtable, handles);
 		}
 	}
 
-/**
- * Sets the callback function to pass aggregated Records to
- * @param ipfixAggregator IpfixReceiver to set the callback function for
- * @param f pointer to the callback function
- * @param ipfixExporter handle to be passed to the callback function. Forced to be the same for all if a ipfixAggregator's callback functions
- */
-void setAggregatorDataDataRecordCallback(IpfixAggregator* ipfixAggregator, NewDataDataRecordCallbackFunction* f, void* ipfixExporter) {
-	Rules* rules = ((IpfixAggregator*)ipfixAggregator)->rules;
-
-	int i;
-	for (i = 0; i < rules->count; i++) {
-		setHashingDataDataRecordCallback(rules->rule[i]->hashtable, f, ipfixExporter);
-		}
+CallbackInfo getAggregatorCallbackInfo(IpfixAggregator* ipfixAggregator) {
+	CallbackInfo ci;
+	bzero(&ci, sizeof(CallbackInfo));
+	ci.handle = ipfixAggregator;
+	ci.dataRecordCallbackFunction = aggregateDataRecord;
+	ci.dataDataRecordCallbackFunction = aggregateDataDataRecord;
+	return ci;
 	}
-
-/**
- * Sets the callback function to inform of invalidated DataTemplates
- * @param ipfixAggregator IpfixReceiver to set the callback function for
- * @param f pointer to the callback function
- * @param ipfixExporter handle to be passed to the callback function. Forced to be the same for all if a ipfixAggregator's callback functions
- */
-void setAggregatorDataTemplateDestructionCallback(IpfixAggregator* ipfixAggregator, NewDataTemplateDestructionCallbackFunction* f, void* ipfixExporter) {
-	Rules* rules = ((IpfixAggregator*)ipfixAggregator)->rules;
-
-	int i;
-	for (i = 0; i < rules->count; i++) {
-		setHashingDataTemplateDestructionCallback(rules->rule[i]->hashtable, f, ipfixExporter);
-		}
-	}
-

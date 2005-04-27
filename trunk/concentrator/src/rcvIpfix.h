@@ -161,30 +161,35 @@ typedef int(OptionsRecordCallbackFunction)(void* ipfixAggregator, SourceID sourc
  */
 typedef int(DataDataRecordCallbackFunction)(void* ipfixAggregator, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
+typedef struct {
+	void* handle; /**< handle passed to the callback function to differentiate different instances and/or operation modes */
+	
+	TemplateCallbackFunction* templateCallbackFunction;
+	OptionsTemplateCallbackFunction* optionsTemplateCallbackFunction;
+	DataTemplateCallbackFunction* dataTemplateCallbackFunction;
+	
+	DataRecordCallbackFunction* dataRecordCallbackFunction;
+	OptionsRecordCallbackFunction* optionsRecordCallbackFunction;
+	DataDataRecordCallbackFunction* dataDataRecordCallbackFunction;
+
+	TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
+	OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
+	DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
+	} CallbackInfo;
+
 /**
  * Represents a Collector.
  * Create with @c rcvIpfixUdpIpv4()
  */
 typedef struct {
 	int socket;
-	pthread_mutex_t mutex;  /**< Mutex to pause receiving thread */
-	pthread_t thread;	/**< Thread ID for this particular instance, to sync against etc */
+	pthread_mutex_t mutex;      /**< Mutex to pause receiving thread */
+	pthread_t thread;	    /**< Thread ID for this particular instance, to sync against etc */
 	
-	void* ipfixAggregator; /**< handle passed to the callback functions */
-
-	TemplateCallbackFunction* templateCallbackFunction;
-	DataTemplateCallbackFunction* dataTemplateCallbackFunction;
-	OptionsTemplateCallbackFunction* optionsTemplateCallbackFunction;
-
-	TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
-	DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
-	OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
+	int callbackCount;          /**< Length of callbackInfo array */
+	CallbackInfo* callbackInfo; /**< Array of callback functions to invoke when new messages arrive */
 	
-	DataRecordCallbackFunction* dataRecordCallbackFunction;
-	OptionsRecordCallbackFunction* optionsRecordCallbackFunction;
-	DataDataRecordCallbackFunction* dataDataRecordCallbackFunction;
-	
-	void* templateBuffer;  /**< TemplateBuffer* structure */
+	void* templateBuffer;       /**< TemplateBuffer* structure */
 	} IpfixReceiver;
 
 /***** Prototypes ***********************************************************/
@@ -204,19 +209,6 @@ void rcvIpfixClose(IpfixReceiver* ipfixReceiver);
 void startRcvIpfix(IpfixReceiver* ipfixReceiver);
 void stopRcvIpfix(IpfixReceiver* ipfixReceiver);
 
-/*** Template Callbacks ***/
-void setTemplateCallback(IpfixReceiver* ipfixReceiver, TemplateCallbackFunction* f, void* ipfixAggregator);
-void setOptionsTemplateCallback(IpfixReceiver* ipfixReceiver, OptionsTemplateCallbackFunction* f, void* ipfixAggregator);
-void setDataTemplateCallback(IpfixReceiver* ipfixReceiver, DataTemplateCallbackFunction* f, void* ipfixAggregator);
-
-/*** Template Destruction Callbacks ***/
-void setTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, TemplateDestructionCallbackFunction* f, void* ipfixAggregator);
-void setOptionsTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, OptionsTemplateDestructionCallbackFunction* f, void* ipfixAggregator);
-void setDataTemplateDestructionCallback(IpfixReceiver* ipfixReceiver, DataTemplateDestructionCallbackFunction* f, void* ipfixAggregator);
-
-/*** Data Callbacks ***/
-void setDataRecordCallback(IpfixReceiver* ipfixReceiver, DataRecordCallbackFunction* f, void* ipfixAggregator);
-void setOptionsRecordCallback(IpfixReceiver* ipfixReceiver, OptionsRecordCallbackFunction* f, void* ipfixAggregator);
-void setDataDataRecordCallback(IpfixReceiver* ipfixReceiver, DataDataRecordCallbackFunction* f, void* ipfixAggregator);
+void rcvAddCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
 
 #endif

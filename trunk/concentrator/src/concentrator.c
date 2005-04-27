@@ -44,7 +44,7 @@ void startExporter(char* ip, uint16_t port) {
 		}
 
 	debug("starting exporter");
-	ipfixSender = sndIpfixUdpIpv4(ip, port);
+	ipfixSender = sndIpfixUdpIpv4(0, ip, port);
 	startSndIpfix(ipfixSender);
 	}
 
@@ -63,9 +63,7 @@ void startMyAggregator(char* ruleFile, uint16_t minBufferTime, uint16_t maxBuffe
 
 	debug("starting Aggregator");
 	ipfixAggregator = createAggregator(ruleFile, minBufferTime, maxBufferTime);
-	setAggregatorDataTemplateCallback(ipfixAggregator, sndNewDataTemplate, ipfixSender);
-	setAggregatorDataDataRecordCallback(ipfixAggregator, sndDataDataRecord, ipfixSender);
-	setAggregatorDataTemplateDestructionCallback(ipfixAggregator, sndDestroyDataTemplate, ipfixSender);
+	aggregatorAddCallbacks(ipfixAggregator, getSenderCallbackInfo(ipfixSender));
 	startAggregator(ipfixAggregator);
 	}
 
@@ -88,8 +86,7 @@ void startCollector(uint16_t port) {
 			
 	debug("starting collector");
 	ipfixReceiver = rcvIpfixUdpIpv4(port);
-	setDataRecordCallback(ipfixReceiver, aggregateDataRecord, ipfixAggregator);
-	setDataDataRecordCallback(ipfixReceiver, aggregateDataDataRecord, ipfixAggregator);
+	rcvAddCallbacks(ipfixReceiver, getAggregatorCallbackInfo(ipfixAggregator));
 	startRcvIpfix(ipfixReceiver);
 	}
 

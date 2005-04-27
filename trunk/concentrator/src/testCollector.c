@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <signal.h>
+#include <string.h>
 #include "rcvIpfix.h"
 #include "common.h"
 
@@ -75,13 +76,17 @@ int main(int argc, char *argv[]) {
 	initializeRcvIpfix();
 
 	IpfixReceiver* ipfixReceiver = rcvIpfixUdpIpv4(1501);
- 	setTemplateCallback(ipfixReceiver, templateCallbackTest, NULL);
-	setTemplateDestructionCallback(ipfixReceiver, templateDestructionCallbackTest, NULL);
- 	setDataTemplateCallback(ipfixReceiver, dataTemplateCallbackTest, NULL);
-	setDataTemplateDestructionCallback(ipfixReceiver, dataTemplateDestructionCallbackTest, NULL);
- 	setDataRecordCallback(ipfixReceiver, dataRecordCallbackTest, NULL);
-	setOptionsRecordCallback(ipfixReceiver, optionsRecordCallbackTest, NULL);
-	setDataDataRecordCallback(ipfixReceiver, dataDataRecordCallbackTest, NULL);
+
+	CallbackInfo ci;
+	bzero(&ci, sizeof(CallbackInfo));
+	ci.templateCallbackFunction = templateCallbackTest;
+	ci.dataTemplateCallbackFunction = dataTemplateCallbackTest;
+	ci.dataRecordCallbackFunction = dataRecordCallbackTest;
+	ci.optionsRecordCallbackFunction = optionsRecordCallbackTest;
+	ci.dataDataRecordCallbackFunction = dataDataRecordCallbackTest;
+	ci.templateDestructionCallbackFunction = templateDestructionCallbackTest;
+	ci.dataTemplateDestructionCallbackFunction = dataTemplateDestructionCallbackTest;
+	rcvAddCallbacks(ipfixReceiver, ci);
 	
 	startRcvIpfix(ipfixReceiver);
 

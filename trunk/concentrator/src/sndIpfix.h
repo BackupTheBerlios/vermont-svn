@@ -23,14 +23,16 @@ typedef struct {
 int initializeSndIpfix();
 int deinitializeSndIpfix();
 
-IpfixSender* sndIpfixUdpIpv4(char* ip, uint16_t port);
+IpfixSender* sndIpfixUdpIpv4(SourceID sourceID, char* ip, uint16_t port);
 void sndIpfixClose(IpfixSender* ipfixSender);
 
 void startSndIpfix(IpfixSender* ipfixSender);
 void stopSndIpfix(IpfixSender* ipfixSender);
 
-int sndNewDataTemplate(void* ipfixSender, DataTemplateInfo* dataTemplateInfo);
-int sndDestroyDataTemplate(void* ipfixSender, DataTemplateInfo* dataTemplateInfo);
-int sndDataDataRecord(void* ipfixSender, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+int sndNewDataTemplate(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
+int sndDestroyDataTemplate(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
+int sndDataDataRecord(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+
+CallbackInfo getSenderCallbackInfo(IpfixSender* ipfixSender);
 
 #endif

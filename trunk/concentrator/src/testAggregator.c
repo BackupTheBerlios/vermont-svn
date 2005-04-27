@@ -31,19 +31,17 @@ int main(int argc, char *argv[]) {
 	initializeSndIpfix();
 
 	debug("starting exporter");
-	IpfixSender* ipfixSender = sndIpfixUdpIpv4("127.0.0.1", 1501);
+	IpfixSender* ipfixSender = sndIpfixUdpIpv4(0, "127.0.0.1", 1501);
 	startSndIpfix(ipfixSender);
 		
 	debug("starting aggregator");
 	IpfixAggregator* ipfixAggregator = createAggregator("aggregation_rules.conf", 5, 15);
-	setAggregatorDataTemplateCallback(ipfixAggregator, sndNewDataTemplate, ipfixSender);
-	setAggregatorDataDataRecordCallback(ipfixAggregator, sndDataDataRecord, ipfixSender);
-	setAggregatorDataTemplateDestructionCallback(ipfixAggregator, sndDestroyDataTemplate, ipfixSender);
+	aggregatorAddCallbacks(ipfixAggregator, getSenderCallbackInfo(ipfixSender));
+	startAggregator(ipfixAggregator);
 			
 	debug("starting collector");
 	IpfixReceiver* ipfixReceiver = rcvIpfixUdpIpv4(1500);
-	setDataRecordCallback(ipfixReceiver, aggregateDataRecord, ipfixAggregator);
-	setDataDataRecordCallback(ipfixReceiver, aggregateDataDataRecord, ipfixAggregator);
+	rcvAddCallbacks(ipfixReceiver, getAggregatorCallbackInfo(ipfixAggregator));
 	startRcvIpfix(ipfixReceiver);
 
 	debug("Listening on Port 1500. Hit Ctrl+C to quit");

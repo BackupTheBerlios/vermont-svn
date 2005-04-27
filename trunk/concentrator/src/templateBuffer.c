@@ -73,20 +73,41 @@ void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, 
 		}
 	if (bt->setID == IPFIX_SetId_Template) {
 		free(bt->templateInfo->fieldInfo);
-		if (templateBuffer->templateDestructionCallbackFunction) templateBuffer->templateDestructionCallbackFunction(templateBuffer->ipfixAggregator, sourceId, bt->templateInfo);
+
+		/* Invoke all registered callback functions */
+		int n;		
+		for (n = 0; n < templateBuffer->ipfixReceiver->callbackCount; n++) {
+			CallbackInfo* ci = &templateBuffer->ipfixReceiver->callbackInfo[n];
+			if (ci->templateDestructionCallbackFunction) ci->templateDestructionCallbackFunction(ci->handle, sourceId, bt->templateInfo);
+			}
+
 		free(bt->templateInfo);
 		} else
 	if (bt->setID == IPFIX_SetId_OptionsTemplate) {
 		free(bt->optionsTemplateInfo->scopeInfo);
 		free(bt->optionsTemplateInfo->fieldInfo);
-		if (templateBuffer->optionsTemplateDestructionCallbackFunction) templateBuffer->optionsTemplateDestructionCallbackFunction(templateBuffer->ipfixAggregator, sourceId, bt->optionsTemplateInfo);
+
+		/* Invoke all registered callback functions */
+		int n;		
+		for (n = 0; n < templateBuffer->ipfixReceiver->callbackCount; n++) {
+			CallbackInfo* ci = &templateBuffer->ipfixReceiver->callbackInfo[n];
+			if (ci->optionsTemplateDestructionCallbackFunction) ci->optionsTemplateDestructionCallbackFunction(ci->handle, sourceId, bt->optionsTemplateInfo);
+			}
+
 		free(bt->optionsTemplateInfo);
 		} else
 	if (bt->setID == IPFIX_SetId_DataTemplate) {
 		free(bt->dataTemplateInfo->fieldInfo);
 		free(bt->dataTemplateInfo->dataInfo);
 		free(bt->dataTemplateInfo->data);
-		if (templateBuffer->dataTemplateDestructionCallbackFunction) templateBuffer->dataTemplateDestructionCallbackFunction(templateBuffer->ipfixAggregator, sourceId, bt->dataTemplateInfo);
+
+		/* Invoke all registered callback functions */
+		int n;		
+		for (n = 0; n < templateBuffer->ipfixReceiver->callbackCount; n++) {
+			CallbackInfo* ci = &templateBuffer->ipfixReceiver->callbackInfo[n];
+			if (ci->dataTemplateDestructionCallbackFunction) ci->dataTemplateDestructionCallbackFunction(ci->handle, sourceId, bt->dataTemplateInfo);
+			}
+
 		free(bt->dataTemplateInfo);
 		} else {
 		fatalf("Unknown template type requested to be freed: %d", bt->setID);
@@ -97,14 +118,11 @@ void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, 
 /**
  * initializes the buffer
  */
-TemplateBuffer* createTemplateBuffer() {
+TemplateBuffer* createTemplateBuffer(IpfixReceiver* parentIpfixReceiver) {
 	TemplateBuffer* templateBuffer = (TemplateBuffer*)malloc(sizeof(TemplateBuffer));
 	
 	templateBuffer->head = 0;
-
-	templateBuffer->templateDestructionCallbackFunction = 0;
-	templateBuffer->dataTemplateDestructionCallbackFunction = 0;
-	templateBuffer->optionsTemplateDestructionCallbackFunction = 0;
+	templateBuffer->ipfixReceiver = parentIpfixReceiver;
 	
 	return templateBuffer;
 	}
