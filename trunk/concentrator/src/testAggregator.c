@@ -10,6 +10,7 @@
 #include "rcvIpfix.h"
 #include "aggregator.h"
 #include "sndIpfix.h"
+#include "printIpfix.h"
 
 int mayRun;
 
@@ -27,16 +28,24 @@ int main(int argc, char *argv[]) {
 	debug("initializing aggregators");
 	initializeAggregators();
 	
+	debug("initializing printers");
+	initializeIpfixPrinters();
+
 	debug("initializing exporters");
 	initializeIpfixSenders();
 
 	debug("starting exporter");
 	IpfixSender* ipfixSender = createIpfixSender(0xDEADBEEF, "127.0.0.1", 1501);
 	startIpfixSender(ipfixSender);
+
+	debug("starting printer");
+	IpfixPrinter* ipfixPrinter = createIpfixPrinter();
+	startIpfixPrinter(ipfixPrinter);
 		
 	debug("starting aggregator");
 	IpfixAggregator* ipfixAggregator = createAggregator("aggregation_rules.conf", 5, 15);
 	addAggregatorCallbacks(ipfixAggregator, getIpfixSenderCallbackInfo(ipfixSender));
+	addAggregatorCallbacks(ipfixAggregator, getIpfixPrinterCallbackInfo(ipfixPrinter));
 	startAggregator(ipfixAggregator);
 			
 	debug("starting collector");
@@ -61,6 +70,10 @@ int main(int argc, char *argv[]) {
 	stopAggregator(ipfixAggregator);
 	destroyAggregator(ipfixAggregator);
 
+	debug("stopping printer");
+	stopIpfixPrinter(ipfixPrinter);
+	destroyIpfixPrinter(ipfixPrinter);
+
 	debug("stopping exporter");
 	stopIpfixSender(ipfixSender);
 	destroyIpfixSender(ipfixSender);
@@ -71,6 +84,9 @@ int main(int argc, char *argv[]) {
 	debug("deinitializing aggregators");
 	deinitializeAggregators();
 	
+	debug("deinitializing printers");
+	deinitializeIpfixPrinters();
+
 	debug("deinitializing exporters");
 	deinitializeIpfixSenders();	
 			

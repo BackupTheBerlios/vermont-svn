@@ -247,25 +247,6 @@ int sndDataDataRecord(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* d
 	IpfixSender* ipfixSender = ipfixSender_;
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
 
-	int i;
-	
-	/* TODO - debugging only: print Data Record */
-	printf("\n-+--- exporting Record\n");
-	printf(" `- fixed data\n"); 
-	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
-		printf(" '   `- ");
-		printFieldData(dataTemplateInfo->dataInfo[i].type, (dataTemplateInfo->data + dataTemplateInfo->dataInfo[i].offset));
-		printf("\n");
-		}
-	printf(" `- variable data\n"); 
-	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
-		printf(" '   `- ");
-		printFieldData(dataTemplateInfo->fieldInfo[i].type, (data + dataTemplateInfo->fieldInfo[i].offset));
-		printf("\n");
-		}
-	printf(" `---\n\n");
-	
-
 	/* get Template ID from Template's userData */
 	uint16_t my_n_template_id = *(uint16_t*)dataTemplateInfo->userData;
 	
@@ -274,6 +255,7 @@ int sndDataDataRecord(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* d
 		return -1;
 		}
 		
+	int i;	
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
 		FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
 

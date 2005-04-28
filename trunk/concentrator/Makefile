@@ -25,10 +25,10 @@ endif
 PROGS = testCollector testAggregator
 ARCHS = ipfixCollector.a
 
-testAggregator = testAggregator.o aggregator.o rules.o common.o ipfix.o crc16.o hashing.o sndIpfix.o \
+testAggregator = testAggregator.o aggregator.o rules.o common.o ipfix.o crc16.o hashing.o sndIpfix.o printIpfix.o \
 	ipfixCollector.a ../ipfixlolib/libipfixlo.a
 
-testCollector = testCollector.o common.o \
+testCollector = testCollector.o printIpfix.o common.o \
 	ipfixCollector.a
 
 ipfixCollector.a = rcvIpfix.o templateBuffer.o common.o ipfix.o
