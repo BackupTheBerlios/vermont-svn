@@ -10,8 +10,8 @@ ARCH ?= BSD
 
 # -- compiler and linker switches ----
 
-CFLAGS += -pg -Wall -Werror
-LDFLAGS += -pg 
+CFLAGS += -g -pg -Wall -Werror
+LDFLAGS += -g -pg 
 
 ifeq ($(ARCH),BSD)
 CFLAGS += -pthread

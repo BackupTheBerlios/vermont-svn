@@ -88,7 +88,7 @@ int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateI
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printTemplateDestruction(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateInfo) {
-	printf("Destroyed a Template");
+	printf("Destroyed a Template\n");
 
 	return 0;
 	}
@@ -137,7 +137,7 @@ int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateI
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printOptionsTemplateDestruction(void* ipfixPrinter_, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) {
-	printf("Destroyed a OptionsTemplate");
+	printf("Destroyed an OptionsTemplate\n");
 
 	return 0;
 	}
@@ -186,7 +186,7 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printDataTemplateDestruction(void* ipfixPrinter_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
-	printf("Destroyed a DataTemplate");
+	printf("Destroyed a DataTemplate\n");
 
 	return 0;
 	}

@@ -894,20 +894,30 @@ IpfixReceiver* createIpfixReceiver(uint16_t port) {
 	struct sockaddr_in serverAddress;
 	
 	if(!(ipfixReceiver=(IpfixReceiver*)malloc(sizeof(IpfixReceiver)))) {
-		goto out;
+		fatal("Ran out of memory");
+		goto out0;
 		}
 
 	ipfixReceiver->callbackInfo = 0;
 	
 	if(!(ipfixReceiver->templateBuffer = createTemplateBuffer(ipfixReceiver))) {
+		fatal("Could not create template Buffer");
 		goto out1;
 		}
 
-	pthread_mutex_lock(&ipfixReceiver->mutex);
+	if (pthread_mutex_init(&ipfixReceiver->mutex, NULL) != 0) {
+		fatal("Could not init mutex");
+		goto out2;
+		}
+		
+	if (pthread_mutex_lock(&ipfixReceiver->mutex) != 0) {
+		fatal("Could not lock mutex");
+		goto out2;
+		}
 
 	ipfixReceiver->socket = socket(AF_INET, SOCK_DGRAM, 0);
 	if(ipfixReceiver->socket < 0) {
-		perror("socket");
+		perror("Could not create socket");
 		goto out2;
 		}
 
@@ -915,11 +925,12 @@ IpfixReceiver* createIpfixReceiver(uint16_t port) {
 	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 	serverAddress.sin_port = htons(port);
 	if(bind(ipfixReceiver->socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in)) < 0) {
-		perror("bind");
+		perror("Could not bind socket");
 		goto out3;
 		}
 
 	if(pthread_create(&(ipfixReceiver->thread), 0, listenerUdpIpv4, ipfixReceiver) != 0) {
+		fatal("Could not create listener thread");
 		goto out3;
 		}
 	//listenerUdpIpv4(ipfixReceiver); //debug - single-threaded
@@ -932,7 +943,7 @@ out2:
 	destroyTemplateBuffer(ipfixReceiver->templateBuffer);
 out1:
 	free(ipfixReceiver);
-out:
+out0:
 	return NULL;
 	}
 
@@ -940,17 +951,29 @@ out:
  * Starts processing messages.
  * All sockets prepared by calls to createIpfixReceiver() will start
  * receiving messages until stopIpfixReceiver() is called.
+ * @return 0 on success, non-zero on error
  */
-void startIpfixReceiver(IpfixReceiver* ipfixReceiver) {
-	pthread_mutex_unlock(&ipfixReceiver->mutex);
+int startIpfixReceiver(IpfixReceiver* ipfixReceiver) {
+	if (pthread_mutex_unlock(&ipfixReceiver->mutex) != 0) {
+		fatal("Could not unlock mutex");
+		return -1;
+		}
+	
+	return 0;
 	}
 	
 /**
  * Stops processing messages.
  * No more messages will be processed until the next startIpfixReceiver() call.
+ * @return 0 on success, non-zero on error
  */
-void stopIpfixReceiver(IpfixReceiver* ipfixReceiver) {
-	pthread_mutex_lock(&ipfixReceiver->mutex);
+int stopIpfixReceiver(IpfixReceiver* ipfixReceiver) {
+	if (pthread_mutex_lock(&ipfixReceiver->mutex) != 0) {
+		fatal("Could not lock mutex");
+		return -1;
+		}
+	
+	return 0;
 	}
 
 /**
@@ -959,7 +982,11 @@ void stopIpfixReceiver(IpfixReceiver* ipfixReceiver) {
  */
 void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver) {
 	close(ipfixReceiver->socket);
-	pthread_mutex_unlock(&ipfixReceiver->mutex);
+	
+	if (pthread_mutex_unlock(&ipfixReceiver->mutex) != 0) {
+		error("Could not unlock mutex");
+		}
+	
 	destroyTemplateBuffer(ipfixReceiver->templateBuffer);
 	free(ipfixReceiver->callbackInfo);
 	free(ipfixReceiver);

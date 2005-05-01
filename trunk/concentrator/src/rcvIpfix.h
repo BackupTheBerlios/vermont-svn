@@ -209,8 +209,8 @@ FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
 IpfixReceiver* createIpfixReceiver(uint16_t port);
 void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
-void startIpfixReceiver(IpfixReceiver* ipfixReceiver);
-void stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
+int startIpfixReceiver(IpfixReceiver* ipfixReceiver);
+int stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
 void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
 
