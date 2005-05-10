@@ -1,14 +1,10 @@
 #
 # Makefile for the IPFIX concentrator project
-# Copyright (C) 2004 Christoph Sommer
-# http://www.deltadevelopment.de/users/christoph/ipfix
 #
 # This is a gmake (GNU make) Makefile, don't even try pmake (BSD make)
 #
 
 ARCH ?= BSD
-
-# -- compiler and linker switches ----
 
 CFLAGS += -g -pg -Wall -Werror
 LDFLAGS += -g -pg 
@@ -20,49 +16,23 @@ else
 LDLIBS += -l pthread 
 endif
 
-# -- programs, archives and their components ----
-
-PROGS = testCollector testAggregator
-ARCHS = ipfixCollector.a
-
-testAggregator = testAggregator.o aggregator.o rules.o common.o ipfix.o crc16.o hashing.o sndIpfix.o printIpfix.o \
-	ipfixCollector.a ../ipfixlolib/libipfixlo.a
-
-testCollector = testCollector.o printIpfix.o common.o \
-	ipfixCollector.a
-
-ipfixCollector.a = rcvIpfix.o templateBuffer.o common.o ipfix.o
-
-# -- generic and phony targets ----
+TARGETS = testCollector testAggregator ipfixCollector.a
 
 .PHONY: all clean
 
-all: $(PROGS)
+all: $(TARGETS)
 
 build/%.o: src/%.c src/%.h
-	-@tput setf 1
-	-@echo "["$@"]" 
-	-@tput sgr0
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 clean:
-	rm -f $(PROGS) gmon.out build/*
+	rm -f $(TARGETS) gmon.out build/*
 
-# -- macro-generated targets ----
+testAggregator: build/testAggregator.o build/aggregator.o build/rules.o build/common.o build/ipfix.o build/crc16.o build/hashing.o build/sndIpfix.o build/printIpfix.o ipfixCollector.a ipfixlolib/libipfixlo.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-define PROGSMACRO
-$(1): $$(patsubst %, build/%, $$($(1)))
-	-@tput setf 1
-	-@echo "["$$@"]" 
-	-@tput sgr0
-	$(CC) $(LDFLAGS) -o $$@ $$^ $(LDLIBS)
-endef
+testCollector: build/testCollector.o build/printIpfix.o build/common.o ipfixCollector.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-define ARCHSMACRO
-build/$(1): $$(patsubst %, build/$(1)(build/%), $$($(1)))
-endef
-
-$(foreach prog,$(PROGS),$(eval $(call PROGSMACRO,$(prog))))
-$(foreach arch,$(ARCHS),$(eval $(call ARCHSMACRO,$(arch))))
-
-# -- EOF: here be dragons ----
+ipfixCollector.a: ipfixCollector.a(build/rcvIpfix.o) ipfixCollector.a(build/templateBuffer.o) ipfixCollector.a(build/common.o) ipfixCollector.a(build/ipfix.o)
+	ranlib $@
