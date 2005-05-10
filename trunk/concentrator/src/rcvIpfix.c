@@ -554,7 +554,7 @@ static int processNetflowV9Packet(IpfixReceiver* ipfixReceiver, byte* message, u
 	IpfixSetHeader* set = (IpfixSetHeader*)&header->data;
 
 	int i;
-	for (i = 0; i < header->setCount; i++) {
+	for (i = 0; i < ntohs(header->setCount); i++) {
 		if (ntohs(set->id) == NetflowV9_SetId_Template) {
   			processTemplateSet(ipfixReceiver, ntohs(header->sourceId), set);
   			} else

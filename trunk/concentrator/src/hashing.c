@@ -466,8 +466,15 @@ void copyData(FieldType* dstType, FieldData* dstData, FieldType* srcType, FieldD
 		}
 	else if (dstType->length > srcType->length) {
 		/* TODO: We simply pad with zeroes - will this always be correct? */
-		memcpy(dstData, srcData, srcType->length);
-		bzero(dstData + srcType->length, dstType->length - srcType->length);
+		if ((dstType->id == IPFIX_TYPEID_sourceIPv4Address) || (dstType->id == IPFIX_TYPEID_destinationIPv4Address)) {
+			/* Fields of type IPv4Address-type are padded on the right */
+			bzero(dstData, dstType->length);
+			memcpy(dstData, srcData, srcType->length);
+			} else {
+			/* TODO: all other types are padded on the left, i.e. the "big" end */
+			bzero(dstData, dstType->length);
+			memcpy(dstData + dstType->length - srcType->length, srcData, srcType->length);
+			}
 		}
 	else {
 		fatalf("Target buffer too small. Buffer expected %s of length %d, got one with length %d", typeid2string(dstType->id), dstType->length, srcType->length);

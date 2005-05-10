@@ -14,6 +14,9 @@
 
 /***** Constants ************************************************************/
 
+#define SUPPORT_NETFLOWV9
+#define NetflowV9_SetId_Template  0
+
 
 /***** Data Types ************************************************************/
 
@@ -83,6 +86,20 @@ void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, 
 
 		free(bt->templateInfo);
 		} else
+#ifdef SUPPORT_NETFLOWV9
+	if (bt->setID == NetflowV9_SetId_Template) {
+		free(bt->templateInfo->fieldInfo);
+
+		/* Invoke all registered callback functions */
+		int n;		
+		for (n = 0; n < templateBuffer->ipfixReceiver->callbackCount; n++) {
+			CallbackInfo* ci = &templateBuffer->ipfixReceiver->callbackInfo[n];
+			if (ci->templateDestructionCallbackFunction) ci->templateDestructionCallbackFunction(ci->handle, sourceId, bt->templateInfo);
+			}
+
+		free(bt->templateInfo);
+		} else
+#endif
 	if (bt->setID == IPFIX_SetId_OptionsTemplate) {
 		free(bt->optionsTemplateInfo->scopeInfo);
 		free(bt->optionsTemplateInfo->fieldInfo);
