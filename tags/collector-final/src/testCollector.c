@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <signal.h>
+#include <stdlib.h>
 #include "rcvIpfix.h"
 #include "common.h"
 
@@ -56,11 +57,20 @@ int dataDataRecordCallbackTest(SourceID sourceID, DataTemplateInfo* ti, uint16_t
 	}
 
 int main(int argc, char *argv[]) {
-	signal(SIGINT, sigint);
+
+        int listen_port;
+
+        if(argv[1]) {
+                listen_port=atoi(argv[1]);
+        } else {
+                listen_port=COL_LISTEN_PORT;
+        }
+
+        signal(SIGINT, sigint);
 
 	initializeRcvIpfix();
 
-	IpfixReceiver* ipfixReceiver = rcvIpfixUdpIpv4(COL_LISTEN_PORT);
+	IpfixReceiver* ipfixReceiver = rcvIpfixUdpIpv4(listen_port);
  	setTemplateCallback(ipfixReceiver, templateCallbackTest);
 	setTemplateDestructionCallback(ipfixReceiver, templateDestructionCallbackTest);
  	setDataRecordCallback(ipfixReceiver, dataRecordCallbackTest);
@@ -69,7 +79,7 @@ int main(int argc, char *argv[]) {
 	
 	startRcvIpfix(ipfixReceiver);
 
-	printf("Listening on Port %d. Hit Ctrl+C to quit\n", COL_LISTEN_PORT);
+	printf("Listening on Port %d. Hit Ctrl+C to quit\n", listen_port);
 	pause();
 	printf("Stopping threads and tidying up.\n");
 	
