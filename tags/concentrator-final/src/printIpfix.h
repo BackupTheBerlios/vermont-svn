@@ -10,7 +10,7 @@
  * Create with @c createIpfixPrinter()
  */
 typedef struct {
-	int dummy;
+	void* lastTemplate;
 	} IpfixPrinter;
 
 /***** Prototypes ***********************************************************/

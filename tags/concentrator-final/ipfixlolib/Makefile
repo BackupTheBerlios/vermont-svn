@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS+=-O -Wall -I/usr/include/sys/
+CFLAGS+=-O -Wall #-I/usr/include/sys/
 TARGET=libipfixlo.a
 
 all: $(TARGET)

@@ -1,18 +1,204 @@
 /** @file
- * IPFIX Exporter interface.
+ * IPFIX Printer module.
  *
- * Interface for feeding generated Templates and Data Records to "ipfixlolib" 
+ * Prints received flows to stdout 
  *
  */
  
 #include <stdlib.h>
 #include <string.h>
+#include <netinet/in.h>
 #include "printIpfix.h"
 #include "common.h"
 
 /***** Global Variables ******************************************************/
 
 /***** Internal Functions ****************************************************/
+
+static int ipv4ToString(FieldType type, FieldData* data, char* s, int len) {
+	int octet1 = 0;
+	int octet2 = 0;
+	int octet3 = 0;
+	int octet4 = 0;
+	int imask = 0;
+	if (type.length >= 1) octet1 = data[0];
+	if (type.length >= 2) octet2 = data[1];
+	if (type.length >= 3) octet3 = data[2];
+	if (type.length >= 4) octet4 = data[3];
+	if (type.length >= 5) imask = data[4];
+	if (type.length > 5) {
+		errorf("IPv4 Address with length %d unparseable", type.length);
+		return -1;
+		}
+	
+	if ((type.length == 5) /*&& (imask != 0)*/) {
+		snprintf(s, len, "%d.%d.%d.%d/%d", octet1, octet2, octet3, octet4, 32-imask);
+		} else {
+		snprintf(s, len, "%d.%d.%d.%d", octet1, octet2, octet3, octet4);
+		}
+
+	return 0;
+	}
+
+static int portToString(FieldType type, FieldData* data, char* s, int len) {
+	if (type.length == 0) {
+		strncpy(s, "-", len);
+		return 0;
+		}
+	if (type.length == 2) {
+		int port = ((uint16_t)data[0] << 8)+data[1];
+		snprintf(s, len, "%d", port);
+		return 0;
+		}
+	if ((type.length >= 4) && ((type.length % 4) == 0)) {
+		int i;
+		char buf[40];
+
+		strncpy(s, "", len);
+		for (i = 0; i < type.length; i+=4) {
+			int starti = ((uint16_t)data[i+0] << 8)+data[i+1];
+			int endi = ((uint16_t)data[i+2] << 8)+data[i+3];
+			if (i > 0) strncat(s, ",", len - strlen(s));
+			if (starti != endi) {
+				snprintf(buf, 40, "%d:%d", starti, endi);
+				strncat(s, buf, len-strlen(s));
+				} else {
+				snprintf(buf, 40, "%d", starti);
+				strncat(s, buf, len-strlen(s));
+				}
+			} 
+		return 0;
+		}
+	
+	errorf("Port with length %d unparseable", type.length);
+	return -1;
+	}
+
+static int protocolToString(FieldType type, FieldData* data, char* s, int len) {
+	if (type.length != 1) {
+		errorf("Protocol with length %d unparseable", type.length);
+		return -1;
+		}
+	switch (data[0]) {
+		case IPFIX_protocolIdentifier_ICMP:
+			snprintf(s, len, "ICMP");
+			return 0;
+		case IPFIX_protocolIdentifier_TCP:
+			snprintf(s, len, "TCP");
+			return 0;
+		case IPFIX_protocolIdentifier_UDP: 
+			snprintf(s, len, "UDP");
+			return 0;
+		case IPFIX_protocolIdentifier_RAW: 
+			snprintf(s, len, "RAW");
+			return 0;
+		default:
+			snprintf(s, len, "%u", data[0]);
+			return 0;
+		}
+	}
+
+static int uintToString(FieldType type, FieldData* data, char* s, int len) {
+	switch (type.length) {
+		case 1:
+			snprintf(s, len, "%hhu", *(uint8_t*)data);
+			return 0;
+		case 2:
+			snprintf(s, len, "%hu", ntohs(*(uint16_t*)data));
+			return 0;
+		case 4:
+			snprintf(s, len, "%u", ntohl(*(uint32_t*)data));
+			return 0;
+		case 8:
+			snprintf(s, len, "%Lu", ntohll(*(uint64_t*)data));
+			return 0;
+		default:
+			errorf("Uint with length %d unparseable", type.length);
+			return -1;
+		}
+	}
+
+/**
+ * Get estimated string length of fields of type @c type
+ */
+static int fieldTypeToStringLength(FieldType type) {
+	switch (type.id) {
+		case IPFIX_TYPEID_protocolIdentifier:
+			return 3;
+			break;
+		case IPFIX_TYPEID_sourceIPv4Address:
+		case IPFIX_TYPEID_destinationIPv4Address:
+			return 18;
+			break;				
+		case IPFIX_TYPEID_sourceTransportPort:
+		case IPFIX_TYPEID_destinationtransportPort:
+			return 11;
+			break;
+		default:
+			return 5;
+			break;
+		}
+	}
+
+/**
+ * Store string representation of field type in @c type in @c s.
+ * Will store no more than @c len bytes
+ * @return 0 on success, -1 otherwise
+ */
+static int fieldTypeToString(FieldType type, char* s, int len) {
+	switch (type.id) {
+		case IPFIX_TYPEID_protocolIdentifier:
+			strncpy(s, "pto", len);
+			break;
+		case IPFIX_TYPEID_sourceIPv4Address:
+			strncpy(s, "srcIP", len);
+			break;
+		case IPFIX_TYPEID_destinationIPv4Address:
+			strncpy(s, "dstIP", len);
+			break;				
+		case IPFIX_TYPEID_sourceTransportPort:
+			strncpy(s, "sPort", len);
+			break;
+		case IPFIX_TYPEID_destinationtransportPort:
+			strncpy(s, "dPort", len);
+			break;
+		case IPFIX_TYPEID_inPacketDeltaCount:
+			strncpy(s, "pckts", len);
+			break;
+		case IPFIX_TYPEID_inOctetDeltaCount:
+			strncpy(s, "bytes", len);
+			break;
+		default:
+			snprintf(s, len, "%u", type.id);
+			break;
+		}
+
+	return 0;
+	}
+
+/**
+ * Store string representation of field data in @c data in @c s.
+ * Will store no more than @c len bytes
+ * @return 0 on success, -1 otherwise
+ */
+static int fieldToString(FieldType type, FieldData* data, char* s, int len) {
+	switch (type.id) {
+		case IPFIX_TYPEID_protocolIdentifier:
+			return protocolToString(type, data, s, len);
+			break;
+		case IPFIX_TYPEID_sourceIPv4Address:
+		case IPFIX_TYPEID_destinationIPv4Address:
+			return ipv4ToString(type, data, s, len);
+			break;				
+		case IPFIX_TYPEID_sourceTransportPort:
+		case IPFIX_TYPEID_destinationtransportPort:
+			return portToString(type, data, s, len);
+			break;
+		default:
+			return uintToString(type, data, s, len);
+			break;
+		}
+	}
 
 /***** Exported Functions ****************************************************/
 
@@ -40,7 +226,8 @@ int deinitializeIpfixPrinters() {
  */
 IpfixPrinter* createIpfixPrinter() {
 	IpfixPrinter* ipfixPrinter = (IpfixPrinter*)malloc(sizeof(IpfixPrinter));
-	
+	ipfixPrinter->lastTemplate = 0;	
+
 	return ipfixPrinter;
 	}
 
@@ -75,8 +262,30 @@ void stopIpfixPrinter(IpfixPrinter* ipfixPrinter) {
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateInfo) {
-	printf("\n-+--- Template\n");
-	printf(" `---\n\n");
+	int i;
+	int j;
+	char buf[40];
+	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
+	myIpfixPrinter->lastTemplate = templateInfo;
+
+	int lineLen = 0;
+	for (i = 0; i < templateInfo->fieldCount; i++) {
+		if (i > 0) { printf("|"); lineLen++; }
+		FieldType ftype = templateInfo->fieldInfo[i].type;
+		int flen = fieldTypeToStringLength(ftype); lineLen+=flen;
+
+		if (fieldTypeToString(ftype, buf, 40) == -1) {
+			error("Error converting fieldType");
+			continue;
+			}
+
+		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		printf("%s", buf);
+		}
+	printf("\n");
+
+	for (j = 0; j < lineLen; j++) printf("=");
+	printf("\n");
 
 	return 0;
 	}
@@ -103,15 +312,30 @@ int printTemplateDestruction(void* ipfixPrinter, SourceID sourceID, TemplateInfo
  */
 int printDataRecord(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data) {
 	int i;
-	
-	printf("\n-+--- DataRecord\n");
-	printf(" `- variable data\n"); 
-	for (i = 0; i < templateInfo->fieldCount; i++) {
-		printf(" '   `- ");
-		printFieldData(templateInfo->fieldInfo[i].type, (data + templateInfo->fieldInfo[i].offset));
+	char buf[40];
+	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
+
+	if (myIpfixPrinter->lastTemplate != templateInfo) {
 		printf("\n");
+		printTemplate(ipfixPrinter, sourceID, templateInfo);
 		}
-	printf(" `---\n\n");
+
+	for (i = 0; i < templateInfo->fieldCount; i++) {
+		if (i > 0) printf("|");
+		FieldType ftype = templateInfo->fieldInfo[i].type;
+		FieldData* fdata = data + templateInfo->fieldInfo[i].offset;
+		int flen = fieldTypeToStringLength(ftype);
+
+		if (fieldToString(ftype, fdata, buf, 40) == -1) {
+			error("Error converting field");
+			continue;
+			}
+
+		int j;
+		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		printf("%s", buf);
+		}
+	printf("\n");
 
 	return 0;
 	}
@@ -123,9 +347,7 @@ int printDataRecord(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templat
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) {
-	
-	printf("\n-+--- OptionsTemplate\n");
-	printf(" `---\n\n");
+	printf("Got an OptionsTemplate\n");
 
 	return 0;
 	}
@@ -151,9 +373,7 @@ int printOptionsTemplateDestruction(void* ipfixPrinter_, SourceID sourceID, Opti
  * @param data Pointer to a data block containing all variable fields
  */
 int printOptionsRecord(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data) {
-
-	printf("\n-+--- OptionsDataRecord\n");
-	printf(" `---\n\n");
+	printf("Got an OptionsDataRecord\n");
 
 	return 0;
 	}
@@ -166,15 +386,66 @@ int printOptionsRecord(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInf
  */
 int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
 	int i;
-	
-	printf("\n-+--- DataTemplate\n");
-	printf(" `- fixed data\n"); 
+	int j;
+	int lineLen;
+	char buf[40];
+	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
+	myIpfixPrinter->lastTemplate = dataTemplateInfo;
+
+	lineLen = 0;
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
-		printf(" '   `- ");
-		printFieldData(dataTemplateInfo->dataInfo[i].type, (dataTemplateInfo->data + dataTemplateInfo->dataInfo[i].offset));
-		printf("\n");
+		if (i > 0) { printf("|"); lineLen++; }
+		FieldType ftype = dataTemplateInfo->dataInfo[i].type;
+		int flen = fieldTypeToStringLength(ftype); lineLen+=flen;
+
+		if (fieldTypeToString(ftype, buf, 40) == -1) {
+			error("Error converting fieldType");
+			continue;
+			}
+
+		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		printf("%s", buf);
 		}
-	printf(" `---\n\n");
+	printf("\n");
+
+	for (j = 0; j < lineLen; j++) printf("-");
+	printf("\n");
+
+	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
+		if (i > 0) printf("|");
+		FieldType ftype = dataTemplateInfo->dataInfo[i].type;
+		FieldData* fdata = dataTemplateInfo->data + dataTemplateInfo->dataInfo[i].offset;
+		int flen = fieldTypeToStringLength(ftype);
+
+		if (fieldToString(ftype, fdata, buf, 40) == -1) {
+			error("Error converting field");
+			continue;
+			}
+
+		int j;
+		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		printf("%s", buf);
+		}
+	printf("\n");
+
+	lineLen = 0;
+	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
+		if (i > 0) { printf("|"); lineLen++; }
+		FieldType ftype = dataTemplateInfo->fieldInfo[i].type;
+		int flen = fieldTypeToStringLength(ftype); lineLen+=flen;
+
+		if (fieldTypeToString(ftype, buf, 40) == -1) {
+			error("Error converting fieldType");
+			continue;
+			}
+
+		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		printf("%s", buf);
+		}
+	printf("\n");
+
+	for (j = 0; j < lineLen; j++) printf("=");
+	printf("\n");
 
 	return 0;
 	}
@@ -201,21 +472,30 @@ int printDataTemplateDestruction(void* ipfixPrinter_, SourceID sourceID, DataTem
  */
 int printDataDataRecord(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
 	int i;
-	
-	printf("\n-+--- DataDataRecord\n");
-	printf(" `- fixed data\n"); 
-	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
-		printf(" '   `- ");
-		printFieldData(dataTemplateInfo->dataInfo[i].type, (dataTemplateInfo->data + dataTemplateInfo->dataInfo[i].offset));
+	char buf[40];
+	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
+
+	if (myIpfixPrinter->lastTemplate != dataTemplateInfo) {
 		printf("\n");
+		printDataTemplate(ipfixPrinter, sourceID, dataTemplateInfo);
 		}
-	printf(" `- variable data\n"); 
+
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
-		printf(" '   `- ");
-		printFieldData(dataTemplateInfo->fieldInfo[i].type, (data + dataTemplateInfo->fieldInfo[i].offset));
-		printf("\n");
+		if (i > 0) printf("|");
+		FieldType ftype = dataTemplateInfo->fieldInfo[i].type;
+		FieldData* fdata = data + dataTemplateInfo->fieldInfo[i].offset;
+		int flen = fieldTypeToStringLength(ftype);
+
+		if (fieldToString(ftype, fdata, buf, 40) == -1) {
+			error("Error converting field");
+			continue;
+			}
+
+		int j;
+		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		printf("%s", buf);
 		}
-	printf(" `---\n\n");
+	printf("\n");
 
 	return 0;
 	}
