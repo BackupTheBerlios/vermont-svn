@@ -4,6 +4,7 @@
  */
 
 #include <netinet/in.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
@@ -11,11 +12,20 @@
 #include "printIpfix.h"
 #include "common.h"
 
+#define DEFAULT_LISTEN_PORT 1500
+
 void sigint() {
 	}
 
 int main(int argc, char *argv[]) {
-	signal(SIGINT, sigint);
+
+        int lport=DEFAULT_LISTEN_PORT;
+
+        signal(SIGINT, sigint);
+
+        if(argv[1]) {
+                lport=atoi(argv[1]);
+        }
 
 	initializeIpfixPrinters();
 
@@ -24,11 +34,11 @@ int main(int argc, char *argv[]) {
 	IpfixPrinter* ipfixPrinter = createIpfixPrinter();
 	startIpfixPrinter(ipfixPrinter);
 
-	IpfixReceiver* ipfixReceiver = createIpfixReceiver(1501);
+	IpfixReceiver* ipfixReceiver = createIpfixReceiver(lport);
 	addIpfixReceiverCallbacks(ipfixReceiver, getIpfixPrinterCallbackInfo(ipfixPrinter));
 	startIpfixReceiver(ipfixReceiver);
 
-	debug("Listening on Port 1501. Hit Ctrl+C to quit");
+	debugf("Listening on Port %d. Hit Ctrl+C to quit", lport);
 	pause();
 	debug("Stopping threads and tidying up.");
 	
