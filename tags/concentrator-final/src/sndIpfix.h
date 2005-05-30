@@ -5,8 +5,6 @@
 
 /***** Constants ************************************************************/
 
-#define SND_TEMPLATE_EXPIRE_SECS  15
-
 /**
  * Represents an Exporter.
  * Create with @c createIpfixSender()
