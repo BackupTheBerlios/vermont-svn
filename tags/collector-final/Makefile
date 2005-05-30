@@ -9,7 +9,7 @@
 ARCH ?= BSD
 
 # -- compiler and linker switches ----
-CFLAGS += -pg -g -Wall -Werror
+CFLAGS += -pg -g -Wall -O2
 LDFLAGS += -pg -g
 
 ifeq ($(ARCH),BSD)
