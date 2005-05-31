@@ -81,7 +81,7 @@ static int protocolToString(FieldType type, FieldData* data, char* s, int len) {
 		}
 	switch (data[0]) {
 		case IPFIX_protocolIdentifier_ICMP:
-			snprintf(s, len, "ICMP");
+			snprintf(s, len, "IC~");
 			return 0;
 		case IPFIX_protocolIdentifier_TCP:
 			snprintf(s, len, "TCP");
@@ -96,6 +96,55 @@ static int protocolToString(FieldType type, FieldData* data, char* s, int len) {
 			snprintf(s, len, "%u", data[0]);
 			return 0;
 		}
+	}
+
+static int timeToString(FieldType type, FieldData* data, char* s, int len) {
+	time_t ttnow;
+	struct tm tmnow;
+	time_t tt;
+	struct tm tm;
+	uint32_t tstamp = 0;
+	size_t r;
+
+	if (type.length > 4) {
+		errorf("Timestamp with length %d unparseable", type.length);
+		return -1;
+		}
+	if (type.length < 4) {
+		debugf("Padding timestamp of length %d", type.length);
+		}
+
+	ttnow = time(0);
+	memcpy(&tstamp, data, type.length); tstamp = ntohl(tstamp); tt = tstamp;
+
+
+	if (!localtime_r(&ttnow, &tmnow)) {
+		error("CurrentTime-to-Localtime conversion failed");
+		return -1;
+		}
+
+	if (!localtime_r(&tt, &tm)) {
+		error("Timestamp-to-Localtime conversion failed");
+		return -1;
+		}
+
+	if (tmnow.tm_year != tm.tm_year) {
+		r = strftime(s, len, "%Y", &tm);
+		} 
+	else if ((tmnow.tm_mon != tm.tm_mon) || (tmnow.tm_mday != tm.tm_mday)) {
+		char* fmt = "%y-%m-%d";
+		r = strftime(s, len, fmt, &tm);
+		}
+	else {
+		r = strftime(s, len, "%H:%M:%S", &tm);
+		}
+
+	if (r == 0) {
+		error("Localtime-to-String conversion failed");
+		return -1;
+		}
+
+	return 0;
 	}
 
 static int uintToString(FieldType type, FieldData* data, char* s, int len) {
@@ -134,6 +183,10 @@ static int fieldTypeToStringLength(FieldType type) {
 		case IPFIX_TYPEID_destinationtransportPort:
 			return 11;
 			break;
+		case IPFIX_TYPEID_flowCreationTime:
+		case IPFIX_TYPEID_flowEndTime:
+			return 8;
+			break;
 		default:
 			return 5;
 			break;
@@ -168,6 +221,12 @@ static int fieldTypeToString(FieldType type, char* s, int len) {
 		case IPFIX_TYPEID_inOctetDeltaCount:
 			strncpy(s, "bytes", len);
 			break;
+		case IPFIX_TYPEID_flowCreationTime:
+			strncpy(s, "cTime", len);
+			break;
+		case IPFIX_TYPEID_flowEndTime:
+			strncpy(s, "eTime", len);
+			break;
 		default:
 			snprintf(s, len, "%u", type.id);
 			break;
@@ -193,6 +252,10 @@ static int fieldToString(FieldType type, FieldData* data, char* s, int len) {
 		case IPFIX_TYPEID_sourceTransportPort:
 		case IPFIX_TYPEID_destinationtransportPort:
 			return portToString(type, data, s, len);
+			break;
+		case IPFIX_TYPEID_flowCreationTime:
+		case IPFIX_TYPEID_flowEndTime:
+			return timeToString(type, data, s, len);
 			break;
 		default:
 			return uintToString(type, data, s, len);
@@ -279,7 +342,7 @@ int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateI
 			continue;
 			}
 
-		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
 		printf("%s", buf);
 		}
 	printf("\n");
@@ -332,7 +395,7 @@ int printDataRecord(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templat
 			}
 
 		int j;
-		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
 		printf("%s", buf);
 		}
 	printf("\n");
@@ -403,7 +466,7 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 			continue;
 			}
 
-		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
 		printf("%s", buf);
 		}
 	printf("\n");
@@ -423,7 +486,7 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 			}
 
 		int j;
-		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
 		printf("%s", buf);
 		}
 	printf("\n");
@@ -439,7 +502,7 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 			continue;
 			}
 
-		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
 		printf("%s", buf);
 		}
 	printf("\n");
@@ -492,7 +555,7 @@ int printDataDataRecord(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo*
 			}
 
 		int j;
-		for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
 		printf("%s", buf);
 		}
 	printf("\n");
