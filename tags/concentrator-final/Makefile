@@ -22,6 +22,9 @@ TARGETS = testCollector testAggregator ipfixCollector.a
 
 all: $(TARGETS)
 
+ipfixlolib/libipfixlo.a: ipfixlolib/Makefile
+	make -C ipfixlolib	
+
 build/%.o: src/%.c src/%.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 

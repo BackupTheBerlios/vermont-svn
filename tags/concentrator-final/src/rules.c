@@ -311,6 +311,7 @@ Rules* parseRulesFromFile(char* fname) {
 	FILE* f;
 	char buf[MAX_LINE_LEN];
 	char* p;
+	int lineNo = 0;
 
 	Rules* rules = (Rules*)malloc(sizeof(Rules));
 	rules->count = 0;
@@ -323,6 +324,7 @@ Rules* parseRulesFromFile(char* fname) {
 	assert(f);
 
 	while (fgets(buf, sizeof(buf), f)) {
+		lineNo++;
 		if (strlen(buf) < 3) continue;
 		if (*buf == '#') continue;
 		p = buf;
@@ -333,7 +335,7 @@ Rules* parseRulesFromFile(char* fname) {
 		char* pattern = get_next_token(&p, " \t\n");
 
 		if (!col1) {
-			debug("Unparseable line");			
+			errorf("Unparseable line in %s, l.%d", fname, lineNo);			
 			continue;
 			}
 		if (*col1 != 0) {
@@ -346,22 +348,22 @@ Rules* parseRulesFromFile(char* fname) {
 			}
 
 		if (!field) {
-			debug("Incomplete line");
+			errorf("Incomplete line in %s, l.%d", fname, lineNo);
 			continue;
 			}
 			
 		if (parseModifier(modifier, &ruleField->modifier) != 0) {
-			debug("Bad modifier");
+			errorf("Bad modifier \"%s\" in %s, l.%d", modifier, fname, lineNo);
 			continue;
 			}
 
 		if ((ruleField->type.id = string2typeid(field)) == 0) {
-			debug("Bad type");
+			errorf("Bad field type \"%s\" in %s, l.%d", field, fname, lineNo);
 			continue;
 			}
 			
 		if ((ruleField->type.length = string2typelength(field)) == 0) {
-			debug("Bad type");
+			errorf("Bad field type \"%s\" in %s, l.%d", field, fname, lineNo);
 			continue;
 			}
 		
@@ -369,26 +371,26 @@ Rules* parseRulesFromFile(char* fname) {
 		if (pattern) switch (ruleField->type.id) {
 			case IPFIX_TYPEID_protocolIdentifier:
 				if (parseProtoPattern(pattern, &ruleField->pattern, &ruleField->type.length) != 0) {
-					debug("Unparseable Protocol");
+					errorf("Bad protocol pattern \"%s\" in %s, l.%d", pattern, fname, lineNo);
 					continue;
 					}	
 				break;
 			case IPFIX_TYPEID_sourceIPv4Address:
 			case IPFIX_TYPEID_destinationIPv4Address:
 				if (parseIPv4Pattern(pattern, &ruleField->pattern, &ruleField->type.length) != 0) {
-					debug("Unparseable IP");
+					errorf("Bad IPv4 pattern \"%s\" in %s, l.%d", pattern, fname, lineNo);
 					continue;
 					}	
 				break;				
 			case IPFIX_TYPEID_sourceTransportPort:
 			case IPFIX_TYPEID_destinationtransportPort:
 				if (parsePortPattern(pattern, &ruleField->pattern, &ruleField->type.length) != 0) {
-					debug("Unparseable Port(s)");
+					errorf("Bad PortRanges pattern \"%s\" in %s, l.%d", pattern, fname, lineNo);
 					continue;
 					}	
 				break;
 			default:
-				debug("This field type cannot be matched against a pattern");
+				errorf("Fields of type \"%s\" cannot be matched against a pattern %s, l.%d", field, fname, lineNo);
 				continue;
 				break;
 				
@@ -647,14 +649,14 @@ int templateDataMatchesRule(TemplateInfo* info, FieldData* data, Rule* rule) {
 				}
 
 			/* no corresponding data field found, this flow cannot match */
-			debug("no corresponding data field");
+			debugf("No corresponding DataRecord field for RuleField of type %s", typeid2string(ruleField->type.id));
 			return 0;
 			}
 		/* if a non-discarding rule field specifies no pattern, check at least if the data field exists */
 		else if (rule->field[i]->modifier != FIELD_MODIFIER_DISCARD) {
 			fieldInfo = getTemplateFieldInfo(info, &ruleField->type);
 			if (fieldInfo) continue;
-			debug("no corresponding data field");
+			debugf("No corresponding DataRecord field for RuleField of type %s", typeid2string(ruleField->type.id));
 			return 0;
 			}
 		}
@@ -692,9 +694,11 @@ int dataTemplateDataMatchesRule(DataTemplateInfo* info, FieldData* data, Rule* r
 			if (!checkAssociatedMask3(info, info->data, ruleField)) return 0;
 			continue;
 			}
+
+		/* FIXME: if a non-discarding rule field specifies no pattern, check at least if the data field exists? */
 		
 		/* no corresponding data field or fixed data field found, this flow cannot match */
-		debug("no corresponding data field or fixed data field");
+		debugf("No corresponding DataDataRecord field for RuleField of type %s", typeid2string(ruleField->type.id));
 		return 0;
 		}
 	

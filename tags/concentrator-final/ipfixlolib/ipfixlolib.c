@@ -33,7 +33,6 @@ extern "C" {
 #define bit_set(data, bits) ((data & bits) == bits)
 
 
-static int init_rcv_udp_socket(int lport);
 static int init_send_udp_socket(char *serv_ip4_addr, int serv_port);
 static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum ipfix_validity cleanness);
 static int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf);
@@ -52,35 +51,6 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter);
 static int ipfix_update_template_sendbuffer(ipfix_exporter *exporter);
 static int ipfix_send_templates(ipfix_exporter* exporter);
 static int ipfix_send_data(ipfix_exporter* exporter);
-
-/*
- * Initializes a UDP-socket to listen to.
- * Parameters: lport the UDP-portnumber to listen to.
- * Returns: a socket to read from. -1 on failure.
- */
-static int init_rcv_udp_socket(int lport)
-{
-	int s;
-        struct sockaddr_in serv_addr;
-
-	memset(&serv_addr, 0, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(lport);
-	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	// create socket
-	if((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		fprintf(stderr, "error opening socket\n");
-		return -1;
-	}
-
-	// bind to socket
-	if(bind(s, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-		perror ("bind failed");
-		return -1;
-	}
-	return s;
-}
 
 /*
  * Initializes a UDP-socket to send data to.

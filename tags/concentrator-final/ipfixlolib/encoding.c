@@ -3,6 +3,10 @@
  Release under LGPL.
 
  Header for encoding functions suitable for IPFIX
+
+ Changes by Christoph Sommer, 2005-06
+   endianness-conversions no longer need <endian.h>
+
  Changes by Ronny T. Lampert, 2005-01
 
  Based upon the original
@@ -10,7 +14,6 @@
  2004-11-12
  jan@petranek.de
  */
-#include <endian.h>
 #include "encoding.h"
 
 
@@ -50,28 +53,42 @@ extern "C" {
  */
 
 
-#if __BYTE_ORDER == __BIG_ENDIAN
-/* on big endian machines this is a NOOP */
-#define htonll(x) (x)
-#define ntohll(x) (x)
-
-#else
-
-/*
- both assumes little-endianness.
+/**
+ * Converts a uint64_t from network byte order to host byte order
  */
-static uint64_t htonll(uint64_t number)
+static uint64_t ntohll(uint64_t i) 
 {
-	return ( htonl( (number >> 32) & 0xFFFFFFFF) |
-		 ((uint64_t) (htonl(number & 0xFFFFFFFF))  << 32));
+	union {
+		uint64_t ui64;
+		struct {
+			uint32_t a;
+			uint32_t b;
+		} ui32;
+	} u;
+	u.ui64 = i;
+	uint64_t word0 = ntohl(u.ui32.a);
+	uint64_t word1 = ntohl(u.ui32.b);
+	uint64_t reslt = (word0 << 32) ^ (word1 << 0);
+	return reslt;
 }
 
-static inline uint64_t ntohll(uint64_t number)
+/**
+ * Converts a uint64_t from host byte order to network byte order
+ */
+static uint64_t htonll(uint64_t i) 
 {
-	return ( htonl( (number >> 32) & 0xFFFFFFFF) |
-		 ((uint64_t) (htonl(number & 0xFFFFFFFF))  << 32));
+	union {
+		uint64_t ui64;
+		struct {
+			uint32_t a;
+			uint32_t b;
+		} ui32;
+	} u;
+	u.ui32.a = htonl(i >> 32);
+	u.ui32.b = htonl(i >> 0);
+	return u.ui64;
 }
-#endif
+
 
 /*
  * Write an octet
