@@ -187,6 +187,10 @@ static int fieldTypeToStringLength(FieldType type) {
 		case IPFIX_TYPEID_flowEndTime:
 			return 8;
 			break;
+		case IPFIX_TYPEID_sourceIPv4Mask:
+		case IPFIX_TYPEID_destinationIPv4Mask:
+			return 2;
+			break;
 		default:
 			return 5;
 			break;
@@ -226,6 +230,12 @@ static int fieldTypeToString(FieldType type, char* s, int len) {
 			break;
 		case IPFIX_TYPEID_flowEndTime:
 			strncpy(s, "eTime", len);
+			break;
+		case IPFIX_TYPEID_sourceIPv4Mask:
+			strncpy(s, "sM", len);
+			break;
+		case IPFIX_TYPEID_destinationIPv4Mask:
+			strncpy(s, "dM", len);
 			break;
 		default:
 			snprintf(s, len, "%u", type.id);
@@ -331,6 +341,8 @@ int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateI
 	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
 	myIpfixPrinter->lastTemplate = templateInfo;
 
+	printf("\n\n");
+
 	int lineLen = 0;
 	for (i = 0; i < templateInfo->fieldCount; i++) {
 		if (i > 0) { printf("|"); lineLen++; }
@@ -360,7 +372,7 @@ int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateI
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printTemplateDestruction(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateInfo) {
-	printf("Destroyed a Template\n");
+	printf("\n\nDestroyed a Template\n");
 
 	return 0;
 	}
@@ -379,7 +391,6 @@ int printDataRecord(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templat
 	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
 
 	if (myIpfixPrinter->lastTemplate != templateInfo) {
-		printf("\n");
 		printTemplate(ipfixPrinter, sourceID, templateInfo);
 		}
 
@@ -410,7 +421,7 @@ int printDataRecord(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templat
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) {
-	printf("Got an OptionsTemplate\n");
+	printf("\n\nGot an OptionsTemplate\n");
 
 	return 0;
 	}
@@ -422,7 +433,7 @@ int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateI
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printOptionsTemplateDestruction(void* ipfixPrinter_, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) {
-	printf("Destroyed an OptionsTemplate\n");
+	printf("\n\nDestroyed an OptionsTemplate\n");
 
 	return 0;
 	}
@@ -436,7 +447,7 @@ int printOptionsTemplateDestruction(void* ipfixPrinter_, SourceID sourceID, Opti
  * @param data Pointer to a data block containing all variable fields
  */
 int printOptionsRecord(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data) {
-	printf("Got an OptionsDataRecord\n");
+	printf("\n\nGot an OptionsDataRecord\n");
 
 	return 0;
 	}
@@ -454,6 +465,8 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 	char buf[40];
 	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
 	myIpfixPrinter->lastTemplate = dataTemplateInfo;
+
+	printf("\n\n");
 
 	lineLen = 0;
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
@@ -491,6 +504,8 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 		}
 	printf("\n");
 
+	printf("\n");
+
 	lineLen = 0;
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
 		if (i > 0) { printf("|"); lineLen++; }
@@ -520,7 +535,7 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printDataTemplateDestruction(void* ipfixPrinter_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
-	printf("Destroyed a DataTemplate\n");
+	printf("\n\nDestroyed a DataTemplate\n");
 
 	return 0;
 	}
