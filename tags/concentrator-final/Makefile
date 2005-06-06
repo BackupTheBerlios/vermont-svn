@@ -16,7 +16,7 @@ else
 LDLIBS += -l pthread 
 endif
 
-TARGETS = testCollector testAggregator ipfixCollector.a
+TARGETS = testCollector testProxy testAggregator ipfixCollector.a
 
 .PHONY: all clean
 
@@ -32,6 +32,9 @@ clean:
 	rm -f $(TARGETS) gmon.out build/*
 
 testAggregator: build/testAggregator.o build/aggregator.o build/rules.o build/common.o build/ipfix.o build/crc16.o build/hashing.o build/sndIpfix.o build/printIpfix.o ipfixCollector.a ipfixlolib/libipfixlo.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+testProxy: build/testProxy.o build/printIpfix.o build/sndIpfix.o build/common.o ipfixCollector.a ipfixlolib/libipfixlo.a
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 testCollector: build/testCollector.o build/printIpfix.o build/common.o ipfixCollector.a
