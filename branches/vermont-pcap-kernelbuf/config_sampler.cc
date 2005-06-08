@@ -199,22 +199,33 @@ static int configure_template(struct v_objects *v, uint16_t template_id, char *l
 static int configure_observer(struct v_objects *v, char *interface, int snaplen)
 {
 	dictionary *conf=v->v_config;
-	char *pcap_filter=iniparser_getvalue(conf, CONF_SEC, "pcap_filter");
-	Observer *o;
+        char *pcap_filter=iniparser_getvalue(conf, CONF_SEC, "pcap_filter");
+        int kernel_buf=atoi(iniparser_getvalue(conf, CONF_SEC, "kernel_buffer"));
+        Observer *o;
+        int ret;
 
 	o=new Observer(interface);
 
-	if(!o->prepare(pcap_filter)) {
-		msg(MSG_FATAL, "Observer: preparing failed");
-		goto out;
-	}
-
-	if(snaplen) {
+        /* snaplen must be set beforehand */
+        if(snaplen) {
 		if(!o->setCaptureLen(snaplen)) {
 			msg(MSG_FATAL, "Observer: wrong snaplen specified - using %d", o->getCaptureLen());
 		}
 	}
-	msg(MSG_DEBUG, "Observer: using interface %s, snaplen %d", o->captureInterface, o->getCaptureLen());
+
+        if(!o->prepare(pcap_filter)) {
+		msg(MSG_FATAL, "Observer: preparing failed");
+		goto out;
+        }
+
+        msg(MSG_INFO, "Observer: Setting kernel buffer to at least %d", kernel_buf);
+        if((ret=o->setKernelBuf(kernel_buf)) < kernel_buf) {
+                msg(MSG_FATAL, "Observer: got only %d - check kernel config", ret);
+                goto out;
+        }
+        msg(MSG_DEBUG, "Observer: kernel buffer size: %d", ret);
+
+        msg(MSG_DEBUG, "Observer: using interface %s, snaplen %d", o->captureInterface, o->getCaptureLen());
 	v->observer=o;
 
 	return 0;

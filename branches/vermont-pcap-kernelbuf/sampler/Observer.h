@@ -166,6 +166,11 @@ public:
         /* you cannot change the caplen of an already running observer */
         bool Observer::setCaptureLen(int x)
         {
+                if(ready) {
+                        msg(MSG_FATAL, "Observer: setting snaplen %d after Observer is running does not work", x);
+                        return false;
+                }
+
                 if(x > CAPTURE_PHYSICAL_MAX) {
                         DPRINTF("Capture length %d exceeds physical MTU %d (with header)\n", x, CAPTURE_PHYSICAL_MAX);
                         return false;
@@ -178,6 +183,41 @@ public:
         {
                 return capturelen;
         }
+
+        /*
+         FIXME:
+         this may prove non-portable -- pcap really should have this in its API
+
+         return: size of actual kernel buffer
+         */
+        int setKernelBuf(int want)
+        {
+                int sd;
+                int x_size=sizeof(want);
+                int got;
+
+                if((sd=pcap_fileno(captureDevice)) == -1) {
+                        /* using a file */
+                        return -1;
+                }
+
+                /*
+                 setsockopt is a bitch - it sometimes even returns 0 when the request size isn't available
+                 due to rmem_max being smaller
+
+                 so compare want against got and if got is >= everything is OK
+                 */
+                if(setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &want, x_size)) {
+                        return -1;
+                }
+
+                if(getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &got, (socklen_t *)&x_size)) {
+                        return -1;
+                }
+
+                return(got);
+        }
+
 
 protected:
         Thread thread;
