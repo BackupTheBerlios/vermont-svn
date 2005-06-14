@@ -904,6 +904,7 @@ IpfixReceiver* createIpfixReceiver(uint16_t port) {
 		}
 
 	ipfixReceiver->callbackInfo = 0;
+	ipfixReceiver->callbackCount = 0;
 	
 	if(!(ipfixReceiver->templateBuffer = createTemplateBuffer(ipfixReceiver))) {
 		fatal("Could not create template Buffer");
