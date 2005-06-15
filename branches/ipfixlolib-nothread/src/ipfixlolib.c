@@ -1015,18 +1015,18 @@ static int ipfix_send_data(ipfix_exporter* exporter)
  */
 int ipfix_send(ipfix_exporter *exporter)
 {
-	int ret_templates, ret_data;
-	int ret = 0;
+        int ret_templates, ret_data;
+        int ret = 0;
 
-	ret_templates = ipfix_send_templates(exporter);
-	ret_data = ipfix_send_data(exporter);
-	
-	if ((ret_templates > 0) || (ret_data > 0) ) {
-		// we did send some data:
-		exporter->sequence_number++;
-		return 0;
-	}
-	if (ret_templates < 0) {
+        if((ret_templates=ipfix_send_templates(exporter)) > 0) {
+                exporter->sequence_number++;
+        }
+
+        if((ret_data=ipfix_send_data(exporter)) > 0) {
+                exporter->sequence_number++;
+        }
+
+        if (ret_templates < 0) {
 		DPRINTF ("ipfix_send: sending templates failed!\n");
 		ret = -1;
 	}
