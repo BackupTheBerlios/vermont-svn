@@ -1,6 +1,7 @@
 #ifndef SNDIPFIX_H
 #define SNDIPFIX_H
 
+#include <pthread.h>
 #include "rcvIpfix.h"
 
 /***** Constants ************************************************************/
@@ -10,10 +11,11 @@
  * Create with @c createIpfixSender()
  */
 typedef struct {
-	void* ipfixExporter; /**< underlying ipfix_exporter structure. Cast from void* to minimize header dependencies */
+	void* ipfixExporter;     /**< underlying ipfix_exporter structure. Cast from void* to minimize header dependencies */
 	uint16_t lastTemplateId; /**< Template ID of last created Template */
-	char ip[128]; /**< IP of Collector we export to */
-	uint16_t port; /**< Port of Collector we export to */
+	char ip[128];            /**< IP of Collector we export to */
+	uint16_t port;           /**< Port of Collector we export to */
+	pthread_mutex_t mutex;   /**< Mutex to synchronize and/or pause sender */
 	} IpfixSender;
 
 /***** Prototypes ***********************************************************/

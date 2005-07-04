@@ -992,6 +992,7 @@ void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver) {
 	if (pthread_mutex_unlock(&ipfixReceiver->mutex) != 0) {
 		error("Could not unlock mutex");
 		}
+	pthread_mutex_destroy(&ipfixReceiver->mutex);
 	
 	destroyTemplateBuffer(ipfixReceiver->templateBuffer);
 	free(ipfixReceiver->callbackInfo);

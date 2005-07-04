@@ -1,6 +1,11 @@
 /** \file
  * Aggregator module.
- * TODO: add long description
+ * Uses rules.c and hashing.c to implement an IPFIX Aggregator.
+ * Call createAggregator() to instantiate an aggregator,
+ * start it with startAggregator(), feed it with aggregateDataRecord(),
+ * poll for expired flows with pollAggregator().
+ * To destroy the Aggregator, first stop it with stopAggregator(), then
+ * call destroyAggregator().
  */
 
 #include <netinet/in.h>
@@ -41,11 +46,20 @@ IpfixAggregator* createAggregator(char* ruleFile, uint16_t minBufferTime, uint16
 		rules->rule[i]->hashtable = createHashtable(rules->rule[i], minBufferTime, maxBufferTime);
 		}
 
+	if (pthread_mutex_init(&ipfixAggregator->mutex, NULL) != 0) {
+		fatal("Could not init mutex");
+		}
+		
+	if (pthread_mutex_lock(&ipfixAggregator->mutex) != 0) {
+		fatal("Could not lock mutex");
+		}
+
 	return ipfixAggregator;
 	}
 
 /**
- * Frees memory used by an Aggregator
+ * Frees memory used by an Aggregator.
+ * Make sure the Aggregator is not being used before calling this method.
  * @param ipfixAggregator handle of Aggregator
  */
 void destroyAggregator(IpfixAggregator* ipfixAggregator) {
@@ -56,6 +70,11 @@ void destroyAggregator(IpfixAggregator* ipfixAggregator) {
 		destroyHashtable(rules->rule[i]->hashtable);
 		}
 	destroyRules(rules);
+
+	pthread_mutex_unlock(&((IpfixAggregator*)ipfixAggregator)->mutex);
+	pthread_mutex_destroy(&((IpfixAggregator*)ipfixAggregator)->mutex);
+
+	free(ipfixAggregator);
 	}
 
 /**
@@ -63,7 +82,7 @@ void destroyAggregator(IpfixAggregator* ipfixAggregator) {
  * @param ipfixAggregator handle of Aggregator
  */
 void startAggregator(IpfixAggregator* ipfixAggregator) {
-	//FIXME: unimplemented
+	pthread_mutex_unlock(&ipfixAggregator->mutex);
 	}
 
 /**
@@ -71,7 +90,7 @@ void startAggregator(IpfixAggregator* ipfixAggregator) {
  * @param ipfixAggregator handle of Aggregator
  */
 void stopAggregator(IpfixAggregator* ipfixAggregator) {
-	//FIXME: unimplemented
+	pthread_mutex_lock(&ipfixAggregator->mutex);
 	}
 
 /**
@@ -94,6 +113,7 @@ int aggregateDataRecord(void* ipfixAggregator, SourceID sourceID, TemplateInfo* 
 		return -1;
 		}
 
+	pthread_mutex_lock(&((IpfixAggregator*)ipfixAggregator)->mutex);
 	for (i = 0; i < rules->count; i++) {
 		if (templateDataMatchesRule(ti, data, rules->rule[i])) {
 			debugf("rule %d matches", i);
@@ -101,6 +121,7 @@ int aggregateDataRecord(void* ipfixAggregator, SourceID sourceID, TemplateInfo* 
 			aggregateTemplateData(rules->rule[i]->hashtable, ti, data);
 			}
 		}
+	pthread_mutex_unlock(&((IpfixAggregator*)ipfixAggregator)->mutex);
 	
 	return 0;
 	}
@@ -125,6 +146,7 @@ int aggregateDataDataRecord(void* ipfixAggregator, SourceID sourceID, DataTempla
 		return -1;
 		}
 
+	pthread_mutex_lock(&((IpfixAggregator*)ipfixAggregator)->mutex);
 	for (i = 0; i < rules->count; i++) {
 		if (dataTemplateDataMatchesRule(ti, data, rules->rule[i])) {
 			debugf("rule %d matches", i);
@@ -132,6 +154,7 @@ int aggregateDataDataRecord(void* ipfixAggregator, SourceID sourceID, DataTempla
 			aggregateDataTemplateData(rules->rule[i]->hashtable, ti, data);
 			}
 		}
+	pthread_mutex_unlock(&((IpfixAggregator*)ipfixAggregator)->mutex);
 	
 	return 0;
 	}
@@ -144,9 +167,11 @@ void pollAggregator(IpfixAggregator* ipfixAggregator) {
 	Rules* rules = ((IpfixAggregator*)ipfixAggregator)->rules;
 
 	int i;
+	pthread_mutex_lock(&ipfixAggregator->mutex);
 	for (i = 0; i < rules->count; i++) {
 		expireFlows(rules->rule[i]->hashtable);
 		}
+	pthread_mutex_unlock(&ipfixAggregator->mutex);
 	}
 
 /**

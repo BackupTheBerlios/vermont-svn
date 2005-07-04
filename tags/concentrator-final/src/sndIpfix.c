@@ -60,12 +60,21 @@ IpfixSender* createIpfixSender(SourceID sourceID, char* ip, uint16_t port) {
 		fatal("ipfix_add_collector failed");
 		return NULL;
 		}
+
+	if (pthread_mutex_init(&ipfixSender->mutex, NULL) != 0) {
+		fatal("Could not init mutex");
+		}
+		
+	if (pthread_mutex_lock(&ipfixSender->mutex) != 0) {
+		fatal("Could not lock mutex");
+		}
 	
 	return ipfixSender;
 	}
 
 /**
- * Removes a collector from the list of Collectors to send Records to
+ * Removes a collector from the list of Collectors to send Records to.
+ * Make sure this IpfixSender is not being used before calling this method.
  * @param ipfixSender handle obtained by calling @c createIpfixSender()
  */
 void destroyIpfixSender(IpfixSender* ipfixSender) {
@@ -75,6 +84,10 @@ void destroyIpfixSender(IpfixSender* ipfixSender) {
 		fatal("ipfix_remove_collector failed");
 		}
 	ipfix_deinit_exporter(exporter);
+
+	pthread_mutex_unlock(&ipfixSender->mutex);
+	pthread_mutex_destroy(&ipfixSender->mutex);
+
 	free(ipfixSender);
 	}
 
@@ -83,7 +96,7 @@ void destroyIpfixSender(IpfixSender* ipfixSender) {
  * @param ipfixSender handle to the Exporter
  */
 void startIpfixSender(IpfixSender* ipfixSender) {
-	/* unimplemented, we can't be paused - TODO: or should we? */
+	pthread_mutex_unlock(&ipfixSender->mutex);
 	}
 
 /**
@@ -91,7 +104,7 @@ void startIpfixSender(IpfixSender* ipfixSender) {
  * @param ipfixSender handle to the Exporter
  */
 void stopIpfixSender(IpfixSender* ipfixSender) {
-	/* unimplemented, we can't be paused - TODO: or should we? */
+	pthread_mutex_lock(&ipfixSender->mutex);
 	}
 
 /**
@@ -102,10 +115,13 @@ void stopIpfixSender(IpfixSender* ipfixSender) {
  */
 int sndNewDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
 	IpfixSender* ipfixSender = ipfixSender_;
+
+	pthread_mutex_lock(&ipfixSender->mutex);
+
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
 	if (!exporter) {
 		fatal("Exporter not set");
-		return -1;
+		goto fail3;
 		}
 
 	uint16_t my_template_id = ++ipfixSender->lastTemplateId;
@@ -147,7 +163,7 @@ int sndNewDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* 
 						
 	if (0 != ipfix_start_datatemplate_set(exporter, my_template_id, dataTemplateInfo->fieldCount + splitFields, dataTemplateInfo->dataCount + splitFixedfields)) {
 		fatal("ipfix_start_datatemplate_set failed");
-		return -1;
+		goto fail3;
 		}
 
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
@@ -212,16 +228,22 @@ int sndNewDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* 
 
 	if (0 != ipfix_put_template_data(exporter, my_template_id, data, dataLength)) {
 		fatal("ipfix_put_template_data failed");
-		return -1;
+		goto fail3;
 		}
 	free(data);
 
 	if (0 != ipfix_end_template_set(exporter, my_template_id)) {
 		fatal("ipfix_end_template_set failed");
-		return -1;
+		goto fail3;
 		}
 
+	pthread_mutex_unlock(&ipfixSender->mutex);
 	return 0;
+
+	fail3: {
+		pthread_mutex_unlock(&ipfixSender->mutex);
+		return -1;
+		}
 	}
 
 /**
@@ -245,6 +267,9 @@ int sndDestroyDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateIn
  */
 int sndDataDataRecord(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
 	IpfixSender* ipfixSender = ipfixSender_;
+
+	pthread_mutex_lock(&ipfixSender->mutex);
+
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
 
 	/* get Template ID from Template's userData */
@@ -252,7 +277,7 @@ int sndDataDataRecord(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* d
 	
 	if (ipfix_start_data_set(exporter, &my_n_template_id) != 0 ) {
 		fatal("ipfix_start_data_set failed!");
-		return -1;
+		goto fail4;
 		}
 		
 	int i;	
@@ -280,15 +305,21 @@ int sndDataDataRecord(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* d
 
 	if (ipfix_end_data_set(exporter) != 0) {
 		fatal("ipfix_end_data_set failed");
-		return -1;
+		goto fail4;
 		}
 
 	if (ipfix_send(exporter) != 0) {
 		fatal("ipfix_send failed");
-		return -1;
+		goto fail4;
 		}
-	
+
+	pthread_mutex_unlock(&ipfixSender->mutex);
 	return 0;
+
+	fail4: {
+		pthread_mutex_unlock(&ipfixSender->mutex);
+		return -1;	
+		}
 	}
 
 CallbackInfo getIpfixSenderCallbackInfo(IpfixSender* ipfixSender) {

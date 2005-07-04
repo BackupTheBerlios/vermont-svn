@@ -55,9 +55,7 @@ int main(int argc, char *argv[]) {
 
 	debug("Listening on Port 1500. Hit Ctrl+C to quit");
 	while (mayRun) {
-		stopIpfixReceiver(ipfixReceiver);
 		pollAggregator(ipfixAggregator);
-		startIpfixReceiver(ipfixReceiver);
 		sleep(1);
 		}
 	debug("Stopping threads and tidying up.");
