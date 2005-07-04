@@ -6,7 +6,7 @@
 
 ARCH ?= BSD
 
-CFLAGS += -g -pg -Wall
+CFLAGS += -g -pg -Wall -Werror
 LDFLAGS += -g -pg 
 
 ifeq ($(ARCH),BSD)
