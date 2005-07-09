@@ -16,7 +16,8 @@ else
 LDLIBS += -l pthread 
 endif
 
-TARGETS = testCollector testProxy testAggregator ipfixCollector.a
+#TARGETS = testCollector testProxy testAggregator ipfixCollector.a
+TARGETS = ipfixCollector.a
 
 .PHONY: all clean
 
