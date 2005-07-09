@@ -15,6 +15,7 @@ typedef uint16_t TypeId;
 typedef uint16_t FieldLength;
 typedef uint32_t EnterpriseNo;
 typedef uint8_t FieldData;
+typedef uint8_t byte;
 
 /**
  * IPFIX field type and length.
@@ -180,6 +181,36 @@ typedef struct {
 	DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
 	} CallbackInfo;
 
+
+/**
+ * Contains information about parsing process
+ * created by @c createIpfixParser()
+ */
+typedef struct {
+	int callbackCount;          /**< Length of callbackInfo array */
+	CallbackInfo* callbackInfo; /**< Array of callback functions to invoke when new messages arrive */
+	
+	void* templateBuffer;       /**< TemplateBuffer* structure */
+        } IpfixParser;
+
+/**
+ * Callback function invoked when a new packet arrives.
+ * @param ipfixParser parser containing callbackfunction invoked while parsing message.
+ * @param message Raw message data
+ * @param len Length of message
+ */
+typedef int(ProcessPacketCallbackFunction)(IpfixParser* ipfixParser, byte* message, uint16_t len);
+
+
+/**
+ * Controls parsing of incoming packets.
+ * Create witch @c createPacketProcessor()
+ */
+typedef struct {
+	ProcessPacketCallbackFunction* processPacketCallbackFunction; /**< Callback function invoked when new packet arrives. */
+	IpfixParser* ipfixParser; /**< Contains information about parsing process */
+        } PacketProcessor;
+
 /**
  * Represents a Collector.
  * Create with @c createIpfixReceiver()
@@ -188,17 +219,29 @@ typedef struct {
 	int socket;
 	pthread_mutex_t mutex;      /**< Mutex to pause receiving thread */
 	pthread_t thread;	    /**< Thread ID for this particular instance, to sync against etc */
-	
-	int callbackCount;          /**< Length of callbackInfo array */
-	CallbackInfo* callbackInfo; /**< Array of callback functions to invoke when new messages arrive */
-	
-	void* templateBuffer;       /**< TemplateBuffer* structure */
-	} IpfixReceiver;
+
+	int processorCount;
+	PacketProcessor* packetProcessor;
+	} IpfixUdpIpv4Receiver;
 
 /***** Prototypes ***********************************************************/
 
-int initializeIpfixReceivers();
-int deinitializeIpfixReceivers();
+
+int initializeIpfixUdpIpv4Receivers();
+int deinitializeIpfixUdpIpv4Receivers();
+
+IpfixUdpIpv4Receiver* createIpfixUdpIpv4Receiver(uint16_t port);
+void destroyIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixReceiver);
+
+int startIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixReceiver);
+int stopIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixReceiver);
+
+PacketProcessor* createPacketProcessor();
+void destroyPacketProcessor();
+
+IpfixParser* createIpfixParser();
+void destroyIpfixParser(IpfixParser* ipfixParser);
+
 
 void printFieldData(FieldType type, FieldData* pattern);
 
@@ -206,12 +249,10 @@ FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type);
 FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type);
 FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
 
-IpfixReceiver* createIpfixReceiver(uint16_t port);
-void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
-int startIpfixReceiver(IpfixReceiver* ipfixReceiver);
-int stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
+void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles);
+void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser);
 
-void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
+void addPacketProcessor(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver, PacketProcessor* packetProcessor);
 
 #endif
