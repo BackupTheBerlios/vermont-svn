@@ -79,8 +79,8 @@ void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, 
 
 		/* Invoke all registered callback functions */
 		int n;		
-		for (n = 0; n < templateBuffer->ipfixReceiver->callbackCount; n++) {
-			CallbackInfo* ci = &templateBuffer->ipfixReceiver->callbackInfo[n];
+		for (n = 0; n < templateBuffer->ipfixParser->callbackCount; n++) {
+			CallbackInfo* ci = &templateBuffer->ipfixParser->callbackInfo[n];
 			if (ci->templateDestructionCallbackFunction) ci->templateDestructionCallbackFunction(ci->handle, sourceId, bt->templateInfo);
 			}
 
@@ -92,8 +92,8 @@ void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, 
 
 		/* Invoke all registered callback functions */
 		int n;		
-		for (n = 0; n < templateBuffer->ipfixReceiver->callbackCount; n++) {
-			CallbackInfo* ci = &templateBuffer->ipfixReceiver->callbackInfo[n];
+		for (n = 0; n < templateBuffer->ipfixParser->callbackCount; n++) {
+			CallbackInfo* ci = &templateBuffer->ipfixParser->callbackInfo[n];
 			if (ci->templateDestructionCallbackFunction) ci->templateDestructionCallbackFunction(ci->handle, sourceId, bt->templateInfo);
 			}
 
@@ -106,8 +106,8 @@ void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, 
 
 		/* Invoke all registered callback functions */
 		int n;		
-		for (n = 0; n < templateBuffer->ipfixReceiver->callbackCount; n++) {
-			CallbackInfo* ci = &templateBuffer->ipfixReceiver->callbackInfo[n];
+		for (n = 0; n < templateBuffer->ipfixParser->callbackCount; n++) {
+			CallbackInfo* ci = &templateBuffer->ipfixParser->callbackInfo[n];
 			if (ci->optionsTemplateDestructionCallbackFunction) ci->optionsTemplateDestructionCallbackFunction(ci->handle, sourceId, bt->optionsTemplateInfo);
 			}
 
@@ -120,8 +120,8 @@ void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, 
 
 		/* Invoke all registered callback functions */
 		int n;		
-		for (n = 0; n < templateBuffer->ipfixReceiver->callbackCount; n++) {
-			CallbackInfo* ci = &templateBuffer->ipfixReceiver->callbackInfo[n];
+		for (n = 0; n < templateBuffer->ipfixParser->callbackCount; n++) {
+			CallbackInfo* ci = &templateBuffer->ipfixParser->callbackInfo[n];
 			if (ci->dataTemplateDestructionCallbackFunction) ci->dataTemplateDestructionCallbackFunction(ci->handle, sourceId, bt->dataTemplateInfo);
 			}
 
@@ -135,11 +135,11 @@ void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, 
 /**
  * initializes the buffer
  */
-TemplateBuffer* createTemplateBuffer(IpfixReceiver* parentIpfixReceiver) {
+TemplateBuffer* createTemplateBuffer(IpfixParser* parentIpfixParser) {
 	TemplateBuffer* templateBuffer = (TemplateBuffer*)malloc(sizeof(TemplateBuffer));
 	
 	templateBuffer->head = 0;
-	templateBuffer->ipfixReceiver = parentIpfixReceiver;
+	templateBuffer->ipfixParser = parentIpfixParser;
 	
 	return templateBuffer;
 	}
