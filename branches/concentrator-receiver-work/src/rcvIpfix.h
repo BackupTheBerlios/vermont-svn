@@ -227,6 +227,7 @@ typedef struct {
 /***** Prototypes ***********************************************************/
 
 
+/* ----------------------------------------------- Receivers -------------------------------------- */
 int initializeIpfixUdpIpv4Receivers();
 int deinitializeIpfixUdpIpv4Receivers();
 
@@ -236,8 +237,12 @@ void destroyIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixReceiver);
 int startIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixReceiver);
 int stopIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixReceiver);
 
+/* ---------------------------------------------- Processor --------------------------------------- */
+
 PacketProcessor* createPacketProcessor();
 void destroyPacketProcessor();
+
+/* --------------------------------------- Parser && Parsing Stuff  ------------------------------- */
 
 IpfixParser* createIpfixParser();
 void destroyIpfixParser(IpfixParser* ipfixParser);
@@ -249,10 +254,27 @@ FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type);
 FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type);
 FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
 
+/* --------------------------------------- Connectors --------------------------------------------- */
 
 void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles);
 void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser);
 
 void addPacketProcessor(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver, PacketProcessor* packetProcessor);
+
+
+/******************************* Deprecated Interface ***************************************************/
+
+typedef IpfixUdpIpv4Receiver IpfixReceiver;
+
+int initializeIpfixReceivers();
+int deinitializeIpfixReceivers();
+
+IpfixReceiver* createIpfixReceiver(uint16_t port);
+void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver);
+
+int startIpfixReceiver(IpfixReceiver* ipfixReceiver);
+int stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
+
+void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
 
 #endif

@@ -1092,3 +1092,80 @@ void addPacketProcessor(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver, PacketProces
 									   n * sizeof(PacketProcessor));
 	 memcpy(&ipfixUdpIpv4Receiver->packetProcessor[n-1], packetProcessor, sizeof(PacketProcessor));
          }
+
+
+/******************************* Deprecated Interface ***************************************************/
+
+/**
+ * @deprecated Initializes internal data.
+ * Call once before using any function in this module
+ * @return 0 if call succeeded
+ */
+
+int initializeIpfixReceivers() {
+	return 0;
+        }
+
+/**
+ * @deprecated Destroys internal data.
+ * Call once to tidy up. Do not use any function in this module afterwards
+ * @return 0 if call succeeded
+ */
+int deinitializeIpfixReceivers() {
+	return 0;
+        }
+
+/**
+ * @deprecated Creates a new IpfixReceiver.
+ * Call @c startIpfixReceiver() to start processing messages.
+ * @param port Port to listen on
+ * @return handle for further interaction
+ */
+IpfixReceiver* createIpfixReceiver(uint16_t port) {
+	return  createIpfixUdpIpv4Receiver(port);
+        }	
+
+/**
+ * @deprecated Frees memory used by a IpfixReceiver.
+ * @param ipfixReceiver Handle returned by @c createIpfixReceiver()
+ */
+void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver) {
+	destroyIpfixUdpIpv4Receiver(ipfixReceiver);
+	return;
+        }
+
+/**
+ * @deprecated Starts processing messages.
+ * All sockets prepared by calls to createIpfixReceiver() will start
+ * receiving messages until stopIpfixReceiver() is called.
+ * @return 0 on success, non-zero on error
+ */
+int startIpfixReceiver(IpfixReceiver* ipfixReceiver) {
+	return startIpfixUdpIpv4Receiver(ipfixReceiver);
+        }
+
+
+/**
+ * @deprecated Stops processing messages.
+ * No more messages will be processed until the next startIpfixReceiver() call.
+ * @return 0 on success, non-zero on error
+ */
+int  stopIpfixReceiver(IpfixReceiver* ipfixReceiver) {
+	return stopIpfixUdpIpv4Receiver(ipfixReceiver);
+        }
+
+/**
+ * @deprecated Adds a set of callback functions to the list of functions to call when a new Message arrives
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param handles set of callback functions
+ */
+void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles){
+	PacketProcessor* packetProcessor = createPacketProcessor();
+	
+	IpfixParser* ipfixParser = createIpfixParser();
+	addIpfixParserCallbacks(ipfixParser, handles);
+	
+	setIpfixParser(packetProcessor, ipfixParser);
+
+	addPacketProcessor(ipfixReceiver, packetProcessor);
+        }
