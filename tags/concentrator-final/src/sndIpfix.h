@@ -33,6 +33,10 @@ int sndNewDataTemplate(void* ipfixSender, SourceID sourceID, DataTemplateInfo* d
 int sndDestroyDataTemplate(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 int sndDataDataRecord(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
+int sndNewTemplate(void* ipfixSender, SourceID sourceID, TemplateInfo* templateInfo);
+int sndDestroyTemplate(void* ipfixSender, SourceID sourceID, TemplateInfo* templateInfo);
+int sndDataRecord(void* ipfixSender, SourceID sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
+
 CallbackInfo getIpfixSenderCallbackInfo(IpfixSender* ipfixSender);
 
 #endif
