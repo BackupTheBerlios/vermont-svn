@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
 	startIpfixReceiver(ipfixReceiver);
 
 	debugf("0.0.0.0:%d => %s:%d", lport, tip, tport);
-	debug("Forwarding all DataTemplates and DataRecords. Press Ctrl+C to quit.");
+	debug("Forwarding all Templates and Data Records. Press Ctrl+C to quit.");
 	pause();
 	debug("Stopping threads and tidying up.");
 	
