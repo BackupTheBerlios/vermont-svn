@@ -69,15 +69,15 @@ IpfixSender* createIpfixSender(SourceID sourceID, char* ip, uint16_t port) {
 	if(ipfixSenderAddCollector(ipfixSender, ipfixSender->ip, ipfixSender->port) != 0) {
 		goto out1;
 	}
-	
+
         msg(MSG_DEBUG, "IpfixSender: running");
 
 	return ipfixSender;
-	
+
 out1:
 	ipfix_deinit_exporter(*exporterP);
 out:
-	return NULL;	
+	return NULL;
 }
 
 /**
@@ -127,10 +127,83 @@ int ipfixSenderAddCollector(IpfixSender *ips, char *ip, uint16_t port)
 		msg(MSG_FATAL, "IpfixSender: ipfix_add_collector of %s:%d failed", ip, port);
 		return -1;
 	}
-	
+
 	msg(MSG_INFO, "IpfixSender: adding %s:%d to exporter", ip, port);
 
 	return 0;
+}
+
+
+/**
+ * Announces a new Template
+ * @param ips handle to the Exporter
+ * @param sourceID ignored
+ * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
+ */
+int sndNewTemplate(void *ips, SourceID sourceID, TemplateInfo *templateInfo)
+{
+	IpfixSender *ipfixSender = ips;
+	ipfix_exporter *exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
+	uint16_t my_template_id;
+
+	int i;
+	int *p = (int *)malloc(sizeof(int));
+	int splitFields = 0;
+
+	if(!exporter) {
+		DPRINTF("Exporter not set\n");
+		goto out;
+	}
+
+	my_template_id = ++ipfixSender->lastTemplateId;
+	if(ipfixSender->lastTemplateId > SENDER_TEMPLATE_ID_HI) {
+		/* FIXME: Does not always work, e.g. if more than 50000 new Templates per minute are created */
+		ipfixSender->lastTemplateId = SENDER_TEMPLATE_ID_LOW;
+	}
+
+	/* put Template ID in Template's userData */
+	*p = htons(my_template_id);
+	templateInfo->userData = p;
+
+	/* Count number of IPv4 fields with length 5 */
+	for(i = 0; i < templateInfo->fieldCount; i++) {
+		FieldInfo* fi = &templateInfo->fieldInfo[i];
+		if((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
+			splitFields++;
+		} else if((fi->type.id == IPFIX_TYPEID_destinationIPv4Address) && (fi->type.length == 5)) {
+			splitFields++;
+		}
+	}
+
+	if(0 != ipfix_start_template_set(exporter, my_template_id, templateInfo->fieldCount + splitFields)) {
+		msg(MSG_ERROR, "IpfixSender: ipfix_start_template_set failed");
+		goto out;
+	}
+
+	for(i = 0; i < templateInfo->fieldCount; i++) {
+		FieldInfo *fi = &templateInfo->fieldInfo[i];
+
+		/* Split IPv4 fields with length 5, i.e. fields with network mask attached */
+		if((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
+			ipfix_put_template_field(exporter, my_template_id, IPFIX_TYPEID_sourceIPv4Address, 4, 0);
+			ipfix_put_template_field(exporter, my_template_id, IPFIX_TYPEID_sourceIPv4Mask, 1, 0);
+		} else if((fi->type.id == IPFIX_TYPEID_destinationIPv4Address) && (fi->type.length == 5)) {
+			ipfix_put_template_field(exporter, my_template_id, IPFIX_TYPEID_destinationIPv4Address, 4, 0);
+			ipfix_put_template_field(exporter, my_template_id, IPFIX_TYPEID_destinationIPv4Mask, 1, 0);
+		} else {
+			ipfix_put_template_field(exporter, my_template_id, fi->type.id, fi->type.length, fi->type.eid);
+		}
+	}
+
+	if(0 != ipfix_end_template_set(exporter, my_template_id)) {
+		msg(MSG_ERROR, "IpfixSender: ipfix_end_template_set failed");
+		goto out;
+	}
+
+	return 0;
+
+out:
+	return -1;
 }
 
 /**
@@ -263,6 +336,20 @@ int sndNewDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* 
 	return 0;
 }
 
+
+/**
+ * Invalidates a template; Does NOT free templateInfo
+ * @param ips handle to the Exporter
+ * @param sourceID ignored
+ * @param templateInfo Pointer to a structure defining the Template used
+ */
+int sndDestroyTemplate(void *ips, SourceID sourceID, TemplateInfo *templateInfo)
+{
+	free(templateInfo->userData);
+	return 0;
+}
+
+
 /**
  * Invalidates a template; Does NOT free dataTemplateInfo
  * @param ipfixSender_ handle to the Exporter
@@ -273,6 +360,67 @@ int sndDestroyDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateIn
 	free(dataTemplateInfo->userData);
 	return 0;
 }
+
+
+/**
+ * Put new Data Record in outbound exporter queue
+ * @param ips handle to the Exporter
+ * @param sourceID ignored
+ * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
+ * @param length Length of the data block supplied
+ * @param data Pointer to a data block containing all variable fields
+ */
+int sndDataRecord(void *ips, SourceID sourceID, TemplateInfo *templateInfo, uint16_t length, FieldData *data)
+{
+	IpfixSender *ipfixSender = ips;
+	ipfix_exporter *exporter = (ipfix_exporter *)ipfixSender->ipfixExporter;
+        /* in network byte order */
+	uint16_t template_id_n;
+	int i;
+
+	/* get Template ID from Template's userData */
+	template_id_n = *(uint16_t *)templateInfo->userData;
+	if(ipfix_start_data_set(exporter, &template_id_n) != 0 ) {
+		msg(MSG_ERROR, "sndDataRecord: ipfix_start_data_set failed!");
+		goto out;
+	}
+
+	for(i = 0; i < templateInfo->fieldCount; i++) {
+		FieldInfo *fi = &templateInfo->fieldInfo[i];
+
+		/* Split IPv4 fields with length 5, i.e. fields with network mask attached */
+		if((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
+			uint8_t *mask = &conversionRingbuffer[ringbufferPos++];
+			*mask = 32 - *(uint8_t *)(data + fi->offset + 4);
+			ipfix_put_data_field(exporter, data + fi->offset, 4);
+			ipfix_put_data_field(exporter, mask, 1);
+		} else if((fi->type.id == IPFIX_TYPEID_destinationIPv4Address) && (fi->type.length == 5)) {
+			uint8_t *mask = &conversionRingbuffer[ringbufferPos++];
+			*mask = 32 - *(uint8_t *)(data + fi->offset + 4);
+			ipfix_put_data_field(exporter, data + fi->offset, 4);
+			ipfix_put_data_field(exporter, mask, 1);
+		} else {
+			ipfix_put_data_field(exporter, data + fi->offset, fi->type.length);
+		}
+
+	}
+
+	if(ipfix_end_data_set(exporter) != 0) {
+		msg(MSG_ERROR, "ipfix_end_data_set failed");
+		goto out;
+	}
+
+	if(ipfix_send(exporter) != 0) {
+		msg(MSG_ERROR, "ipfix_send failed");
+		goto out;
+	}
+
+	return 0;
+
+out:
+	return -1;
+}
+
 
 /**
  * Put new Data Record in outbound exporter queue
@@ -330,12 +478,18 @@ int sndDataDataRecord(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* d
 	return 0;
 }
 
-CallbackInfo getIpfixSenderCallbackInfo(IpfixSender* ipfixSender) {
+CallbackInfo getIpfixSenderCallbackInfo(IpfixSender *ipfixSender)
+{
 	CallbackInfo ci;
+
 	bzero(&ci, sizeof(CallbackInfo));
 	ci.handle = ipfixSender;
+	ci.templateCallbackFunction = sndNewTemplate;
+	ci.dataRecordCallbackFunction = sndDataRecord;
+	ci.templateDestructionCallbackFunction = sndDestroyTemplate;
 	ci.dataTemplateCallbackFunction = sndNewDataTemplate;
 	ci.dataDataRecordCallbackFunction = sndDataDataRecord;
 	ci.dataTemplateDestructionCallbackFunction = sndDestroyDataTemplate;
+
 	return ci;
 }
