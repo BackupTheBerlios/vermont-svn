@@ -421,7 +421,46 @@ int printDataRecord(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templat
  * @param optionsTemplateInfo Pointer to a structure defining the OptionsTemplate used
  */
 int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) {
-	printf("\n\nGot an OptionsTemplate\n");
+	int i;
+	int j;
+	char buf[40];
+	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
+	myIpfixPrinter->lastTemplate = optionsTemplateInfo;
+
+	printf("\n\n");
+
+	int lineLen = 0;
+	for (i = 0; i < optionsTemplateInfo->scopeCount; i++) {
+		if (i > 0) { printf("|"); lineLen++; }
+		FieldType ftype = optionsTemplateInfo->scopeInfo[i].type;
+		int flen = fieldTypeToStringLength(ftype); lineLen+=flen;
+
+		if (fieldTypeToString(ftype, buf, 40) == -1) {
+			error("Error converting fieldType");
+			continue;
+			}
+
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		printf("%s", buf);
+		}
+	printf("||"); lineLen+=2;
+	for (i = 0; i < optionsTemplateInfo->fieldCount; i++) {
+		if (i > 0) { printf("|"); lineLen++; }
+		FieldType ftype = optionsTemplateInfo->fieldInfo[i].type;
+		int flen = fieldTypeToStringLength(ftype); lineLen+=flen;
+
+		if (fieldTypeToString(ftype, buf, 40) == -1) {
+			error("Error converting fieldType");
+			continue;
+			}
+
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		printf("%s", buf);
+		}
+	printf("\n");
+
+	for (j = 0; j < lineLen; j++) printf("=");
+	printf("\n");
 
 	return 0;
 	}
@@ -447,7 +486,46 @@ int printOptionsTemplateDestruction(void* ipfixPrinter, SourceID sourceID, Optio
  * @param data Pointer to a data block containing all variable fields
  */
 int printOptionsRecord(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data) {
-	printf("\n\nGot an OptionsDataRecord\n");
+	int i;
+	char buf[40];
+	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
+
+	if (myIpfixPrinter->lastTemplate != optionsTemplateInfo) {
+		printOptionsTemplate(ipfixPrinter, sourceID, optionsTemplateInfo);
+		}
+
+	for (i = 0; i < optionsTemplateInfo->scopeCount; i++) {
+		if (i > 0) printf("|");
+		FieldType ftype = optionsTemplateInfo->scopeInfo[i].type;
+		FieldData* fdata = data + optionsTemplateInfo->scopeInfo[i].offset;
+		int flen = fieldTypeToStringLength(ftype);
+
+		if (fieldToString(ftype, fdata, buf, 40) == -1) {
+			error("Error converting field");
+			continue;
+			}
+
+		int j;
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		printf("%s", buf);
+		}
+	printf("||");
+	for (i = 0; i < optionsTemplateInfo->fieldCount; i++) {
+		if (i > 0) printf("|");
+		FieldType ftype = optionsTemplateInfo->fieldInfo[i].type;
+		FieldData* fdata = data + optionsTemplateInfo->fieldInfo[i].offset;
+		int flen = fieldTypeToStringLength(ftype);
+
+		if (fieldToString(ftype, fdata, buf, 40) == -1) {
+			error("Error converting field");
+			continue;
+			}
+
+		int j;
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
+		printf("%s", buf);
+		}
+	printf("\n");
 
 	return 0;
 	}
