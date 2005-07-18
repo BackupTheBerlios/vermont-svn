@@ -58,7 +58,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #define NetflowV9_SetId_Template  0
 
-#define MAX_MSG_LEN	65536
+
 
 /***** Macros ************************************************************/
 
@@ -731,70 +731,9 @@ static void printUint(FieldType type, FieldData* data) {
 		}
 	}
 
-/*
- FIXME: implement clean exiting
- Use pthread_sigmask() ?
- */
-static void* listenerUdpIpv4(void* ipfixUdpIpv4Receiver_) {
-	IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver = (IpfixUdpIpv4Receiver*)ipfixUdpIpv4Receiver_;
-	
-	struct sockaddr_in clientAddress;
-	socklen_t clientAddressLen;
-	byte* data = (byte*)malloc(sizeof(byte)*MAX_MSG_LEN);
-	int n, i;
-	
-	while(1) {
-	
-		//static uint16_t packets = 0;
-		//if (packets++ >= 10000) break;
-		
-		clientAddressLen = sizeof(struct sockaddr_in);
-		n = recvfrom(ipfixUdpIpv4Receiver->socket, data, MAX_MSG_LEN, 0, (struct sockaddr*)&clientAddress, &clientAddressLen);
-
-		if (n < 0) {
-			debug("recvfrom returned without data, terminating listener thread");
-			break;
-			}
-      
-		pthread_mutex_lock(&ipfixUdpIpv4Receiver->mutex);
-		if (ipfixUdpIpv4Receiver->processorCount > 0) {
-			for (i = 0; i != ipfixUdpIpv4Receiver->processorCount; ++i) {
-				PacketProcessor* pp = &ipfixUdpIpv4Receiver->packetProcessor[i];
-				if (pp && pp->ipfixParser)
-					pp->processPacketCallbackFunction(pp->ipfixParser, data, n);
-				else
-					error("No parser assigned");
-			}
-		}
-		else
-			error("No packet processor assigned");
-		pthread_mutex_unlock(&ipfixUdpIpv4Receiver->mutex);
-		}
-
-	free(data);
-
-	return 0;
-	}
 
 /***** Exported Functions ****************************************************/
 
-/**
- * Initializes internal data.
- * Call once before using any function in this module
- * @return 0 if call succeeded
- */
-int initializeIpfixUdpIpv4Receivers() {
-	return 0;
-	}
-
-/**
- * Destroys internal data.
- * Call once to tidy up. Do not use any function in this module afterwards
- * @return 0 if call succeeded
- */
-int deinitializeIpfixUdpIpv4Receivers() {
-	return 0;
-	}
 
 /**
  * Prints a string representation of FieldData to stdout.
@@ -891,110 +830,6 @@ FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type) {
 	
 
 /**
- * Creates a new IpfixUdpIpv4Receiver.
- * Call @c startIpfixUpdIpv4Receiver() to start processing messages.
- * @param port Port to listen on
- * @return handle for further interaction
- */
-IpfixUdpIpv4Receiver* createIpfixUdpIpv4Receiver(uint16_t port) {
-	IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver;
-	struct sockaddr_in serverAddress;
-	
-	if(!(ipfixUdpIpv4Receiver=(IpfixUdpIpv4Receiver*)malloc(sizeof(IpfixUdpIpv4Receiver)))) {
-		fatal("Ran out of memory");
-		goto out0;
-		}
-
-	ipfixUdpIpv4Receiver->processorCount = 0;
-	ipfixUdpIpv4Receiver->packetProcessor = NULL;
-
-	if (pthread_mutex_init(&ipfixUdpIpv4Receiver->mutex, NULL) != 0) {
-		fatal("Could not init mutex");
-		goto out1;
-		}
-		
-	if (pthread_mutex_lock(&ipfixUdpIpv4Receiver->mutex) != 0) {
-		fatal("Could not lock mutex");
-		goto out1;
-		}
-
-	ipfixUdpIpv4Receiver->socket = socket(AF_INET, SOCK_DGRAM, 0);
-	if(ipfixUdpIpv4Receiver->socket < 0) {
-		perror("Could not create socket");
-		goto out1;
-		}
-
-	serverAddress.sin_family = AF_INET;
-	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-	serverAddress.sin_port = htons(port);
-	if(bind(ipfixUdpIpv4Receiver->socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in)) < 0) {
-		perror("Could not bind socket");
-		goto out2;
-		}
-
-	if(pthread_create(&(ipfixUdpIpv4Receiver->thread), 0, listenerUdpIpv4, ipfixUdpIpv4Receiver) != 0) {
-		fatal("Could not create listener thread");
-		goto out2;
-		}
-	//listenerUdpIpv4(ipfixReceiver); //debug - single-threaded
-	
-	return ipfixUdpIpv4Receiver;
-
-out2:
-	close(ipfixUdpIpv4Receiver->socket);
-out1:
-	free(ipfixUdpIpv4Receiver);
-out0:
-	return NULL;
-	}
-
-/**
- * Starts processing messages.
- * All sockets prepared by calls to createIpfixUdpIpv4Receiver() will start
- * receiving messages until stopIpfixReceiver() is called.
- * @return 0 on success, non-zero on error
- */
-int startIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver) {
-	if (pthread_mutex_unlock(&ipfixUdpIpv4Receiver->mutex) != 0) {
-		fatal("Could not unlock mutex");
-		return -1;
-		}
-	
-	return 0;
-	}
-	
-/**
- * Stops processing messages.
- * No more messages will be processed until the next startIpfixReceiver() call.
- * @return 0 on success, non-zero on error
- */
-int stopIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver) {
-	if (pthread_mutex_lock(&ipfixUdpIpv4Receiver->mutex) != 0) {
-		fatal("Could not lock mutex");
-		return -1;
-		}
-	
-	return 0;
-	}
-
-/**
- * Frees memory used by a IpfixReceiver.
- * @param ipfixReceiver Handle returned by @c createIpfixReceiver()
- */
-void destroyIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver) {
-	close(ipfixUdpIpv4Receiver->socket);
-	
-	if (pthread_mutex_unlock(&ipfixUdpIpv4Receiver->mutex) != 0) {
-		error("Could not unlock mutex");
-		}
-	pthread_mutex_destroy(&ipfixUdpIpv4Receiver->mutex);
-       
-	free(ipfixUdpIpv4Receiver->packetProcessor);
-	free(ipfixUdpIpv4Receiver);
-	}
-
-
-/**
  * Creates a new  @c IpfixParser.
  * @return handle to created instance
  */
@@ -1080,19 +915,147 @@ void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser) 
 	packetProcessor->ipfixParser = ipfixParser;
         }
 
+/**
+ * TODO: make *blabla*
+ */
+void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetProcessor) {
+	int n = ++ipfixCollector->processorCount;
+	ipfixCollector->packetProcessor = (PacketProcessor*)realloc(ipfixCollector->packetProcessor,
+								    n*sizeof(PacketProcessor));
+	memcpy(&ipfixCollector->packetProcessor[n-1], packetProcessor, sizeof(PacketProcessor));
+
+	if (ipfixCollector->receiver_type != UNKNOWN) {
+		ipfixCollector->receiver_functions.setPacketProcessor(ipfixCollector->receiver, ipfixCollector->packetProcessor,
+								      ipfixCollector->processorCount);
+	}
+
+        }
+
 
 /**
  * Adds a @c PacketProcessor to an @c IpfixUdpIpv4Receiver
  * @param ipfixUdpIpv4Receiver IpfixUdpIpv4Receiver to add the packetProcessor to.
  * @param packetProcessor PacketProcessor to be added.
  */
+/*
 void addPacketProcessor(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver, PacketProcessor* packetProcessor) {
 	 int n = ++ipfixUdpIpv4Receiver->processorCount;
 	 ipfixUdpIpv4Receiver->packetProcessor = (PacketProcessor*)realloc(ipfixUdpIpv4Receiver->packetProcessor,
 									   n * sizeof(PacketProcessor));
 	 memcpy(&ipfixUdpIpv4Receiver->packetProcessor[n-1], packetProcessor, sizeof(PacketProcessor));
          }
+*/
 
+/**
+ * TODO: make *blabla*
+ */
+int initializeIpfixCollectors() {
+	return 0;
+        }
+
+/**
+ * TODO: make *blabla*
+ */
+int deinitializeIpfixCollectors() {
+	return 0;
+        } 
+
+/**
+ * TODO: make *blabla*
+ */
+IpfixCollector* createIpfixCollector() {
+	IpfixCollector* ipfixCollector;
+	
+	if (!(ipfixCollector = (IpfixCollector*)malloc(sizeof(IpfixCollector)))) {
+		fatal("Ran out of memory");
+		return NULL;
+	}
+	    
+	ipfixCollector->receiver = NULL;
+	ipfixCollector->receiver_type = UNKNOWN;
+
+	ipfixCollector->processorCount = 0;
+	ipfixCollector->packetProcessor = NULL;
+
+	return ipfixCollector;
+        }
+
+/**
+ * TODO: make *blabla*
+ */
+void destroyIpfixCollector(IpfixCollector* ipfixCollector) {
+	if (ipfixCollector->receiver_type != UNKNOWN) {
+		ipfixCollector->receiver_functions.destroyReceiver(ipfixCollector->receiver);
+		ipfixCollector->receiver_functions.deinitializeReceivers();
+	}
+
+	free(ipfixCollector->packetProcessor);
+	free(ipfixCollector);
+        }
+
+/**
+ * TODO: make *blabla*
+ */
+int setReceiverType(IpfixCollector* ipfixCollector, Receiver_Type rec_type, int port) {
+	if (ipfixCollector->receiver_type != UNKNOWN) {
+		ipfixCollector->receiver_functions.stopReceiver(ipfixCollector->receiver);
+		ipfixCollector->receiver_functions.destroyReceiver(ipfixCollector->receiver);
+		ipfixCollector->receiver_functions.deinitializeReceivers();
+	}
+
+	switch (rec_type) {
+	case UDP_IPV4:
+		ipfixCollector->receiver_functions = getUdpIpv4ReceiverFunctions();
+		break;
+	default:
+		ipfixCollector->receiver_type = UNKNOWN;
+		return -1;
+	}
+
+	ipfixCollector->receiver_functions.initializeReceivers();
+	ipfixCollector->receiver = ipfixCollector->receiver_functions.createReceiver(port);
+
+	if (ipfixCollector->receiver) {
+		ipfixCollector->receiver_type = rec_type;
+		return 0;
+	}else {
+		ipfixCollector->receiver_type = rec_type = UNKNOWN;
+		return -1;
+	}
+
+        }
+
+/**
+ * TODO: make *blabla*
+ */
+/*
+void deinitializeIpfixCollector(IpfixCollector* ipfixCollector) {
+	
+	if (ipfixCollector->processorCount) 
+		destroyPacketProcessor(ipfixCollector->packetProcessor);
+	
+	if (ipfixCollector->receiver_type != UNKNOWN) 
+		ipfixCollector->receiver_functions.destroyReceiver(ipfixCollector->receiver);
+	}
+*/
+/*
+ * TODO: make *blabla*
+ */
+int startIpfixCollector(IpfixCollector* ipfixCollector) {
+	if (ipfixCollector->receiver_type != UNKNOWN)
+		return ipfixCollector->receiver_functions.startReceiver(ipfixCollector->receiver);
+	
+	return -1;
+        }
+/*
+ * TODO: make *blabla*
+ */
+int stopIpfixCollector(IpfixCollector* ipfixCollector) {
+	if (ipfixCollector->receiver_type != UNKNOWN) 
+		return ipfixCollector->receiver_functions.stopReceiver(ipfixCollector->receiver);
+
+	return -1;
+        }
 
 /******************************* Deprecated Interface ***************************************************/
 
@@ -1101,19 +1064,22 @@ void addPacketProcessor(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver, PacketProces
  * Call once before using any function in this module
  * @return 0 if call succeeded
  */
-
+/*
 int initializeIpfixReceivers() {
 	return 0;
         }
-
+*/
 /**
  * @deprecated Destroys internal data.
  * Call once to tidy up. Do not use any function in this module afterwards
  * @return 0 if call succeeded
  */
+
+/*
 int deinitializeIpfixReceivers() {
 	return 0;
         }
+*/
 
 /**
  * @deprecated Creates a new IpfixReceiver.
@@ -1121,18 +1087,24 @@ int deinitializeIpfixReceivers() {
  * @param port Port to listen on
  * @return handle for further interaction
  */
+
+/*
 IpfixReceiver* createIpfixReceiver(uint16_t port) {
 	return  createIpfixUdpIpv4Receiver(port);
         }	
+*/
 
 /**
  * @deprecated Frees memory used by a IpfixReceiver.
  * @param ipfixReceiver Handle returned by @c createIpfixReceiver()
  */
+
+/*
 void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver) {
 	destroyIpfixUdpIpv4Receiver(ipfixReceiver);
 	return;
         }
+*/
 
 /**
  * @deprecated Starts processing messages.
@@ -1140,25 +1112,32 @@ void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver) {
  * receiving messages until stopIpfixReceiver() is called.
  * @return 0 on success, non-zero on error
  */
+
+/*
 int startIpfixReceiver(IpfixReceiver* ipfixReceiver) {
 	return startIpfixUdpIpv4Receiver(ipfixReceiver);
         }
-
+*/
 
 /**
  * @deprecated Stops processing messages.
  * No more messages will be processed until the next startIpfixReceiver() call.
  * @return 0 on success, non-zero on error
  */
+
+/*
 int  stopIpfixReceiver(IpfixReceiver* ipfixReceiver) {
 	return stopIpfixUdpIpv4Receiver(ipfixReceiver);
         }
+*/
 
 /**
  * @deprecated Adds a set of callback functions to the list of functions to call when a new Message arrives
  * @param ipfixReceiver IpfixReceiver to set the callback function for
  * @param handles set of callback functions
  */
+
+/*
 void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles){
 	PacketProcessor* packetProcessor = createPacketProcessor();
 	
@@ -1169,3 +1148,4 @@ void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handle
 
 	addPacketProcessor(ipfixReceiver, packetProcessor);
         }
+*/

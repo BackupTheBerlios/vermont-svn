@@ -12,7 +12,7 @@
 #include "printIpfix.h"
 #include "common.h"
 
-#define DEFAULT_LISTEN_PORT 1500
+#define DEFAULT_LISTEN_PORT 1501
 #define USE_OLD_IFACE 0
 #define USE_NEW_IFACE 1
 
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
 
         int lport=DEFAULT_LISTEN_PORT;
 	int c;
-	int iface = USE_OLD_IFACE;
+	int iface = USE_NEW_IFACE;
 
         signal(SIGINT, sigint);
 
@@ -60,6 +60,7 @@ int main(int argc, char *argv[]) {
 
 
 void start_collector_using_old_interface(int lport) {
+	/*
 	initializeIpfixPrinters();
 
 	initializeIpfixReceivers();
@@ -82,38 +83,37 @@ void start_collector_using_old_interface(int lport) {
 	stopIpfixPrinter(ipfixPrinter);
 	destroyIpfixPrinter(ipfixPrinter);
 	deinitializeIpfixPrinters();
+	*/
         }
 
 void start_collector_using_new_interface(int lport) {
-        initializeIpfixPrinters();
+	initializeIpfixPrinters();
+	initializeIpfixCollectors();
 
-        initializeIpfixUdpIpv4Receivers();
+	IpfixPrinter* ipfixPrinter = createIpfixPrinter();
 
-        IpfixPrinter* ipfixPrinter = createIpfixPrinter();
-        startIpfixPrinter(ipfixPrinter);
+	IpfixCollector* ipfixCollector = createIpfixCollector();	
+	setReceiverType(ipfixCollector, UDP_IPV4, lport);
+	
+	IpfixParser* ipfixParser = createIpfixParser();
+	addIpfixParserCallbacks(ipfixParser, getIpfixPrinterCallbackInfo(ipfixPrinter));
+	
+	PacketProcessor* packetProcessor = createPacketProcessor();
+	setIpfixParser(packetProcessor, ipfixParser);
+	
+	addPacketProcessor(ipfixCollector, packetProcessor);
 
-        IpfixUdpIpv4Receiver* ipfixReceiver = createIpfixUdpIpv4Receiver(lport);
-
-        IpfixParser* ipfixParser = createIpfixParser();
-        addIpfixParserCallbacks(ipfixParser, getIpfixPrinterCallbackInfo(ipfixPrinter));
-
-        PacketProcessor* packetProcessor = createPacketProcessor();
-        setIpfixParser(packetProcessor, ipfixParser);
-
-        addPacketProcessor(ipfixReceiver, packetProcessor);
-
-        startIpfixUdpIpv4Receiver(ipfixReceiver);
-
+	startIpfixCollector(ipfixCollector);
         debugf("Listening on Port %d. Hit Ctrl+C to quit", lport);
         pause();
         debug("Stopping threads and tidying up.");
-
-        stopIpfixUdpIpv4Receiver(ipfixReceiver);
-        destroyIpfixUdpIpv4Receiver(ipfixReceiver);
-        deinitializeIpfixUdpIpv4Receivers();
-
-        stopIpfixPrinter(ipfixPrinter);
-        destroyIpfixPrinter(ipfixPrinter);
+	stopIpfixCollector(ipfixCollector);
+	
+	destroyIpfixCollector(ipfixCollector);
+	deinitializeIpfixCollectors();
+	
+	stopIpfixPrinter(ipfixPrinter);
+	destroyIpfixPrinter(ipfixPrinter);
         deinitializeIpfixPrinters();
         }
 

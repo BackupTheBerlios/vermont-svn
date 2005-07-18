@@ -1,6 +1,9 @@
 #ifndef RCVIPFIX_H
 #define RCVIPFIX_H
 
+#include "receiverFunctions.h"
+#include "udpReceiver.h"
+
 #include <pthread.h>
 #include <stdint.h>
 
@@ -15,7 +18,6 @@ typedef uint16_t TypeId;
 typedef uint16_t FieldLength;
 typedef uint32_t EnterpriseNo;
 typedef uint8_t FieldData;
-typedef uint8_t byte;
 
 /**
  * IPFIX field type and length.
@@ -212,30 +214,36 @@ typedef struct {
         } PacketProcessor;
 
 /**
- * Represents a Collector.
- * Create with @c createIpfixReceiver()
+ * Defines type of Receiver
+ */
+typedef enum {
+	UNKNOWN, UDP_IPV4
+        } Receiver_Type;
+
+/**
+ * Represents a collector
  */
 typedef struct {
-	int socket;
-	pthread_mutex_t mutex;      /**< Mutex to pause receiving thread */
-	pthread_t thread;	    /**< Thread ID for this particular instance, to sync against etc */
-
+	void* receiver; /**< Receiver */
+	Receiver_Type receiver_type; /**< Type of receiver */
+	Receiver_Functions receiver_functions;
+	
 	int processorCount;
 	PacketProcessor* packetProcessor;
-	} IpfixUdpIpv4Receiver;
+        } IpfixCollector;
 
 /***** Prototypes ***********************************************************/
 
 
-/* ----------------------------------------------- Receivers -------------------------------------- */
-int initializeIpfixUdpIpv4Receivers();
-int deinitializeIpfixUdpIpv4Receivers();
+/* ------------------------------- Collector && Collector-Stuff --------------------------------- */
 
-IpfixUdpIpv4Receiver* createIpfixUdpIpv4Receiver(uint16_t port);
-void destroyIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixReceiver);
-
-int startIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixReceiver);
-int stopIpfixUdpIpv4Receiver(IpfixUdpIpv4Receiver* ipfixReceiver);
+int initializeIpfixCollectors();
+int deinitializeIpfixCollectors();
+IpfixCollector* createIpfixCollector();
+void destroyIpfixCollector(IpfixCollector* ipfixCollector);
+int setReceiverType(IpfixCollector*, Receiver_Type, int);
+int startIpfixCollector(IpfixCollector*);
+int stopIpfixCollector(IpfixCollector*);
 
 /* ---------------------------------------------- Processor --------------------------------------- */
 
@@ -259,11 +267,15 @@ FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
 void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles);
 void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser);
 
-void addPacketProcessor(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver, PacketProcessor* packetProcessor);
+void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetProcessor);
+
+//void addPacketProcessor(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver, PacketProcessor* packetProcessor);
 
 
 /******************************* Deprecated Interface ***************************************************/
 
+
+/*
 typedef IpfixUdpIpv4Receiver IpfixReceiver;
 
 int initializeIpfixReceivers();
@@ -276,5 +288,6 @@ int startIpfixReceiver(IpfixReceiver* ipfixReceiver);
 int stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
 void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
+*/
 
 #endif
