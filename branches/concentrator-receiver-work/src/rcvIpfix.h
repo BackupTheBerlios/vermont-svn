@@ -275,8 +275,8 @@ void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetP
 /******************************* Deprecated Interface ***************************************************/
 
 
-/*
-typedef IpfixUdpIpv4Receiver IpfixReceiver;
+
+typedef IpfixCollector IpfixReceiver;
 
 int initializeIpfixReceivers();
 int deinitializeIpfixReceivers();
@@ -288,6 +288,6 @@ int startIpfixReceiver(IpfixReceiver* ipfixReceiver);
 int stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
 void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
-*/
+
 
 #endif

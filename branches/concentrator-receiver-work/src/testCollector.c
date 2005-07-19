@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
 
         int lport=DEFAULT_LISTEN_PORT;
 	int c;
-	int iface = USE_NEW_IFACE;
+	int iface = USE_OLD_IFACE;
 
         signal(SIGINT, sigint);
 
@@ -49,18 +49,19 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	if (iface == USE_OLD_IFACE)
+	if (iface == USE_OLD_IFACE) {
+		debug("Starting up using old interface");
 		start_collector_using_old_interface(lport);
-	else
+	} else {
 		start_collector_using_new_interface(lport);
-
+		debug("Starting up using new interface");
+	}
 	return 0;
 	}
 
 
 
 void start_collector_using_old_interface(int lport) {
-	/*
 	initializeIpfixPrinters();
 
 	initializeIpfixReceivers();
@@ -83,7 +84,6 @@ void start_collector_using_old_interface(int lport) {
 	stopIpfixPrinter(ipfixPrinter);
 	destroyIpfixPrinter(ipfixPrinter);
 	deinitializeIpfixPrinters();
-	*/
         }
 
 void start_collector_using_new_interface(int lport) {

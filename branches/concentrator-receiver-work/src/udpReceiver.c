@@ -39,17 +39,10 @@ static void* listenerUdpIpv4(void* ipfixUdpIpv4Receiver_) {
 			}
 		
 		pthread_mutex_lock(&ipfixUdpIpv4Receiver->mutex);
-		if (ipfixUdpIpv4Receiver->processorCount > 0) {
-			PacketProcessor* pp = (PacketProcessor*)(ipfixUdpIpv4Receiver->packetProcessor);
-			for (i = 0; i != ipfixUdpIpv4Receiver->processorCount; ++i) {
-				if (pp[i].ipfixParser)
-					pp[i].processPacketCallbackFunction(pp[i].ipfixParser, data, n);
-				else
-					error("No parser assigned");
-			}
-		}
-		else
-			error("No packet processor assigned");
+		PacketProcessor* pp = (PacketProcessor*)(ipfixUdpIpv4Receiver->packetProcessor);
+		for (i = 0; i != ipfixUdpIpv4Receiver->processorCount; ++i) 
+			pp[i].processPacketCallbackFunction(pp[i].ipfixParser, data, n);
+		
 		pthread_mutex_unlock(&ipfixUdpIpv4Receiver->mutex);
 		}
 
@@ -63,7 +56,7 @@ static void* listenerUdpIpv4(void* ipfixUdpIpv4Receiver_) {
  * Call once before using any function in this module
  * @return 0 if call succeeded
  */
-int initializeIpfixUdpIpv4Receivers() {
+static int initializeIpfixUdpIpv4Receivers() {
 	return 0;
 	}
 
@@ -72,7 +65,7 @@ int initializeIpfixUdpIpv4Receivers() {
  * Call once to tidy up. Do not use any function in this module afterwards
  * @return 0 if call succeeded
  */
-int deinitializeIpfixUdpIpv4Receivers() {
+static int deinitializeIpfixUdpIpv4Receivers() {
 	return 0;
 	}
 
@@ -83,8 +76,12 @@ int deinitializeIpfixUdpIpv4Receivers() {
  * @param port Port to listen on
  * @return handle for further interaction
  */
-void* createIpfixUdpIpv4Receiver(uint16_t port) {
+static void* createIpfixUdpIpv4Receiver(uint16_t port) {
 	IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver;
+
+	ipfixUdpIpv4Receiver->processorCount = 0;
+	ipfixUdpIpv4Receiver->packetProcessor = NULL;
+
 	struct sockaddr_in serverAddress;
 	
 	if(!(ipfixUdpIpv4Receiver=(IpfixUdpIpv4Receiver*)malloc(sizeof(IpfixUdpIpv4Receiver)))) {
@@ -138,7 +135,7 @@ out0:
  * receiving messages until stopIpfixReceiver() is called.
  * @return 0 on success, non-zero on error
  */
-int startIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
+static int startIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
 	IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver = (IpfixUdpIpv4Receiver*)ipfixUdpIpv4Receiver_;
 
 	if (pthread_mutex_unlock(&ipfixUdpIpv4Receiver->mutex) != 0) {
@@ -154,7 +151,7 @@ int startIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
  * No more messages will be processed until the next startIpfixReceiver() call.
  * @return 0 on success, non-zero on error
  */
-int stopIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
+static int stopIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
 	IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver = (IpfixUdpIpv4Receiver*)ipfixUdpIpv4Receiver_;
 
 	if (pthread_mutex_lock(&ipfixUdpIpv4Receiver->mutex) != 0) {
@@ -169,7 +166,7 @@ int stopIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
  * Frees memory used by a IpfixReceiver.
  * @param ipfixReceiver Handle returned by @c createIpfixReceiver()
  */
-void destroyIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
+static void destroyIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
 	IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver = (IpfixUdpIpv4Receiver*)ipfixUdpIpv4Receiver_;
 
 	close(ipfixUdpIpv4Receiver->socket);
@@ -185,7 +182,7 @@ void destroyIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
 /**
  * TODO: make *blabla*
  */
-int setPacketProcessor(void* ipfixUdpIpv4Receiver_, void* packetProcessor_, int processorCount) {
+static int setPacketProcessor(void* ipfixUdpIpv4Receiver_, void* packetProcessor_, int processorCount) {
 	IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver = (IpfixUdpIpv4Receiver*)ipfixUdpIpv4Receiver_;
        
 	ipfixUdpIpv4Receiver->packetProcessor = packetProcessor_;
@@ -197,7 +194,13 @@ int setPacketProcessor(void* ipfixUdpIpv4Receiver_, void* packetProcessor_, int 
 /**
  * TODO: make *blabla*
  */
+static int hasPacketProcessor(void* ipfixUdpIpv4Receiver_) {
+	return ((IpfixUdpIpv4Receiver*)ipfixUdpIpv4Receiver_)->processorCount;
+}
 
+/**
+ * TODO: make *blabla*
+ */
 Receiver_Functions getUdpIpv4ReceiverFunctions() {
 	Receiver_Functions receiver_functions;
 
@@ -208,6 +211,8 @@ Receiver_Functions getUdpIpv4ReceiverFunctions() {
 	receiver_functions.startReceiver         = startIpfixUdpIpv4Receiver;
 	receiver_functions.stopReceiver          = stopIpfixUdpIpv4Receiver;
 	receiver_functions.setPacketProcessor    = setPacketProcessor;
+	receiver_functions.hasPacketProcessor    = hasPacketProcessor;
 
 	return receiver_functions;
 }
+

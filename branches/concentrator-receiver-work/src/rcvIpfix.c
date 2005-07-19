@@ -1025,24 +1025,12 @@ int setReceiverType(IpfixCollector* ipfixCollector, Receiver_Type rec_type, int 
 
         }
 
-/**
- * TODO: make *blabla*
- */
-/*
-void deinitializeIpfixCollector(IpfixCollector* ipfixCollector) {
-	
-	if (ipfixCollector->processorCount) 
-		destroyPacketProcessor(ipfixCollector->packetProcessor);
-	
-	if (ipfixCollector->receiver_type != UNKNOWN) 
-		ipfixCollector->receiver_functions.destroyReceiver(ipfixCollector->receiver);
-	}
-*/
+
 /*
  * TODO: make *blabla*
  */
 int startIpfixCollector(IpfixCollector* ipfixCollector) {
-	if (ipfixCollector->receiver_type != UNKNOWN)
+	if (ipfixCollector->receiver_type != UNKNOWN && ipfixCollector->receiver_functions.hasPacketProcessor(ipfixCollector->receiver))
 		return ipfixCollector->receiver_functions.startReceiver(ipfixCollector->receiver);
 	
 	return -1;
@@ -1064,22 +1052,21 @@ int stopIpfixCollector(IpfixCollector* ipfixCollector) {
  * Call once before using any function in this module
  * @return 0 if call succeeded
  */
-/*
+
 int initializeIpfixReceivers() {
 	return 0;
         }
-*/
+
 /**
  * @deprecated Destroys internal data.
  * Call once to tidy up. Do not use any function in this module afterwards
  * @return 0 if call succeeded
  */
 
-/*
 int deinitializeIpfixReceivers() {
 	return 0;
         }
-*/
+
 
 /**
  * @deprecated Creates a new IpfixReceiver.
@@ -1088,23 +1075,25 @@ int deinitializeIpfixReceivers() {
  * @return handle for further interaction
  */
 
-/*
+
 IpfixReceiver* createIpfixReceiver(uint16_t port) {
-	return  createIpfixUdpIpv4Receiver(port);
+	IpfixCollector* ipfixCollector =  createIpfixCollector();
+
+	setReceiverType(ipfixCollector, UDP_IPV4, port);
+
+	return ipfixCollector;
         }	
-*/
+
 
 /**
  * @deprecated Frees memory used by a IpfixReceiver.
  * @param ipfixReceiver Handle returned by @c createIpfixReceiver()
  */
 
-/*
 void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver) {
-	destroyIpfixUdpIpv4Receiver(ipfixReceiver);
+	destroyIpfixCollector(ipfixReceiver);
 	return;
         }
-*/
 
 /**
  * @deprecated Starts processing messages.
@@ -1113,11 +1102,9 @@ void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver) {
  * @return 0 on success, non-zero on error
  */
 
-/*
 int startIpfixReceiver(IpfixReceiver* ipfixReceiver) {
-	return startIpfixUdpIpv4Receiver(ipfixReceiver);
+	return startIpfixCollector(ipfixReceiver);
         }
-*/
 
 /**
  * @deprecated Stops processing messages.
@@ -1125,11 +1112,11 @@ int startIpfixReceiver(IpfixReceiver* ipfixReceiver) {
  * @return 0 on success, non-zero on error
  */
 
-/*
+
 int  stopIpfixReceiver(IpfixReceiver* ipfixReceiver) {
-	return stopIpfixUdpIpv4Receiver(ipfixReceiver);
+	return stopIpfixCollector(ipfixReceiver);
         }
-*/
+
 
 /**
  * @deprecated Adds a set of callback functions to the list of functions to call when a new Message arrives
@@ -1137,7 +1124,7 @@ int  stopIpfixReceiver(IpfixReceiver* ipfixReceiver) {
  * @param handles set of callback functions
  */
 
-/*
+
 void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles){
 	PacketProcessor* packetProcessor = createPacketProcessor();
 	
@@ -1148,4 +1135,4 @@ void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handle
 
 	addPacketProcessor(ipfixReceiver, packetProcessor);
         }
-*/
+
