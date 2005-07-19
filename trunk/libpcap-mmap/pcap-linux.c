@@ -914,8 +914,8 @@ pcap_stats_linux(pcap_t *handle, struct pcap_stat *stats)
                 handle->md.kstats_total.tp_packets += kstats.tp_packets;
                 handle->md.kstats_total.tp_drops += kstats.tp_drops;
 
-                handle->md.stat.ps_recv = handle->md.kstats_total.tp_packets;
-                handle->md.stat.ps_drop = handle->md.kstats_total.tp_drops;
+                handle->md.stat.ps_recv = kstats.tp_packets;
+                handle->md.stat.ps_drop = kstats.tp_drops;
 	}
 	else
 	{
