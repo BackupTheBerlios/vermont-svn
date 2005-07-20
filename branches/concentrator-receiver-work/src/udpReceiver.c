@@ -78,16 +78,15 @@ static int deinitializeIpfixUdpIpv4Receivers() {
  */
 static void* createIpfixUdpIpv4Receiver(uint16_t port) {
 	IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver;
-
-	ipfixUdpIpv4Receiver->processorCount = 0;
-	ipfixUdpIpv4Receiver->packetProcessor = NULL;
-
 	struct sockaddr_in serverAddress;
 	
 	if(!(ipfixUdpIpv4Receiver=(IpfixUdpIpv4Receiver*)malloc(sizeof(IpfixUdpIpv4Receiver)))) {
 		fatal("Ran out of memory");
 		goto out0;
 		}
+
+	ipfixUdpIpv4Receiver->processorCount = 0;
+	ipfixUdpIpv4Receiver->packetProcessor = NULL;
 
 	if (pthread_mutex_init(&ipfixUdpIpv4Receiver->mutex, NULL) != 0) {
 		fatal("Could not init mutex");
@@ -132,7 +131,7 @@ out0:
 /**
  * Starts processing messages.
  * All sockets prepared by calls to createIpfixUdpIpv4Receiver() will start
- * receiving messages until stopIpfixReceiver() is called.
+ * receiving messages until stopIpfixUdpIpv4Receiver() is called.
  * @return 0 on success, non-zero on error
  */
 static int startIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
@@ -148,7 +147,7 @@ static int startIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
 	
 /**
  * Stops processing messages.
- * No more messages will be processed until the next startIpfixReceiver() call.
+ * No more messages will be processed until the next startIpfixUdpIpv4Receiver() call.
  * @return 0 on success, non-zero on error
  */
 static int stopIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
@@ -163,7 +162,7 @@ static int stopIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {
 	}
 
 /**
- * Frees memory used by a IpfixReceiver.
+ * Frees memory used by a IpfixUdpIpv4Receiver.
  * @param ipfixReceiver Handle returned by @c createIpfixReceiver()
  */
 static void destroyIpfixUdpIpv4Receiver(void* ipfixUdpIpv4Receiver_) {

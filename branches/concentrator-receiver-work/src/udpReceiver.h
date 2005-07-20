@@ -3,14 +3,11 @@
 
 #include "receiverFunctions.h"
 
-
-
 #include <pthread.h>
 #include <stdint.h>
 
 /**
- * Represents a Collector.
- * Create with @c createIpfixReceiver()
+ * TODO: make *blabla*
  */
 typedef struct {
 	int socket;
