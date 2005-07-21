@@ -2,7 +2,6 @@
 #define RCVIPFIX_H
 
 #include "receiverFunctions.h"
-#include "udpReceiver.h"
 
 #include <pthread.h>
 #include <stdint.h>
@@ -217,7 +216,7 @@ typedef struct {
  * Defines type of Receiver
  */
 typedef enum {
-	UNKNOWN, UDP_IPV4
+	UNKNOWN, UDP_IPV4, TCP_IPV4
         } Receiver_Type;
 
 /**

@@ -50,6 +50,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "templateBuffer.h"
 #include "common.h"
 
+
+#include "udpReceiver.h"
+#include "tcpReceiver.h"
+
 /***** Defines ************************************************************/
 
 #define SUPPORT_NETFLOWV9
@@ -933,20 +937,6 @@ void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetP
 
 
 /**
- * Adds a @c PacketProcessor to an @c IpfixUdpIpv4Receiver
- * @param ipfixUdpIpv4Receiver IpfixUdpIpv4Receiver to add the packetProcessor to.
- * @param packetProcessor PacketProcessor to be added.
- */
-/*
-void addPacketProcessor(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver, PacketProcessor* packetProcessor) {
-	 int n = ++ipfixUdpIpv4Receiver->processorCount;
-	 ipfixUdpIpv4Receiver->packetProcessor = (PacketProcessor*)realloc(ipfixUdpIpv4Receiver->packetProcessor,
-									   n * sizeof(PacketProcessor));
-	 memcpy(&ipfixUdpIpv4Receiver->packetProcessor[n-1], packetProcessor, sizeof(PacketProcessor));
-         }
-*/
-
-/**
  * TODO: make *blabla*
  */
 int initializeIpfixCollectors() {
@@ -1006,6 +996,9 @@ int setReceiverType(IpfixCollector* ipfixCollector, Receiver_Type rec_type, int 
 	switch (rec_type) {
 	case UDP_IPV4:
 		ipfixCollector->receiver_functions = getUdpIpv4ReceiverFunctions();
+		break;
+	case TCP_IPV4:
+		ipfixCollector->receiver_functions = getTcpIpv4ReceiverFunctions();
 		break;
 	default:
 		ipfixCollector->receiver_type = UNKNOWN;

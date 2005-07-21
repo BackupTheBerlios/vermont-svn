@@ -10,13 +10,137 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <string.h>
+
 
 #define MAX_MSG_LEN	65536
+
+
+/**
+ * TODO: make *blabla*
+ */
+static void addConnectedSocket(IpfixTcpIpv4Receiver* receiver, int socket) {
+	++receiver->connection_count;
+	receiver->connected_sockets = (int*)realloc(receiver->connected_sockets,
+						    receiver->connection_count*sizeof(int));
+	receiver->connected_sockets[receiver->connection_count - 1] = socket;
+}
+
+/**
+ * TODO: make *blabla* 
+ * no range check
+ */
+static int deleteConnectedSocket(IpfixTcpIpv4Receiver* receiver, int* socket) {
+	int* tmp;
+	int c = ((socket - receiver->connected_sockets));
+	int ret = -1;
+	int i;
+
+	if (receiver->connection_count == 0)
+		return ret;
+
+	--receiver->connection_count;
+	tmp = (int*)malloc(receiver->connection_count*sizeof(int));
+
+	memcpy(tmp, receiver->connected_sockets, c+sizeof(int));
+	memcpy(tmp + c, receiver->connected_sockets + c + 1, (receiver->connection_count - c)*sizeof(int));
+
+	free(receiver->connected_sockets);
+	receiver->connected_sockets = tmp;
+
+	for (i = 0; i != receiver->connection_count; ++i) {
+		if (ret < receiver->connected_sockets[i])
+			ret = receiver->connected_sockets[i];
+	}
+
+	return ret;	
+}
 
 /**
  * TODO: make *blabla*
  */
 static void* listenerTcpIpv4(void* tcpReceiver) {
+	IpfixTcpIpv4Receiver* receiver = (IpfixTcpIpv4Receiver*)tcpReceiver;
+	
+
+	struct sockaddr_in clientAddress;
+	socklen_t clientAddressLen = sizeof(struct sockaddr_in);
+	byte* data = (byte*)malloc(sizeof(byte)*MAX_MSG_LEN);
+	int n, i, j;
+	fd_set rfd;
+	int maxFd;
+	int changed_sockets;
+	
+	
+	/* start listening */
+	if (-1 == listen(receiver->listen_socket, 5)) {
+		error("Error on listen");
+		return NULL;
+	}
+
+	maxFd = receiver->listen_socket;
+
+	while(1) {
+		FD_ZERO(&rfd);
+		FD_SET(receiver->listen_socket, &rfd);
+		for (i = 0; i != receiver->connection_count; ++i) {
+			FD_SET(receiver->connected_sockets[i], &rfd);
+		}
+		
+		if (-1 == select(maxFd + 1, &rfd, NULL, NULL, NULL)) {
+			error("Error on select");
+		}
+
+		/* new connection? */
+		if (FD_ISSET(receiver->listen_socket, &rfd)) {
+			int new_socket;
+			debug("New connection attempt");
+			if (-1 == (new_socket = accept(receiver->listen_socket,
+						       (struct sockaddr*)&clientAddress,
+						       &clientAddressLen))){
+				error("Could not accept new connection");
+			}
+
+			if (new_socket > maxFd)
+				maxFd = new_socket;
+
+			pthread_mutex_lock(&receiver->mutex);
+			addConnectedSocket(receiver, new_socket);
+			pthread_mutex_unlock(&receiver->mutex);
+			debug("Established new connection");
+		}
+
+		changed_sockets = 0;
+		debugf("receiver->connection_count == %i", receiver->connection_count);
+		for (i = 0; i != receiver->connection_count && !changed_sockets; ++i) {
+			if (FD_ISSET(receiver->connected_sockets[i], &rfd)) {
+				n = recvfrom(receiver->connected_sockets[i], data, MAX_MSG_LEN, 0,
+					     (struct sockaddr*)&clientAddress, &clientAddressLen);
+				
+				if (n <= 0) {
+					debug("recvfrom returned with no data. Closing the connection");
+					pthread_mutex_lock(&receiver->mutex);
+					close(receiver->connected_sockets[i]);
+					maxFd = deleteConnectedSocket(receiver,
+								      &receiver->connected_sockets[i]);
+					if (maxFd == -1)
+						maxFd = receiver->listen_socket;
+					changed_sockets = 1;
+					pthread_mutex_unlock(&receiver->mutex);
+					break;
+				}
+				
+				pthread_mutex_lock(&receiver->mutex);
+				PacketProcessor* pp = (PacketProcessor*)(receiver->packetProcessor);
+				for (j = 0; j != receiver->processorCount; ++j) 
+					pp[j].processPacketCallbackFunction(pp[j].ipfixParser, data, n);
+				pthread_mutex_unlock(&receiver->mutex);
+			}
+		}
+	}
+
 	return NULL;
 }
 
