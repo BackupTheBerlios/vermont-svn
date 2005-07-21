@@ -588,7 +588,7 @@ static int processIpfixPacket(IpfixParser* ipfixParser, byte* message, uint16_t 
 	IpfixHeader* header = (IpfixHeader*)message;
 
 	if (ntohs(header->length) != length) {
- 		errorf("Bad message length - expected %#06x, got %#06x", length, ntohs(header->length));
+ 		errorf("Bad message length - expected %#06x, got %#06x", ntohs(header->length), length);
 		return -1;
  		}
 

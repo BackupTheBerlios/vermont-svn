@@ -268,8 +268,6 @@ void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser);
 
 void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetProcessor);
 
-//void addPacketProcessor(IpfixUdpIpv4Receiver* ipfixUdpIpv4Receiver, PacketProcessor* packetProcessor);
-
 
 /******************************* Deprecated Interface ***************************************************/
 

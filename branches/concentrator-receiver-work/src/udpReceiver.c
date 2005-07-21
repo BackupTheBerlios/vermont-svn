@@ -32,6 +32,7 @@ static void* listenerUdpIpv4(void* ipfixUdpIpv4Receiver_) {
 		
 		clientAddressLen = sizeof(struct sockaddr_in);
 		n = recvfrom(ipfixUdpIpv4Receiver->socket, data, MAX_MSG_LEN, 0, (struct sockaddr*)&clientAddress, &clientAddressLen);
+		debugf("Received %i bytes", n);
 
 		if (n < 0) {
 			debug("recvfrom returned without data, terminating listener thread");
