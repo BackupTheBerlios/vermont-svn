@@ -89,9 +89,11 @@ static void* listenerTcpIpv4(void* tcpReceiver) {
 			FD_SET(receiver->connected_sockets[i], &rfd);
 		}
 		
+		debug("Entering select");
 		if (-1 == select(maxFd + 1, &rfd, NULL, NULL, NULL)) {
 			error("Error on select");
 		}
+		debug("Leaving select");
 
 		/* new connection? */
 		if (FD_ISSET(receiver->listen_socket, &rfd)) {
@@ -118,7 +120,8 @@ static void* listenerTcpIpv4(void* tcpReceiver) {
 			if (FD_ISSET(receiver->connected_sockets[i], &rfd)) {
 				n = recvfrom(receiver->connected_sockets[i], data, MAX_MSG_LEN, 0,
 					     (struct sockaddr*)&clientAddress, &clientAddressLen);
-				
+				debugf("Received %i bytes", n);
+
 				if (n <= 0) {
 					debug("recvfrom returned with no data. Closing the connection");
 					pthread_mutex_lock(&receiver->mutex);
@@ -134,8 +137,21 @@ static void* listenerTcpIpv4(void* tcpReceiver) {
 				
 				pthread_mutex_lock(&receiver->mutex);
 				PacketProcessor* pp = (PacketProcessor*)(receiver->packetProcessor);
-				for (j = 0; j != receiver->processorCount; ++j) 
-					pp[j].processPacketCallbackFunction(pp[j].ipfixParser, data, n);
+				for (j = 0; j != receiver->processorCount; ++j){
+					byte* data_iter = data;
+					/* FIXME */
+					while (data_iter - data < n) {
+						int len = ntohs(*((uint16_t*)(data_iter+sizeof(uint16_t))));
+						pp[j].processPacketCallbackFunction(pp[j].ipfixParser, data_iter, len);
+						data_iter += len;
+					}
+					if (data_iter - data != n) {
+						errorf("Theres some data remaining: %i bytes", data_iter - data);
+					}
+					if (data_iter - data > n) {
+						errorf("More data passed than has been received: %i bytes", data_iter - data); 
+					}
+				}
 				pthread_mutex_unlock(&receiver->mutex);
 			}
 		}
