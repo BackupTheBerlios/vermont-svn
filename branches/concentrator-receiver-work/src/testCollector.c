@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
 
         int lport=DEFAULT_LISTEN_PORT;
 	int c;
-	int iface = USE_OLD_IFACE;
+	int iface = USE_NEW_IFACE;
 
         signal(SIGINT, sigint);
 
@@ -93,7 +93,7 @@ void start_collector_using_new_interface(int lport) {
 	IpfixPrinter* ipfixPrinter = createIpfixPrinter();
 
 	IpfixCollector* ipfixCollector = createIpfixCollector();	
-	setReceiverType(ipfixCollector, UDP_IPV4, lport);
+	setReceiverType(ipfixCollector, TCP_IPV4, lport);
 	
 	IpfixParser* ipfixParser = createIpfixParser();
 	addIpfixParserCallbacks(ipfixParser, getIpfixPrinterCallbackInfo(ipfixPrinter));

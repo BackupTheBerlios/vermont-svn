@@ -1,0 +1,3 @@
+#!/bin/bash
+./tcp2udp -i udp -e tcp
+

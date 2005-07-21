@@ -16,7 +16,7 @@ else
 LDLIBS += -l pthread 
 endif
 
-TARGETS = testCollector testProxy testAggregator ipfixCollector.a
+TARGETS = testCollector testProxy testAggregator tcp2udp ipfixCollector.a
 
 .PHONY: all clean
 
@@ -38,6 +38,9 @@ testProxy: build/testProxy.o build/printIpfix.o build/sndIpfix.o build/common.o 
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 testCollector: build/testCollector.o build/printIpfix.o build/common.o ipfixCollector.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+tcp2udp: build/tcp2udp.o build/common.o ipfixCollector.a
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 ipfixCollector.a: ipfixCollector.a(build/rcvIpfix.o) ipfixCollector.a(build/udpReceiver.o) ipfixCollector.a(build/tcpReceiver.o) ipfixCollector.a(build/templateBuffer.o) ipfixCollector.a(build/common.o) ipfixCollector.a(build/ipfix.o)
