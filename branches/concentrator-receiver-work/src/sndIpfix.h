@@ -4,6 +4,10 @@
 #include <pthread.h>
 #include "rcvIpfix.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /***** Constants ************************************************************/
 
 /**
@@ -34,5 +38,11 @@ int sndDestroyDataTemplate(void* ipfixSender, SourceID sourceID, DataTemplateInf
 int sndDataDataRecord(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
 CallbackInfo getIpfixSenderCallbackInfo(IpfixSender* ipfixSender);
+
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif

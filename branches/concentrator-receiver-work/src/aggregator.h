@@ -6,6 +6,10 @@
 #include "hashing.h"
 #include <pthread.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /***** Constants ************************************************************/
 
 /***** Typedefs *************************************************************/
@@ -38,5 +42,11 @@ void pollAggregator(IpfixAggregator* ipfixAggregator);
 void addAggregatorCallbacks(IpfixAggregator* ipfixAggregator, CallbackInfo handles);
 
 CallbackInfo getAggregatorCallbackInfo(IpfixAggregator* ipfixAggregator);
+
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif

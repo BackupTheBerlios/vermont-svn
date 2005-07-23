@@ -6,6 +6,10 @@
 #include <pthread.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /***** Constants ************************************************************/
 
 
@@ -247,7 +251,7 @@ int stopIpfixCollector(IpfixCollector*);
 /* ---------------------------------------------- Processor --------------------------------------- */
 
 PacketProcessor* createPacketProcessor();
-void destroyPacketProcessor();
+void destroyPacketProcessor(PacketProcessor* packetProcessor);
 
 /* --------------------------------------- Parser && Parsing Stuff  ------------------------------- */
 
@@ -285,6 +289,11 @@ int startIpfixReceiver(IpfixReceiver* ipfixReceiver);
 int stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
 void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif

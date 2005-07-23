@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef uint8_t byte;
 
 /**
@@ -32,6 +36,11 @@ typedef struct {
 	HasPacketProcessor* hasPacketProcessor;
 
         } Receiver_Functions;
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif

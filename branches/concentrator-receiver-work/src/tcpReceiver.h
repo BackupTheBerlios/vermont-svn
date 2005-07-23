@@ -6,6 +6,10 @@
 #include <pthread.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * TODO: make *blabla*
  */
@@ -24,5 +28,10 @@ typedef struct {
         } IpfixTcpIpv4Receiver;
 
 Receiver_Functions getTcpIpv4ReceiverFunctions();
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

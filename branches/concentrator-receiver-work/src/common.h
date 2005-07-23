@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include "ipfix.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define debugf(message, ...) fprintf(stderr, "[DEBUG] %s l.%d: " message "\n", \
 	__FILE__, __LINE__, __VA_ARGS__)
 
@@ -31,5 +35,11 @@
 
 uint64_t ntohll(uint64_t i);
 uint64_t htonll(uint64_t i);
+
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif
