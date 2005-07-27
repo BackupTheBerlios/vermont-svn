@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#include <stdio.h>
+
 /***** Constants ************************************************************/
 
 /**
@@ -15,6 +17,7 @@ extern "C" {
  */
 typedef struct {
 	void* lastTemplate;
+	FILE* stream;
 	} IpfixPrinter;
 
 /***** Prototypes ***********************************************************/
@@ -27,6 +30,8 @@ void destroyIpfixPrinter(IpfixPrinter* ipfixPrinter);
 
 void startIpfixPrinter(IpfixPrinter* ipfixPrinter);
 void stopIpfixPrinter(IpfixPrinter* ipfixPrinter);
+
+void setIpfixPrinterStream(IpfixPrinter* ipfixPrinter, FILE* stream);
 
 int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 int printDataDataRecord(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);

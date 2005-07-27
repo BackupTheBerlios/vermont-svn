@@ -301,6 +301,8 @@ IpfixPrinter* createIpfixPrinter() {
 	IpfixPrinter* ipfixPrinter = (IpfixPrinter*)malloc(sizeof(IpfixPrinter));
 	ipfixPrinter->lastTemplate = 0;	
 
+	ipfixPrinter->stream = stdout;
+
 	return ipfixPrinter;
 	}
 
@@ -329,6 +331,15 @@ void stopIpfixPrinter(IpfixPrinter* ipfixPrinter) {
 	}
 
 /**
+ * Assignes stream to ipfixPrinter
+ * @param ipfixPrinter handle obtained by calling @c createIpfixPrinter()
+ * @param stream will be assigned to ipfixprinter
+ */
+void setIpfixPrinterStream(IpfixPrinter* ipfixPrinter, FILE* stream) {
+	ipfixPrinter->stream = stream;
+	}
+
+/**
  * Prints a Template
  * @param ipfixPrinter handle obtained by calling @c createIpfixPrinter()
  * @param sourceID SourceID of the exporting process
@@ -341,11 +352,11 @@ int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateI
 	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
 	myIpfixPrinter->lastTemplate = templateInfo;
 
-	printf("\n\n");
+	fprintf(myIpfixPrinter->stream, "\n\n");
 
 	int lineLen = 0;
 	for (i = 0; i < templateInfo->fieldCount; i++) {
-		if (i > 0) { printf("|"); lineLen++; }
+		if (i > 0) { fprintf(myIpfixPrinter->stream, "|"); lineLen++; }
 		FieldType ftype = templateInfo->fieldInfo[i].type;
 		int flen = fieldTypeToStringLength(ftype); lineLen+=flen;
 
@@ -354,13 +365,13 @@ int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateI
 			continue;
 			}
 
-		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
-		printf("%s", buf);
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) fprintf(myIpfixPrinter->stream, " ");
+		fprintf(myIpfixPrinter->stream, "%s", buf);
 		}
-	printf("\n");
+	fprintf(myIpfixPrinter->stream, "\n");
 
-	for (j = 0; j < lineLen; j++) printf("=");
-	printf("\n");
+	for (j = 0; j < lineLen; j++) fprintf(myIpfixPrinter->stream, "=");
+	fprintf(myIpfixPrinter->stream, "\n");
 
 	return 0;
 	}
@@ -371,8 +382,9 @@ int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateI
  * @param sourceID SourceID of the exporting process
  * @param templateInfo Pointer to a structure defining the Template used
  */
-int printTemplateDestruction(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateInfo) {
-	printf("\n\nDestroyed a Template\n");
+int printTemplateDestruction(void* ipfixPrinter_, SourceID sourceID, TemplateInfo* templateInfo) {
+	IpfixPrinter* ipfixPrinter = ipfixPrinter_;
+	fprintf(ipfixPrinter->stream, "\n\nDestroyed a Template\n");
 
 	return 0;
 	}
@@ -395,7 +407,7 @@ int printDataRecord(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templat
 		}
 
 	for (i = 0; i < templateInfo->fieldCount; i++) {
-		if (i > 0) printf("|");
+		if (i > 0) fprintf(myIpfixPrinter->stream, "|");
 		FieldType ftype = templateInfo->fieldInfo[i].type;
 		FieldData* fdata = data + templateInfo->fieldInfo[i].offset;
 		int flen = fieldTypeToStringLength(ftype);
@@ -406,10 +418,10 @@ int printDataRecord(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templat
 			}
 
 		int j;
-		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
-		printf("%s", buf);
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) fprintf(myIpfixPrinter->stream, " ");
+		fprintf(myIpfixPrinter->stream, "%s", buf);
 		}
-	printf("\n");
+	fprintf(myIpfixPrinter->stream, "\n");
 
 	return 0;
 	}
@@ -420,8 +432,9 @@ int printDataRecord(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templat
  * @param sourceID SourceID of the exporting process
  * @param optionsTemplateInfo Pointer to a structure defining the OptionsTemplate used
  */
-int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) {
-	printf("\n\nGot an OptionsTemplate\n");
+int printOptionsTemplate(void* ipfixPrinter_, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) {
+	IpfixPrinter* ipfixPrinter = (IpfixPrinter*)ipfixPrinter_;
+	fprintf(ipfixPrinter->stream, "\n\nGot an OptionsTemplate\n");
 
 	return 0;
 	}
@@ -432,8 +445,9 @@ int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateI
  * @param sourceID SourceID of the exporting process
  * @param optionsTemplateInfo Pointer to a structure defining the OptionsTemplate used
  */
-int printOptionsTemplateDestruction(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) {
-	printf("\n\nDestroyed an OptionsTemplate\n");
+int printOptionsTemplateDestruction(void* ipfixPrinter_, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) {
+	IpfixPrinter* ipfixPrinter = (IpfixPrinter*)ipfixPrinter_;
+	fprintf(ipfixPrinter->stream, "\n\nDestroyed an OptionsTemplate\n");
 
 	return 0;
 	}
@@ -446,8 +460,9 @@ int printOptionsTemplateDestruction(void* ipfixPrinter, SourceID sourceID, Optio
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int printOptionsRecord(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data) {
-	printf("\n\nGot an OptionsDataRecord\n");
+int printOptionsRecord(void* ipfixPrinter_, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data) {
+	IpfixPrinter* ipfixPrinter = (IpfixPrinter*)ipfixPrinter_;
+	fprintf(ipfixPrinter->stream, "\n\nGot an OptionsDataRecord\n");
 
 	return 0;
 	}
@@ -458,19 +473,19 @@ int printOptionsRecord(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInf
  * @param sourceID SourceID of the exporting process
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
+int printDataTemplate(void* ipfixPrinter_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
 	int i;
 	int j;
 	int lineLen;
 	char buf[40];
-	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
+	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter_;
 	myIpfixPrinter->lastTemplate = dataTemplateInfo;
 
-	printf("\n\n");
+	fprintf(myIpfixPrinter->stream, "\n\n");
 
 	lineLen = 0;
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
-		if (i > 0) { printf("|"); lineLen++; }
+		if (i > 0) { fprintf(myIpfixPrinter->stream, "|"); lineLen++; }
 		FieldType ftype = dataTemplateInfo->dataInfo[i].type;
 		int flen = fieldTypeToStringLength(ftype); lineLen+=flen;
 
@@ -479,16 +494,16 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 			continue;
 			}
 
-		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
-		printf("%s", buf);
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) fprintf(myIpfixPrinter->stream, " ");
+		fprintf(myIpfixPrinter->stream, "%s", buf);
 		}
-	printf("\n");
+	fprintf(myIpfixPrinter->stream, "\n");
 
-	for (j = 0; j < lineLen; j++) printf("-");
-	printf("\n");
+	for (j = 0; j < lineLen; j++) fprintf(myIpfixPrinter->stream, "-");
+	fprintf(myIpfixPrinter->stream, "\n");
 
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
-		if (i > 0) printf("|");
+		if (i > 0) fprintf(myIpfixPrinter->stream, "|");
 		FieldType ftype = dataTemplateInfo->dataInfo[i].type;
 		FieldData* fdata = dataTemplateInfo->data + dataTemplateInfo->dataInfo[i].offset;
 		int flen = fieldTypeToStringLength(ftype);
@@ -499,16 +514,16 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 			}
 
 		int j;
-		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
-		printf("%s", buf);
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) fprintf(myIpfixPrinter->stream, " ");
+		fprintf(myIpfixPrinter->stream, "%s", buf);
 		}
-	printf("\n");
+	fprintf(myIpfixPrinter->stream, "\n");
 
-	printf("\n");
+	fprintf(myIpfixPrinter->stream, "\n");
 
 	lineLen = 0;
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
-		if (i > 0) { printf("|"); lineLen++; }
+		if (i > 0) { fprintf(myIpfixPrinter->stream, "|"); lineLen++; }
 		FieldType ftype = dataTemplateInfo->fieldInfo[i].type;
 		int flen = fieldTypeToStringLength(ftype); lineLen+=flen;
 
@@ -517,13 +532,13 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 			continue;
 			}
 
-		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
-		printf("%s", buf);
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) fprintf(myIpfixPrinter->stream, " ");
+		fprintf(myIpfixPrinter->stream, "%s", buf);
 		}
-	printf("\n");
+	fprintf(myIpfixPrinter->stream, "\n");
 
-	for (j = 0; j < lineLen; j++) printf("=");
-	printf("\n");
+	for (j = 0; j < lineLen; j++) fprintf(myIpfixPrinter->stream, "=");
+	fprintf(myIpfixPrinter->stream, "\n");
 
 	return 0;
 	}
@@ -534,8 +549,9 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
  * @param sourceID SourceID of the exporting process
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int printDataTemplateDestruction(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
-	printf("\n\nDestroyed a DataTemplate\n");
+int printDataTemplateDestruction(void* ipfixPrinter_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
+	IpfixPrinter* ipfixPrinter = (IpfixPrinter*)ipfixPrinter_;
+	fprintf(ipfixPrinter->stream, "\n\nDestroyed a DataTemplate\n");
 
 	return 0;
 	}
@@ -548,18 +564,18 @@ int printDataTemplateDestruction(void* ipfixPrinter, SourceID sourceID, DataTemp
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int printDataDataRecord(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
+int printDataDataRecord(void* ipfixPrinter_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
 	int i;
 	char buf[40];
-	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter;
+	IpfixPrinter* myIpfixPrinter = (IpfixPrinter*)ipfixPrinter_;
 
 	if (myIpfixPrinter->lastTemplate != dataTemplateInfo) {
-		printf("\n");
-		printDataTemplate(ipfixPrinter, sourceID, dataTemplateInfo);
+		fprintf(myIpfixPrinter->stream, "\n");
+		printDataTemplate(myIpfixPrinter, sourceID, dataTemplateInfo);
 		}
 
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
-		if (i > 0) printf("|");
+		if (i > 0) fprintf(myIpfixPrinter->stream, "|");
 		FieldType ftype = dataTemplateInfo->fieldInfo[i].type;
 		FieldData* fdata = data + dataTemplateInfo->fieldInfo[i].offset;
 		int flen = fieldTypeToStringLength(ftype);
@@ -570,10 +586,10 @@ int printDataDataRecord(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo*
 			}
 
 		int j;
-		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) printf(" ");
-		printf("%s", buf);
+		if (strlen(buf) < flen) for (j = 0; j < flen-strlen(buf); j++) fprintf(myIpfixPrinter->stream, " ");
+		fprintf(myIpfixPrinter->stream, "%s", buf);
 		}
-	printf("\n");
+	fprintf(myIpfixPrinter->stream, "\n");
 
 	return 0;
 	}
