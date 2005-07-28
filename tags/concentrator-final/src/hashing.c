@@ -67,10 +67,19 @@ HashBucket* createBucket(Hashtable* ht, FieldData* data) {
  */
 void exportBucket(Hashtable* ht, HashBucket* bucket) {
 	/* Pass Data Record to exporter interface */
+
 	int n;		
-	for (n = 0; n < ht->callbackCount; n++) {
-		CallbackInfo* ci = &ht->callbackInfo[n];
-		if (ci->dataDataRecordCallbackFunction) ci->dataDataRecordCallbackFunction(ci->handle, 0, ht->dataTemplate, ht->fieldLength, bucket->data);
+
+	if (!ht->template) {
+		for (n = 0; n < ht->callbackCount; n++) {
+			CallbackInfo* ci = &ht->callbackInfo[n];
+			if (ci->dataDataRecordCallbackFunction) ci->dataDataRecordCallbackFunction(ci->handle, 0, ht->dataTemplate, ht->fieldLength, bucket->data);
+			}
+		} else {
+		for (n = 0; n < ht->callbackCount; n++) {
+			CallbackInfo* ci = &ht->callbackInfo[n];
+			if (ci->dataRecordCallbackFunction) ci->dataRecordCallbackFunction(ci->handle, 0, ht->template, ht->fieldLength, bucket->data);
+			}
 		}
 	}
 
@@ -136,6 +145,15 @@ Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBuffe
 			}
 			
 		}
+
+	/* If we do not have any fixed fields, fill ht->template */
+	ht->template = 0;
+	if (ht->dataTemplate->dataCount == 0) {
+		ht->template = (TemplateInfo*)malloc(sizeof(TemplateInfo));
+		ht->template->fieldCount = ht->dataTemplate->fieldCount;
+		ht->template->fieldInfo = ht->dataTemplate->fieldInfo;
+		ht->template->userData = ht->dataTemplate->userData;
+		}
 	
 	/* Informing the Exporter of a new Data Template is done when adding the callback functions */
 	
@@ -160,9 +178,16 @@ void destroyHashtable(Hashtable* ht) {
 
 	/* Inform Exporter of Data Template destruction */
 	int n;		
-	for (n = 0; n < ht->callbackCount; n++) {
-		CallbackInfo* ci = &ht->callbackInfo[n];
-		if (ci->dataTemplateDestructionCallbackFunction) ci->dataTemplateDestructionCallbackFunction(ci->handle, 0, ht->dataTemplate);
+	if (!ht->template) {
+		for (n = 0; n < ht->callbackCount; n++) {
+			CallbackInfo* ci = &ht->callbackInfo[n];
+			if (ci->dataTemplateDestructionCallbackFunction) ci->dataTemplateDestructionCallbackFunction(ci->handle, 0, ht->dataTemplate);
+			}
+		} else {
+		for (n = 0; n < ht->callbackCount; n++) {
+			CallbackInfo* ci = &ht->callbackInfo[n];
+			if (ci->templateDestructionCallbackFunction) ci->templateDestructionCallbackFunction(ci->handle, 0, ht->template);
+			}
 		}
 			
 	free(ht->dataTemplate->fieldInfo);
@@ -170,6 +195,7 @@ void destroyHashtable(Hashtable* ht) {
 	free(ht->dataTemplate->dataInfo);
 	free(ht->dataTemplate->data);
 	free(ht->dataTemplate);
+	if (ht->template) free(ht->template);
 	free(ht);
 	}
 	
@@ -701,8 +727,15 @@ void hashingAddCallbacks(Hashtable* ht, CallbackInfo handles) {
 
 	/* Immediately pass the Hashtable's DataTemplate to the new Callback receiver */
 	int n;		
-	for (n = 0; n < ht->callbackCount; n++) {
-		CallbackInfo* ci = &ht->callbackInfo[n];
-		if (ci->dataTemplateCallbackFunction) ci->dataTemplateCallbackFunction(ci->handle, 0, ht->dataTemplate);
+	if (!ht->template) {
+		for (n = 0; n < ht->callbackCount; n++) {
+			CallbackInfo* ci = &ht->callbackInfo[n];
+			if (ci->dataTemplateCallbackFunction) ci->dataTemplateCallbackFunction(ci->handle, 0, ht->dataTemplate);
+			}
+		} else {
+		for (n = 0; n < ht->callbackCount; n++) {
+			CallbackInfo* ci = &ht->callbackInfo[n];
+			if (ci->templateCallbackFunction) ci->templateCallbackFunction(ci->handle, 0, ht->template);
+			}
 		}
 	}
