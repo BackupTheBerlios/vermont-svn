@@ -33,8 +33,7 @@ typedef struct {
 	int bucketCount;                     /**< size of this hashtable (must be HASHTABLE_SIZE) */
 	HashBucket* bucket[HASHTABLE_SIZE];  /**< array of pointers to hash buckets at start of spill chain. Members are NULL where no entry present */
 	
-	DataTemplateInfo* dataTemplate;      /**< structure describing both variable and fixed fields and containing fixed data. */
-	TemplateInfo* template;              /**< additional structure describing variable fields if there are no fixed fields. NULL if there are fixed fields */
+	DataTemplateInfo* dataTemplate;      /**< structure describing both variable and fixed fields and containing fixed data */
 	uint16_t fieldLength;                /**< length in bytes of all variable-length fields */
 	FieldModifier* fieldModifier;        /**< specifies what modifier to apply to a given field */
 
