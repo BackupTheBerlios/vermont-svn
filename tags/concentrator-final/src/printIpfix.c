@@ -342,6 +342,7 @@ int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateI
 	myIpfixPrinter->lastTemplate = templateInfo;
 
 	printf("\n\n");
+	printf("Template:\n");
 
 	int lineLen = 0;
 	for (i = 0; i < templateInfo->fieldCount; i++) {
@@ -428,6 +429,7 @@ int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateI
 	myIpfixPrinter->lastTemplate = optionsTemplateInfo;
 
 	printf("\n\n");
+	printf("Options Template:\n");
 
 	int lineLen = 0;
 	for (i = 0; i < optionsTemplateInfo->scopeCount; i++) {
@@ -545,6 +547,7 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 	myIpfixPrinter->lastTemplate = dataTemplateInfo;
 
 	printf("\n\n");
+	printf("Data Template:\n");
 
 	lineLen = 0;
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
