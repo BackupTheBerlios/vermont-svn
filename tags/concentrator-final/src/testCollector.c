@@ -19,12 +19,16 @@ void sigint() {
 
 int main(int argc, char *argv[]) {
 
-        int lport=DEFAULT_LISTEN_PORT;
+        int lport = DEFAULT_LISTEN_PORT;
+        char* lhost = 0;
 
         signal(SIGINT, sigint);
 
         if(argv[1]) {
-                lport=atoi(argv[1]);
+        	lhost=argv[1]; 
+        	}
+        if(argv[2]) {
+                lport=atoi(argv[2]);
         }
 
 	initializeIpfixPrinters();
@@ -34,7 +38,7 @@ int main(int argc, char *argv[]) {
 	IpfixPrinter* ipfixPrinter = createIpfixPrinter();
 	startIpfixPrinter(ipfixPrinter);
 
-	IpfixReceiver* ipfixReceiver = createIpfixReceiver(lport);
+	IpfixReceiver* ipfixReceiver = createIpfixReceiver(lhost, lport);
 	addIpfixReceiverCallbacks(ipfixReceiver, getIpfixPrinterCallbackInfo(ipfixPrinter));
 	startIpfixReceiver(ipfixReceiver);
 

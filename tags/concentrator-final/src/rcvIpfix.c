@@ -891,10 +891,11 @@ void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handle
 /**
  * Creates a new IpfixReceiver.
  * Call @c startIpfixReceiver() to start processing messages.
+ * @param host Host to bind socket for, NULL for INADDR_ANY
  * @param port Port to listen on
  * @return handle for further interaction
  */
-IpfixReceiver* createIpfixReceiver(uint16_t port) {
+IpfixReceiver* createIpfixReceiver(char* host, uint16_t port) {
 	IpfixReceiver* ipfixReceiver;
 	struct sockaddr_in serverAddress;
 	
@@ -928,7 +929,11 @@ IpfixReceiver* createIpfixReceiver(uint16_t port) {
 		}
 
 	serverAddress.sin_family = AF_INET;
-	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+	if (host) {
+		serverAddress.sin_addr.s_addr = inet_addr(host);
+		} else {
+		serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);	
+		}
 	serverAddress.sin_port = htons(port);
 	if(bind(ipfixReceiver->socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in)) < 0) {
 		perror("Could not bind socket");

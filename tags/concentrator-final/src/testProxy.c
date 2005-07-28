@@ -24,21 +24,23 @@ void sigint() {
 
 int main(int argc, char* argv[]) {
 
+	char* lip = 0;
         int lport = DEFAULT_LISTEN_PORT;
         char* tip = DEFAULT_TALK_IP;
         int tport = DEFAULT_TALK_PORT;
 
         signal(SIGINT, sigint);
 
-        if (argc > 1) lport=atoi(argv[1]);
-        if (argc > 2) tip=argv[2];
-        if (argc > 3) tport=atoi(argv[3]);
+        if (argc > 1) lip=argv[1];
+        if (argc > 2) lport=atoi(argv[2]);
+        if (argc > 3) tip=argv[3];
+        if (argc > 4) tport=atoi(argv[4]);
 
 	initializeIpfixReceivers();
 	initializeIpfixPrinters();
 	initializeIpfixSenders();
 
-	IpfixReceiver* ipfixReceiver = createIpfixReceiver(lport);
+	IpfixReceiver* ipfixReceiver = createIpfixReceiver(lip, lport);
 	IpfixPrinter* ipfixPrinter = createIpfixPrinter();
 	IpfixSender* ipfixSender = createIpfixSender(DEFAULT_SOURCE_ID, tip, tport);
 

@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
 	startAggregator(ipfixAggregator);
 			
 	debug("starting collector");
-	IpfixReceiver* ipfixReceiver = createIpfixReceiver(1500);
+	IpfixReceiver* ipfixReceiver = createIpfixReceiver(0, 1500);
 	addIpfixReceiverCallbacks(ipfixReceiver, getAggregatorCallbackInfo(ipfixAggregator));
 	startIpfixReceiver(ipfixReceiver);
 

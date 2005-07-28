@@ -206,7 +206,7 @@ FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type);
 FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type);
 FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
 
-IpfixReceiver* createIpfixReceiver(uint16_t port);
+IpfixReceiver* createIpfixReceiver(char* host, uint16_t port);
 void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
 int startIpfixReceiver(IpfixReceiver* ipfixReceiver);
