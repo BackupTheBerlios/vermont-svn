@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
 	addIpfixReceiverCallbacks(ipfixReceiver, getIpfixPrinterCallbackInfo(ipfixPrinter));
 	startIpfixReceiver(ipfixReceiver);
 
-	debugf("Listening on Port %d. Hit Ctrl+C to quit", lport);
+	debugf("Listening on %s:%d. Hit Ctrl+C to quit", lhost, lport);
 	pause();
 	debug("Stopping threads and tidying up.");
 	
