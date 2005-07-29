@@ -156,6 +156,11 @@ static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, 
 	byte* record = (byte*)&th->data;
 	/* TemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		if (th->fieldCount == 0) {
+			/* This is a Template withdrawal message */
+			destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
+			continue;
+			}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
 		TemplateInfo* ti = (TemplateInfo*)malloc(sizeof(TemplateInfo));
 		bt->sourceID = sourceId;
@@ -208,6 +213,11 @@ static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sou
 	byte* record = (byte*)&th->data;
 	/* OptionsTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		if (th->fieldCount == 0) {
+			/* This is a Template withdrawal message */
+			destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
+			continue;
+			}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
 		OptionsTemplateInfo* ti = (OptionsTemplateInfo*)malloc(sizeof(OptionsTemplateInfo));
 		bt->sourceID = sourceId;
@@ -278,6 +288,11 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 
 	/* DataTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		if (th->fieldCount == 0) {
+			/* This is a Template withdrawal message */
+			destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
+			continue;
+			}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
 		DataTemplateInfo* ti = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
 		bt->sourceID = sourceId;
