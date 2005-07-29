@@ -121,7 +121,7 @@ typedef struct {
 	uint16_t templateId;
 	uint16_t fieldCount;
 	uint16_t dataCount;
-	uint16_t reserved;
+	uint16_t precedingRule;
 	byte data;
 	} IpfixDataTemplateHeader;
 
@@ -304,6 +304,7 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 		bt->dataTemplateInfo = ti;
 		ti->userData = 0;
 		ti->templateId = ntohs(th->templateId);
+		ti->precedingRule = ntohs(th->precedingRule);
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->dataCount = ntohs(th->dataCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));

@@ -62,6 +62,7 @@ typedef struct {
  */
 typedef struct {
 	uint16_t   templateId;    /**< the template id assigned to this template or 0 if we don't know or don't care */
+	uint16_t   precedingRule; /**< the preceding rule field as defined in the draft */
 	uint16_t   fieldCount;    /**< number of regular fields */
 	FieldInfo* fieldInfo;     /**< array of FieldInfos describing each of these fields */
 	uint16_t   dataCount;     /**< number of fixed-value fields */

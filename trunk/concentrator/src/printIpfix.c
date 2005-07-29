@@ -547,7 +547,7 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 	myIpfixPrinter->lastTemplate = dataTemplateInfo;
 
 	printf("\n\n");
-	printf("Data Template #%u:\n", dataTemplateInfo->templateId);
+	printf("Data Template #%u (preceding Template #%u):\n", dataTemplateInfo->templateId, dataTemplateInfo->precedingRule);
 
 	lineLen = 0;
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
