@@ -16,7 +16,7 @@ else
 LDLIBS += -l pthread 
 endif
 
-TARGETS = testCollector testProxy testAggregator tcp2udp ipfixCollector.a
+TARGETS = testCollector testProxy testAggregator converter ipfixCollector.a
 
 .PHONY: all clean
 
@@ -29,7 +29,7 @@ build/%.o: src/%.c src/%.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 clean:
-	rm -f $(TARGETS) gmon.out build/* ipfixlolib/*.o ipfixlolib/libipfixlo.a
+	rm -f $(TARGETS) gmon.out build/* ipfixlolib/*.o ipfixlolib/libipfixlo.a src/*~
 
 testAggregator: build/testAggregator.o build/aggregator.o build/rules.o build/common.o build/ipfix.o build/crc16.o build/hashing.o build/sndIpfix.o build/printIpfix.o ipfixCollector.a ipfixlolib/libipfixlo.a
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -40,7 +40,7 @@ testProxy: build/testProxy.o build/printIpfix.o build/sndIpfix.o build/common.o 
 testCollector: build/testCollector.o build/printIpfix.o build/common.o ipfixCollector.a
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-tcp2udp: build/tcp2udp.o build/common.o ipfixCollector.a
+converter: build/converter.o build/common.o ipfixCollector.a
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 ipfixCollector.a: ipfixCollector.a(build/rcvIpfix.o) ipfixCollector.a(build/udpReceiver.o) ipfixCollector.a(build/tcpReceiver.o) ipfixCollector.a(build/templateBuffer.o) ipfixCollector.a(build/common.o) ipfixCollector.a(build/ipfix.o)
