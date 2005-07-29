@@ -10,13 +10,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef enum { UDP, TCP } socket_type;
+typedef enum { UNSPEC, UDP, TCP } socket_type;
 
 #define DEFAULT_LISTEN_PORT 1501
-#define DEFAULT_IMPORT_TYPE TCP
+#define DEFAULT_IMPORT_TYPE UDP
 
 #define DEFAULT_EXPORT_PORT 1501
-#define DEFAULT_EXPORT_TYPE UDP
+#define DEFAULT_EXPORT_TYPE TCP
+
+#define DEFAULT_FROM "127.0.0.1"
+#define DEFAULT_TO   "127.0.0.1"
 
 
 int export_socket;
@@ -30,7 +33,7 @@ int export_packet(IpfixParser* ipfixParser, byte* message, uint16_t len) {
 }
 
 void usage(char* progname) {
-	fprintf(stderr, "%s: [-i tcp|udp ] [-e tcp|udp]\n", progname);
+	fprintf(stderr, "%s: [ <from proto> [ <to proto> [ <from port> [ <to port> [ <from server> [ <to server> ] ] ] ] ] ]", progname);
 }
 
 int main(int argc, char** argv) {
@@ -40,36 +43,35 @@ int main(int argc, char** argv) {
 	socket_type import_type = DEFAULT_IMPORT_TYPE;
 	socket_type export_type = DEFAULT_EXPORT_TYPE;
 
-	int c;
+	char* from_host = DEFAULT_FROM;
+	char* to_host   = DEFAULT_TO;
+
 
 	struct sockaddr_in servaddr;
 
-	while (-1 != (c = getopt(argc, argv, "i:e:"))) {
-		switch (c) {
-		case 'i':
-			if (strcmp("tcp", optarg) == 0){
-				import_type = TCP;
-				break;
-			}
-			if (strcmp("udp", optarg) == 0){
-				import_type = UDP;
-				break;
-			}
-			usage(argv[0]);
-			exit(1);
-		case 'e':
-			if (strcmp("tcp", optarg) == 0) {
-				export_type = TCP;
-				break;
-			}
-			if (strcmp("udp", optarg) == 0) {
-				export_type = UDP;
-				break;
-			}
-			usage(argv[0]);
-			exit(1);
+	if (argc > 1) {
+		if (!strcmp("udp", argv[1])) {
+			import_type = UDP;
+		} else if (!strcmp("tcp", argv[1])) {
+			import_type = TCP;
 		}
 	}
+	if (argc > 2) {
+		if (!strcmp("udp", argv[2])) {
+			export_type = UDP;
+		} else if (!strcmp("tcp", argv[2])) {
+			export_type = TCP;
+		}
+	}
+
+	if (argc > 3) 
+		lport = atoi(argv[3]);
+	if (argc > 4) 
+		eport = atoi(argv[4]);
+	if (argc > 5)
+		from_host = argv[5];
+	if (argc > 6)
+		to_host = argv[6];
 
 	signal(SIGINT, sig_int);
 
@@ -96,7 +98,10 @@ int main(int argc, char** argv) {
 
 	memset(&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	if (!inet_aton(from_host, &servaddr.sin_addr)) {
+		error("Error translating source host");
+		exit(1);
+	}
 	servaddr.sin_port = htons(eport);
 
 	if (-1 == connect(export_socket, (struct sockaddr*)&servaddr,
@@ -125,12 +130,12 @@ int main(int argc, char** argv) {
 
 	PacketProcessor* packetProcessor = createPacketProcessor();
 	packetProcessor->processPacketCallbackFunction = export_packet;
-
+	
 	addPacketProcessor(ipfixCollector, packetProcessor);
-
+	
 	startIpfixCollector(ipfixCollector);
 
-	debugf("Listening on port %i, exporting to port %i", lport, eport);
+	debugf("Listening on %s:%i, exporting to %s:%i", import_type==TCP?"TCP":"UDP", lport, export_type==TCP?"TCP":"UDP", eport);
 	pause();
 	debug("Cleaning up");
 
