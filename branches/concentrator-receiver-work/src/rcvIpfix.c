@@ -245,7 +245,7 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceI
 			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
 			if (ti->fieldInfo[fieldNo].type.length == 65535) isLengthVarying=1;
-			if (ti->fieldInfo[fieldNo].type.id & 0x80) {
+			if (ti->fieldInfo[fieldNo].type.id & 0x8000) {
 				ti->fieldInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
 				} else {
