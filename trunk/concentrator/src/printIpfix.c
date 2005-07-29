@@ -342,7 +342,7 @@ int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateI
 	myIpfixPrinter->lastTemplate = templateInfo;
 
 	printf("\n\n");
-	printf("Template:\n");
+	printf("Template #%u:\n", templateInfo->templateId);
 
 	int lineLen = 0;
 	for (i = 0; i < templateInfo->fieldCount; i++) {
@@ -373,7 +373,7 @@ int printTemplate(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateI
  * @param templateInfo Pointer to a structure defining the Template used
  */
 int printTemplateDestruction(void* ipfixPrinter, SourceID sourceID, TemplateInfo* templateInfo) {
-	printf("\n\nDestroyed a Template\n");
+	printf("\n\nDestroyed Template #%u:\n", templateInfo->templateId);
 
 	return 0;
 	}
@@ -429,7 +429,7 @@ int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateI
 	myIpfixPrinter->lastTemplate = optionsTemplateInfo;
 
 	printf("\n\n");
-	printf("Options Template:\n");
+	printf("Options Template #%u:\n", optionsTemplateInfo->templateId);
 
 	int lineLen = 0;
 	for (i = 0; i < optionsTemplateInfo->scopeCount; i++) {
@@ -474,7 +474,7 @@ int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateI
  * @param optionsTemplateInfo Pointer to a structure defining the OptionsTemplate used
  */
 int printOptionsTemplateDestruction(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) {
-	printf("\n\nDestroyed an OptionsTemplate\n");
+	printf("\n\nDestroyed OptionsTemplate #%u:\n", optionsTemplateInfo->templateId);
 
 	return 0;
 	}
@@ -547,7 +547,7 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 	myIpfixPrinter->lastTemplate = dataTemplateInfo;
 
 	printf("\n\n");
-	printf("Data Template:\n");
+	printf("Data Template #%u:\n", dataTemplateInfo->templateId);
 
 	lineLen = 0;
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
@@ -616,7 +616,7 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printDataTemplateDestruction(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
-	printf("\n\nDestroyed a DataTemplate\n");
+	printf("\n\nDestroyed DataTemplate #%u:\n", dataTemplateInfo->templateId);
 
 	return 0;
 	}

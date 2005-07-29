@@ -169,6 +169,7 @@ static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, 
 		bt->setID = ntohs(set->id);
 		bt->templateInfo = ti;
 		ti->userData = 0;
+		ti->templateId = ntohs(th->templateId);
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
 		int isLengthVarying = 0;
@@ -226,6 +227,7 @@ static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sou
 		bt->setID = ntohs(set->id);
 		bt->optionsTemplateInfo = ti;
 		ti->userData = 0;
+		ti->templateId = ntohs(th->templateId);
 		ti->scopeCount = ntohs(th->scopeCount);
 		ti->scopeInfo = (FieldInfo*)malloc(ti->scopeCount * sizeof(FieldInfo));
 		ti->fieldCount = ntohs(th->fieldCount)-ntohs(th->scopeCount);
@@ -301,6 +303,7 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 		bt->setID = ntohs(set->id);
 		bt->dataTemplateInfo = ti;
 		ti->userData = 0;
+		ti->templateId = ntohs(th->templateId);
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->dataCount = ntohs(th->dataCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));

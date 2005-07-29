@@ -99,6 +99,7 @@ Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBuffe
 	for (i = 0; i < ht->bucketCount; i++) ht->bucket[i] = NULL;
 	
 	ht->dataTemplate = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
+	ht->dataTemplate->templateId = 0; /**< 0 means we don't care */
 	ht->dataTemplate->fieldCount = 0;
 	ht->dataTemplate->fieldInfo = NULL;
 	ht->fieldLength = 0;
