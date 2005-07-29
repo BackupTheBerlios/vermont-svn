@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <string.h>
 
 #define MAX_MSG_LEN	65536
 
@@ -39,6 +40,19 @@ static void* listenerUdpIpv4(void* ipfixUdpIpv4Receiver_) {
 			break;
 			}
 		
+		/* if we have a list of authorized hosts, discard message if sender is not in this list */
+		if (ipfixUdpIpv4Receiver->authCount > 0) {
+			int isAuth = 0;
+			int i;
+			for (i=0; i < ipfixUdpIpv4Receiver->authCount; i++) {
+				if (memcmp(&clientAddress.sin_addr, &ipfixUdpIpv4Receiver->authHosts[i], sizeof(clientAddress.sin_addr)) == 0) isAuth=1;
+			}
+			if (!isAuth) {
+				debugf("packet from unauthorized host %s discarded", inet_ntoa(clientAddress.sin_addr));
+				continue;
+			}
+		}
+
 		pthread_mutex_lock(&ipfixUdpIpv4Receiver->mutex);
 		PacketProcessor* pp = (PacketProcessor*)(ipfixUdpIpv4Receiver->packetProcessor);
 		for (i = 0; i != ipfixUdpIpv4Receiver->processorCount; ++i) 
@@ -88,6 +102,9 @@ static void* createIpfixUdpIpv4Receiver(uint16_t port) {
 
 	ipfixUdpIpv4Receiver->processorCount = 0;
 	ipfixUdpIpv4Receiver->packetProcessor = NULL;
+
+	ipfixUdpIpv4Receiver->authCount = 0;
+	ipfixUdpIpv4Receiver->authHosts = NULL;
 
 	if (pthread_mutex_init(&ipfixUdpIpv4Receiver->mutex, NULL) != 0) {
 		fatal("Could not init mutex");
@@ -198,6 +215,30 @@ static int hasPacketProcessor(void* ipfixUdpIpv4Receiver_) {
 	return ((IpfixUdpIpv4Receiver*)ipfixUdpIpv4Receiver_)->processorCount;
 }
 
+
+/**
+ * Adds a struct in_addr to the list of hosts we accept packets from
+ * @param ipfixUdpIpv4 IpfixUdpIpv4 to set the callback function for
+ * @param host address to add to the list
+ */
+int addIpfixUdpIpv4AuthorizedHost(void* ipfixUdpIpv4Receiver_, char* host) {
+	struct in_addr inaddr;
+	IpfixUdpIpv4Receiver* ipfixReceiver = (IpfixUdpIpv4Receiver*)ipfixUdpIpv4Receiver_;
+
+	if (inet_aton(host, &inaddr) == 0) {
+		errorf("Invalid host address: %s", host);
+		return -1;
+		}
+
+	int n = ++ipfixReceiver->authCount;
+	ipfixReceiver->authHosts = (struct in_addr*)realloc(ipfixReceiver->authHosts, n * sizeof(struct in_addr));
+	memcpy(&ipfixReceiver->authHosts[n-1], &inaddr, sizeof(struct in_addr));
+
+	return 0;
+	}
+
+
+
 /**
  * TODO: make *blabla*
  */
@@ -212,6 +253,7 @@ Receiver_Functions getUdpIpv4ReceiverFunctions() {
 	receiver_functions.stopReceiver          = stopIpfixUdpIpv4Receiver;
 	receiver_functions.setPacketProcessor    = setPacketProcessor;
 	receiver_functions.hasPacketProcessor    = hasPacketProcessor;
+	receiver_functions.addAuthorizedHost     = addIpfixUdpIpv4AuthorizedHost;
 
 	return receiver_functions;
 }

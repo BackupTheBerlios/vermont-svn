@@ -20,6 +20,7 @@ typedef int(StartReceiver)(void*);
 typedef int(StopReceiver)(void*);
 typedef int(SetPacketProcessor)(void*, void*, int);
 typedef int(HasPacketProcessor)(void*);
+typedef int(AddAuthorizedHost)(void*, char*);
 
 
 /**
@@ -34,6 +35,7 @@ typedef struct {
 	StopReceiver* stopReceiver;
 	SetPacketProcessor* setPacketProcessor;
 	HasPacketProcessor* hasPacketProcessor;
+	AddAuthorizedHost* addAuthorizedHost;
 
         } Receiver_Functions;
 

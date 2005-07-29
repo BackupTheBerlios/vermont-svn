@@ -105,6 +105,20 @@ static void* listenerTcpIpv4(void* tcpReceiver) {
 				error("Could not accept new connection");
 			}
 
+			/* if we have a list of authorized hosts, discard message if sender is not in this list */
+			if (receiver->authCount > 0) {
+				int isAuth = 0;
+				int k;
+				for (k=0; k < receiver->authCount; k++) {
+					if (memcmp(&clientAddress.sin_addr, &receiver->authHosts[k], sizeof(clientAddress.sin_addr)) == 0) isAuth=1;
+				}
+				if (!isAuth) {
+					debugf("packet from unauthorized host %s discarded", inet_ntoa(clientAddress.sin_addr));
+					continue;
+				}
+			}
+
+
 			if (new_socket > maxFd)
 				maxFd = new_socket;
 
@@ -139,7 +153,7 @@ static void* listenerTcpIpv4(void* tcpReceiver) {
 				PacketProcessor* pp = (PacketProcessor*)(receiver->packetProcessor);
 				for (j = 0; j != receiver->processorCount; ++j){
 					byte* data_iter = data;
-					/* FIXME */
+					/* TODO: Replace this with something less ugly */
 					while (data_iter - data < n) {
 						int len = ntohs(*((uint16_t*)(data_iter+sizeof(uint16_t))));
 						pp[j].processPacketCallbackFunction(pp[j].ipfixParser, data_iter, len);
@@ -196,6 +210,9 @@ static void* createIpfixTcpIpv4Receiver(uint16_t port) {
 
 	receiver->connected_sockets = NULL;
 	receiver->connection_count = 0;
+
+	receiver->authHosts = NULL;
+	receiver->authCount = 0;
 
 	receiver->processorCount = 0;
 	receiver->packetProcessor = NULL;
@@ -316,6 +333,28 @@ static int hasPacketProcessor(void* ipfixTcpIpv4Receiver_) {
 }
 
 /**
+ * Adds a struct in_addr to the list of hosts we accept packets from
+ * @param ipfixTcpIpv4 IpfixTcpIpv4 to set the callback function for
+ * @param host address to add to the list
+ */
+int addIpfixTcpIpv4AuthorizedHost(void* ipfixTcpIpv4Receiver_, char* host) {
+	struct in_addr inaddr;
+	IpfixTcpIpv4Receiver* ipfixReceiver = (IpfixTcpIpv4Receiver*)ipfixTcpIpv4Receiver_;
+
+	if (inet_aton(host, &inaddr) == 0) {
+		errorf("Invalid host address: %s", host);
+		return -1;
+		}
+
+	int n = ++ipfixReceiver->authCount;
+	ipfixReceiver->authHosts = (struct in_addr*)realloc(ipfixReceiver->authHosts, n * sizeof(struct in_addr));
+	memcpy(&ipfixReceiver->authHosts[n-1], &inaddr, sizeof(struct in_addr));
+
+	return 0;
+	}
+
+
+/**
  * TODO: make *blabla*
  */
 Receiver_Functions getTcpIpv4ReceiverFunctions() {
@@ -329,6 +368,7 @@ Receiver_Functions getTcpIpv4ReceiverFunctions() {
 	receiver_functions.stopReceiver          = stopIpfixTcpIpv4Receiver;
 	receiver_functions.setPacketProcessor    = setPacketProcessor;
 	receiver_functions.hasPacketProcessor    = hasPacketProcessor;
+	receiver_functions.addAuthorizedHost     = addIpfixTcpIpv4AuthorizedHost;
 
 	return receiver_functions;
 }

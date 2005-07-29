@@ -248,6 +248,8 @@ int setReceiverType(IpfixCollector*, Receiver_Type, int);
 int startIpfixCollector(IpfixCollector*);
 int stopIpfixCollector(IpfixCollector*);
 
+int addIpfixCollectorAuthorizedHost(IpfixCollector* ipfixCollector, char* host);
+
 /* ---------------------------------------------- Processor --------------------------------------- */
 
 PacketProcessor* createPacketProcessor();

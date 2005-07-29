@@ -1038,6 +1038,19 @@ int stopIpfixCollector(IpfixCollector* ipfixCollector) {
 	return -1;
         }
 
+/**
+ * Adds a struct in_addr to the list of hosts we accept packets from
+ * @param ipfixCollector IpfixCollector to set the callback function for
+ * @param host address to add to the list
+ */
+int addIpfixCollectorAuthorizedHost(IpfixCollector* ipfixCollector, char* host) {
+	if (ipfixCollector->receiver_type != UNKNOWN)
+		return ipfixCollector->receiver_functions.addAuthorizedHost(ipfixCollector->receiver, host);
+
+	return -1;
+	}
+
+
 /******************************* Deprecated Interface ***************************************************/
 
 /**

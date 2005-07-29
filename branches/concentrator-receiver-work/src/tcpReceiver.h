@@ -22,6 +22,9 @@ typedef struct {
 	pthread_mutex_t mutex;
 	pthread_t thread;
 
+	int authCount;              /**< Length of authHosts array */
+	struct in_addr* authHosts;  /**< Array of hosts from which this instance accepts packets. If empty, we accept all packets */
+
 	void* packetProcessor;
 	int processorCount;
 
