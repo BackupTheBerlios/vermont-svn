@@ -20,15 +20,11 @@ void sigint() {
 int main(int argc, char *argv[]) {
 
         int lport = DEFAULT_LISTEN_PORT;
-        char* lhost = 0;
 
         signal(SIGINT, sigint);
 
         if(argv[1]) {
-        	lhost=argv[1]; 
-        	}
-        if(argv[2]) {
-                lport=atoi(argv[2]);
+                lport=atoi(argv[1]);
         }
 
 	initializeIpfixPrinters();
@@ -38,11 +34,17 @@ int main(int argc, char *argv[]) {
 	IpfixPrinter* ipfixPrinter = createIpfixPrinter();
 	startIpfixPrinter(ipfixPrinter);
 
-	IpfixReceiver* ipfixReceiver = createIpfixReceiver(lhost, lport);
+	IpfixReceiver* ipfixReceiver = createIpfixReceiver(lport);
+
+	if (argc > 2) {
+		debugf("Adding %s to list of authorized hosts", argv[2]);
+		addIpfixReceiverAuthorizedHost(ipfixReceiver, argv[2]);
+		}
+
 	addIpfixReceiverCallbacks(ipfixReceiver, getIpfixPrinterCallbackInfo(ipfixPrinter));
 	startIpfixReceiver(ipfixReceiver);
 
-	debugf("Listening on %s:%d. Hit Ctrl+C to quit", lhost, lport);
+	debugf("Listening on %d. Hit Ctrl+C to quit", lport);
 	pause();
 	debug("Stopping threads and tidying up.");
 	

@@ -763,10 +763,23 @@ static void* listenerUdpIpv4(void* ipfixReceiver_) {
 		
 		clientAddressLen = sizeof(struct sockaddr_in);
 		n = recvfrom(ipfixReceiver->socket, data, MAX_MSG_LEN, 0, (struct sockaddr*)&clientAddress, &clientAddressLen);
-
+			
 		if (n < 0) {
 			debug("recvfrom returned without data, terminating listener thread");
 			break;
+			}
+
+		/* if we have a list of authorized hosts, discard message if sender is not in this list */
+		if (ipfixReceiver->authCount > 0) {
+			int isAuth = 0;
+			int i;
+			for (i=0; i < ipfixReceiver->authCount; i++) {
+				if (memcmp(&clientAddress.sin_addr, &ipfixReceiver->authHosts[i], sizeof(clientAddress.sin_addr)) == 0) isAuth=1;
+				}
+			if (!isAuth) {
+				debugf("packet from unauthorized host %s discarded", inet_ntoa(clientAddress.sin_addr));
+				continue;
+				}
 			}
       
 		pthread_mutex_lock(&ipfixReceiver->mutex);
@@ -904,13 +917,30 @@ void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handle
 	}
 
 /**
+ * Adds a struct in_addr to the list of hosts we accept packets from
+ * @param ipfixReceiver IpfixReceiver to set the callback function for
+ * @param host address to add to the list
+ */
+void addIpfixReceiverAuthorizedHost(IpfixReceiver* ipfixReceiver, char* host) {
+	struct in_addr inaddr;
+	if (inet_aton(host, &inaddr) == 0) {
+		errorf("Invalid host address: %s", host);
+		return;
+		}
+
+	int n = ++ipfixReceiver->authCount;
+	ipfixReceiver->authHosts = (struct in_addr*)realloc(ipfixReceiver->authHosts, n * sizeof(struct in_addr));
+	memcpy(&ipfixReceiver->authHosts[n-1], &inaddr, sizeof(struct in_addr));
+	}
+
+/**
  * Creates a new IpfixReceiver.
  * Call @c startIpfixReceiver() to start processing messages.
  * @param host Host to bind socket for, NULL for INADDR_ANY
  * @param port Port to listen on
  * @return handle for further interaction
  */
-IpfixReceiver* createIpfixReceiver(char* host, uint16_t port) {
+IpfixReceiver* createIpfixReceiver(uint16_t port) {
 	IpfixReceiver* ipfixReceiver;
 	struct sockaddr_in serverAddress;
 	
@@ -944,11 +974,7 @@ IpfixReceiver* createIpfixReceiver(char* host, uint16_t port) {
 		}
 
 	serverAddress.sin_family = AF_INET;
-	if (host) {
-		serverAddress.sin_addr.s_addr = inet_addr(host);
-		} else {
-		serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);	
-		}
+	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 	serverAddress.sin_port = htons(port);
 	if(bind(ipfixReceiver->socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in)) < 0) {
 		perror("Could not bind socket");

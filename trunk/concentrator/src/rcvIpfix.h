@@ -189,6 +189,9 @@ typedef struct {
 	pthread_mutex_t mutex;      /**< Mutex to pause receiving thread */
 	pthread_t thread;	    /**< Thread ID for this particular instance, to sync against etc */
 	
+	int authCount;              /**< Length of authHosts array */
+	struct in_addr* authHosts;  /**< Array of hosts from which this instance accepts packets. If empty, we accept all packets */
+
 	int callbackCount;          /**< Length of callbackInfo array */
 	CallbackInfo* callbackInfo; /**< Array of callback functions to invoke when new messages arrive */
 	
@@ -206,11 +209,13 @@ FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type);
 FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type);
 FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
 
-IpfixReceiver* createIpfixReceiver(char* host, uint16_t port);
+IpfixReceiver* createIpfixReceiver(uint16_t port);
 void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
 int startIpfixReceiver(IpfixReceiver* ipfixReceiver);
 int stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
+
+void addIpfixReceiverAuthorizedHost(IpfixReceiver* ipfixReceiver, char* host);
 
 void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
 
