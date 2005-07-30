@@ -21,17 +21,19 @@
 /**
  * TODO: make *blabla*
  */
+/*
 static void addConnectedSocket(IpfixTcpIpv4Receiver* receiver, int socket) {
 	++receiver->connection_count;
 	receiver->connected_sockets = (int*)realloc(receiver->connected_sockets,
 						    receiver->connection_count*sizeof(int));
 	receiver->connected_sockets[receiver->connection_count - 1] = socket;
 }
-
+*/
 /**
  * TODO: make *blabla* 
  * no range check
  */
+/*
 static int deleteConnectedSocket(IpfixTcpIpv4Receiver* receiver, int* socket) {
 	int* tmp;
 	int c = ((socket - receiver->connected_sockets));
@@ -57,24 +59,38 @@ static int deleteConnectedSocket(IpfixTcpIpv4Receiver* receiver, int* socket) {
 
 	return ret;	
 }
+*/
 
 /**
  * TODO: make *blabla*
  */
 static void* listenerTcpIpv4(void* tcpReceiver) {
+	/*
 	IpfixTcpIpv4Receiver* receiver = (IpfixTcpIpv4Receiver*)tcpReceiver;
 	
 
 	struct sockaddr_in clientAddress;
 	socklen_t clientAddressLen = sizeof(struct sockaddr_in);
-	byte* data = (byte*)malloc(sizeof(byte)*MAX_MSG_LEN);
+	 make this array dynamic */
+	/*
+	byte* data = (byte*)malloc(MAX_NSG_LEN);
+	byte buffer[255][MAX_MSG_LEN];
+	uint16_t filled[255];
+
+
 	int n, i, j;
 	fd_set rfd;
 	int maxFd;
 	int changed_sockets;
 	
+	int wrong_packets = 0;
+
+	for (i = 0; i != 255; ++i) {
+		filled[i] = 0;
+	}
 	
-	/* start listening */
+	 start listening */
+	/*
 	if (-1 == listen(receiver->listen_socket, 5)) {
 		error("Error on listen");
 		return NULL;
@@ -89,13 +105,14 @@ static void* listenerTcpIpv4(void* tcpReceiver) {
 			FD_SET(receiver->connected_sockets[i], &rfd);
 		}
 		
-		debug("Entering select");
+		//debug("Entering select");
 		if (-1 == select(maxFd + 1, &rfd, NULL, NULL, NULL)) {
 			error("Error on select");
 		}
-		debug("Leaving select");
+		//debug("Leaving select");
 
-		/* new connection? */
+		 new connection? */
+	/*
 		if (FD_ISSET(receiver->listen_socket, &rfd)) {
 			int new_socket;
 			debug("New connection attempt");
@@ -105,7 +122,8 @@ static void* listenerTcpIpv4(void* tcpReceiver) {
 				error("Could not accept new connection");
 			}
 
-			/* if we have a list of authorized hosts, discard message if sender is not in this list */
+			if we have a list of authorized hosts, discard message if sender is not in this list */
+	/*
 			if (receiver->authCount > 0) {
 				int isAuth = 0;
 				int k;
@@ -129,7 +147,7 @@ static void* listenerTcpIpv4(void* tcpReceiver) {
 		}
 
 		changed_sockets = 0;
-		debugf("receiver->connection_count == %i", receiver->connection_count);
+		//debugf("receiver->connection_count == %i", receiver->connection_count);
 		for (i = 0; i != receiver->connection_count && !changed_sockets; ++i) {
 			if (FD_ISSET(receiver->connected_sockets[i], &rfd)) {
 				n = recvfrom(receiver->connected_sockets[i], data, MAX_MSG_LEN, 0,
@@ -148,15 +166,40 @@ static void* listenerTcpIpv4(void* tcpReceiver) {
 					pthread_mutex_unlock(&receiver->mutex);
 					break;
 				}
+
+				 throw away everything, if we got more than 5 packets */
+	/*
+				if (wrong_packets > 5) {
+					error("To many wrong packets. Droping all content of this connection");
+					n = 0;
+					continue;
+				}
 				
 				pthread_mutex_lock(&receiver->mutex);
 				PacketProcessor* pp = (PacketProcessor*)(receiver->packetProcessor);
 				for (j = 0; j != receiver->processorCount; ++j){
 					byte* data_iter = data;
-					/* TODO: Replace this with something less ugly */
+					byte* data_end = data + n;
+					uint16_t len;
+					 TODO: Replace this with something less ugly */
+	/*
+					while (data_iter < data_end) {
+						len = *((uint16_t)(data_iter + sizeof(uint16_t)));
+						fprintf(stderr, "This should be the version number: %#06x\n", *(uint16_t*)data_iter);
+						fprintf(stderr, "This should be the header length: %#06x\n", len);
+						
+						
+					}
+
+					
 					while (data_iter - data < n) {
-						int len = ntohs(*((uint16_t*)(data_iter+sizeof(uint16_t))));
-						pp[j].processPacketCallbackFunction(pp[j].ipfixParser, data_iter, len);
+						uint16_t len = ntohs(*((uint16_t*)(data_iter+sizeof(uint16_t))));
+						debugf("Passing %i bytes to PacketProcessor", len);
+						if (pp[j].processPacketCallbackFunction(pp[j].ipfixParser, data_iter, len)) {
+							wrong_packets++;
+						} else {
+							wrong_packets = 0;
+						}
 						data_iter += len;
 					}
 					if (data_iter - data != n) {
@@ -165,12 +208,17 @@ static void* listenerTcpIpv4(void* tcpReceiver) {
 					if (data_iter - data > n) {
 						errorf("More data passed than has been received: %i bytes", data_iter - data); 
 					}
+					*/
+					//pp[j].processPacketCallbackFunction(pp[j].ipfixParser, data, n);
+	/*
 				}
 				pthread_mutex_unlock(&receiver->mutex);
 			}
 		}
 	}
 
+	return NULL;
+	*/
 	return NULL;
 }
 
