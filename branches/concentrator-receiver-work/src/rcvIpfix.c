@@ -155,7 +155,6 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceI
  * Called by processMessage
  */
 static void processTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSetHeader* set) {
-	IpfixTemplateHeader* th = (IpfixTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntohs(set->length);
 	byte* record = (byte*)&set->data;
 	
@@ -166,7 +165,7 @@ static void processTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, Ipfi
 
 		if (th->fieldCount == 0) {
 			/* This is a Template withdrawal message */
-			destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
+			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
 			continue;
 			}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
@@ -226,7 +225,7 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceI
 		record = (byte*)&th->data;
 		if (th->fieldCount == 0) {
 			/* This is a Template withdrawal message */
-			destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
+			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
 			continue;
 			}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
@@ -303,7 +302,7 @@ static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, 
 		record = (byte*)&th->data;
 	if (th->fieldCount == 0) {
 		/* This is a Template withdrawal message */
-		destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
+		destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
 		continue;
 		}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
