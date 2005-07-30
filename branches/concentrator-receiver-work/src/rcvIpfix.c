@@ -125,7 +125,7 @@ typedef struct {
 	uint16_t templateId;
 	uint16_t fieldCount;
 	uint16_t dataCount;
-	uint16_t reserved;
+	uint16_t precedingRule;
 	byte data;
 	} IpfixDataTemplateHeader;
 
@@ -157,9 +157,18 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceI
 static void processTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSetHeader* set) {
 	IpfixTemplateHeader* th = (IpfixTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&th->data;
+	byte* record = (byte*)&set->data;
+	
 	/* TemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		IpfixTemplateHeader* th = (IpfixTemplateHeader*)record;
+		record = (byte*)&th->data;
+
+		if (th->fieldCount == 0) {
+			/* This is a Template withdrawal message */
+			destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
+			continue;
+			}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
 		TemplateInfo* ti = (TemplateInfo*)malloc(sizeof(TemplateInfo));
 		bt->sourceID = sourceId;
@@ -168,6 +177,7 @@ static void processTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, Ipfi
 		bt->setID = ntohs(set->id);
 		bt->templateInfo = ti;
 		ti->userData = 0;
+		ti->templateId = ntohs(th->templateId);
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
 		int isLengthVarying = 0;
@@ -207,11 +217,18 @@ static void processTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, Ipfi
  * Called by processMessage
  */
 static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSetHeader* set) {
-	IpfixOptionsTemplateHeader* th = (IpfixOptionsTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&th->data;
+	byte* record = (byte*)&set->data;
+	
 	/* OptionsTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		IpfixOptionsTemplateHeader* th = (IpfixOptionsTemplateHeader*)record;
+		record = (byte*)&th->data;
+		if (th->fieldCount == 0) {
+			/* This is a Template withdrawal message */
+			destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
+			continue;
+			}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
 		OptionsTemplateInfo* ti = (OptionsTemplateInfo*)malloc(sizeof(OptionsTemplateInfo));
 		bt->sourceID = sourceId;
@@ -220,6 +237,7 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceI
 		bt->setID = ntohs(set->id);
 		bt->optionsTemplateInfo = ti;
 		ti->userData = 0;
+		ti->templateId = ntohs(th->templateId);
 		ti->scopeCount = ntohs(th->scopeCount);
 		ti->scopeInfo = (FieldInfo*)malloc(ti->scopeCount * sizeof(FieldInfo));
 		ti->fieldCount = ntohs(th->fieldCount)-ntohs(th->scopeCount);
@@ -276,12 +294,18 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceI
  * Called by processMessage
  */
 static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSetHeader* set) {
-	IpfixDataTemplateHeader* th = (IpfixDataTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&th->data;
+	byte* record = (byte*)&set->data;
 
 	/* DataTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		IpfixDataTemplateHeader* th = (IpfixDataTemplateHeader*)record;
+		record = (byte*)&th->data;
+	if (th->fieldCount == 0) {
+		/* This is a Template withdrawal message */
+		destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
+		continue;
+		}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
 		DataTemplateInfo* ti = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
 		bt->sourceID = sourceId;
@@ -290,6 +314,8 @@ static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, 
 		bt->setID = ntohs(set->id);
 		bt->dataTemplateInfo = ti;
 		ti->userData = 0;
+		ti->templateId = ntohs(th->templateId);
+		ti->precedingRule = ntohs(th->precedingRule);
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->dataCount = ntohs(th->dataCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
@@ -567,10 +593,10 @@ static int processNetflowV9Packet(IpfixParser* ipfixParser, byte* message, uint1
 	int i;
 	for (i = 0; i < ntohs(header->setCount); i++) {
 		if (ntohs(set->id) == NetflowV9_SetId_Template) {
-  			processTemplateSet(ipfixParser, ntohs(header->sourceId), set);
+  			processTemplateSet(ipfixParser, ntohl(header->sourceId), set);
   			} else
 		if (ntohs(set->id) >= IPFIX_SetId_Data_Start) {
-  			processDataSet(ipfixParser, ntohs(header->sourceId), set);
+  			processDataSet(ipfixParser, ntohl(header->sourceId), set);
   			} else {
 			errorf("Unsupported Set ID - expected 0/256+, got %d", ntohs(set->id));
   			}
@@ -600,16 +626,16 @@ static int processIpfixPacket(IpfixParser* ipfixParser, byte* message, uint16_t 
 
 	while (set < setX) {
 		if (ntohs(set->id) == IPFIX_SetId_Template) {
-  			processTemplateSet(ipfixParser, ntohs(header->sourceId), set);
+  			processTemplateSet(ipfixParser, ntohl(header->sourceId), set);
   			} else
 		if (ntohs(set->id) == IPFIX_SetId_OptionsTemplate) {
-  			processOptionsTemplateSet(ipfixParser, ntohs(header->sourceId), set);
+  			processOptionsTemplateSet(ipfixParser, ntohl(header->sourceId), set);
   			} else
 		if (ntohs(set->id) == IPFIX_SetId_DataTemplate) {
-  			processDataTemplateSet(ipfixParser, ntohs(header->sourceId), set);
+  			processDataTemplateSet(ipfixParser, ntohl(header->sourceId), set);
   			} else
 		if (ntohs(set->id) >= IPFIX_SetId_Data_Start) {
-  			processDataSet(ipfixParser, ntohs(header->sourceId), set);
+  			processDataSet(ipfixParser, ntohl(header->sourceId), set);
   			} else {
 			errorf("Unsupported Set ID - expected 2/3/4/256+, got %d", ntohs(set->id));
   			}
