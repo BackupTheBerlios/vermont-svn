@@ -151,11 +151,13 @@ static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sou
  * Called by processMessage
  */
 static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, IpfixSetHeader* set) {
-	IpfixTemplateHeader* th = (IpfixTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&th->data;
+	byte* record = (byte*)&set->data;
+
 	/* TemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		IpfixTemplateHeader* th = (IpfixTemplateHeader*)record;
+		record = (byte*)&th->data;
 		if (th->fieldCount == 0) {
 			/* This is a Template withdrawal message */
 			destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
@@ -209,11 +211,13 @@ static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, 
  * Called by processMessage
  */
 static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, IpfixSetHeader* set) {
-	IpfixOptionsTemplateHeader* th = (IpfixOptionsTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&th->data;
+	byte* record = (byte*)&set->data;
+
 	/* OptionsTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		IpfixOptionsTemplateHeader* th = (IpfixOptionsTemplateHeader*)record;
+		record = (byte*)&th->data;
 		if (th->fieldCount == 0) {
 			/* This is a Template withdrawal message */
 			destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
@@ -284,12 +288,13 @@ static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sou
  * Called by processMessage
  */
 static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, IpfixSetHeader* set) {
-	IpfixDataTemplateHeader* th = (IpfixDataTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&th->data;
+	byte* record = (byte*)&set->data;
 
 	/* DataTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		IpfixDataTemplateHeader* th = (IpfixDataTemplateHeader*)record;
+		record = (byte*)&th->data;
 		if (th->fieldCount == 0) {
 			/* This is a Template withdrawal message */
 			destroyBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(th->templateId));
