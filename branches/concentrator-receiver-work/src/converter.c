@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
 		from_host = argv[5];
 	if (argc > 6)
 		to_host = argv[6];
-
+	
 	signal(SIGINT, sig_int);
 
 	/* set up new exporter */
@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
 		error("Unknown protocol");
 		exit(1);
 	}
-
+	
 	memset(&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	if (!inet_aton(from_host, &servaddr.sin_addr)) {
@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
 		error("Could not connect to server");
 		exit(1);
 	}
-
+	
 	/* set up receiver */
 	initializeIpfixCollectors();
 	IpfixCollector* ipfixCollector;
@@ -127,14 +127,14 @@ int main(int argc, char** argv) {
 		error("Unkown import protocol");
 		exit(1);
 	}
-
+	
 	PacketProcessor* packetProcessor = createPacketProcessor();
 	packetProcessor->processPacketCallbackFunction = export_packet;
 	
 	addPacketProcessor(ipfixCollector, packetProcessor);
 	
 	startIpfixCollector(ipfixCollector);
-
+	
 	debugf("Listening on %s:%i, exporting to %s:%i", import_type==TCP?"TCP":"UDP", lport, export_type==TCP?"TCP":"UDP", eport);
 	pause();
 	debug("Cleaning up");

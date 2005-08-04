@@ -59,7 +59,7 @@ uint16_t crc16(uint16_t seed, uint16_t length, char* data) {
 		uint8_t index = byte ^ (i >> 8);
 		uint16_t entry = table[index];
 		i = (i << 8) ^ entry;
-		};
+	};
 	
 	return i;
-	}
+}

@@ -36,8 +36,7 @@ typedef struct {
 	SetPacketProcessor* setPacketProcessor;
 	HasPacketProcessor* hasPacketProcessor;
 	AddAuthorizedHost* addAuthorizedHost;
-
-        } Receiver_Functions;
+} Receiver_Functions;
 
 
 #ifdef __cplusplus

@@ -16,7 +16,7 @@ int mayRun;
 
 void sigint() {
 	mayRun = 0;
-	}
+}
 
 int main(int argc, char *argv[]) {
 	mayRun = 1;
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 	while (mayRun) {
 		pollAggregator(ipfixAggregator);
 		sleep(1);
-		}
+	}
 	debug("Stopping threads and tidying up.");
 
 	debug("stopping collector");

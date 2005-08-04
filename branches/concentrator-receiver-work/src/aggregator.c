@@ -17,11 +17,11 @@
 
 int initializeAggregators() {
 	return 0;
-	}
+}
 
 int deinitializeAggregators() {
 	return 0;
-	}
+}
 
 /**
  * Creates a new Aggregator. Do not forget to set the callback functions, then call @c startAggregator().
@@ -32,30 +32,30 @@ int deinitializeAggregators() {
  */
 IpfixAggregator* createAggregator(char* ruleFile, uint16_t minBufferTime, uint16_t maxBufferTime) {
 	int i;
-
+	
 	IpfixAggregator* ipfixAggregator = (IpfixAggregator*)malloc(sizeof(IpfixAggregator));
 	ipfixAggregator->rules = parseRulesFromFile(ruleFile);
 
 	if (!ipfixAggregator->rules) {
 		fatal("Could not parse ruleFile");
 		return NULL;
-		}
-
+	}
+	
 	Rules* rules = ipfixAggregator->rules;
 	for (i = 0; i < rules->count; i++) {
 		rules->rule[i]->hashtable = createHashtable(rules->rule[i], minBufferTime, maxBufferTime);
-		}
+	}
 
 	if (pthread_mutex_init(&ipfixAggregator->mutex, NULL) != 0) {
 		fatal("Could not init mutex");
-		}
-		
+	}
+	
 	if (pthread_mutex_lock(&ipfixAggregator->mutex) != 0) {
 		fatal("Could not lock mutex");
-		}
+	}
 
 	return ipfixAggregator;
-	}
+}
 
 /**
  * Frees memory used by an Aggregator.
@@ -68,14 +68,14 @@ void destroyAggregator(IpfixAggregator* ipfixAggregator) {
 	int i;
 	for (i = 0; i < rules->count; i++) {
 		destroyHashtable(rules->rule[i]->hashtable);
-		}
+	}
 	destroyRules(rules);
 
 	pthread_mutex_unlock(&((IpfixAggregator*)ipfixAggregator)->mutex);
 	pthread_mutex_destroy(&((IpfixAggregator*)ipfixAggregator)->mutex);
 
 	free(ipfixAggregator);
-	}
+}
 
 /**
  * Starts or resumes processing Records
@@ -83,7 +83,7 @@ void destroyAggregator(IpfixAggregator* ipfixAggregator) {
  */
 void startAggregator(IpfixAggregator* ipfixAggregator) {
 	pthread_mutex_unlock(&ipfixAggregator->mutex);
-	}
+}
 
 /**
  * Temporarily pauses processing Records
@@ -91,7 +91,7 @@ void startAggregator(IpfixAggregator* ipfixAggregator) {
  */
 void stopAggregator(IpfixAggregator* ipfixAggregator) {
 	pthread_mutex_lock(&ipfixAggregator->mutex);
-	}
+}
 
 /**
  * Injects new DataRecords into the Aggregator.
@@ -111,7 +111,7 @@ int aggregateDataRecord(void* ipfixAggregator, SourceID sourceID, TemplateInfo* 
 	if (!rules) {
 		fatal("Aggregator not started");
 		return -1;
-		}
+	}
 
 	pthread_mutex_lock(&((IpfixAggregator*)ipfixAggregator)->mutex);
 	for (i = 0; i < rules->count; i++) {
@@ -120,11 +120,11 @@ int aggregateDataRecord(void* ipfixAggregator, SourceID sourceID, TemplateInfo* 
 			
 			aggregateTemplateData(rules->rule[i]->hashtable, ti, data);
 			}
-		}
+	}
 	pthread_mutex_unlock(&((IpfixAggregator*)ipfixAggregator)->mutex);
 	
 	return 0;
-	}
+}
 
 /**
  * Injects new DataRecords into the Aggregator.
@@ -144,20 +144,20 @@ int aggregateDataDataRecord(void* ipfixAggregator, SourceID sourceID, DataTempla
 	if (!rules) {
 		fatal("Aggregator not started");
 		return -1;
-		}
-
+	}
+	
 	pthread_mutex_lock(&((IpfixAggregator*)ipfixAggregator)->mutex);
 	for (i = 0; i < rules->count; i++) {
 		if (dataTemplateDataMatchesRule(ti, data, rules->rule[i])) {
 			debugf("rule %d matches", i);
 			
 			aggregateDataTemplateData(rules->rule[i]->hashtable, ti, data);
-			}
 		}
+	}
 	pthread_mutex_unlock(&((IpfixAggregator*)ipfixAggregator)->mutex);
 	
 	return 0;
-	}
+}
 
 /**
  * Checks for flows buffered longer than @c ipfixAggregator::minBufferTime and/or @c ipfixAggregator::maxBufferTime and passes them to the previously defined callback functions.
@@ -165,14 +165,14 @@ int aggregateDataDataRecord(void* ipfixAggregator, SourceID sourceID, DataTempla
  */
 void pollAggregator(IpfixAggregator* ipfixAggregator) {
 	Rules* rules = ((IpfixAggregator*)ipfixAggregator)->rules;
-
+	
 	int i;
 	pthread_mutex_lock(&ipfixAggregator->mutex);
 	for (i = 0; i < rules->count; i++) {
 		expireFlows(rules->rule[i]->hashtable);
-		}
-	pthread_mutex_unlock(&ipfixAggregator->mutex);
 	}
+	pthread_mutex_unlock(&ipfixAggregator->mutex);
+}
 
 /**
  * Adds a set of callback functions to the list of functions to call when Templates or Records have to be sent
@@ -186,7 +186,7 @@ void addAggregatorCallbacks(IpfixAggregator* ipfixAggregator, CallbackInfo handl
 	for (i = 0; i < rules->count; i++) {
 		hashingAddCallbacks(rules->rule[i]->hashtable, handles);
 		}
-	}
+}
 
 CallbackInfo getAggregatorCallbackInfo(IpfixAggregator* ipfixAggregator) {
 	CallbackInfo ci;
@@ -195,4 +195,4 @@ CallbackInfo getAggregatorCallbackInfo(IpfixAggregator* ipfixAggregator) {
 	ci.dataRecordCallbackFunction = aggregateDataRecord;
 	ci.dataDataRecordCallbackFunction = aggregateDataDataRecord;
 	return ci;
-	}
+}

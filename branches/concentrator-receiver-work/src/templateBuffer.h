@@ -27,9 +27,9 @@ typedef struct {
 		TemplateInfo* templateInfo;
 		OptionsTemplateInfo* optionsTemplateInfo;
 		DataTemplateInfo* dataTemplateInfo;
-		};
+	};
 	void*	next;             /**< Pointer to next buffered Template */
-	} BufferedTemplate;
+} BufferedTemplate;
 
 /**
  * Represents a Template Buffer
@@ -37,7 +37,7 @@ typedef struct {
 typedef struct {
 	BufferedTemplate* head; /**< Start of BufferedTemplate chain */
 	IpfixParser* ipfixParser; /**< Pointer to the ipfixReceiver which instantiated this TemplateBuffer */
-	} TemplateBuffer;
+} TemplateBuffer;
 
 
 /***** Prototypes ************************************************************/

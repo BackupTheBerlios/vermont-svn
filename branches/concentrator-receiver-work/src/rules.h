@@ -29,7 +29,7 @@ typedef struct {
 	FieldType type;         /**< field type this RuleField refers to */
 	FieldData* pattern;     /**< pattern to match fields against to determine applicability of a rule. A pattern of NULL means no pattern needs to be matched for this field */
 	FieldModifier modifier; /**< modifier to apply to the corresponding field if this rule is matched */
-	} RuleField;
+} RuleField;
 
 /**
  * Single aggregation rule
@@ -39,7 +39,7 @@ typedef struct {
 	RuleField* field[MAX_RULE_FIELDS];
 	
 	void* hashtable;
-	} Rule;
+} Rule;
 
 /**
  * Set of aggregation rules
@@ -47,7 +47,7 @@ typedef struct {
 typedef struct {
 	int count;
 	Rule* rule[MAX_RULES];
-	} Rules;
+} Rules;
 
 Rules* parseRulesFromFile(char* fname);
 void destroyRules(Rules* rules);

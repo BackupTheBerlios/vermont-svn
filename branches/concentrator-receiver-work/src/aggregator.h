@@ -21,7 +21,7 @@ extern "C" {
 typedef struct {
 	Rules* rules;          /**< Set of rules that define the aggregator */
 	pthread_mutex_t mutex; /**< Mutex to synchronize and/or pause aggregator */
-	} IpfixAggregator;
+} IpfixAggregator;
 
 /***** Prototypes ***********************************************************/
 

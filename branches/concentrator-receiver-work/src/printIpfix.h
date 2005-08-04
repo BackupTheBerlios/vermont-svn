@@ -18,7 +18,7 @@ extern "C" {
 typedef struct {
 	void* lastTemplate;
 	FILE* stream;
-	} IpfixPrinter;
+} IpfixPrinter;
 
 /***** Prototypes ***********************************************************/
 

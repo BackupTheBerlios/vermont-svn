@@ -20,7 +20,7 @@
 #define DEFAULT_SOURCE_ID 4711
 
 void sigint() {
-	}
+}
 
 int main(int argc, char* argv[]) {
 
@@ -68,5 +68,5 @@ int main(int argc, char* argv[]) {
 	deinitializeIpfixSenders();
 
 	return 0;
-	}
+}
 

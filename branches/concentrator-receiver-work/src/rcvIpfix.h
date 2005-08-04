@@ -31,7 +31,7 @@ typedef struct {
 	TypeId id;          /**< type tag of this field, according to [INFO] */
 	FieldLength length; /**< length in bytes of this field */	
 	EnterpriseNo eid;   /**< enterpriseNo for user-defined data types (i.e. type >= 0x8000) */	
-	} FieldType;
+} FieldType;
 
 /**
  * Information describing a single field in the fields passed via various callback functions.
@@ -39,7 +39,7 @@ typedef struct {
 typedef struct {
 	FieldType type;
 	uint16_t offset;          /**< offset in bytes from a data start pointer. For internal purposes 65535 is defined as yet unknown */
-	} FieldInfo;
+} FieldInfo;
 
 /**
  * Template description passed to the callback function when a new Template arrives.
@@ -49,7 +49,7 @@ typedef struct {
 	uint16_t   fieldCount;    /**< number of regular fields */
 	FieldInfo* fieldInfo;     /**< array of FieldInfos describing each of these fields */
 	void*      userData;      /**< pointer to a field that can be used by higher-level modules */
-	} TemplateInfo;
+} TemplateInfo;
 
 /**
  * OptionsTemplate description passed to the callback function when a new OptionsTemplate arrives.
@@ -62,7 +62,7 @@ typedef struct {
 	uint16_t   fieldCount;    /**< number of regular fields. This is NOT the number of all fields */
 	FieldInfo* fieldInfo;     /**< array of FieldInfos describing each of these fields */
 	void*      userData;      /**< pointer to a field that can be used by higher-level modules */
-	} OptionsTemplateInfo;
+} OptionsTemplateInfo;
 
 /**
  * DataTemplate description passed to the callback function when a new DataTemplate arrives.
@@ -76,7 +76,7 @@ typedef struct {
 	FieldInfo* dataInfo;      /**< array of FieldInfos describing each of these fields */
 	FieldData* data;          /**< data start pointer for fixed-value fields */
 	void*      userData;      /**< pointer to a field that can be used by higher-level modules */
-	} DataTemplateInfo;
+} DataTemplateInfo;
 
 /*** Template Callbacks ***/
 
@@ -189,7 +189,7 @@ typedef struct {
 	TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
 	OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
 	DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
-	} CallbackInfo;
+} CallbackInfo;
 
 
 /**
@@ -201,7 +201,7 @@ typedef struct {
 	CallbackInfo* callbackInfo; /**< Array of callback functions to invoke when new messages arrive */
 	
 	void* templateBuffer;       /**< TemplateBuffer* structure */
-        } IpfixParser;
+} IpfixParser;
 
 	
 /**
@@ -219,7 +219,7 @@ typedef int(ProcessPacketCallbackFunction)(IpfixParser* ipfixParser, byte* messa
 typedef struct {
 	ProcessPacketCallbackFunction* processPacketCallbackFunction; /**< Callback function invoked when new packet arrives. */
 	IpfixParser* ipfixParser; /**< Contains information about parsing process */
-        } PacketProcessor;
+} PacketProcessor;
 
 
 /**
@@ -230,7 +230,7 @@ typedef struct {
 	
 	int processorCount;
 	PacketProcessor* packetProcessor;
-        } IpfixCollector;
+} IpfixCollector;
 
 /***** Prototypes ***********************************************************/
 
@@ -241,7 +241,6 @@ int initializeIpfixCollectors();
 int deinitializeIpfixCollectors();
 IpfixCollector* createIpfixCollector(Receiver_Type rec_type, int port);
 void destroyIpfixCollector(IpfixCollector* ipfixCollector);
-	//int setReceiverType(IpfixCollector*, Receiver_Type, int);
 int startIpfixCollector(IpfixCollector*);
 int stopIpfixCollector(IpfixCollector*);
 
@@ -270,25 +269,6 @@ void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles);
 void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser);
 
 void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetProcessor);
-
-
-/******************************* Deprecated Interface ***************************************************/
-
-
-/*
-typedef IpfixCollector IpfixReceiver;
-
-int initializeIpfixReceivers();
-int deinitializeIpfixReceivers();
-
-IpfixReceiver* createIpfixReceiver(uint16_t port);
-void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver);
-
-int startIpfixReceiver(IpfixReceiver* ipfixReceiver);
-int stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
-
-void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
-*/
 
 #ifdef __cplusplus
 }
