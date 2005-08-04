@@ -12,7 +12,7 @@
 #include "printIpfix.h"
 #include "common.h"
 
-#define DEFAULT_LISTEN_PORT 1501
+#define DEFAULT_LISTEN_PORT 4711
 #define USE_OLD_IFACE 0
 #define USE_NEW_IFACE 1
 
@@ -62,6 +62,7 @@ int main(int argc, char *argv[]) {
 
 
 void start_collector_using_old_interface(int lport) {
+	/*
 	initializeIpfixPrinters();
 
 	initializeIpfixReceivers();
@@ -84,6 +85,7 @@ void start_collector_using_old_interface(int lport) {
 	stopIpfixPrinter(ipfixPrinter);
 	destroyIpfixPrinter(ipfixPrinter);
 	deinitializeIpfixPrinters();
+	*/
         }
 
 void start_collector_using_new_interface(int lport) {
@@ -92,8 +94,7 @@ void start_collector_using_new_interface(int lport) {
 
 	IpfixPrinter* ipfixPrinter = createIpfixPrinter();
 
-	IpfixCollector* ipfixCollector = createIpfixCollector();	
-	setReceiverType(ipfixCollector, TCP_IPV4, lport);
+	IpfixCollector* ipfixCollector = createIpfixCollector(UDP_IPV4, lport);	
 	
 	IpfixParser* ipfixParser = createIpfixParser();
 	addIpfixParserCallbacks(ipfixParser, getIpfixPrinterCallbackInfo(ipfixPrinter));

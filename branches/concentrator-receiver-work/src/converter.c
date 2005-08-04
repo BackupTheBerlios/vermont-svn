@@ -112,16 +112,16 @@ int main(int argc, char** argv) {
 
 	/* set up receiver */
 	initializeIpfixCollectors();
-	IpfixCollector* ipfixCollector = createIpfixCollector();
+	IpfixCollector* ipfixCollector;
 	
 	switch (import_type) {
 	case TCP:
 		debug("Importing TCP stream");
-		setReceiverType(ipfixCollector, TCP_IPV4, lport);
+		ipfixCollector = createIpfixCollector(TCP_IPV4, lport);
 		break;
 	case UDP:
 		debug("Importing UDP stream");
-		setReceiverType(ipfixCollector, UDP_IPV4, lport);
+		ipfixCollector = createIpfixCollector(UDP_IPV4, lport);
 		break;
 	default:
 		error("Unkown import protocol");

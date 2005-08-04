@@ -1,7 +1,7 @@
 #ifndef RCVIPFIX_H
 #define RCVIPFIX_H
 
-#include "receiverFunctions.h"
+#include "ipfixReceiver.h"
 
 #include <pthread.h>
 #include <stdint.h>
@@ -21,6 +21,7 @@ typedef uint16_t TypeId;
 typedef uint16_t FieldLength;
 typedef uint32_t EnterpriseNo;
 typedef uint8_t FieldData;
+typedef uint8_t byte;
 
 /**
  * IPFIX field type and length.
@@ -202,6 +203,7 @@ typedef struct {
 	void* templateBuffer;       /**< TemplateBuffer* structure */
         } IpfixParser;
 
+	
 /**
  * Callback function invoked when a new packet arrives.
  * @param ipfixParser parser containing callbackfunction invoked while parsing message.
@@ -209,7 +211,6 @@ typedef struct {
  * @param len Length of message
  */
 typedef int(ProcessPacketCallbackFunction)(IpfixParser* ipfixParser, byte* message, uint16_t len);
-
 
 /**
  * Controls parsing of incoming packets.
@@ -220,20 +221,12 @@ typedef struct {
 	IpfixParser* ipfixParser; /**< Contains information about parsing process */
         } PacketProcessor;
 
-/**
- * Defines type of Receiver
- */
-typedef enum {
-	UNKNOWN, UDP_IPV4, TCP_IPV4
-        } Receiver_Type;
 
 /**
  * Represents a collector
  */
 typedef struct {
-	void* receiver; /**< Receiver */
-	Receiver_Type receiver_type; /**< Type of receiver */
-	Receiver_Functions receiver_functions;
+	IpfixReceiver* ipfixReceiver;
 	
 	int processorCount;
 	PacketProcessor* packetProcessor;
@@ -246,13 +239,13 @@ typedef struct {
 
 int initializeIpfixCollectors();
 int deinitializeIpfixCollectors();
-IpfixCollector* createIpfixCollector();
+IpfixCollector* createIpfixCollector(Receiver_Type rec_type, int port);
 void destroyIpfixCollector(IpfixCollector* ipfixCollector);
-int setReceiverType(IpfixCollector*, Receiver_Type, int);
+	//int setReceiverType(IpfixCollector*, Receiver_Type, int);
 int startIpfixCollector(IpfixCollector*);
 int stopIpfixCollector(IpfixCollector*);
 
-int addIpfixCollectorAuthorizedHost(IpfixCollector* ipfixCollector, char* host);
+int addIpfixCollectorAuthorizedHost(IpfixCollector* ipfixCollector, const char* host);
 
 /* ---------------------------------------------- Processor --------------------------------------- */
 
@@ -282,7 +275,7 @@ void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetP
 /******************************* Deprecated Interface ***************************************************/
 
 
-
+/*
 typedef IpfixCollector IpfixReceiver;
 
 int initializeIpfixReceivers();
@@ -295,7 +288,7 @@ int startIpfixReceiver(IpfixReceiver* ipfixReceiver);
 int stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
 void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles);
-
+*/
 
 #ifdef __cplusplus
 }
