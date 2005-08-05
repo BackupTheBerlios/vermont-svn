@@ -18,7 +18,7 @@ typedef enum {
 
 
 /**
- * Represents an IpfixReceiver
+ * Control structure for receiving process.
  */
 typedef struct {
 	int listen_socket;
@@ -30,9 +30,12 @@ typedef struct {
 	pthread_t thread;      /**< Thread ID for this particular instance, to sync against etc */
 
 	int authCount;
-	struct in_addr* authHosts;
+	struct in_addr* authHosts; /**< List of authorized hosts. Only packets from hosts in this list, will be 
+				      forwarded to the PacketProcessors */
 
-	void* packetProcessor;
+	void* packetProcessor;     /**< Authorized incoming packets are forwarded to the packetProcessors. The list
+				      of packetProcessor must be created, managed and destroyed by an superior instance. The
+				      IpfixReceiver will only work with the given list */
 	int processorCount;
 	
 	Receiver_Type receiver_type;

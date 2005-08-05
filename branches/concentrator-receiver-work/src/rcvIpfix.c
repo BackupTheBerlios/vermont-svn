@@ -17,6 +17,11 @@ IPFIX Collector module
 Copyright (C) 2004 Christoph Sommer
 http://www.deltadevelopment.de/users/christoph/ipfix
 
+Changes:
+2005 Lothar Braun <braunl@informatik.uni-tuebingen.de>
+     - Splitted IpfixReceiver into three parts for adding
+       TCP, SCTP and IPV6 support.
+
 FIXME: Basic support for NetflowV9 packets, templates and flow records
 is provided. Will break when fed field types with type ID >= 0x8000.
 
@@ -972,7 +977,9 @@ void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser) 
 }
 
 /**
- * TODO: make *blabla*
+ * Adds a PacketProcessor to the list of PacketProcessors
+ * @param ipfixCollector Collector to assign the PacketProcessor to
+ * @param packetProcessor handle of packetProcessor
  */
 void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetProcessor) {
 	int n = ++ipfixCollector->processorCount;
@@ -986,7 +993,9 @@ void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetP
 
 
 /**
- * TODO: make *blabla*
+ * Initializes internal data.
+ * Call onces before using any function in this module
+ * @return 0 if call succeeded
  */
 int initializeIpfixCollectors() {
 	initializeIpfixReceivers();
@@ -994,7 +1003,9 @@ int initializeIpfixCollectors() {
 }
 
 /**
- * TODO: make *blabla*
+ * Destroys internal data.
+ * Call once to tidy up. Do not use any function in this module afterwards
+ * @return 0 if call succeeded
  */
 int deinitializeIpfixCollectors() {
 	deinitializeIpfixReceivers();
@@ -1002,7 +1013,11 @@ int deinitializeIpfixCollectors() {
 } 
 
 /**
- * TODO: make *blabla*
+ * Creates a new IpfixCollector.
+ * Call @c startIpfixCollector() to start receiving and processing messages.
+ * @param rec_type Type of receiver (SCTP, UDP, ...)
+ * @param port Port to listen on
+ * @return handle for further interaction
  */
 IpfixCollector* createIpfixCollector(Receiver_Type rec_type, int port) {
 	IpfixCollector* ipfixCollector;
@@ -1021,7 +1036,8 @@ IpfixCollector* createIpfixCollector(Receiver_Type rec_type, int port) {
 }
 
 /**
- * TODO: make *blabla*
+ * Frees memory used by a IpfixCollector.
+ * @param ipfixCollector Handle returned by @c createIpfixCollector()
  */
 void destroyIpfixCollector(IpfixCollector* ipfixCollector) {
 	destroyIpfixReceiver(ipfixCollector->ipfixReceiver);
@@ -1030,14 +1046,20 @@ void destroyIpfixCollector(IpfixCollector* ipfixCollector) {
 	free(ipfixCollector);
 }
 
-/*
- * TODO: make *blabla*
+/**
+ * Starts receiving and processing messages.
+ * All sockets prepared by calls to createIpfixCollector() will start
+ * receiving messages until stopIpfixCollector() is called.
+ * @return 0 on success, non-zero on error
  */
 int startIpfixCollector(IpfixCollector* ipfixCollector) {
 	return startIpfixReceiver(ipfixCollector->ipfixReceiver);
 }
-/*
- * TODO: make *blabla*
+
+/**
+ * Stops processing messages.
+ * No more messages will be processed until the next startIpfixCollector() call.
+ * @return 0 on success, non-zero on error
  */
 int stopIpfixCollector(IpfixCollector* ipfixCollector) {
 	return stopIpfixReceiver(ipfixCollector->ipfixReceiver);
