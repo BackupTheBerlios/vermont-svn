@@ -19,7 +19,9 @@ my %DATAMAP=(
 	     "float32" => 4,
 	     "dateTimeSeconds" => 4,
 	     "ipv4Address" => 4,
-	     "ipv6Address" => 8
+	     "ipv6Address" => 8,
+	     "string" => 0,
+	     "octetarray" => 0
 );
 
 $i=0;
@@ -41,7 +43,7 @@ while(<>) {
 		
 	#c_ize($nr, $id, $datat, $desc);
 	#html_ize($nr, $id, $datat, $desc);
-	#gperf_ize($nr, $id);
+	gperf_ize($nr, $id);
 }
 
 #c_post();
