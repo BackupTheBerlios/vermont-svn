@@ -1,13 +1,13 @@
 #!/usr/bin/perl
 #
-# 2005 (C) by Freek; part of VERMONT
+# 2005 (C) by Freek, Gerhard; part of VERMONT
 #
 # Quick and very dirty perl script to generate
 # 1) C struct tabs with {name, size}
 # 2) gperf-suitable input with hash(name) -> ID
 # 3) some kind of html output
 #
-# Choose backend for yourself in the main while() loop
+# Select output using $output variable
 
 
 # mappings: datatype -> length, in bytes
@@ -18,15 +18,25 @@ my %DATAMAP=(
 	     "unsigned64" => 8,
 	     "float32" => 4,
 	     "dateTimeSeconds" => 4,
+	     "dateTimeMilliSeconds" => 4,
+	     "dateTimeMicroSeconds" => 4,
+	     "dateTimeNanoSeconds" => 4,
+#	     "macAddress" => 
+#	     "string" => 
 	     "ipv4Address" => 4,
-	     "ipv6Address" => 8,
-	     "string" => 0,
-	     "octetarray" => 0
+	     "ipv6Address" => 8
 );
 
 $i=0;
 
-#c_pre();
+
+# select output: gperf, c, html
+$output='html';
+
+
+if($output eq 'c') {
+    c_pre();
+}
 
 while(<>) {
 	chomp;
@@ -36,17 +46,21 @@ while(<>) {
 	
 	$i++;
 	
-	# later lookup the datalength
-	#$length=$DATAMAP{$datat};
-	$length=0;
-	$id=lc($id);
-		
-	#c_ize($nr, $id, $datat, $desc);
-	#html_ize($nr, $id, $datat, $desc);
-	gperf_ize($nr, $id);
+	if($output eq 'gperf') {
+	    $id=lc($id);
+	    gperf_ize($nr, $id);
+	} elsif ($output eq 'c') {
+	    $length=$DATAMAP{$datat};
+	    $id=lc($id);
+	    c_ize($nr, $id, $datat, $desc);
+	} elsif ($output eq 'html') {
+	    html_ize($nr, $id, $datat, $desc);
+	}
 }
 
-#c_post();
+if($output eq 'c') {
+    c_post();
+}
 
 
 sub c_pre() {
