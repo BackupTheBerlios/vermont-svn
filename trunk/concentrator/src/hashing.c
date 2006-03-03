@@ -373,7 +373,7 @@ uint16_t getHash(Hashtable* ht, FieldData* data) {
 	uint16_t hash = 0;
 	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
 		if (isToBeAggregated(ht->dataTemplate->fieldInfo[i].type)) continue;
-		hash = crc16(hash, ht->dataTemplate->fieldInfo[i].type.length, data + ht->dataTemplate->fieldInfo[i].offset);
+		hash = crc16(hash, ht->dataTemplate->fieldInfo[i].type.length, (char*)data + ht->dataTemplate->fieldInfo[i].offset);
 		}
 		
 	return hash;	
