@@ -16,6 +16,8 @@
 #include "concentrator/rcvIpfix.h"
 #include "concentrator/aggregator.h"
 #include "concentrator/sndIpfix.h"
+/*juergen*/
+#include "concentrator/IpfixDbWriter.h"
 
 #define MAX_URIS 16
 
@@ -43,11 +45,12 @@ struct v_objects {
         uri *samp_uris[MAX_URIS];
 
 
-        /* for concentrator: */
+        /* for concentrator: */	
         IpfixReceiver *conc_receiver;
         IpfixAggregator *conc_aggregator;
         IpfixSender *conc_exporter;
-
+	/*juergen*/
+	IpfixDbWriter *conc_DbWriter;
         /* poll aggregator this often */
         unsigned short conc_poll_ms;
 
