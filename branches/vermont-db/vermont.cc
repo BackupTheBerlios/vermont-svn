@@ -306,6 +306,10 @@ static int vermont_start_all(struct v_objects *v)
         if(v->conc_receiver) {
                 startIpfixReceiver(v->conc_receiver);
         }
+/* juergen*/
+	if(v->conc_DbWriter) {
+		startIpfixDbWriter(v->conc_DbWriter);
+	}
 
         if(v->observer) {
                 v->sink->runSink();
