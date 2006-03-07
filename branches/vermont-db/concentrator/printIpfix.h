@@ -33,6 +33,7 @@ int printDataTemplate(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* d
 int printDataDataRecord(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 int printDataTemplateDestruction(void* ipfixPrinter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 
+
 int printOptionsTemplate(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo);
 int printOptionsRecord(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data);
 int printOptionsTemplateDestruction(void* ipfixPrinter, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo);

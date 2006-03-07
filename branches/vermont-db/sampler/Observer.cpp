@@ -50,7 +50,7 @@ void *Observer::observerThread(void *arg)
 		pcapData=pcap_next(obs->captureDevice, &packetHeader);
 		if(!pcapData)
 			/* no packet data was available */
-			continue;
+		   	continue;
 
 //		if(!(packetData=malloc(packetHeader.caplen))) {
 		if(!(packetData=malloc(capturelen))) {

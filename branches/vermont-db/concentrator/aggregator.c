@@ -97,6 +97,7 @@ void destroyAggregator(IpfixAggregator* ipfixAggregator)
 void startAggregator(IpfixAggregator* ipfixAggregator)
 {
 	pthread_mutex_unlock(&ipfixAggregator->mutex);
+
 }
 
 /**
@@ -120,7 +121,6 @@ void stopAggregator(IpfixAggregator* ipfixAggregator)
 int aggregateDataRecord(void* ipfixAggregator, SourceID sourceID, TemplateInfo* ti, uint16_t length, FieldData* data)
 {
 	Rules* rules = ((IpfixAggregator*)ipfixAggregator)->rules;
-
 	int i;
 	DPRINTF("aggregateDataRecord: Got a Data Record\n");
 
@@ -156,7 +156,6 @@ int aggregateDataDataRecord(void* ipfixAggregator, SourceID sourceID, DataTempla
 
 	int i;
 	DPRINTF("aggregateDataDataRecord: Got a DataData Record\n");
-
 	if(!rules) {
 		msg(MSG_FATAL, "Aggregator not started");
 		return -1;

@@ -36,6 +36,8 @@ int configure_concentrator(struct v_objects *v)
         IpfixSender *ips=NULL;
         IpfixAggregator *ipa=NULL;
         IpfixReceiver *ipr=NULL;
+	/*juergen*/
+	IpfixDbWriter *ipw=NULL;
 
 	char *l, *token=NULL;
 	uri **export_uri=v->conc_uris;
@@ -166,11 +168,19 @@ int configure_concentrator(struct v_objects *v)
         } else {
                 msg(MSG_DEBUG, "Config: not running IpfixReceiver part of concentrator");
         }
+	
+	/*juergen*/
+	if(!(ipw=createIpfixDbWriter() )){
+		msg(MSG_FATAL,"Config: IpfixDbWriter creation failure");
+	}
 
+	addAggregatorCallbacks(ipa,getIpfixDbWriterCallbackInfo(ipw));
+	/*juergen*/
         v->conc_receiver=ipr;
         v->conc_exporter=ips;
         v->conc_aggregator=ipa;
-
+	v->conc_DbWriter=ipw;
+	
 	msg(MSG_INFO, "Config: now setting up periodic concentrator logging");
 	if (v->conc_receiver) msg_thread_add_log_function(statsIpfixReceiver, v->conc_receiver);
 	if (v->conc_aggregator) msg_thread_add_log_function(statsAggregator, v->conc_aggregator);
@@ -200,6 +210,8 @@ void * concentrator_polling(void *arg)
 
         IpfixReceiver *ipr=v->conc_receiver;
         IpfixAggregator *ipa=v->conc_aggregator;
+	/*juergen*/
+	IpfixDbWriter *ipw=v->conc_DbWriter;
 
         msg(MSG_DEBUG, "Aggregator: polling aggregator %p each %d ms", ipa, v->conc_poll_ms);
         /* break millisecond polltime into seconds and nanoseconds */

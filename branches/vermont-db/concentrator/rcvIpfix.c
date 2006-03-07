@@ -280,7 +280,6 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 	IpfixDataTemplateHeader* th = (IpfixDataTemplateHeader*)&set->data;
 	byte* endOfSet = (byte*)set + ntohs(set->length);
 	byte* record = (byte*)&th->data;
-
 	/* DataTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
@@ -377,7 +376,6 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 		msg(MSG_INFO, "Template %d unknown to collecting process", ntohs(set->id));
 		return;
 	}
-	
 	#ifdef SUPPORT_NETFLOWV9
 	if ((bt->setID == IPFIX_SetId_Template) || (bt->setID == NetflowV9_SetId_Template)) {
 	#else
@@ -587,7 +585,6 @@ static int processNetflowV9Packet(IpfixReceiver *ipfixReceiver, byte *message, u
 
 		set = (IpfixSetHeader *)((byte *)set + ntohs(set->length));
 	}
-
 	return 0;
 }
 
@@ -636,7 +633,6 @@ static int processIpfixPacket(IpfixReceiver* ipfixReceiver, byte* message, uint1
 
 		set = (IpfixSetHeader*)((byte*)set + ntohs(set->length));
 	}
-
 	return 0;
 }
 
