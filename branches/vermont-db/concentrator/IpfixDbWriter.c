@@ -19,6 +19,8 @@ IpfixDbWriter *createIpfixDbWriter() {
 	return ipfixDbWriter;
 }
 
+printf("hallo du");
+
 /**
  * Initializes internal structures.
  * To be called on application startup
