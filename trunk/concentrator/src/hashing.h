@@ -48,6 +48,8 @@ typedef struct {
 
 Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime);
 
+int canBeAggregated(FieldType type);
+
 void hashingAddCallbacks(Hashtable* ht, CallbackInfo handles);
 
 void aggregateTemplateData(Hashtable* ht, TemplateInfo* ti, FieldData* data);

@@ -41,7 +41,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 ******************************************************************************/
- 
+
 #include <string.h>
 #include <netinet/in.h>
 #include <time.h>
@@ -133,6 +133,7 @@ Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBuffe
 			fi->type = rf->type;
 			fi->offset = ht->fieldLength;
 			ht->fieldLength += fi->type.length;
+			if ((rf->modifier == FIELD_MODIFIER_AGGREGATE) && (!canBeAggregated(rf->type))) errorf("Cannot aggregate fields of type %s", typeid2string(rf->type.id));
 			ht->fieldModifier[ht->dataTemplate->fieldCount - 1] = rf->modifier;
 			}
 			
@@ -252,10 +253,10 @@ uint32_t greaterUint32Nbo(uint32_t i, uint32_t j) {
 	}
 
 /**
- * Checks whether the given @c type is one of the types that has to be aggregated
- * @return 1 if flow is to be aggregated
+ * Checks whether the given @c type is one of the types that can be aggregated
+ * @return 1 if flow can be aggregated
  */	
-int isToBeAggregated(FieldType type) {
+int canBeAggregated(FieldType type) {
 	switch (type.id) {
 		case IPFIX_TYPEID_flowCreationTime:
 			return 1;
@@ -283,7 +284,6 @@ int isToBeAggregated(FieldType type) {
 		case IPFIX_TYPEID_exportedOctetTotalCount:
 		case IPFIX_TYPEID_exportedPacketTotalCount:
 		case IPFIX_TYPEID_exportedFlowTotalCount:
-			infof("Will not aggregate %s field", typeid2string(type.id));
 			return 0;
 		
 		default:
@@ -359,7 +359,7 @@ void aggregateFlow(Hashtable* ht, FieldData* baseFlow, FieldData* flow) {
 	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
 		FieldInfo* fi = &ht->dataTemplate->fieldInfo[i];
 		
-		if (!isToBeAggregated(fi->type)) continue;
+		if (ht->fieldModifier[i] != FIELD_MODIFIER_AGGREGATE) continue;
 		aggregateField(&fi->type, baseFlow + fi->offset, flow + fi->offset);
 		}
 	}
@@ -372,7 +372,7 @@ uint16_t getHash(Hashtable* ht, FieldData* data) {
 	
 	uint16_t hash = 0;
 	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
-		if (isToBeAggregated(ht->dataTemplate->fieldInfo[i].type)) continue;
+		if (ht->fieldModifier[i] == FIELD_MODIFIER_AGGREGATE) continue;
 		hash = crc16(hash, ht->dataTemplate->fieldInfo[i].type.length, (char*)data + ht->dataTemplate->fieldInfo[i].offset);
 		}
 		
@@ -406,7 +406,7 @@ int equalFlow(Hashtable* ht, FieldData* flow1, FieldData* flow2) {
 	
 	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
 		FieldInfo* fi = &ht->dataTemplate->fieldInfo[i];
-		if (isToBeAggregated(fi->type)) continue;
+		if (ht->fieldModifier[i] == FIELD_MODIFIER_AGGREGATE) continue;
 		if (!equalRaw(&fi->type, flow1 + fi->offset, &fi->type, flow2 + fi->offset)) return 0;
 		}
 		
