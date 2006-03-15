@@ -197,6 +197,22 @@ int parseIPv4Pattern(char* s, FieldData** fdata, FieldLength* length) {
 	}	
 
 /**
+ * parses the given string. Assumes 64 bit.
+ * @return 0 if successful
+ */
+int parseNumericPattern(char* s, FieldData** fdata, FieldLength* length) {
+	*length = 8;
+	
+	FieldData* fd = (FieldData*)malloc(*length);
+	uint64_t value = atoll(s);
+	*(uint64_t*)fd = htonll(value);
+
+	*fdata = fd;
+	
+	return 0;
+	}
+
+/**
  * parses the given string
  * @return 0 if successful
  */
@@ -389,6 +405,31 @@ Rules* parseRulesFromFile(char* fname) {
 					continue;
 					}	
 				break;
+			case IPFIX_TYPEID_flowCreationTime:
+			case IPFIX_TYPEID_flowEndTime:
+			case IPFIX_TYPEID_inOctetDeltaCount:
+			case IPFIX_TYPEID_outOctetDeltaCount:
+			case IPFIX_TYPEID_octetDeltaCount:
+			case IPFIX_TYPEID_inPacketDeltaCount:
+			case IPFIX_TYPEID_outPacketDeltaCount:
+			case IPFIX_TYPEID_packetDeltaCount:
+			case IPFIX_TYPEID_droppedOctetDeltaCount:
+			case IPFIX_TYPEID_droppedPacketDeltaCount:
+			case IPFIX_TYPEID_octetTotalCount:
+			case IPFIX_TYPEID_packetTotalCount:
+			case IPFIX_TYPEID_droppedOctetTotalCount:
+			case IPFIX_TYPEID_droppedPacketTotalCount:
+			case IPFIX_TYPEID_outMulticastPacketCount:
+			case IPFIX_TYPEID_outMulticastOctetCount:
+			case IPFIX_TYPEID_observedFlowTotalCount:
+			case IPFIX_TYPEID_exportedOctetTotalCount:
+			case IPFIX_TYPEID_exportedPacketTotalCount:
+			case IPFIX_TYPEID_exportedFlowTotalCount:
+				if (parseNumericPattern(pattern, &ruleField->pattern, &ruleField->type.length) != 0) {
+					errorf("Bad numeric pattern \"%s\" in %s, l.%d", pattern, fname, lineNo);
+					continue;
+					}	
+				break;
 			default:
 				errorf("Fields of type \"%s\" cannot be matched against a pattern %s, l.%d", field, fname, lineNo);
 				continue;
@@ -458,6 +499,22 @@ int matchesPortPattern(FieldType* dataType, FieldData* data, FieldType* patternT
 			}
 		return foundMatch;
 		}
+	if ((dataType->length == 1) && (patternType->length == 2)) {
+		return ((0 == pattern[0]) && (data[0] == pattern[1]));
+		}
+	if ((dataType->length == 1) && ((patternType->length % 4) == 0)) {
+		int dport = data[0];
+		int foundMatch = 0;
+		for (j = 0; j < patternType->length; j+=4) {
+			int pports = (pattern[j+0] << 8) + pattern[j+1];
+			int pporte = (pattern[j+2] << 8) + pattern[j+3];
+			if ((dport >= pports) && (dport <= pporte)) {
+				foundMatch = 1;
+				break;
+				}
+			}
+		return foundMatch;
+		}
 	if (((dataType->length % 4) == 0) && (patternType->length == 2)) {
 		for (i = 0; i < dataType->length; i+=4) {
 			int dports = (data[i+0] << 8) + data[i+1];
@@ -509,6 +566,37 @@ int matchesIPv4Pattern(FieldType* dataType, FieldData* data, FieldType* patternT
 	}
 
 /**
+ * Checks if a given Field matches a Pattern when compared by numeric value.
+ * Other than @c matchesRawPattern, this function allows for reduced-size encoding of values by assuming that data can be left-padded with zeros.
+ * @c return 1 if field matches
+ */
+int matchesNumericPattern(FieldType* dataType, FieldData* data, FieldType* patternType, FieldData* pattern) {
+	int i;
+	
+	if (dataType->length == patternType->length) {
+		/* Lengths are equal: Simple byte-wise comparison */
+		for (i = 0; i < dataType->length; i++) if (data[i] != pattern[i]) return 0;
+		return 1;
+		} else {
+		/* Lengths are not equal: Make sure we did not receive more bytes than we expected, i.e. not more than we are prepared to store */
+		if (dataType->length > patternType->length) {
+			errorf("Received numeric data field of type %s, length %d, but was only expecting %d bytes", typeid2string(dataType->id), dataType->length, patternType->length);
+			return 0;
+			}
+		/* Numeric values can safely be left-padded with zeros */
+		int padAmount = (patternType->length - dataType->length);
+		for (i = 0; i < padAmount; i++) {
+			if (data[i] != 0) return 0;
+		}
+		for (i = padAmount; i < patternType->length; i++) {
+			if (data[i-padAmount] != pattern[i]) return 0;
+		}
+		return 1;
+		}
+
+	}
+
+/**
  * Checks if a given Field matches a Pattern when compared byte for byte
  * @c return 1 if field matches
  */
@@ -542,6 +630,28 @@ int matchesPattern(FieldType* dataType, FieldData* data, FieldType* patternType,
 		case IPFIX_TYPEID_sourceTransportPort:
 		case IPFIX_TYPEID_destinationtransportPort:
 			return matchesPortPattern(dataType, data, patternType, pattern);
+			break;
+		case IPFIX_TYPEID_flowCreationTime:
+		case IPFIX_TYPEID_flowEndTime:
+		case IPFIX_TYPEID_inOctetDeltaCount:
+		case IPFIX_TYPEID_outOctetDeltaCount:
+		case IPFIX_TYPEID_octetDeltaCount:
+		case IPFIX_TYPEID_inPacketDeltaCount:
+		case IPFIX_TYPEID_outPacketDeltaCount:
+		case IPFIX_TYPEID_packetDeltaCount:
+		case IPFIX_TYPEID_droppedOctetDeltaCount:
+		case IPFIX_TYPEID_droppedPacketDeltaCount:
+		case IPFIX_TYPEID_octetTotalCount:
+		case IPFIX_TYPEID_packetTotalCount:
+		case IPFIX_TYPEID_droppedOctetTotalCount:
+		case IPFIX_TYPEID_droppedPacketTotalCount:
+		case IPFIX_TYPEID_outMulticastPacketCount:
+		case IPFIX_TYPEID_outMulticastOctetCount:
+		case IPFIX_TYPEID_observedFlowTotalCount:
+		case IPFIX_TYPEID_exportedOctetTotalCount:
+		case IPFIX_TYPEID_exportedPacketTotalCount:
+		case IPFIX_TYPEID_exportedFlowTotalCount:
+			return matchesNumericPattern(dataType, data, patternType, pattern);
 			break;
 		default:
 			return matchesRawPattern(dataType, data, patternType, pattern);

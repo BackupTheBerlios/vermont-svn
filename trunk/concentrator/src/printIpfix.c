@@ -45,6 +45,11 @@ static int portToString(FieldType type, FieldData* data, char* s, int len) {
 		strncpy(s, "-", len);
 		return 0;
 		}
+	if (type.length == 1) {
+		int port = data[0];
+		snprintf(s, len, "%d", port);
+		return 0;
+		}
 	if (type.length == 2) {
 		int port = ((uint16_t)data[0] << 8)+data[1];
 		snprintf(s, len, "%d", port);
