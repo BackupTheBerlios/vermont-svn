@@ -63,11 +63,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #define NetflowV9_SetId_Template  0
 
-#define MAX_MSG_LEN	65536
-
 /***** Macros ************************************************************/
 
-#define byte uint8_t
 
 /***** Data Types ************************************************************/
 
@@ -82,7 +79,7 @@ typedef struct {
 	uint32_t sequenceNo;
 	uint32_t sourceId;
 	byte   data;
-	} IpfixHeader;
+} IpfixHeader;
 
 /**
  * NetflowV9 header helper.
@@ -96,8 +93,8 @@ typedef struct {
 	uint32_t sequenceNo;
 	uint32_t sourceId;
 	byte   data;
-	} NetflowV9Header;
-                                                                  
+} NetflowV9Header;
+
 /**
  * IPFIX "Set" helper.
  * Constitutes the first bytes of every IPFIX Template Set, Options Template Set or Data Set
@@ -105,8 +102,8 @@ typedef struct {
 typedef struct {
 	uint16_t id;
 	uint16_t length;
- 	byte data; 
-	} IpfixSetHeader;
+	byte data; 
+} IpfixSetHeader;
 
 /**
  * IPFIX "Template Set" helper.
@@ -116,7 +113,7 @@ typedef struct {
 	uint16_t templateId;
 	uint16_t fieldCount;
 	byte data;
-	} IpfixTemplateHeader;
+} IpfixTemplateHeader;
 
 /**
  * IPFIX "DataTemplate Set" helper.
@@ -126,9 +123,9 @@ typedef struct {
 	uint16_t templateId;
 	uint16_t fieldCount;
 	uint16_t dataCount;
-	uint16_t reserved;
+	uint16_t precedingRule;
 	byte data;
-	} IpfixDataTemplateHeader;
+} IpfixDataTemplateHeader;
 
 /**
  * IPFIX "Options Template Set" helper.
@@ -139,28 +136,36 @@ typedef struct {
 	uint16_t fieldCount;
 	uint16_t scopeCount; 
 	byte data;
-	} IpfixOptionsTemplateHeader;
+} IpfixOptionsTemplateHeader;
 
 /***** Global Variables ******************************************************/
 
 
 /***** Internal Functions ****************************************************/
 
-static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceID, IpfixSetHeader* set);
-static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceID, IpfixSetHeader* set);
-static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceID, IpfixSetHeader* set);
-static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, IpfixSetHeader* set);
+static void processDataSet(IpfixParser* ipfixParser, SourceID sourceID, IpfixSetHeader* set);
+static void processTemplateSet(IpfixParser* ipfixParser, SourceID sourceID, IpfixSetHeader* set);
+static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID sourceID, IpfixSetHeader* set);
+static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSetHeader* set);
 
 /**
  * Processes an IPFIX template set.
  * Called by processMessage
  */
-static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, IpfixSetHeader* set) {
-	IpfixTemplateHeader* th = (IpfixTemplateHeader*)&set->data;
+static void processTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSetHeader* set) {
 	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&th->data;
+	byte* record = (byte*)&set->data;
+        
 	/* TemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		IpfixTemplateHeader* th = (IpfixTemplateHeader*)record;
+		record = (byte*)&th->data;
+
+		if (th->fieldCount == 0) {
+			/* This is a Template withdrawal message */
+			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
+			continue;
+		}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
 		TemplateInfo* ti = (TemplateInfo*)malloc(sizeof(TemplateInfo));
 		bt->sourceID = sourceId;
@@ -169,6 +174,7 @@ static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, 
 		bt->setID = ntohs(set->id);
 		bt->templateInfo = ti;
 		ti->userData = 0;
+		ti->templateId = ntohs(th->templateId);
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
 		int isLengthVarying = 0;
@@ -177,42 +183,55 @@ static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, 
 			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
-			if (ti->fieldInfo[fieldNo].type.length == 65535) isLengthVarying=1;
+			if (ti->fieldInfo[fieldNo].type.length == 65535) {
+				isLengthVarying=1;
+			}
 			if (ti->fieldInfo[fieldNo].type.id & IPFIX_ENTERPRISE_TYPE) {
 				ti->fieldInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
-				} else {
+			} else {
 				ti->fieldInfo[fieldNo].type.eid = 0;
 				record = (byte*)((byte*)record+4);
-				}
 			}
+		}
 		if (isLengthVarying) {
-  			bt->recordLength = 65535;
-			for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) ti->fieldInfo[fieldNo].offset = 65535;
-  			}
-			
-		bufferTemplate(ipfixReceiver->templateBuffer, bt); 
+			bt->recordLength = 65535;
+			for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
+				ti->fieldInfo[fieldNo].offset = 65535;
+			}
+		}
+        
+		bufferTemplate(ipfixParser->templateBuffer, bt); 
 		// FIXME: Template expiration disabled for debugging
 		// bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
-		int n;		
-		for (n = 0; n < ipfixReceiver->callbackCount; n++) {
-			CallbackInfo* ci = &ipfixReceiver->callbackInfo[n];
-			if (ci->templateCallbackFunction) ci->templateCallbackFunction(ci->handle, sourceId, ti);
+		int n;          
+		for (n = 0; n < ipfixParser->callbackCount; n++) {
+			CallbackInfo* ci = &ipfixParser->callbackInfo[n];
+			if (ci->templateCallbackFunction) {
+				ci->templateCallbackFunction(ci->handle, sourceId, ti);
 			}
-  		}
+		}
 	}
+}
 
 /**
  * Processes an IPFIX Options Template Set.
  * Called by processMessage
  */
-static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, IpfixSetHeader* set) {
-	IpfixOptionsTemplateHeader* th = (IpfixOptionsTemplateHeader*)&set->data;
+static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSetHeader* set) {
 	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&th->data;
+	byte* record = (byte*)&set->data;
+
 	/* OptionsTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		IpfixOptionsTemplateHeader* th = (IpfixOptionsTemplateHeader*)record;
+		record = (byte*)&th->data;
+		if (th->fieldCount == 0) {
+			/* This is a Template withdrawal message */
+			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
+			continue;
+		}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
 		OptionsTemplateInfo* ti = (OptionsTemplateInfo*)malloc(sizeof(OptionsTemplateInfo));
 		bt->sourceID = sourceId;
@@ -221,6 +240,7 @@ static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sou
 		bt->setID = ntohs(set->id);
 		bt->optionsTemplateInfo = ti;
 		ti->userData = 0;
+		ti->templateId = ntohs(th->templateId);
 		ti->scopeCount = ntohs(th->scopeCount);
 		ti->scopeInfo = (FieldInfo*)malloc(ti->scopeCount * sizeof(FieldInfo));
 		ti->fieldCount = ntohs(th->fieldCount)-ntohs(th->scopeCount);
@@ -231,58 +251,74 @@ static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sou
 			ti->scopeInfo[scopeNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->scopeInfo[scopeNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
 			ti->scopeInfo[scopeNo].offset = bt->recordLength; bt->recordLength+=ti->scopeInfo[scopeNo].type.length;
-			if (ti->scopeInfo[scopeNo].type.length == 65535) isLengthVarying=1;
+			if (ti->scopeInfo[scopeNo].type.length == 65535) {
+				isLengthVarying=1;
+			}
 			if (ti->scopeInfo[scopeNo].type.id & IPFIX_ENTERPRISE_TYPE) {
 				ti->scopeInfo[scopeNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
-				} else {
+			} else {
 				ti->fieldInfo[scopeNo].type.eid = 0;
 				record = (byte*)((byte*)record+4);
-				}
 			}
+		}
 		uint16_t fieldNo;
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
 			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
-			if (ti->fieldInfo[fieldNo].type.length == 65535) isLengthVarying=1;
+			if (ti->fieldInfo[fieldNo].type.length == 65535) {
+				isLengthVarying=1;
+			}
 			if (ti->fieldInfo[fieldNo].type.id & IPFIX_ENTERPRISE_TYPE) {
 				ti->fieldInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
-				} else {
+			} else {
 				ti->fieldInfo[fieldNo].type.eid = 0;
 				record = (byte*)((byte*)record+4);
-				}
 			}
+		}
 		if (isLengthVarying) {
-  			bt->recordLength = 65535;
-			for (fieldNo = 0; fieldNo < ti->scopeCount; fieldNo++) ti->scopeInfo[fieldNo].offset = 65535;
-			for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) ti->fieldInfo[fieldNo].offset = 65535;
-  			}
-		bufferTemplate(ipfixReceiver->templateBuffer, bt); 
+			bt->recordLength = 65535;
+			for (fieldNo = 0; fieldNo < ti->scopeCount; fieldNo++) {
+				ti->scopeInfo[fieldNo].offset = 65535;
+			}
+			for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
+				ti->fieldInfo[fieldNo].offset = 65535;
+			}
+		}
+		bufferTemplate(ipfixParser->templateBuffer, bt); 
 		// FIXME: Template expiration disabled for debugging
 		// bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
 
-		int n;		
-		for (n = 0; n < ipfixReceiver->callbackCount; n++) {
-			CallbackInfo* ci = &ipfixReceiver->callbackInfo[n];
-			if (ci->optionsTemplateCallbackFunction) ci->optionsTemplateCallbackFunction(ci->handle, sourceId, ti);
+		int n;
+		for (n = 0; n < ipfixParser->callbackCount; n++) {
+			CallbackInfo* ci = &ipfixParser->callbackInfo[n];
+			if (ci->optionsTemplateCallbackFunction) {
+				ci->optionsTemplateCallbackFunction(ci->handle, sourceId, ti);
 			}
-  		}
+		}
 	}
+}
 
 /**
  * Processes an IPFIX DataTemplate set.
  * Called by processMessage
  */
-static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, IpfixSetHeader* set) {
-	IpfixDataTemplateHeader* th = (IpfixDataTemplateHeader*)&set->data;
+static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSetHeader* set) {
 	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&th->data;
+	byte* record = (byte*)&set->data;
 
 	/* DataTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
+		IpfixDataTemplateHeader* th = (IpfixDataTemplateHeader*)record;
+		record = (byte*)&th->data;
+		if (th->fieldCount == 0) {
+			/* This is a Template withdrawal message */
+			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
+			continue;
+		}
 		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
 		DataTemplateInfo* ti = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
 		bt->sourceID = sourceId;
@@ -291,6 +327,8 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 		bt->setID = ntohs(set->id);
 		bt->dataTemplateInfo = ti;
 		ti->userData = 0;
+		ti->templateId = ntohs(th->templateId);
+		ti->precedingRule = ntohs(th->precedingRule);
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->dataCount = ntohs(th->dataCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
@@ -300,19 +338,23 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
-			if (ti->fieldInfo[fieldNo].type.length == 65535) isLengthVarying=1;
+			if (ti->fieldInfo[fieldNo].type.length == 65535) {
+				isLengthVarying=1;
+			}
 			if (ti->fieldInfo[fieldNo].type.id & IPFIX_ENTERPRISE_TYPE) {
 				ti->fieldInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
-				} else {
+			} else {
 				ti->fieldInfo[fieldNo].type.eid = 0;
 				record = (byte*)((byte*)record+4);
-				}
 			}
+		}
 		if (isLengthVarying) {
 			bt->recordLength = 65535;
-			for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) ti->fieldInfo[fieldNo].offset = 65535;
+			for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
+				ti->fieldInfo[fieldNo].offset = 65535;
 			}
+		}
 
 		ti->dataInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
 		for (fieldNo = 0; fieldNo < ti->dataCount; fieldNo++) {
@@ -321,15 +363,15 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 			if (ti->dataInfo[fieldNo].type.id & IPFIX_ENTERPRISE_TYPE) {
 				ti->dataInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
 				record = (byte*)((byte*)record+8);
-				} else {
+			} else {
 				ti->dataInfo[fieldNo].type.eid = 0;
 				record = (byte*)((byte*)record+4);
-				}
 			}
-		
+		}
+
 		/* done with reading dataInfo, @c record now points to the fixed data block */
 		byte* dataStart = record;
-		
+
 		int dataLength = 0;
 		for (fieldNo = 0; fieldNo < ti->dataCount; fieldNo++) {
 			ti->dataInfo[fieldNo].offset = dataLength;
@@ -341,73 +383,76 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 					/* First byte did not suffice, length is stored in next two bytes. Advance offset */
 					ti->dataInfo[fieldNo].type.length = *(uint16_t*)(dataStart + ti->dataInfo[fieldNo].offset);
 					ti->dataInfo[fieldNo].offset += 2;
-					}
 				}
-			dataLength += ti->dataInfo[fieldNo].type.length;
 			}
-			
+			dataLength += ti->dataInfo[fieldNo].type.length;
+		}
+
 		/* Copy fixed data block */
 		ti->data = (byte*)malloc(dataLength);
 		memcpy(ti->data,dataStart,dataLength);
 
 		/* Advance record to end of fixed data block, i.e. start of next template*/
 		record += dataLength;
-		
-		bufferTemplate(ipfixReceiver->templateBuffer, bt); 
+
+		bufferTemplate(ipfixParser->templateBuffer, bt); 
 		// FIXME: Template expiration disabled for debugging
 		// bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
-		int n;		
-		for (n = 0; n < ipfixReceiver->callbackCount; n++) {
-			CallbackInfo* ci = &ipfixReceiver->callbackInfo[n];
-			if (ci->dataTemplateCallbackFunction) ci->dataTemplateCallbackFunction(ci->handle, sourceId, ti);
+		int n;
+		for (n = 0; n < ipfixParser->callbackCount; n++) {
+			CallbackInfo* ci = &ipfixParser->callbackInfo[n];
+			if (ci->dataTemplateCallbackFunction){
+				ci->dataTemplateCallbackFunction(ci->handle, sourceId, ti);
 			}
-  		}
+		}
 	}
+}
 
 /**
  * Processes an IPFIX data set.
  * Called by processMessage
  */
-static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, IpfixSetHeader* set) {
-	BufferedTemplate* bt = getBufferedTemplate(ipfixReceiver->templateBuffer, sourceId, ntohs(set->id));
+static void processDataSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSetHeader* set) {
+	BufferedTemplate* bt = getBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(set->id));
 
-	if(bt == 0) {
-                /* this error may come in rapid succession; I hope I don't regret it */
+	if (bt == 0) {
+		/* this error may come in rapid succession; I hope I don't regret it */
 		msg(MSG_INFO, "Template %d unknown to collecting process", ntohs(set->id));
 		return;
 	}
-	
-	#ifdef SUPPORT_NETFLOWV9
+        
+#ifdef SUPPORT_NETFLOWV9
 	if ((bt->setID == IPFIX_SetId_Template) || (bt->setID == NetflowV9_SetId_Template)) {
-	#else
+#else
 	if (bt->setID == IPFIX_SetId_Template) {
-	#endif
+#endif
 
 		TemplateInfo* ti = bt->templateInfo;
-
+        
 		uint16_t length = ntohs(set->length)-((byte*)(&set->data)-(byte*)set);
 
 		byte* record = &set->data;
-	
+        
 		if (bt->recordLength < 65535) {
 			byte* recordX = record+length;
-
+        
 			if (record >= recordX - (bt->recordLength - 1)) {
 				DPRINTF("Got a Data Set that contained not a single full record\n");
 			}
 
 			/* We stop processing when no full record is left */
 			while (record < recordX - (bt->recordLength - 1)) {
-				int n;		
-				for (n = 0; n < ipfixReceiver->callbackCount; n++) {
-					CallbackInfo* ci = &ipfixReceiver->callbackInfo[n];
-					ipfixReceiver->receivedRecords++;
-					if (ci->dataRecordCallbackFunction) ci->dataRecordCallbackFunction(ci->handle, sourceId, ti, bt->recordLength, record);
+				int n;
+				for (n = 0; n < ipfixParser->callbackCount; n++) {
+					CallbackInfo* ci = &ipfixParser->callbackInfo[n];
+					if (ci->dataRecordCallbackFunction) {
+						ci->dataRecordCallbackFunction(ci->handle, sourceId, ti, bt->recordLength, record);
 					}
-				record = record + bt->recordLength;
 				}
-			} else {
+				record = record + bt->recordLength;
+			}
+		} else {
 			byte* recordX = record+length;
 
 			if (record >= recordX - 3) {
@@ -422,170 +467,171 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 					int fieldLength = 0;
 					if (ti->fieldInfo[i].type.length < 65535) {
 						fieldLength = ti->fieldInfo[i].type.length;
-						} else {
+					} else {
 						if (*(byte*)record < 255) {
 							fieldLength = *(byte*)record;
-							} else {
+						} else {
 							fieldLength = *(uint16_t*)(record+1);
-							}
 						}
+					}
 					ti->fieldInfo[i].type.length = fieldLength;
 					ti->fieldInfo[i].offset = recordLength;
 					recordLength += fieldLength;
-					}
-				int n;		
-				for (n = 0; n < ipfixReceiver->callbackCount; n++) {
-					CallbackInfo* ci = &ipfixReceiver->callbackInfo[n];
-					ipfixReceiver->receivedRecords++;
-					if (ci->dataRecordCallbackFunction) ci->dataRecordCallbackFunction(ci->handle, sourceId, ti, recordLength, record);
-					}
-				record = record + recordLength;
 				}
-			}
-		} else 
-	if (bt->setID == IPFIX_SetId_OptionsTemplate) {
-  	
-		OptionsTemplateInfo* ti = bt->optionsTemplateInfo;
-
-		uint16_t length = ntohs(set->length)-((byte*)(&set->data)-(byte*)set);
-		byte* record = &set->data;
-	
-		if (bt->recordLength < 65535) {
-			byte* recordX = record+length;
-			while (record < recordX) {
-				int n;		
-				for (n = 0; n < ipfixReceiver->callbackCount; n++) {
-					CallbackInfo* ci = &ipfixReceiver->callbackInfo[n];
-					if (ci->optionsRecordCallbackFunction) ci->optionsRecordCallbackFunction(ci->handle, sourceId, ti, bt->recordLength, record);
+				int n;
+				for (n = 0; n < ipfixParser->callbackCount; n++) {
+					CallbackInfo* ci = &ipfixParser->callbackInfo[n];
+					if (ci->dataRecordCallbackFunction) {
+						ci->dataRecordCallbackFunction(ci->handle, sourceId, ti, recordLength, record);
 					}
-				record = record + bt->recordLength;
+				}
+				record = record + recordLength;
+			}
+		}
+	} else {
+		if (bt->setID == IPFIX_SetId_OptionsTemplate) {
+
+			OptionsTemplateInfo* ti = bt->optionsTemplateInfo;
+
+			uint16_t length = ntohs(set->length)-((byte*)(&set->data)-(byte*)set);
+			byte* record = &set->data;
+
+			if (bt->recordLength < 65535) {
+				byte* recordX = record+length;
+				while (record < recordX) {
+					int n;
+					for (n = 0; n < ipfixParser->callbackCount; n++) {
+						CallbackInfo* ci = &ipfixParser->callbackInfo[n];
+						if (ci->optionsRecordCallbackFunction) {
+							ci->optionsRecordCallbackFunction(ci->handle, sourceId, ti, bt->recordLength, record);
+						}
+					}
+					record = record + bt->recordLength;
 				}
 			} else {
-			byte* recordX = record+length;
-			while (record < recordX) {
-				int recordLength=0;
-				int i;
-				for (i = 0; i < ti->scopeCount; i++) {
-					int fieldLength = 0;
-					if (ti->scopeInfo[i].type.length < 65535) {
-						fieldLength = ti->scopeInfo[i].type.length;
+				byte* recordX = record+length;
+				while (record < recordX) {
+					int recordLength=0;
+					int i;
+					for (i = 0; i < ti->scopeCount; i++) {
+						int fieldLength = 0;
+						if (ti->scopeInfo[i].type.length < 65535) {
+							fieldLength = ti->scopeInfo[i].type.length;
 						} else {
-						if (*(byte*)record < 255) {
-							fieldLength = *(byte*)record;
+							if (*(byte*)record < 255) {
+								fieldLength = *(byte*)record;
 							} else {
-							fieldLength = *(uint16_t*)(record+1);
+								fieldLength = *(uint16_t*)(record+1);
 							}
 						}
-					ti->scopeInfo[i].type.length = fieldLength;
-					ti->scopeInfo[i].offset = recordLength;
-					recordLength += fieldLength;
+						ti->scopeInfo[i].type.length = fieldLength;
+						ti->scopeInfo[i].offset = recordLength;
+						recordLength += fieldLength;
 					}
-				for (i = 0; i < ti->fieldCount; i++) {
-					int fieldLength = 0;
-					if (ti->fieldInfo[i].type.length < 65535) {
-						fieldLength = ti->fieldInfo[i].type.length;
+					for (i = 0; i < ti->fieldCount; i++) {
+						int fieldLength = 0;
+						if (ti->fieldInfo[i].type.length < 65535) {
+							fieldLength = ti->fieldInfo[i].type.length;
 						} else {
-						if (*(byte*)record < 255) {
-							fieldLength = *(byte*)record;
+							if (*(byte*)record < 255) {
+								fieldLength = *(byte*)record;
 							} else {
-							fieldLength = *(uint16_t*)(record+1);
+								fieldLength = *(uint16_t*)(record+1);
 							}
 						}
-					ti->fieldInfo[i].type.length = fieldLength;
-					ti->fieldInfo[i].offset = recordLength;
-					recordLength += fieldLength;
+						ti->fieldInfo[i].type.length = fieldLength;
+						ti->fieldInfo[i].offset = recordLength;
+						recordLength += fieldLength;
 					}
 
-				int n;		
-				for (n = 0; n < ipfixReceiver->callbackCount; n++) {
-					CallbackInfo* ci = &ipfixReceiver->callbackInfo[n];
-					if (ci->optionsRecordCallbackFunction) ci->optionsRecordCallbackFunction(ci->handle, sourceId, ti, recordLength, record);
+					int n;
+					for (n = 0; n < ipfixParser->callbackCount; n++) {
+						CallbackInfo* ci = &ipfixParser->callbackInfo[n];
+						if (ci->optionsRecordCallbackFunction)
+							ci->optionsRecordCallbackFunction(ci->handle, sourceId, ti, recordLength, record);
 					}
 
-				record = record + recordLength;
+					record = record + recordLength;
 				}
-			}
-		} else 
-  	if (bt->setID == IPFIX_SetId_DataTemplate) {
-		DataTemplateInfo* ti = bt->dataTemplateInfo;
-
-		uint16_t length = ntohs(set->length)-((byte*)(&set->data)-(byte*)set);
-		byte* record = &set->data;
-
-		if (bt->recordLength < 65535) {
-			byte* recordX = record+length;
-			while (record < recordX) {
-				int n;		
-				for (n = 0; n < ipfixReceiver->callbackCount; n++) {
-					CallbackInfo* ci = &ipfixReceiver->callbackInfo[n];
-					ipfixReceiver->receivedRecords++;
-					if (ci->dataDataRecordCallbackFunction) ci->dataDataRecordCallbackFunction(ci->handle, sourceId, ti, bt->recordLength, record);
-					}
-				record = record + bt->recordLength;
-				}
-			} else {
-			byte* recordX = record+length;
-			while (record < recordX) {
-				int recordLength=0;
-				int i;
-				for (i = 0; i < ti->fieldCount; i++) {
-					int fieldLength = 0;
-					if (ti->fieldInfo[i].type.length < 65535) {
-						fieldLength = ti->fieldInfo[i].type.length;
-						} else {
-						if (*(byte*)record < 255) {
-							fieldLength = *(byte*)record;
-							} else {
-							fieldLength = *(uint16_t*)(record+1);
-							}
-						}
-					ti->fieldInfo[i].type.length = fieldLength;
-					ti->fieldInfo[i].offset = recordLength;
-					recordLength += fieldLength;
-					}
-				int n;		
-				for (n = 0; n < ipfixReceiver->callbackCount; n++) {
-					CallbackInfo* ci = &ipfixReceiver->callbackInfo[n];
-					ipfixReceiver->receivedRecords++;
-					if (ci->dataDataRecordCallbackFunction) ci->dataDataRecordCallbackFunction(ci->handle, sourceId, ti, recordLength, record);
-					}
-				record = record + recordLength;
-			}
 			}
 		} else {
-		msg(MSG_FATAL, "Data Set based on known but unhandled template type %d", bt->setID);
-		}
-}
-	
+			if (bt->setID == IPFIX_SetId_DataTemplate) {
+				DataTemplateInfo* ti = bt->dataTemplateInfo;
 
+				uint16_t length = ntohs(set->length)-((byte*)(&set->data)-(byte*)set);
+				byte* record = &set->data;
+
+				if (bt->recordLength < 65535) {
+					byte* recordX = record+length;
+					while (record < recordX) {
+						int n;
+						for (n = 0; n < ipfixParser->callbackCount; n++) {
+							CallbackInfo* ci = &ipfixParser->callbackInfo[n];
+							if (ci->dataDataRecordCallbackFunction) {
+								ci->dataDataRecordCallbackFunction(ci->handle, sourceId, ti, bt->recordLength, record);
+							}
+						}
+						record = record + bt->recordLength;
+					}
+				} else {
+					byte* recordX = record+length;
+					while (record < recordX) {
+						int recordLength=0;
+						int i;
+						for (i = 0; i < ti->fieldCount; i++) {
+							int fieldLength = 0;
+							if (ti->fieldInfo[i].type.length < 65535) {
+								fieldLength = ti->fieldInfo[i].type.length;
+							} else {
+								if (*(byte*)record < 255) {
+									fieldLength = *(byte*)record;
+								} else {
+									fieldLength = *(uint16_t*)(record+1);
+								}
+							}
+							ti->fieldInfo[i].type.length = fieldLength;
+							ti->fieldInfo[i].offset = recordLength;
+							recordLength += fieldLength;
+						}
+						int n;
+						for (n = 0; n < ipfixParser->callbackCount; n++) {
+							CallbackInfo* ci = &ipfixParser->callbackInfo[n];
+							if (ci->dataDataRecordCallbackFunction) {
+								ci->dataDataRecordCallbackFunction(ci->handle, sourceId, ti, recordLength, record);
+							}
+						}
+						record = record + recordLength;
+					}
+				}
+			} else {
+				msg(MSG_FATAL, "Data Set based on known but unhandled template type %d", bt->setID);
+			}
+		}
+	}
+}
+
+        
 /**
  * Process a NetflowV9 Packet
  * @return 0 on success
- */	
-static int processNetflowV9Packet(IpfixReceiver *ipfixReceiver, byte *message, uint16_t length) {
-	uint16_t tmpid;
-	SourceID tmpsid;
-	int i, n;
+ */     
+static int processNetflowV9Packet(IpfixParser* ipfixParser, byte* message, uint16_t length) {
+	NetflowV9Header* header = (NetflowV9Header*)message;
 
-	NetflowV9Header *header = (NetflowV9Header *)message;
-	
 	/* pointer to first set */
-	IpfixSetHeader *set = (IpfixSetHeader *)&header->data;
-        n=ntohs(header->setCount);
+	IpfixSetHeader* set = (IpfixSetHeader*)&header->data;
 
-	for(i = 0; i < n; i++) {
-		tmpid=ntohs(set->id);
-                tmpsid=ntohl(header->sourceId);
-
-		if(tmpid >= IPFIX_SetId_Data_Start) {
-			processDataSet(ipfixReceiver, tmpsid, set);
-		} else if(tmpid == NetflowV9_SetId_Template) {
-			processTemplateSet(ipfixReceiver, tmpsid, set);
-		} else {
-			msg(MSG_ERROR, "processNetflowV9: Unsupported Set ID - expected 0/256+, got %d", tmpid);
-		}
-
-		set = (IpfixSetHeader *)((byte *)set + ntohs(set->length));
+	int i;
+	for (i = 0; i < ntohs(header->setCount); i++) {
+		if (ntohs(set->id) == NetflowV9_SetId_Template) {
+			processTemplateSet(ipfixParser, ntohl(header->sourceId), set);
+		} else
+			if (ntohs(set->id) >= IPFIX_SetId_Data_Start) {
+				processDataSet(ipfixParser, ntohl(header->sourceId), set);
+			} else {
+				msg(MSG_ERROR, "Unsupported Set ID - expected 0/256+, got %d", ntohs(set->id));
+			}
+		set = (IpfixSetHeader*)((byte*)set + ntohs(set->length));
 	}
 
 	return 0;
@@ -594,14 +640,12 @@ static int processNetflowV9Packet(IpfixReceiver *ipfixReceiver, byte *message, u
 /**
  * Process an IPFIX Packet
  * @return 0 on success
- */	
-static int processIpfixPacket(IpfixReceiver* ipfixReceiver, byte* message, uint16_t length) {
-	uint16_t tmpid;
-	SourceID tmpsid;
+ */     
+static int processIpfixPacket(IpfixParser* ipfixParser, byte* message, uint16_t length) {
 	IpfixHeader* header = (IpfixHeader*)message;
 
-	if(ntohs(header->length) != length) {
- 		DPRINTF("Bad message length - expected %#06x, got %#06x\n", length, ntohs(header->length));
+	if (ntohs(header->length) != length) {
+		DPRINTF("Bad message length - expected %#06x, got %#06x\n", length, ntohs(header->length));
 		return -1;
 	}
 
@@ -611,29 +655,29 @@ static int processIpfixPacket(IpfixReceiver* ipfixReceiver, byte* message, uint1
 	/* pointer beyond message */
 	IpfixSetHeader* setX = (IpfixSetHeader*)((char*)message + length); 
 
+	uint16_t tmpid;
+	SourceID tmpsid;
 	while(set < setX) {
 		tmpid=ntohs(set->id);
-                tmpsid=ntohl(header->sourceId);
-		
-		switch(tmpid) {
+		tmpsid=ntohl(header->sourceId);
 
+		switch(tmpid) {
 		case IPFIX_SetId_DataTemplate:
-			processDataTemplateSet(ipfixReceiver, tmpsid, set);
-                        break;
+			processDataTemplateSet(ipfixParser, tmpsid, set);
+			break;
 		case IPFIX_SetId_Template:
-			processTemplateSet(ipfixReceiver, tmpsid, set);
-                        break;
+			processTemplateSet(ipfixParser, tmpsid, set);
+			break;
 		case IPFIX_SetId_OptionsTemplate:
-			processOptionsTemplateSet(ipfixReceiver, tmpsid, set);
+			processOptionsTemplateSet(ipfixParser, tmpsid, set);
 			break;
 		default:
-                        if(tmpid >= IPFIX_SetId_Data_Start) {
-                                processDataSet(ipfixReceiver, tmpsid, set);
-                        } else {
-                                msg(MSG_ERROR, "processIpfixPacket: Unsupported Set ID - expected 2/3/4/256+, got %d", tmpid);
-                        }
-                }
-
+			if(tmpid >= IPFIX_SetId_Data_Start) {
+				processDataSet(ipfixParser, tmpsid, set);
+			} else {
+				msg(MSG_ERROR, "processIpfixPacket: Unsupported Set ID - expected 2/3/4/256+, got %d", tmpid);
+			}
+		}
 		set = (IpfixSetHeader*)((byte*)set + ntohs(set->length));
 	}
 
@@ -643,24 +687,24 @@ static int processIpfixPacket(IpfixReceiver* ipfixReceiver, byte* message, uint1
 /**
  * Process new Message
  * @return 0 on success
- */	
-static int processMessage(IpfixReceiver* ipfixReceiver, byte* message, uint16_t length) {
+ */     
+static int processMessage(IpfixParser* ipfixParser, byte* message, uint16_t length) {
 	IpfixHeader* header = (IpfixHeader*)message;
 	if (ntohs(header->version) == 0x000a) {
-		return processIpfixPacket(ipfixReceiver, message, length);
-		}
-	#ifdef SUPPORT_NETFLOWV9
+		return processIpfixPacket(ipfixParser, message, length);
+	}
+#ifdef SUPPORT_NETFLOWV9
 	if (ntohs(header->version) == 0x0009) {
-		return processNetflowV9Packet(ipfixReceiver, message, length);
-		}
+		return processNetflowV9Packet(ipfixParser, message, length);
+	}
 	DPRINTF("Bad message version - expected 0x009 or 0x000a, got %#06x\n", ntohs(header->version));
 	return -1;
-	#else
+#else
 	DPRINTF("Bad message version - expected 0x000a, got %#06x\n", ntohs(header->version));
 	return -1;
-	#endif
-	}
-	
+#endif
+}
+
 static void printIPv4(FieldType type, FieldData* data) {
 	int octet1 = 0;
 	int octet2 = 0;
@@ -675,183 +719,130 @@ static void printIPv4(FieldType type, FieldData* data) {
 	if (type.length > 5) {
 		DPRINTF("IPv4 Address with length %d unparseable\n", type.length);
 		return;
-		}
-	
+	}
+
 	if ((type.length == 5) /*&& (imask != 0)*/) {
 		printf("%d.%d.%d.%d/%d", octet1, octet2, octet3, octet4, 32-imask);
-		} else {
+	}  else {
 		printf("%d.%d.%d.%d", octet1, octet2, octet3, octet4);
-		}
 	}
+}
 
 static void printPort(FieldType type, FieldData* data) {
 	if (type.length == 0) {
 		printf("zero-length Port");
 		return;
-		}
+	}
 	if (type.length == 2) {
 		int port = ((uint16_t)data[0] << 8)+data[1];
 		printf("%d", port);
 		return;
-		}
+	}
 	if ((type.length >= 4) && ((type.length % 4) == 0)) {
 		int i;
 		for (i = 0; i < type.length; i+=4) {
 			int starti = ((uint16_t)data[i+0] << 8)+data[i+1];
 			int endi = ((uint16_t)data[i+2] << 8)+data[i+3];
-			if (i > 0) printf(",");
+			if (i > 0) {
+				printf(",");
+			}
 			if (starti != endi) {
 				printf("%d:%d", starti, endi);
-				} else {
+			} else {
 				printf("%d", starti);
-				}
-			} 
-		return;
+			}
 		}
-	
-	printf("Port with length %d unparseable", type.length);
+		return;
 	}
+
+	printf("Port with length %d unparseable", type.length);
+}
 
 void printProtocol(FieldType type, FieldData* data) {
 	if (type.length != 1) {
 		printf("Protocol with length %d unparseable", type.length);
 		return;
-		}
-	switch (data[0]) {
-		case IPFIX_protocolIdentifier_ICMP:
-			printf("ICMP");
-			return;
-		case IPFIX_protocolIdentifier_TCP:
-			printf("TCP");
-			return;
-		case IPFIX_protocolIdentifier_UDP: 
-			printf("UDP");
-			return;
-		case IPFIX_protocolIdentifier_RAW: 
-			printf("RAW");
-			return;
-		default:
-			printf("unknownProtocol");
-			return;
-		}
 	}
+	switch (data[0]) {
+	case IPFIX_protocolIdentifier_ICMP:
+		printf("ICMP");
+		return;
+	case IPFIX_protocolIdentifier_TCP:
+		printf("TCP");
+		return;
+	case IPFIX_protocolIdentifier_UDP: 
+		printf("UDP");
+		return;
+	case IPFIX_protocolIdentifier_RAW: 
+		printf("RAW");
+		return;
+	default:
+		printf("unknownProtocol");
+		return;
+	}
+}
 
 static void printUint(FieldType type, FieldData* data) {
 	switch (type.length) {
-		case 1:
-			printf("%hhu",*(uint8_t*)data);
-			return;
-		case 2:
-			printf("%hu",ntohs(*(uint16_t*)data));
-			return;
-		case 4:
-			printf("%u",ntohl(*(uint32_t*)data));
-			return;
-		case 8:
-			printf("%Lu",ntohll(*(uint64_t*)data));
-			return;
-		default:
-			printf("Uint with length %d unparseable", type.length);
-			return;
-		}
+	case 1:
+		printf("%hhu",*(uint8_t*)data);
+		return;
+	case 2:
+		printf("%hu",ntohs(*(uint16_t*)data));
+		return;
+	case 4:
+		printf("%u",ntohl(*(uint32_t*)data));
+		return;
+	case 8:
+		printf("%Lu",ntohll(*(uint64_t*)data));
+		return;
+	default:
+		msg(MSG_ERROR, "Uint with length %d unparseable", type.length);
+		return;
 	}
-
-/**
- * this is the main thread loop for the ipfix receiver
- * data is read from the network and dispatched via processMessage()
- * TODO: if we block in recvfrom(), we won't exit the thread!
- */
-static void * listenerUdpIpv4(void *ipfixReceiver)
-{
-	int n;
-	struct sockaddr_in clientAddress;
-	socklen_t clientAddressLen;
-
-	clientAddressLen = sizeof(struct sockaddr_in);
-
-	IpfixReceiver *ipr = (IpfixReceiver *)ipfixReceiver;
-	byte *data = (byte *)malloc(sizeof(byte)*MAX_MSG_LEN);
-	
-        msg(MSG_INFO, "IPFIX receiver: now running IPFIXReceiver thread");
-	
-	while(!ipr->exit) {
-		/* if we block here, exiting of this thread is delayed until the next packet :( */
-		n = recvfrom(ipr->socket, data, MAX_MSG_LEN, 0, (struct sockaddr*)&clientAddress, &clientAddressLen);
-
-		if(n < 0) {
-			msg(MSG_DEBUG, "recvfrom returned with error, terminating UDP/IPv4 listener thread");
-			break;
-		}
-                DPRINTF("IPFIXReceiver: got data with len %d\n", n);
-
-		pthread_mutex_lock(&ipr->mutex);
-		processMessage(ipr, data, n);
-		pthread_mutex_unlock(&ipr->mutex);
-	}
-
-        msg(MSG_DEBUG, "IPFIXReceiver thread (listener) is terminating");
-	free(data);
-
-	return 0;
 }
+
 
 /***** Exported Functions ****************************************************/
 
-/**
- * Initializes internal data.
- * Call once before using any function in this module
- * @return 0 if call succeeded
- */
-int initializeIpfixReceivers() {
-	return 0;
-}
-
-/**
- * Destroys internal data.
- * Call once to tidy up. Do not use any function in this module afterwards
- * @return 0 if call succeeded
- */
-int deinitializeIpfixReceivers() {
-	return 0;
-}
 
 /**
  * Prints a string representation of FieldData to stdout.
  */
 void printFieldData(FieldType type, FieldData* pattern) {
 	char* s;
-	
+
 	switch (type.id) {
-		case IPFIX_TYPEID_protocolIdentifier:
-			printf("protocolIdentifier:");
-			printProtocol(type, pattern);
-			break;
-		case IPFIX_TYPEID_sourceIPv4Address:
-			printf("sourceIPv4Address:");
-			printIPv4(type, pattern);
-			break;
-		case IPFIX_TYPEID_destinationIPv4Address:
-			printf("destinationIPv4Address:");
-			printIPv4(type, pattern);
-			break;				
-		case IPFIX_TYPEID_sourceTransportPort:
-			printf("sourceTransportPort:");
-			printPort(type, pattern);
-			break;
-		case IPFIX_TYPEID_destinationTransportPort:
-			printf("destinationTransportPort:");
-			printPort(type, pattern);
-			break;
-		default:
-			s = typeid2string(type.id);
-			if (s != NULL) {
-				printf("%s:", s);
-				printUint(type, pattern);
-				} else {
-				DPRINTF("Field with ID %d unparseable\n", type.id);
-				}
-			break;
+	case IPFIX_TYPEID_protocolIdentifier:
+		printf("protocolIdentifier:");
+		printProtocol(type, pattern);
+		break;
+	case IPFIX_TYPEID_sourceIPv4Address:
+		printf("sourceIPv4Address:");
+		printIPv4(type, pattern);
+		break;
+	case IPFIX_TYPEID_destinationIPv4Address:
+		printf("destinationIPv4Address:");
+		printIPv4(type, pattern);
+		break;                          
+	case IPFIX_TYPEID_sourceTransportPort:
+		printf("sourceTransportPort:");
+		printPort(type, pattern);
+		break;
+	case IPFIX_TYPEID_destinationTransportPort:
+		printf("destinationTransportPort:");
+		printPort(type, pattern);
+		break;
+	default:
+		s = typeid2string(type.id);
+		if (s != NULL) {
+			printf("%s:", s);
+			printUint(type, pattern);
+		} else {
+			DPRINTF("Field with ID %d unparseable\n", type.id);
 		}
+		break;
+	}
 }
 
 /**
@@ -862,12 +853,12 @@ void printFieldData(FieldType type, FieldData* pattern) {
  */
 FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type) {
 	int i;
-	
+
 	for (i = 0; i < ti->fieldCount; i++) {
 		if ((ti->fieldInfo[i].type.id == type->id) && (ti->fieldInfo[i].type.eid == type->eid)) {
 			return &ti->fieldInfo[i];
-			}
 		}
+	}
 
 	return NULL;
 }
@@ -880,12 +871,12 @@ FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type) {
  */
 FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type) {
 	int i;
-	
+
 	for (i = 0; i < ti->fieldCount; i++) {
 		if ((ti->fieldInfo[i].type.id == type->id) && (ti->fieldInfo[i].type.eid == type->eid)) {
 			return &ti->fieldInfo[i];
-			}
 		}
+	}
 
 	return NULL;
 }
@@ -898,166 +889,198 @@ FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type) {
  */
 FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type) {
 	int i;
-	
+
 	for (i = 0; i < ti->dataCount; i++) {
 		if ((ti->dataInfo[i].type.id == type->id) && (ti->dataInfo[i].type.eid == type->eid)) {
 			return &ti->dataInfo[i];
-			}
 		}
+	}
 
-	return NULL;		
+	return NULL;            
 }
-	
-/**
- * Adds a set of callback functions to the list of functions to call when a new Message arrives
- * @param ipfixReceiver IpfixReceiver to set the callback function for
- * @param handles set of callback functions
- */
-void addIpfixReceiverCallbacks(IpfixReceiver* ipfixReceiver, CallbackInfo handles) {
-	int n = ++ipfixReceiver->callbackCount;
-	ipfixReceiver->callbackInfo = (CallbackInfo*)realloc(ipfixReceiver->callbackInfo, n * sizeof(CallbackInfo));
-	memcpy(&ipfixReceiver->callbackInfo[n-1], &handles, sizeof(CallbackInfo));
-}
+        
 
 /**
- * Creates a new IpfixReceiver.
- * Call @c startIpfixReceiver() to start processing messages.
- * @param port Port to listen on
- * @return handle for further interaction
+ * Creates a new  @c IpfixParser.
+ * @return handle to created instance
  */
-IpfixReceiver* createIpfixReceiver(uint16_t port) {
-	IpfixReceiver* ipfixReceiver;
-	struct sockaddr_in serverAddress;
-	
+IpfixParser* createIpfixParser() {
+	IpfixParser* ipfixParser;
 
-        msg(MSG_DEBUG, "IPFIXReceiver: making for port %d", port);
-
-        if(!(ipfixReceiver=(IpfixReceiver*)malloc(sizeof(IpfixReceiver)))) {
+	if(!(ipfixParser=(IpfixParser*)malloc(sizeof(IpfixParser)))) {
 		msg(MSG_FATAL, "Ran out of memory");
 		goto out0;
 	}
 
-	ipfixReceiver->callbackInfo=0;
-        ipfixReceiver->callbackCount=0;
-	ipfixReceiver->exit=0;
-	ipfixReceiver->receivedRecords=0;
+	ipfixParser->callbackInfo = NULL;
+	ipfixParser->callbackCount = 0;
 
-	if(!(ipfixReceiver->templateBuffer = createTemplateBuffer(ipfixReceiver))) {
+	if(!(ipfixParser->templateBuffer = createTemplateBuffer(ipfixParser))) {
 		msg(MSG_FATAL, "Could not create template Buffer");
 		goto out1;
 	}
 
-	if (pthread_mutex_init(&ipfixReceiver->mutex, NULL) != 0) {
-		msg(MSG_FATAL, "Could not init mutex");
-		goto out2;
-	}
-		
-	if (pthread_mutex_lock(&ipfixReceiver->mutex) != 0) {
-		msg(MSG_FATAL, "Could not lock mutex");
-		goto out2;
-	}
+	return ipfixParser;
 
-	ipfixReceiver->socket = socket(AF_INET, SOCK_DGRAM, 0);
-	if(ipfixReceiver->socket < 0) {
-		msg(MSG_FATAL, "Could not create socket");
-		goto out2;
-	}
-
-	serverAddress.sin_family = AF_INET;
-	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-	serverAddress.sin_port = htons(port);
-	if(bind(ipfixReceiver->socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in)) < 0) {
-		msg(MSG_FATAL, "Could not bind socket");
-		goto out3;
-	}
-
-	if(pthread_create(&(ipfixReceiver->thread), NULL, listenerUdpIpv4, ipfixReceiver) != 0) {
-		msg(MSG_FATAL, "Could not pthread_create listener thread");
-		goto out3;
-	}
-	//listenerUdpIpv4(ipfixReceiver); //debug - single-threaded
-	
-        return ipfixReceiver;
-
-out3:
-	close(ipfixReceiver->socket);
-out2:
-	destroyTemplateBuffer(ipfixReceiver->templateBuffer);
 out1:
-	free(ipfixReceiver);
+	free(ipfixParser);
 out0:
 	return NULL;
 }
 
 /**
- * Starts processing messages.
- * All sockets prepared by calls to createIpfixReceiver() will start
- * receiving messages until stopIpfixReceiver() is called.
- * @return 0 on success, non-zero on error
+ * Frees memory used by an IpfixParser.
  */
-int startIpfixReceiver(IpfixReceiver* ipfixReceiver)
-{
-	if(pthread_mutex_unlock(&ipfixReceiver->mutex) != 0) {
-		return -1;
+void destroyIpfixParser(IpfixParser* ipfixParser) {
+	destroyTemplateBuffer(ipfixParser->templateBuffer);
+
+	free(ipfixParser->callbackInfo);
+
+	free(ipfixParser);
+}
+
+/**
+ * Creates a new @c PacketProcessor.
+ * @return handle to the created object
+ */
+PacketProcessor*  createPacketProcessor() {
+	PacketProcessor* packetProcessor;
+
+	if(!(packetProcessor=(PacketProcessor*)malloc(sizeof(PacketProcessor)))) {
+		msg(MSG_FATAL,"Ran out of memory");
+		return NULL;
 	}
-	
+
+	packetProcessor->ipfixParser = NULL;
+	packetProcessor->processPacketCallbackFunction = processMessage;
+
+	return packetProcessor;
+}
+
+
+/**
+ * Frees memory used by a @c PacketProcessor
+ */
+void destroyPacketProcessor(PacketProcessor* packetProcessor) {
+	destroyIpfixParser(packetProcessor->ipfixParser);
+	free(packetProcessor);
+}
+
+/**
+ * Adds a set of callback functions to the list of functions to call when a new Message arrives
+ * @param ipfixParser IpfixParser to set the callback function for
+ * @param handles set of callback functions
+ */
+void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles) {
+	int n = ++ipfixParser->callbackCount;
+	ipfixParser->callbackInfo = (CallbackInfo*)realloc(ipfixParser->callbackInfo, n * sizeof(CallbackInfo));
+	memcpy(&ipfixParser->callbackInfo[n-1], &handles, sizeof(CallbackInfo));
+}
+
+/** 
+ * Assigns an IpfixParser to packetProcessor
+ * @param packetProcessor PacketProcessor to assign the IpfixParser to.
+ * @param ipfixParser Pointer to an ipfixParser object.
+ */
+void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser) {
+	packetProcessor->ipfixParser = ipfixParser;
+}
+
+/**
+ * Adds a PacketProcessor to the list of PacketProcessors
+ * @param ipfixCollector Collector to assign the PacketProcessor to
+ * @param packetProcessor handle of packetProcessor
+ */
+void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetProcessor) {
+	int n = ++ipfixCollector->processorCount;
+	ipfixCollector->packetProcessor = (PacketProcessor*)realloc(ipfixCollector->packetProcessor,
+								    n*sizeof(PacketProcessor));
+	memcpy(&ipfixCollector->packetProcessor[n-1], packetProcessor, sizeof(PacketProcessor));
+
+	setPacketProcessor(ipfixCollector->ipfixReceiver, ipfixCollector->packetProcessor,
+			   ipfixCollector->processorCount);
+}
+
+
+/**
+ * Initializes internal data.
+ * Call onces before using any function in this module
+ * @return 0 if call succeeded
+ */
+int initializeIpfixCollectors() {
+	initializeIpfixReceivers();
 	return 0;
 }
-	
+
+/**
+ * Destroys internal data.
+ * Call once to tidy up. Do not use any function in this module afterwards
+ * @return 0 if call succeeded
+ */
+int deinitializeIpfixCollectors() {
+	deinitializeIpfixReceivers();
+	return 0;
+} 
+
+/**
+ * Creates a new IpfixCollector.
+ * Call @c startIpfixCollector() to start receiving and processing messages.
+ * @param rec_type Type of receiver (SCTP, UDP, ...)
+ * @param port Port to listen on
+ * @return handle for further interaction
+ */
+IpfixCollector* createIpfixCollector(Receiver_Type rec_type, int port) {
+	IpfixCollector* ipfixCollector;
+
+	if (!(ipfixCollector = (IpfixCollector*)malloc(sizeof(IpfixCollector)))) {
+		msg(MSG_FATAL, "Ran out of memory");
+		return NULL;
+	}
+
+	ipfixCollector->ipfixReceiver = createIpfixReceiver(rec_type, port);
+
+	ipfixCollector->processorCount = 0;
+	ipfixCollector->packetProcessor = NULL;
+
+	return ipfixCollector;
+}
+
+/**
+ * Frees memory used by a IpfixCollector.
+ * @param ipfixCollector Handle returned by @c createIpfixCollector()
+ */
+void destroyIpfixCollector(IpfixCollector* ipfixCollector) {
+	destroyIpfixReceiver(ipfixCollector->ipfixReceiver);
+
+	free(ipfixCollector->packetProcessor);
+	free(ipfixCollector);
+}
+
+/**
+ * Starts receiving and processing messages.
+ * All sockets prepared by calls to createIpfixCollector() will start
+ * receiving messages until stopIpfixCollector() is called.
+ * @return 0 on success, non-zero on error
+ */
+int startIpfixCollector(IpfixCollector* ipfixCollector) {
+	return startIpfixReceiver(ipfixCollector->ipfixReceiver);
+}
+
 /**
  * Stops processing messages.
- * No more messages will be processed until the next startIpfixReceiver() call.
+ * No more messages will be processed until the next startIpfixCollector() call.
  * @return 0 on success, non-zero on error
  */
-int stopIpfixReceiver(IpfixReceiver* ipfixReceiver)
-{
-	if(pthread_mutex_lock(&ipfixReceiver->mutex) != 0) {
-		return -1;
-	}
-
-	return 0;
+int stopIpfixCollector(IpfixCollector* ipfixCollector) {
+	return stopIpfixReceiver(ipfixCollector->ipfixReceiver);
 }
 
 /**
- * Tells the receiver thread to shut down
- * @return 0 on success from pthread_join, non-zero on error
+ * Adds a struct in_addr to the list of hosts we accept packets from
+ * @param ipfixCollector IpfixCollector to set the callback function for
+ * @param host address to add to the list
  */
-int shutdownIpfixReceiver(IpfixReceiver *ipr)
-{
-	void *ret;
-
-	ipr->exit=1;
-
-	/*
-	 Don't know if it is wise to really WAIT for the thread and not only
-	 detach it - may deadlock
-	 */
-	return(pthread_join(ipr->thread, &ret));
+int addIpfixCollectorAuthorizedHost(IpfixCollector* ipfixCollector, const char* host) {
+	return addAuthorizedHost(ipfixCollector->ipfixReceiver, host);
 }
 
-/**
- * Frees memory used by a IpfixReceiver.
- * @param ipfixReceiver Handle returned by @c createIpfixReceiver()
- */
-void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver) {
-	close(ipfixReceiver->socket);
-	
-	if (pthread_mutex_unlock(&ipfixReceiver->mutex) != 0) {
-		DPRINTF("Could not unlock mutex\n");
-	}
-	
-	destroyTemplateBuffer(ipfixReceiver->templateBuffer);
-	free(ipfixReceiver->callbackInfo);
-	free(ipfixReceiver);
-}
-
-/**
- * Called by the logger timer thread. Dumps info using msg_stat
- */
-void statsIpfixReceiver(void* ipfixReceiver_)
-{
-	IpfixReceiver* ipfixReceiver = (IpfixReceiver*)ipfixReceiver_;
-
-	msg_stat("Concentrator: IpfixReceiver: %6d records received", ipfixReceiver->receivedRecords);
-	ipfixReceiver->receivedRecords = 0;
-}

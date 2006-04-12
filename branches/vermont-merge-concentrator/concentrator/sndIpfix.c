@@ -150,8 +150,8 @@ int sndNewDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* 
 		return -1;
 	}
 
-	my_template_id = dataTemplateInfo->id?dataTemplateInfo->id:++ipfixSender->lastTemplateId;
-	my_preceding = dataTemplateInfo->preceding;
+	my_template_id = dataTemplateInfo->templateId?dataTemplateInfo->templateId:++ipfixSender->lastTemplateId;
+	my_preceding = dataTemplateInfo->precedingRule;
 	if (ipfixSender->lastTemplateId >= SENDER_TEMPLATE_ID_HI) {
 		/* FIXME: Does not always work, e.g. if more than 50000 new Templates per minute are created */
 		ipfixSender->lastTemplateId = SENDER_TEMPLATE_ID_LOW;
