@@ -219,7 +219,7 @@ typedef int(ProcessPacketCallbackFunction)(IpfixParser* ipfixParser, byte* messa
 typedef struct {
 	ProcessPacketCallbackFunction* processPacketCallbackFunction; /**< Callback function invoked when new packet arrives. */
 	IpfixParser* ipfixParser; /**< Contains information about parsing process */
-} PacketProcessor;
+} IpfixPacketProcessor;
 
 
 /**
@@ -229,7 +229,7 @@ typedef struct {
 	IpfixReceiver* ipfixReceiver;
 
 	int processorCount;
-	PacketProcessor* packetProcessor;
+	IpfixPacketProcessor* packetProcessor;
 } IpfixCollector;
 
 /***** Prototypes ***********************************************************/
@@ -248,8 +248,8 @@ int addIpfixCollectorAuthorizedHost(IpfixCollector* ipfixCollector, const char* 
 
 /* ---------------------------------------------- Processor --------------------------------------- */
 
-PacketProcessor* createPacketProcessor();
-void destroyPacketProcessor(PacketProcessor* packetProcessor);
+IpfixPacketProcessor* createIpfixPacketProcessor();
+void destroyIpfixPacketProcessor(IpfixPacketProcessor* packetProcessor);
 
 /* --------------------------------------- Parser && Parsing Stuff  ------------------------------- */
 
@@ -266,9 +266,9 @@ FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
 /* --------------------------------------- Connectors --------------------------------------------- */
 
 void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles);
-void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser);
+void setIpfixParser(IpfixPacketProcessor* packetProcessor, IpfixParser* ipfixParser);
 
-void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetProcessor);
+void addIpfixPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcessor* packetProcessor);
 
 void statsIpfixReceiver(void* ipfixReceiver);
 

@@ -943,10 +943,10 @@ void destroyIpfixParser(IpfixParser* ipfixParser) {
  * Creates a new @c PacketProcessor.
  * @return handle to the created object
  */
-PacketProcessor*  createPacketProcessor() {
-	PacketProcessor* packetProcessor;
+IpfixPacketProcessor*  createPacketProcessor() {
+	IpfixPacketProcessor* packetProcessor;
 
-	if(!(packetProcessor=(PacketProcessor*)malloc(sizeof(PacketProcessor)))) {
+	if(!(packetProcessor=(IpfixPacketProcessor*)malloc(sizeof(IpfixPacketProcessor)))) {
 		msg(MSG_FATAL,"Ran out of memory");
 		return NULL;
 	}
@@ -961,7 +961,7 @@ PacketProcessor*  createPacketProcessor() {
 /**
  * Frees memory used by a @c PacketProcessor
  */
-void destroyPacketProcessor(PacketProcessor* packetProcessor) {
+void destroyIpfixPacketProcessor(IpfixPacketProcessor* packetProcessor) {
 	destroyIpfixParser(packetProcessor->ipfixParser);
 	free(packetProcessor);
 }
@@ -982,7 +982,7 @@ void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles) {
  * @param packetProcessor PacketProcessor to assign the IpfixParser to.
  * @param ipfixParser Pointer to an ipfixParser object.
  */
-void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser) {
+void setIpfixParser(IpfixPacketProcessor* packetProcessor, IpfixParser* ipfixParser) {
 	packetProcessor->ipfixParser = ipfixParser;
 }
 
@@ -991,11 +991,11 @@ void setIpfixParser(PacketProcessor* packetProcessor, IpfixParser* ipfixParser) 
  * @param ipfixCollector Collector to assign the PacketProcessor to
  * @param packetProcessor handle of packetProcessor
  */
-void addPacketProcessor(IpfixCollector* ipfixCollector, PacketProcessor* packetProcessor) {
+void addPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcessor* packetProcessor) {
 	int n = ++ipfixCollector->processorCount;
-	ipfixCollector->packetProcessor = (PacketProcessor*)realloc(ipfixCollector->packetProcessor,
-								    n*sizeof(PacketProcessor));
-	memcpy(&ipfixCollector->packetProcessor[n-1], packetProcessor, sizeof(PacketProcessor));
+	ipfixCollector->packetProcessor = (IpfixPacketProcessor*)realloc(ipfixCollector->packetProcessor,
+									 n*sizeof(IpfixPacketProcessor));
+	memcpy(&ipfixCollector->packetProcessor[n-1], packetProcessor, sizeof(IpfixPacketProcessor));
 
 	setPacketProcessor(ipfixCollector->ipfixReceiver, ipfixCollector->packetProcessor,
 			   ipfixCollector->processorCount);

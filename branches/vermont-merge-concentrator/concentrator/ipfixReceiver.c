@@ -358,7 +358,7 @@ static void udpListener(IpfixReceiver* ipfixReceiver) {
                 
                 if (isHostAuthorized(ipfixReceiver, &clientAddress.sin_addr, sizeof(clientAddress.sin_addr))) {
                         pthread_mutex_lock(&ipfixReceiver->mutex);
-                        PacketProcessor* pp = (PacketProcessor*)(ipfixReceiver->packetProcessor);
+                        IpfixPacketProcessor* pp = (IpfixPacketProcessor*)(ipfixReceiver->packetProcessor);
                         for (i = 0; i != ipfixReceiver->processorCount; ++i) 
                                 pp[i].processPacketCallbackFunction(pp[i].ipfixParser, data, n);
                         
