@@ -943,7 +943,7 @@ void destroyIpfixParser(IpfixParser* ipfixParser) {
  * Creates a new @c PacketProcessor.
  * @return handle to the created object
  */
-IpfixPacketProcessor*  createPacketProcessor() {
+IpfixPacketProcessor*  createIpfixPacketProcessor() {
 	IpfixPacketProcessor* packetProcessor;
 
 	if(!(packetProcessor=(IpfixPacketProcessor*)malloc(sizeof(IpfixPacketProcessor)))) {
