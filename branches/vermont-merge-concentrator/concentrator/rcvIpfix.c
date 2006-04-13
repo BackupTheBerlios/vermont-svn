@@ -991,7 +991,7 @@ void setIpfixParser(IpfixPacketProcessor* packetProcessor, IpfixParser* ipfixPar
  * @param ipfixCollector Collector to assign the PacketProcessor to
  * @param packetProcessor handle of packetProcessor
  */
-void addPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcessor* packetProcessor) {
+void addIpfixPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcessor* packetProcessor) {
 	int n = ++ipfixCollector->processorCount;
 	ipfixCollector->packetProcessor = (IpfixPacketProcessor*)realloc(ipfixCollector->packetProcessor,
 									 n*sizeof(IpfixPacketProcessor));
