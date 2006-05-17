@@ -179,6 +179,7 @@ static void processTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, 
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
 			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].type.isVariableLength = (ti->fieldInfo[fieldNo].type.length == 65535);
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
 			if (ti->fieldInfo[fieldNo].type.length == 65535) isLengthVarying=1;
 			if (ti->fieldInfo[fieldNo].type.id & 0x8000) {
@@ -241,6 +242,7 @@ static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sou
 		for (scopeNo = 0; scopeNo < ti->scopeCount; scopeNo++) {
 			ti->scopeInfo[scopeNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->scopeInfo[scopeNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->scopeInfo[scopeNo].type.isVariableLength = (ti->scopeInfo[scopeNo].type.length == 65535);
 			ti->scopeInfo[scopeNo].offset = bt->recordLength; bt->recordLength+=ti->scopeInfo[scopeNo].type.length;
 			if (ti->scopeInfo[scopeNo].type.length == 65535) isLengthVarying=1;
 			if (ti->scopeInfo[scopeNo].type.id & 0x8000) {
@@ -255,6 +257,7 @@ static void processOptionsTemplateSet(IpfixReceiver* ipfixReceiver, SourceID sou
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
 			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].type.isVariableLength = (ti->fieldInfo[fieldNo].type.length == 65535);
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
 			if (ti->fieldInfo[fieldNo].type.length == 65535) isLengthVarying=1;
 			if (ti->fieldInfo[fieldNo].type.id & 0x8000) {
@@ -318,6 +321,7 @@ static void processDataTemplateSet(IpfixReceiver* ipfixReceiver, SourceID source
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
 			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].type.isVariableLength = (ti->fieldInfo[fieldNo].type.length == 65535);
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
 			if (ti->fieldInfo[fieldNo].type.length == 65535) isLengthVarying=1;
 			if (ti->fieldInfo[fieldNo].type.id & 0x8000) {
@@ -437,17 +441,18 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 				int i;
 				for (i = 0; i < ti->fieldCount; i++) {
 					int fieldLength = 0;
-					if (ti->fieldInfo[i].type.length < 65535) {
+					if (!ti->fieldInfo[i].type.isVariableLength) {
 						fieldLength = ti->fieldInfo[i].type.length;
 						} else {
-						if (*(byte*)record < 255) {
-							fieldLength = *(byte*)record;
-							} else {
-							fieldLength = *(uint16_t*)(record+1);
+						fieldLength = *(uint8_t*)(record + recordLength);
+						recordLength += 1;
+						if (fieldLength == 255) {
+							fieldLength = *(uint16_t*)(record + recordLength);
+							recordLength += 2;
 							}
 						}
-					ti->fieldInfo[i].type.length = fieldLength;
 					ti->fieldInfo[i].offset = recordLength;
+					ti->fieldInfo[i].type.length = fieldLength;
 					recordLength += fieldLength;
 					}
 				int n;		
@@ -483,35 +488,36 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 				int i;
 				for (i = 0; i < ti->scopeCount; i++) {
 					int fieldLength = 0;
-					if (ti->scopeInfo[i].type.length < 65535) {
+					if (!ti->scopeInfo[i].type.isVariableLength) {
 						fieldLength = ti->scopeInfo[i].type.length;
 						} else {
-						if (*(byte*)record < 255) {
-							fieldLength = *(byte*)record;
-							} else {
-							fieldLength = *(uint16_t*)(record+1);
+						fieldLength = *(uint8_t*)(record + recordLength);
+						recordLength += 1;
+						if (fieldLength == 255) {
+							fieldLength = *(uint16_t*)(record + recordLength);
+							recordLength += 2;
 							}
 						}
-					ti->scopeInfo[i].type.length = fieldLength;
 					ti->scopeInfo[i].offset = recordLength;
+					ti->scopeInfo[i].type.length = fieldLength;
 					recordLength += fieldLength;
 					}
 				for (i = 0; i < ti->fieldCount; i++) {
 					int fieldLength = 0;
-					if (ti->fieldInfo[i].type.length < 65535) {
+					if (!ti->fieldInfo[i].type.isVariableLength) {
 						fieldLength = ti->fieldInfo[i].type.length;
 						} else {
-						if (*(byte*)record < 255) {
-							fieldLength = *(byte*)record;
-							} else {
-							fieldLength = *(uint16_t*)(record+1);
+						fieldLength = *(uint8_t*)(record + recordLength);
+						recordLength += 1;
+						if (fieldLength == 255) {
+							fieldLength = *(uint16_t*)(record + recordLength);
+							recordLength += 2;
 							}
 						}
-					ti->fieldInfo[i].type.length = fieldLength;
 					ti->fieldInfo[i].offset = recordLength;
+					ti->fieldInfo[i].type.length = fieldLength;
 					recordLength += fieldLength;
 					}
-
 				int n;		
 				for (n = 0; n < ipfixReceiver->callbackCount; n++) {
 					CallbackInfo* ci = &ipfixReceiver->callbackInfo[n];
@@ -545,17 +551,18 @@ static void processDataSet(IpfixReceiver* ipfixReceiver, SourceID sourceId, Ipfi
 				int i;
 				for (i = 0; i < ti->fieldCount; i++) {
 					int fieldLength = 0;
-					if (ti->fieldInfo[i].type.length < 65535) {
+					if (!ti->fieldInfo[i].type.isVariableLength) {
 						fieldLength = ti->fieldInfo[i].type.length;
 						} else {
-						if (*(byte*)record < 255) {
-							fieldLength = *(byte*)record;
-							} else {
-							fieldLength = *(uint16_t*)(record+1);
+						fieldLength = *(uint8_t*)(record + recordLength);
+						recordLength += 1;
+						if (fieldLength == 255) {
+							fieldLength = *(uint16_t*)(record + recordLength);
+							recordLength += 2;
 							}
 						}
-					ti->fieldInfo[i].type.length = fieldLength;
 					ti->fieldInfo[i].offset = recordLength;
+					ti->fieldInfo[i].type.length = fieldLength;
 					recordLength += fieldLength;
 					}
 				int n;		
