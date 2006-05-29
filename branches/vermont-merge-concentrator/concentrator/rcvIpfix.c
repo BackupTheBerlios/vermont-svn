@@ -155,7 +155,7 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceI
 static void processTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSetHeader* set) {
 	byte* endOfSet = (byte*)set + ntohs(set->length);
 	byte* record = (byte*)&set->data;
-        
+
 	/* TemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
 		IpfixTemplateHeader* th = (IpfixTemplateHeader*)record;
@@ -182,6 +182,7 @@ static void processTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, Ipfi
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
 			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].type.isVariableLength = (ti->fieldInfo[fieldNo].type.length == 65535);
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
 			if (ti->fieldInfo[fieldNo].type.length == 65535) {
 				isLengthVarying=1;
@@ -250,6 +251,7 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceI
 		for (scopeNo = 0; scopeNo < ti->scopeCount; scopeNo++) {
 			ti->scopeInfo[scopeNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->scopeInfo[scopeNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->scopeInfo[scopeNo].type.isVariableLength = (ti->scopeInfo[scopeNo].type.length == 65535);
 			ti->scopeInfo[scopeNo].offset = bt->recordLength; bt->recordLength+=ti->scopeInfo[scopeNo].type.length;
 			if (ti->scopeInfo[scopeNo].type.length == 65535) {
 				isLengthVarying=1;
@@ -266,6 +268,7 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID sourceI
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
 			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].type.isVariableLength = (ti->fieldInfo[fieldNo].type.length == 65535);
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
 			if (ti->fieldInfo[fieldNo].type.length == 65535) {
 				isLengthVarying=1;
@@ -327,8 +330,8 @@ static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, 
 		bt->setID = ntohs(set->id);
 		bt->dataTemplateInfo = ti;
 		ti->userData = 0;
-		ti->templateId = ntohs(th->templateId);
-		ti->precedingRule = ntohs(th->precedingRule);
+		ti->id = ntohs(th->templateId);
+		ti->preceding = ntohs(th->precedingRule);
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->dataCount = ntohs(th->dataCount);
 		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
@@ -337,6 +340,7 @@ static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID sourceId, 
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
 			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
 			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].type.isVariableLength = (ti->fieldInfo[fieldNo].type.length == 65535);
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
 			if (ti->fieldInfo[fieldNo].type.length == 65535) {
 				isLengthVarying=1;
@@ -465,17 +469,18 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSet
 				int i;
 				for (i = 0; i < ti->fieldCount; i++) {
 					int fieldLength = 0;
-					if (ti->fieldInfo[i].type.length < 65535) {
+					if (!ti->fieldInfo[i].type.isVariableLength) {
 						fieldLength = ti->fieldInfo[i].type.length;
 					} else {
-						if (*(byte*)record < 255) {
-							fieldLength = *(byte*)record;
-						} else {
-							fieldLength = *(uint16_t*)(record+1);
+						fieldLength = *(uint8_t*)(record + recordLength);
+						recordLength += 1;
+						if (fieldLength == 255) {
+							fieldLength = ntohs(*(uint16_t*)(record + recordLength));
+							recordLength += 2;
 						}
 					}
-					ti->fieldInfo[i].type.length = fieldLength;
 					ti->fieldInfo[i].offset = recordLength;
+					ti->fieldInfo[i].type.length = fieldLength;
 					recordLength += fieldLength;
 				}
 				int n;
@@ -515,35 +520,36 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSet
 					int i;
 					for (i = 0; i < ti->scopeCount; i++) {
 						int fieldLength = 0;
-						if (ti->scopeInfo[i].type.length < 65535) {
+						if (ti->scopeInfo[i].type.isVariableLength) {
 							fieldLength = ti->scopeInfo[i].type.length;
 						} else {
-							if (*(byte*)record < 255) {
-								fieldLength = *(byte*)record;
-							} else {
-								fieldLength = *(uint16_t*)(record+1);
+							fieldLength = *(uint8_t*)(record + recordLength);
+							recordLength += 1;
+							if (fieldLength == 255) {
+								fieldLength = *(uint16_t*)(record + recordLength);
+								recordLength += 2;
 							}
 						}
-						ti->scopeInfo[i].type.length = fieldLength;
 						ti->scopeInfo[i].offset = recordLength;
+						ti->scopeInfo[i].type.length = fieldLength;
 						recordLength += fieldLength;
 					}
 					for (i = 0; i < ti->fieldCount; i++) {
 						int fieldLength = 0;
-						if (ti->fieldInfo[i].type.length < 65535) {
+						if (!ti->fieldInfo[i].type.isVariableLength) {
 							fieldLength = ti->fieldInfo[i].type.length;
 						} else {
-							if (*(byte*)record < 255) {
-								fieldLength = *(byte*)record;
-							} else {
-								fieldLength = *(uint16_t*)(record+1);
+							fieldLength = *(uint8_t*)(record + recordLength);
+							recordLength += 1;
+							if (fieldLength == 255) {
+								fieldLength = *(uint16_t*)(record + recordLength);
+								recordLength += 2;
 							}
 						}
-						ti->fieldInfo[i].type.length = fieldLength;
 						ti->fieldInfo[i].offset = recordLength;
+						ti->fieldInfo[i].type.length = fieldLength;
 						recordLength += fieldLength;
 					}
-
 					int n;
 					for (n = 0; n < ipfixParser->callbackCount; n++) {
 						CallbackInfo* ci = &ipfixParser->callbackInfo[n];
@@ -580,17 +586,18 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSet
 						int i;
 						for (i = 0; i < ti->fieldCount; i++) {
 							int fieldLength = 0;
-							if (ti->fieldInfo[i].type.length < 65535) {
+							if (!ti->fieldInfo[i].type.isVariableLength) {
 								fieldLength = ti->fieldInfo[i].type.length;
 							} else {
-								if (*(byte*)record < 255) {
-									fieldLength = *(byte*)record;
-								} else {
-									fieldLength = *(uint16_t*)(record+1);
+								fieldLength = *(uint8_t*)(record + recordLength);
+								recordLength += 1;
+								if (fieldLength == 255) {
+									fieldLength = *(uint16_t*)(record + recordLength);
+									recordLength += 2;
 								}
 							}
-							ti->fieldInfo[i].type.length = fieldLength;
 							ti->fieldInfo[i].offset = recordLength;
+							ti->fieldInfo[i].type.length = fieldLength;
 							recordLength += fieldLength;
 						}
 						int n;
@@ -602,7 +609,7 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID sourceId, IpfixSet
 						}
 						record = record + recordLength;
 					}
-				}
+				}	
 			} else {
 				msg(MSG_FATAL, "Data Set based on known but unhandled template type %d", bt->setID);
 			}

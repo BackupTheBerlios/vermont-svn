@@ -28,9 +28,10 @@ typedef uint8_t byte;
  * if "id" is < 0x8000, i.e. no user-defined type, "eid" is 0
  */ 
 typedef struct {
-	TypeId id;          /**< type tag of this field, according to [INFO] */
-	FieldLength length; /**< length in bytes of this field */	
-	EnterpriseNo eid;   /**< enterpriseNo for user-defined data types (i.e. type >= 0x8000) */	
+	TypeId id;            /**< type tag of this field, according to [INFO] */
+	FieldLength length;   /**< length in bytes of this field */
+	int isVariableLength; /**< true if this field's length might change from record to record, false otherwise */
+	EnterpriseNo eid;     /**< enterpriseNo for user-defined data types (i.e. type >= 0x8000) */	
 } FieldType;
 
 /**
@@ -68,8 +69,8 @@ typedef struct {
  * DataTemplate description passed to the callback function when a new DataTemplate arrives.
  */
 typedef struct {
-	uint16_t   templateId;    /**< the template id assigned to this template or 0 if we don't know or don't care */
-	uint16_t   precedingRule; /**< the preceding rule field as defined in the draft */
+	uint16_t   id;            /**< the template id assigned to this template or 0 if we don't know or don't care */
+	uint16_t   preceding;     /**< the preceding rule field as defined in the draft */
 	uint16_t   fieldCount;    /**< number of regular fields */
 	FieldInfo* fieldInfo;     /**< array of FieldInfos describing each of these fields */
 	uint16_t   dataCount;     /**< number of fixed-value fields */
