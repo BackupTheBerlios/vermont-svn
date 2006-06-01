@@ -220,6 +220,8 @@ typedef int(ProcessPacketCallbackFunction)(IpfixParser* ipfixParser, byte* messa
 typedef struct {
 	ProcessPacketCallbackFunction* processPacketCallbackFunction; /**< Callback function invoked when new packet arrives. */
 	IpfixParser* ipfixParser; /**< Contains information about parsing process */
+
+	pthread_mutex_t mutex; /**< Used to give only one IpfixReceiver access to the IpfixPacketProcessor */
 } IpfixPacketProcessor;
 
 
@@ -270,7 +272,6 @@ void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles);
 void setIpfixParser(IpfixPacketProcessor* packetProcessor, IpfixParser* ipfixParser);
 
 void addIpfixPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcessor* packetProcessor);
-
 
 #ifdef __cplusplus
 }

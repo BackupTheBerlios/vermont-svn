@@ -359,9 +359,11 @@ static void udpListener(IpfixReceiver* ipfixReceiver) {
                 if (isHostAuthorized(ipfixReceiver, &clientAddress.sin_addr, sizeof(clientAddress.sin_addr))) {
                         pthread_mutex_lock(&ipfixReceiver->mutex);
                         IpfixPacketProcessor* pp = (IpfixPacketProcessor*)(ipfixReceiver->packetProcessor);
-                        for (i = 0; i != ipfixReceiver->processorCount; ++i) 
-                                pp[i].processPacketCallbackFunction(pp[i].ipfixParser, data, n);
-                        
+                        for (i = 0; i != ipfixReceiver->processorCount; ++i) { 
+                         	pthread_mutex_lock(&pp[i].mutex);
+				pp[i].processPacketCallbackFunction(pp[i].ipfixParser, data, n);
+                        	pthread_mutex_unlock(&pp[i].mutex);
+			}
                         pthread_mutex_unlock(&ipfixReceiver->mutex);
                 }
                 else{

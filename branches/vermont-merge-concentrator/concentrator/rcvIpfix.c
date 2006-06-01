@@ -955,13 +955,22 @@ IpfixPacketProcessor*  createIpfixPacketProcessor() {
 
 	if(!(packetProcessor=(IpfixPacketProcessor*)malloc(sizeof(IpfixPacketProcessor)))) {
 		msg(MSG_FATAL,"Ran out of memory");
-		return NULL;
+		goto out0;
+	}
+
+        if (pthread_mutex_init(&packetProcessor->mutex, NULL) != 0) {
+		msg(MSG_FATAL, "Could not init mutex");
+		goto out1;
 	}
 
 	packetProcessor->ipfixParser = NULL;
 	packetProcessor->processPacketCallbackFunction = processMessage;
 
 	return packetProcessor;
+out1:
+	free(packetProcessor);
+out0:
+	return NULL;
 }
 
 
@@ -970,6 +979,7 @@ IpfixPacketProcessor*  createIpfixPacketProcessor() {
  */
 void destroyIpfixPacketProcessor(IpfixPacketProcessor* packetProcessor) {
 	destroyIpfixParser(packetProcessor->ipfixParser);
+	pthread_mutex_destroy(&packetProcessor->mutex);
 	free(packetProcessor);
 }
 
