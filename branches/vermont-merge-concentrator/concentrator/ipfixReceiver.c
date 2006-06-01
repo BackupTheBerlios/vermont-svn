@@ -200,7 +200,7 @@ int stopIpfixReceiver(IpfixReceiver* ipfixReceiver) {
  * @param processorCount Number of PacketProcessors in the list.
  * @return 0 on success, non-zero on error
  */
-int setPacketProcessor(IpfixReceiver* ipfixReceiver, void* packetProcessor, int processorCount) {
+int setPacketProcessors(IpfixReceiver* ipfixReceiver, void* packetProcessor, int processorCount) {
         ipfixReceiver->packetProcessor = packetProcessor;
         ipfixReceiver->processorCount = processorCount;
 

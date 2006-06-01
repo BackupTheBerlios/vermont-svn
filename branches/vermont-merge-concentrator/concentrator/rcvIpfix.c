@@ -1004,8 +1004,8 @@ void addIpfixPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcesso
 									 n*sizeof(IpfixPacketProcessor));
 	memcpy(&ipfixCollector->packetProcessor[n-1], packetProcessor, sizeof(IpfixPacketProcessor));
 
-	setPacketProcessor(ipfixCollector->ipfixReceiver, ipfixCollector->packetProcessor,
-			   ipfixCollector->processorCount);
+	setPacketProcessors(ipfixCollector->ipfixReceiver, ipfixCollector->packetProcessor,
+			    ipfixCollector->processorCount);
 }
 
 

@@ -79,8 +79,10 @@ int stopIpfixReceiver(IpfixReceiver* ipfixReceiver);
 
 int addAuthorizedHost(IpfixReceiver* ipfixReceiver, const char*);
 int isHostAuthorized(IpfixReceiver* ipfixReceiver, struct in_addr* inaddr, int addrlen);
-int setPacketProcessor(IpfixReceiver* ipfixReceiver, void* packetProcessor, int processorCount);
+int setPacketProcessors(IpfixReceiver* ipfixReceiver, void* packetProcessor, int processorCount);
 
+
+void statsIpfixReceiver(void* ipfixReceiver);
 
 
 #endif

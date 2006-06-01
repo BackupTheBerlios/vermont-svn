@@ -271,7 +271,6 @@ void setIpfixParser(IpfixPacketProcessor* packetProcessor, IpfixParser* ipfixPar
 
 void addIpfixPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcessor* packetProcessor);
 
-void statsIpfixReceiver(void* ipfixReceiver);
 
 #ifdef __cplusplus
 }
