@@ -232,7 +232,7 @@ typedef struct {
 	IpfixReceiver* ipfixReceiver;
 
 	int processorCount;
-	IpfixPacketProcessor* packetProcessor;
+	IpfixPacketProcessor* packetProcessors;
 } IpfixCollector;
 
 /***** Prototypes ***********************************************************/

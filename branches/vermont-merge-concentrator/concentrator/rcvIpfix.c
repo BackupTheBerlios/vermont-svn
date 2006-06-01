@@ -1010,11 +1010,11 @@ void setIpfixParser(IpfixPacketProcessor* packetProcessor, IpfixParser* ipfixPar
  */
 void addIpfixPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcessor* packetProcessor) {
 	int n = ++ipfixCollector->processorCount;
-	ipfixCollector->packetProcessor = (IpfixPacketProcessor*)realloc(ipfixCollector->packetProcessor,
-									 n*sizeof(IpfixPacketProcessor));
-	memcpy(&ipfixCollector->packetProcessor[n-1], packetProcessor, sizeof(IpfixPacketProcessor));
+	ipfixCollector->packetProcessors = (IpfixPacketProcessor*)realloc(ipfixCollector->packetProcessors,
+									  n*sizeof(IpfixPacketProcessor));
+	memcpy(&ipfixCollector->packetProcessors[n-1], packetProcessor, sizeof(IpfixPacketProcessor));
 
-	setPacketProcessors(ipfixCollector->ipfixReceiver, ipfixCollector->packetProcessor,
+	setPacketProcessors(ipfixCollector->ipfixReceiver, ipfixCollector->packetProcessors,
 			    ipfixCollector->processorCount);
 }
 
@@ -1057,7 +1057,7 @@ IpfixCollector* createIpfixCollector(Receiver_Type rec_type, int port) {
 	ipfixCollector->ipfixReceiver = createIpfixReceiver(rec_type, port);
 
 	ipfixCollector->processorCount = 0;
-	ipfixCollector->packetProcessor = NULL;
+	ipfixCollector->packetProcessors = NULL;
 
 	return ipfixCollector;
 }
@@ -1067,9 +1067,13 @@ IpfixCollector* createIpfixCollector(Receiver_Type rec_type, int port) {
  * @param ipfixCollector Handle returned by @c createIpfixCollector()
  */
 void destroyIpfixCollector(IpfixCollector* ipfixCollector) {
+	int i;
 	destroyIpfixReceiver(ipfixCollector->ipfixReceiver);
 
-	free(ipfixCollector->packetProcessor);
+	for (i = 0; i != ipfixCollector->processorCount; ++i) {
+		destroyIpfixPacketProcessor((IpfixPacketProcessor*)&ipfixCollector->packetProcessors[i]);
+		free(&ipfixCollector->packetProcessors[i]);
+	}
 	free(ipfixCollector);
 }
 
