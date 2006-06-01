@@ -30,6 +30,10 @@ Free Software Foundation, Inc.,
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //#define MAX_MSG_LEN   65536
 
 /**
@@ -81,8 +85,10 @@ int addAuthorizedHost(IpfixReceiver* ipfixReceiver, const char*);
 int isHostAuthorized(IpfixReceiver* ipfixReceiver, struct in_addr* inaddr, int addrlen);
 int setPacketProcessors(IpfixReceiver* ipfixReceiver, void* packetProcessor, int processorCount);
 
-
 void statsIpfixReceiver(void* ipfixReceiver);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif
