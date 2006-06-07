@@ -36,7 +36,9 @@ int main(int argc, char *argv[]) {
 	IpfixPrinter* ipfixPrinter = createIpfixPrinter();
 	startIpfixPrinter(ipfixPrinter);
 
-	IpfixCollector* ipfixCollector = createIpfixCollector(UDP_IPV4, lport);
+	IpfixCollector* ipfixCollector = createIpfixCollector();
+	IpfixReceiver* ipfixReceiver = createIpfixReceiver(UDP_IPV4, lport);
+	addIpfixReceiver(ipfixCollector, ipfixReceiver);
 
 	IpfixPacketProcessor* ipfixPacketProcessor = createIpfixPacketProcessor();
 	IpfixParser* ipfixParser = createIpfixParser();
