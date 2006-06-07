@@ -229,7 +229,8 @@ typedef struct {
  * Represents a collector
  */
 typedef struct {
-	IpfixReceiver* ipfixReceiver;
+	int receiverCount;
+	IpfixReceiver** ipfixReceivers;
 
 	int processorCount;
 	IpfixPacketProcessor* packetProcessors;
@@ -242,12 +243,10 @@ typedef struct {
 
 int initializeIpfixCollectors();
 int deinitializeIpfixCollectors();
-IpfixCollector* createIpfixCollector(Receiver_Type rec_type, int port);
+IpfixCollector* createIpfixCollector();
 void destroyIpfixCollector(IpfixCollector* ipfixCollector);
 int startIpfixCollector(IpfixCollector*);
 int stopIpfixCollector(IpfixCollector*);
-
-int addIpfixCollectorAuthorizedHost(IpfixCollector* ipfixCollector, const char* host);
 
 /* ---------------------------------------------- Processor --------------------------------------- */
 
@@ -272,6 +271,7 @@ void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles);
 void setIpfixParser(IpfixPacketProcessor* packetProcessor, IpfixParser* ipfixParser);
 
 void addIpfixPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcessor* packetProcessor);
+void addIpfixReceiver(IpfixCollector* ipfixCollector, IpfixReceiver* ipfixReceiver);
 
 #ifdef __cplusplus
 }

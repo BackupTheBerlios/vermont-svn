@@ -174,7 +174,6 @@ int startIpfixReceiver(IpfixReceiver* ipfixReceiver) {
                 msg(MSG_FATAL, "Could not unlock mutex");
                 return -1;
         }
-        
         return 0;
 }
 
@@ -285,8 +284,8 @@ static void* listenerThread(void* ipfixReceiver_) {
 
 
 /**
- *  * Called by the logger timer thread. Dumps info using msg_stat
- *   */
+ * Called by the logger timer thread. Dumps info using msg_stat
+ */
 void statsIpfixReceiver(void* ipfixReceiver_)
 {
         IpfixReceiver* ipfixReceiver = (IpfixReceiver*)ipfixReceiver_;
