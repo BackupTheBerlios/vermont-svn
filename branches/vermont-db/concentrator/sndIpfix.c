@@ -332,8 +332,10 @@ int sndDataDataRecord(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* d
 	}
 
 	ipfixSender->sentRecords++;
+	
 	/*juergen*/
 	msg(MSG_INFO,"juergen: ipfixsender->sendRecords %6d in ExporterQueue",ipfixSender->sentRecords);
+	
 	return 0;
 }
 

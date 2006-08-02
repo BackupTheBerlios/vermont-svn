@@ -102,6 +102,7 @@ Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBuffe
 {
 	int i;
 	int dataLength = 0; /**< length in bytes of the @c ht->data field */
+	
 	Hashtable* ht = (Hashtable*)malloc(sizeof(Hashtable));
 
 	ht->callbackCount = 0;
@@ -205,7 +206,7 @@ void expireFlows(Hashtable* ht)
 {
 	int i;
 	uint32_t now = time(0);
-
+		
 	/* check each hash bucket's spill chain */
 	for (i = 0; i < ht->bucketCount; i++) if (ht->bucket[i] != 0) {
 		HashBucket* bucket = ht->bucket[i];
