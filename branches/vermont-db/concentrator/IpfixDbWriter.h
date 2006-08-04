@@ -13,19 +13,18 @@ extern "C" {
 #endif
 /**
 *	startlen : Length of statement for INSERT IN.., CREATE TABL.., CREATE DATA..
-*	columnsize : Length of the string denotes the name of the single columns and datatype to store in database
-*	tableNamesize : Length of the string for insert statement in depency of count columns
-*	dbn_len : Length of the database name
+*	col_width : Length of the string denotes the name of the single columns and datatype to store in table
+*	ins_width : Length of the string for insert statement in depency of count columns
+* 	maxTable : count of tablenames 
 *	maxstatem ; count of insertstatement to buffer before they store to database
 *	Table_Not_Exists : Errornumber, when a table is unaware deleted
 */
 
-#define startlen				50		
-#define columnsize			30
-#define tableNamesize		30
-#define maxDBname			4
-#define dbn_len				16
-#define maxstatem			50
+#define start_len				50		
+#define col_width				40
+#define ins_width                        25
+#define maxTable			4
+#define maxstatem			10
 
 #define Table_Not_Exists		1146
 
@@ -34,26 +33,18 @@ extern "C" {
 *	 them store these strings in a buffer to store in database
 */
 typedef struct {
-	int count_c;						/**columns counter*/
 	int statemReceived;				/**counter of insert into statements*/
-	char* createDatabaseStr;			/**string to create database*/
-	char* createTableStr;				/**string to create tables of database*/
-	char* insertTableStr;				/**string to store one insert statement*/
 	char* statemBuffer1[maxstatem];	/**buffer  of char pointers to store the insert statements*/
-	char** statemBuffer2;				/**char pointer to point to buffer within single insert statements*/
+	char** statemBuffer2;				/**char pointer to point to buffer within  insert statements*/
 } Statement;
 
 /** 
 *	handle the different database name according of the records
 */
 typedef struct {
-	int notDbbuffer;
-	int count_dbn;					/**counter of databse names*/		
-	char* dbn;						/** databasename where is activ*/
-	char* dbn_tmp;					/**database name for deleted tables*/
-	char* db_buffer[maxDBname]; 		/**array of database names*/
-	uint64_t flowstartsseconds;		/**ipfixtype_id to identify the database name according of the data record*/
-} DBname;
+	int countbufftable;				/**counter of buffered table names*/		
+	char* tablebuffer[maxTable]; 		/**array of table names*/
+} Table;
 
 /**
 *	IpfixDbWriter powered the communication to the database server
@@ -61,14 +52,15 @@ typedef struct {
 */
 typedef struct {
 	char* host_name ; 				 /** Hostname*/
+	char* db_name;					/**Name of the database*/
 	char* user_name ;    				/**Username (default: Standarduser) */
 	char* password ;    				 /** Password (default: none) */
 	unsigned int port_num; 			/** Portnumber (use default) */
 	char* socket_name ;	 			 /** Socketname (use default) */
 	unsigned int flags;   				 /** Connectionflags (none) */
-	MYSQL* conn;                  		 	/** pointer to connection handle */	
-	Statement* statement;			/**pointer to structure statement*/
-	DBname* dbName;				/**pointer to structure dbName*/
+	MYSQL* conn; 					/** pointer to connection handle */	
+	Statement* statement;
+	Table* table;
 } IpfixDbWriter;
 
 /**
@@ -86,25 +78,23 @@ int initializeIpfixDbWriter();
 int deintializeIpfixDbWriter();
 
 IpfixDbWriter* createIpfixDbWriter();
-void createDB(IpfixDbWriter* ipfixDbWriter);
-void createDBTable(IpfixDbWriter* ipfixDbWriter);
-void useDB(IpfixDbWriter* ipfixDbWriter);
+int createDB(IpfixDbWriter* ipfixDbWriter);
+int  createDBTable(IpfixDbWriter* ipfixDbWriter, char* TableName);
 
-void startIpfixDbWriter(IpfixDbWriter* ipfixDbWriter);
-void stopIpfixDbWriter(IpfixDbWriter* ipfixDbWriter);
-void destroyIpfixDbWriter();
+int startIpfixDbWriter(IpfixDbWriter* ipfixDbWriter);
+int stopIpfixDbWriter(IpfixDbWriter* ipfixDbWriter);
+int destroyIpfixDbWriter();
 
-void getDbnameRec(IpfixDbWriter* ipfixDbWriter);
-void lookupBufferDBname(IpfixDbWriter* ipfixDbWriter);
-void getTimeRec(IpfixDbWriter* ipfixDbWriter);
+int countColumns();
+char* getTableName(IpfixDbWriter* ipfixDbWriter,Table* table, uint64_t flowstartsec);
 
-int getsingleRecData(void* ipfixDbWriter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
-void writeToDb(IpfixDbWriter* ipfixDbWriter);
+int getsingleRecData(void* ipfixDbWriter,SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+int writeToDb(IpfixDbWriter* ipfixDbWriter, Statement* statement);
 
-uint64_t getdata(IpfixDbWriter* ipfixDbWriter, FieldType type, FieldData* data);
-uint64_t getIPFIXdata(IpfixDbWriter* ipfixDbWriter, FieldType type, FieldData* data);
+uint64_t getdata(FieldType type, FieldData* data);
+uint64_t getIPFIXdata(FieldType type, FieldData* data);
 uint64_t getIPFIXValue(FieldType type, FieldData* data);
-uint32_t getdefaultIPFIXdata(IpfixDbWriter* ipfixDbWriter, int ipfixtype);
+uint32_t getdefaultIPFIXdata(int ipfixtype);
 
 uint8_t getProtocol(FieldType type, FieldData* data);
 uint16_t getTransportPort(FieldType type, FieldData* data);

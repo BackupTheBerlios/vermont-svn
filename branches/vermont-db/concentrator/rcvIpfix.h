@@ -167,6 +167,7 @@ typedef int(OptionsRecordCallbackFunction)(void* handle, SourceID sourceID, Opti
  */
 typedef int(DataDataRecordCallbackFunction)(void* handle, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
+
 /**
  * Collection of callback functions used for passing Templates and Data Records between modules.
  */
@@ -180,10 +181,14 @@ typedef struct {
 	DataRecordCallbackFunction* dataRecordCallbackFunction;
 	OptionsRecordCallbackFunction* optionsRecordCallbackFunction;
 	DataDataRecordCallbackFunction* dataDataRecordCallbackFunction;
-
+	
 	TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
 	OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
 	DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
+	
+	
+	
+
 	} CallbackInfo;
 
 /**
