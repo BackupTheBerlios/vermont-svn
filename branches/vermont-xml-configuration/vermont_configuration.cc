@@ -27,7 +27,7 @@ VermontConfiguration::VermontConfiguration(const std::string& configFile)
 		if (!xmlStrcmp(current->name, (const xmlChar*)"vermont")) {
 			vermontNode = current;
 		} else if (!xmlStrcmp(current->name, (const xmlChar*)"observationPoint")) {
-			ObserverConfiguration* oConf = new ObserverConfiguration(current);
+			ObserverConfiguration* oConf = new ObserverConfiguration(document, current);
 			observerConfigurations.push_back(oConf);
 		} else if (!xmlStrcmp(current->name, (const xmlChar*)"meteringProcess")) {
 			MeteringConfiguration* mConf = new MeteringConfiguration(current);
@@ -52,7 +52,12 @@ VermontConfiguration::~VermontConfiguration()
 	for (unsigned i = 0; i != meteringConfigurations.size(); ++i) {
 		delete meteringConfigurations[i];
 	}
-
+	for (unsigned i = 0; i != exporterConfigurations.size(); ++i) {
+		delete exporterConfigurations[i];
+	}
+	for (unsigned i = 0; i != collectorConfigurations.size(); ++i) {
+		delete collectorConfigurations[i];
+	}
 	xmlFreeDoc(document);
 }
 
@@ -71,7 +76,7 @@ void VermontConfiguration::configureCollectors()
 	throw std::runtime_error("not yet implemented");
 }
 
-void VermontConfiguration::configureConcentrators()
+void VermontConfiguration::configureMeteringProcesses()
 {
 	throw std::runtime_error("not yet implemented");
 }
