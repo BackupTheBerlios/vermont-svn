@@ -4,10 +4,13 @@
 
 #include <string>
 #include <stdexcept>
+#include <vector>
 
 
 class ConcentratorConfiguration;
-class SamplerConfiguration;
+class ObserverConfiguration;
+class CollectorConfiguration;
+class ExporterConfiguration;
 
 
 /**
@@ -18,14 +21,18 @@ public:
 	VermontConfiguration(const std::string& configFile) { throw std::runtime_error("not yet implemented");}
 	~VermontConfiguration() { }
 	
-	void configureSampler() {}
-	void configureConcentrator() {}
+	void configureObservers() {}
+	void configureCollectors() {}
+	void configureConcentrators() {}
+	void configureExporters() {}
 	void configureLogging() {}
 	void configureHooking() {}
 		
 private:
-	SamplerConfiguration* samplerConfiguration;
-	ConcentratorConfiguration* concentratorConfiguration;
+	std::vector<ObserverConfiguration*> samplerConfigurations;
+	std::vector<CollectorConfiguration*> collectorConfigurations;
+	std::vector<ConcentratorConfiguration*> concentratorConfigurations;
+	std::vector<ExporterConfigurations*> exporterConfigurations;
 };
 
 

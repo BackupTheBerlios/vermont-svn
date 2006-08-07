@@ -5,7 +5,7 @@ CXXFLAGS=$(CFLAGS)
 LIBS=-lstdc++ -lpcap -lpthread -lm
 LDFLAGS=$(LIBS) $(CFLAGS)
 TARGET=vermont
-OBJS=vermont.o subsystems.o msg.o iniparser.o uri.o concentrator_configuration.o sampler_configuration.o vermont_configuration.o
+OBJS=vermont.o subsystems.o msg.o iniparser.o uri.o concentrator_configuration.o collector_configuration.o exporter_configuration.o observer_configuration.o vermont_configuration.o
 MODULES=ipfixlolib sampler concentrator
 MODULES_LIBS=sampler/libsampler.a ipfixlolib/libipfixlo.a concentrator/libconcentrator.a
 
