@@ -2,8 +2,16 @@
 #define _EXPORTER_CONFIGURATION_H_
 
 
-class ExporterConfiguration {
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
+
+class ExporterConfiguration {
+public:
+	ExporterConfiguration(xmlNodePtr startPoint);
+
+private:
+	xmlNodePtr start;
 };
 
 #endif

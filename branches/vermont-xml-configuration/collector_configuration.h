@@ -2,8 +2,15 @@
 #define _COLLECTOR_CONFIGURATION_H_
 
 
-class CollectorConfiguration {
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
+
+class CollectorConfiguration {
+public:
+	CollectorConfiguration(xmlNodePtr startPoint);
+private:
+	xmlNodePtr start;
 };
 
 #endif

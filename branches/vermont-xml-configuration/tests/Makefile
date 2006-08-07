@@ -1,12 +1,12 @@
-INCLUDES=-I.
+INCLUDES=-I. -I/usr/include/libxml2/
 CC=gcc
 CXX=g++
 CFLAGS=-O2 -g $(INCLUDES) -pg
 CXXFLAGS=$(CFLAGS)
-LIBS=-lstdc++
-LDFLAGS=$(LIBS) $(CFLAGS)
+LIBS=-lstdc++ -lxml2
+LDFLAGS=$(LIBS) $(CFLAGS) -L/usr/lib/libxml2/
 TARGET=vermont-tests
-OBJS=vermont_tests.o configuration_tests.o ../vermont_configuration.o
+OBJS=vermont_tests.o configuration_tests.o ../vermont_configuration.o ../observer_configuration.o ../collector_configuration.o ../metering_configuration.o ../exporter_configuration.o
 MODULES_LIBS=../sampler/libsampler.a ../ipfixlolib/libipfixlo.a ../concentrator/libconcentrator.a
 
 

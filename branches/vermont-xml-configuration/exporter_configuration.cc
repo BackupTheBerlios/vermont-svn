@@ -1,2 +1,7 @@
-#include "collector_configuration.h"
+#include "exporter_configuration.h"
+
+ExporterConfiguration::ExporterConfiguration(xmlNodePtr startPoint)
+{
+	start = startPoint;
+}
 

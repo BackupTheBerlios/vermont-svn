@@ -1,8 +1,17 @@
 #ifndef _OBSERVER_CONFIGURATION_H_
 #define _OBSERVER_CONFIGURATION_H_
 
-class ObserverConfiguration {
 
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+
+
+class ObserverConfiguration {
+public:
+	ObserverConfiguration(xmlNodePtr startPoint);
+
+private:
+	xmlNodePtr start;
 };
 
 #endif
