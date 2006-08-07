@@ -35,11 +35,11 @@ static int using_log_thread;
 
 int main(int ac, char **dc)
 {
-	dictionary *config;
-	int c, debug_level=MSG_DEFAULT;
-	char *config_file=NULL;
+// 	dictionary *config;
+ 	int c, debug_level=MSG_DEFAULT;
+ 	char *config_file=NULL;
 
-	struct v_objects v_objects={0};
+// 	struct v_objects v_objects={0};
 
         /* parse command line */
 	while((c=getopt(ac, dc, "hf:d")) != -1) {
@@ -62,58 +62,58 @@ int main(int ac, char **dc)
                 }
         }
 
-        /* setup verboseness */
+	/* setup verboseness */
         msg_setlevel(debug_level);
 
-        setup_signal(SIGINT, sig_handler);
+	setup_signal(SIGINT, sig_handler);
 
-        /*
-         read the main configuration file
+//         /*
+//          read the main configuration file
 
-         DO NOT-NOT-NEVER-NOT destroy this subsystem while vermont is running
-         as all pointers used for configuration are pointing into internal structs
+//          DO NOT-NOT-NEVER-NOT destroy this subsystem while vermont is running
+//          as all pointers used for configuration are pointing into internal structs
 
-         DO NOT-NOT-NEVER-NOT free any pointers retrieved from the config via
-         iniparser_get*() functions
-         */
-        if(vermont_readconf(&config, config_file)) {
-                exit(-1);
-        }
-        /* attach the configuration struct into the main vermont objects */
-        v_objects.v_config=config;
-        subsys_on(&(v_objects.v_subsystems), SUBSYS_CONFIG);
+//          DO NOT-NOT-NEVER-NOT free any pointers retrieved from the config via
+//          iniparser_get*() functions
+//          */
+//         if(vermont_readconf(&config, config_file)) {
+//                 exit(-1);
+//         }
+//         /* attach the configuration struct into the main vermont objects */
+//         v_objects.v_config=config;
+//         subsys_on(&(v_objects.v_subsystems), SUBSYS_CONFIG);
 
-        /*
-         main configuration entry: all subsystems are here CONFIGURED
-         STARTING them is done later
-         */
-        if(vermont_configure(&v_objects)) {
-                exit(-1);
-        }
-        subsys_dump(v_objects.v_subsystems);
+//         /*
+//          main configuration entry: all subsystems are here CONFIGURED
+//          STARTING them is done later
+//          */
+//         if(vermont_configure(&v_objects)) {
+//                 exit(-1);
+//         }
+//         subsys_dump(v_objects.v_subsystems);
 
-        vermont_start_all(&v_objects);
+//         vermont_start_all(&v_objects);
 
-        /* record startup time */
-        v_objects.v_starttime=time(NULL);
-        msg(MSG_DIALOG, "up and running at %s", ctime(&(v_objects.v_starttime)));
+//         /* record startup time */
+//         v_objects.v_starttime=time(NULL);
+//         msg(MSG_DIALOG, "up and running at %s", ctime(&(v_objects.v_starttime)));
 
-        /*
-         C H E E R I O W !
-         WE ARE UP ! HOOORAY
-        */
+//         /*
+//          C H E E R I O W !
+//          WE ARE UP ! HOOORAY
+//         */
 
-        /*
-         main vermont now runs the periodic polling method for aggregator, if we have one
-         if not, simply block on pause() until signalled
-         */
-        if(v_objects.conc_aggregator) {
-                concentrator_polling(&v_objects);
-        } else {
-                pause();
-        }
+//         /*
+//          main vermont now runs the periodic polling method for aggregator, if we have one
+//          if not, simply block on pause() until signalled
+//          */
+//         if(v_objects.conc_aggregator) {
+//                 concentrator_polling(&v_objects);
+//         } else {
+//                 pause();
+//         }
 
-        return 0;
+//         return 0;
 }
 
 
@@ -131,197 +131,197 @@ int main(int ac, char **dc)
 
  SO WE USUALLY DONT COPY!
  */
-static int vermont_readconf(dictionary **conf, char *file)
-{
-        dictionary *d;
+// static int vermont_readconf(dictionary **conf, char *file)
+// {
+//         dictionary *d;
 
-        /* read configuration */
-        if(!(d=iniparser_new(file))) {
-                if(file) {
-                        msg(MSG_FATAL, "could not open config_file %s", file);
-                } else {
-                        msg(MSG_FATAL, "no config file given, but mandatory");
-                        usage();
-                }
-                return(-1);
-        }
+//         /* read configuration */
+//         if(!(d=iniparser_new(file))) {
+//                 if(file) {
+//                         msg(MSG_FATAL, "could not open config_file %s", file);
+//                 } else {
+//                         msg(MSG_FATAL, "no config file given, but mandatory");
+//                         usage();
+//                 }
+//                 return(-1);
+//         }
 
-        /* light check if all section we need are present */
-        if((iniparser_find_entry(d, "concentrator") == 1) &&
-           (iniparser_find_entry(d, "sampler") == 1) &&
-           (iniparser_find_entry(d, "main") == 1)
-          ) {
-                *conf=d;
-                return 0;
+//         /* light check if all section we need are present */
+//         if((iniparser_find_entry(d, "concentrator") == 1) &&
+//            (iniparser_find_entry(d, "sampler") == 1) &&
+//            (iniparser_find_entry(d, "main") == 1)
+//           ) {
+//                 *conf=d;
+//                 return 0;
 
-        } else {
-                msg(MSG_FATAL, "Config: not all needed sections in config %s", file);
-                return -1;
-        }
-}
-
-
-/*
- this is the main configuration entry point
- configure all subsystems peu a peu
- */
-static int vermont_configure(struct v_objects *v)
-{
-	dictionary *conf=v->v_config;
-	int ret;
-
-	/* if the sampler is not needed, interface will say "off" */
-	char *run_sampler=iniparser_getvalue(conf, "sampler", "interface");
-	char *run_concentrator=iniparser_getvalue(conf, "concentrator", "run");
-	char *hooking=iniparser_getvalue(conf, "main", "packets");
-
-	/* configure the msg subsystem */
-        ret=configure_logging(v);
-        if(ret==2) {
-		/* OK, but not running */
-	} else if(ret==0) {
-                /* OK and running */
-		subsys_on(&(v->v_subsystems), SUBSYS_LOGGING);
-	} else {
-		msg(MSG_FATAL, "Main: Configuring the logging subsystem failed");
-		return -1;
-	}
-
-        /*
-	 safety check for the hook
-	 for the hook, BOTH subsystems have to be on
-	 */
-	if(strcasecmp(hooking, "off") != 0) {
-
-		if((strcasecmp(run_sampler, "off") == 0) ||
-		   (strcasecmp(run_concentrator, "off") == 0)
-		  ) {
-			msg(MSG_FATAL,
-			    "Main: Hooking is used (%s), but either concentrator(%s) or sampler(%s) is off",
-			    hooking,
-			    run_concentrator,
-			    run_sampler
-			   );
-			msg(MSG_FATAL, "Both must be enabled");
-			return -1;
-		}
-	}
-
-	/* check if we run the sampler */
-	if(strcasecmp(run_sampler, "off") == 0) {
-		msg(MSG_DIALOG, "not running sampler subsystem");
-	} else {
-		if(configure_sampler(v)) {
-			msg(MSG_FATAL, "Main: Could not configure the sampler");
-			return -1;
-		}
-	}
-
-	/* check if we run the concentrator */
-	if(strcasecmp(run_concentrator, "off") == 0) {
-		msg(MSG_DIALOG, "not running concentrator subsystem");
-	} else {
-
-		if(configure_concentrator(v)) {
-			msg(MSG_FATAL, "Main: Could not configure the concentrator");
-			return -1;
-		}
-	}
-
-	/* after we have a concentrator, we may fill the ctx for the HookingFilter */
-	if(v->hooking) {
-		msg(MSG_DEBUG, "Main: adding context pointer %p (aggregator) to HookingFilter", v->conc_aggregator);
-		v->hooking->setContext(v->conc_aggregator);
-	}
-
-	return 0;
-}
+//         } else {
+//                 msg(MSG_FATAL, "Config: not all needed sections in config %s", file);
+//                 return -1;
+//         }
+// }
 
 
-/*
- open log file and configure the msg_stat subsystem
- 0 = all ok and running
- 2 = OK, but not running
- 1 or -1 = not OK, not running
- */
-static int configure_logging(struct v_objects *v)
-{
-        FILE *FD;
-        dictionary *conf=v->v_config;
-        char *file;
-	char *log_interval;
+// /*
+//  this is the main configuration entry point
+//  configure all subsystems peu a peu
+//  */
+// static int vermont_configure(struct v_objects *v)
+// {
+// 	dictionary *conf=v->v_config;
+// 	int ret;
 
-        file=iniparser_getvalue(conf, "main", "log");
-        if(strcasecmp(file, "off") == 0) {
-                msg(MSG_DEBUG, "Main: logging subsystem is off");
-                return 2;
-        }
+// 	/* if the sampler is not needed, interface will say "off" */
+// 	char *run_sampler=iniparser_getvalue(conf, "sampler", "interface");
+// 	char *run_concentrator=iniparser_getvalue(conf, "concentrator", "run");
+// 	char *hooking=iniparser_getvalue(conf, "main", "packets");
 
-        msg(MSG_DEBUG, "Main: now configuring the logging subsystem");
-        if(!(FD=fopen(file, "a"))) {
-                msg(MSG_FATAL, "Main: could not init message subsystem, opening log %s failed", file);
-                return -1;
-        }
+// 	/* configure the msg subsystem */
+//         ret=configure_logging(v);
+//         if(ret==2) {
+// 		/* OK, but not running */
+// 	} else if(ret==0) {
+//                 /* OK and running */
+// 		subsys_on(&(v->v_subsystems), SUBSYS_LOGGING);
+// 	} else {
+// 		msg(MSG_FATAL, "Main: Configuring the logging subsystem failed");
+// 		return -1;
+// 	}
 
-        /*
-         setting line buffering
-         per default a file-stream is full-buffered, so the output won't show up
-         too soon
-         */
-        setvbuf(FD, (char *)NULL, _IOLBF, 0);
+//         /*
+// 	 safety check for the hook
+// 	 for the hook, BOTH subsystems have to be on
+// 	 */
+// 	if(strcasecmp(hooking, "off") != 0) {
 
-        msg(MSG_INFO, "Logging: using %s as statistics log", file);
+// 		if((strcasecmp(run_sampler, "off") == 0) ||
+// 		   (strcasecmp(run_concentrator, "off") == 0)
+// 		  ) {
+// 			msg(MSG_FATAL,
+// 			    "Main: Hooking is used (%s), but either concentrator(%s) or sampler(%s) is off",
+// 			    hooking,
+// 			    run_concentrator,
+// 			    run_sampler
+// 			   );
+// 			msg(MSG_FATAL, "Both must be enabled");
+// 			return -1;
+// 		}
+// 	}
 
-	/*
-	 set up the logger thread
-	 */
-	log_interval = iniparser_getvalue(conf, "main", "log_interval");
-	if((!log_interval) || (atoi(log_interval) == 0)) {
-		msg(MSG_DEBUG, "Main: logging thread disabled");
-	} else {
-		/* set up logging thread */
-		msg(MSG_DEBUG, "Main: logging all %d milliseconds", atoi(log_interval));
-		msg_thread_set_timeout(atoi(log_interval));
+// 	/* check if we run the sampler */
+// 	if(strcasecmp(run_sampler, "off") == 0) {
+// 		msg(MSG_DIALOG, "not running sampler subsystem");
+// 	} else {
+// 		if(configure_sampler(v)) {
+// 			msg(MSG_FATAL, "Main: Could not configure the sampler");
+// 			return -1;
+// 		}
+// 	}
 
-		using_log_thread=1;
-	}
+// 	/* check if we run the concentrator */
+// 	if(strcasecmp(run_concentrator, "off") == 0) {
+// 		msg(MSG_DIALOG, "not running concentrator subsystem");
+// 	} else {
 
-	return(msg_stat_setup(MSG_SETUP_NEW, FD));
-}
+// 		if(configure_concentrator(v)) {
+// 			msg(MSG_FATAL, "Main: Could not configure the concentrator");
+// 			return -1;
+// 		}
+// 	}
+
+// 	/* after we have a concentrator, we may fill the ctx for the HookingFilter */
+// 	if(v->hooking) {
+// 		msg(MSG_DEBUG, "Main: adding context pointer %p (aggregator) to HookingFilter", v->conc_aggregator);
+// 		v->hooking->setContext(v->conc_aggregator);
+// 	}
+
+// 	return 0;
+// }
 
 
-/* starts all configured subsystems */
-static int vermont_start_all(struct v_objects *v)
-{
-        if(v->conc_aggregator) {
-                /*
-                 not nice; sender has to be started right before _creating_
-		 the aggregator
-                 so you won't start it here, but in configure_concentrator()
-		 */
-                //startIpfixSender(v->conc_exporter);
-                startAggregator(v->conc_aggregator);
-        }
+// /*
+//  open log file and configure the msg_stat subsystem
+//  0 = all ok and running
+//  2 = OK, but not running
+//  1 or -1 = not OK, not running
+//  */
+// static int configure_logging(struct v_objects *v)
+// {
+//         FILE *FD;
+//         dictionary *conf=v->v_config;
+//         char *file;
+// 	char *log_interval;
 
-        if(v->conc_collector) {
-                startIpfixCollector(v->conc_collector);
-        }
+//         file=iniparser_getvalue(conf, "main", "log");
+//         if(strcasecmp(file, "off") == 0) {
+//                 msg(MSG_DEBUG, "Main: logging subsystem is off");
+//                 return 2;
+//         }
 
-        if(v->observer) {
-                v->sink->runSink();
-                v->filter->startFilter();
-                v->observer->startCapture();
-        }
+//         msg(MSG_DEBUG, "Main: now configuring the logging subsystem");
+//         if(!(FD=fopen(file, "a"))) {
+//                 msg(MSG_FATAL, "Main: could not init message subsystem, opening log %s failed", file);
+//                 return -1;
+//         }
 
-	if(using_log_thread) {
-		msg_thread_start();
-	}
+//         /*
+//          setting line buffering
+//          per default a file-stream is full-buffered, so the output won't show up
+//          too soon
+//          */
+//         setvbuf(FD, (char *)NULL, _IOLBF, 0);
 
-        /* DIRTY: to stabilize and wait for threads */
-        sleep(1);
+//         msg(MSG_INFO, "Logging: using %s as statistics log", file);
 
-        return 0;
-}
+// 	/*
+// 	 set up the logger thread
+// 	 */
+// 	log_interval = iniparser_getvalue(conf, "main", "log_interval");
+// 	if((!log_interval) || (atoi(log_interval) == 0)) {
+// 		msg(MSG_DEBUG, "Main: logging thread disabled");
+// 	} else {
+// 		/* set up logging thread */
+// 		msg(MSG_DEBUG, "Main: logging all %d milliseconds", atoi(log_interval));
+// 		msg_thread_set_timeout(atoi(log_interval));
+
+// 		using_log_thread=1;
+// 	}
+
+// 	return(msg_stat_setup(MSG_SETUP_NEW, FD));
+// }
+
+
+// /* starts all configured subsystems */
+// static int vermont_start_all(struct v_objects *v)
+// {
+//         if(v->conc_aggregator) {
+//                 /*
+//                  not nice; sender has to be started right before _creating_
+// 		 the aggregator
+//                  so you won't start it here, but in configure_concentrator()
+// 		 */
+//                 //startIpfixSender(v->conc_exporter);
+//                 startAggregator(v->conc_aggregator);
+//         }
+
+//         if(v->conc_collector) {
+//                 startIpfixCollector(v->conc_collector);
+//         }
+
+//         if(v->observer) {
+//                 v->sink->runSink();
+//                 v->filter->startFilter();
+//                 v->observer->startCapture();
+//         }
+
+// 	if(using_log_thread) {
+// 		msg_thread_start();
+// 	}
+
+//         /* DIRTY: to stabilize and wait for threads */
+//         sleep(1);
+
+//         return 0;
+// }
 
 
 

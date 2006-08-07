@@ -2,6 +2,7 @@
 #define VERMONT_H
 
 #include <vector>
+#include <string>
 
 #include "iniparser.h"
 #include "uri.h"
@@ -19,42 +20,42 @@
 
 #define MAX_URIS 16
 
-/* holding all objects/handles/... for the subsystems like sampler and collector */
-struct v_objects {
+// //holding all objects/handles/... for the subsystems like sampler and collector
+// struct v_objects {
 
-	/* main vermont: */
-        /* the configuration struct, from iniparser */
-	dictionary *v_config;
-	/* initialized subsystems */
-        unsigned int v_subsystems;
-        /* starting time */
-        time_t v_starttime;
-
-
-        /* for sampler: */
-	Template *templ;
-	Observer *observer;
-        Filter *filter;
-        Sink *sink;
-
-        /* and this is pragmatic - direct access to hooking filter */
-        HookingFilter *hooking;
-
-        uri *samp_uris[MAX_URIS];
+// 	/* main vermont: */
+//         /* the configuration struct, from iniparser */
+// 	dictionary *v_config;
+// 	/* initialized subsystems */
+//         unsigned int v_subsystems;
+//         /* starting time */
+//         time_t v_starttime;
 
 
-        /* for concentrator: */
-        IpfixCollector *conc_collector;
-        IpfixAggregator *conc_aggregator;
-        IpfixSender *conc_exporter;
+//         /* for sampler: */
+// 	Template *templ;
+// 	Observer *observer;
+//         Filter *filter;
+//         Sink *sink;
 
-        /* poll aggregator this often */
-        unsigned short conc_poll_ms;
+//         /* and this is pragmatic - direct access to hooking filter */
+//         HookingFilter *hooking;
 
-        uri *conc_uris[MAX_URIS];
+//         uri *samp_uris[MAX_URIS];
 
-        int conc_exitflag;
 
-};
+//         /* for concentrator: */
+//         IpfixCollector *conc_collector;
+//         IpfixAggregator *conc_aggregator;
+//         IpfixSender *conc_exporter;
+
+//         /* poll aggregator this often */
+//         unsigned short conc_poll_ms;
+
+//         uri *conc_uris[MAX_URIS];
+
+//         int conc_exitflag;
+
+// };
 
 #endif

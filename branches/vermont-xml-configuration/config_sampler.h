@@ -13,6 +13,6 @@
 #define PROCESSOR_RANDOM 2
 #define PROCESSOR_IPHEADER 3
 
-int configure_sampler(struct v_objects *v);
+//int configure_sampler(struct v_objects *v);
 
 #endif
