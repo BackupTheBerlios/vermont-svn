@@ -27,12 +27,15 @@ public:
 	void configureExporters() {}
 	void configureLogging() {}
 	void configureHooking() {}
+
+	void connectSubsystems() {}
+	void startSubsystems() {}
 		
 private:
 	std::vector<ObserverConfiguration*> samplerConfigurations;
 	std::vector<CollectorConfiguration*> collectorConfigurations;
 	std::vector<ConcentratorConfiguration*> concentratorConfigurations;
-	std::vector<ExporterConfigurations*> exporterConfigurations;
+	std::vector<ExporterConfiguration*> exporterConfigurations;
 };
 
 

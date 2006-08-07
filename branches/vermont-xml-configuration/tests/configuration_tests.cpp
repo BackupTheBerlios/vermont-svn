@@ -47,4 +47,10 @@ void testErrnoneousFiles()
 void testFile(const std::string& filename)
 {
 	VermontConfiguration vermont_config(filename);
+	vermont_config.configureObservers();
+	vermont_config.configureCollectors();
+	vermont_config.configureConcentrators();
+	vermont_config.configureExporters();
+	vermont_config.connectSubsystems();
+	vermont_config.startSubsystems();
 }
