@@ -46,11 +46,18 @@ void testErrnoneousFiles()
 
 void testFile(const std::string& filename)
 {
+	std::cout << "Creating VermontConfiguration object..." << std::endl;
 	VermontConfiguration vermont_config(filename);
+	std::cout << "Configuring observers..." << std::endl;
 	vermont_config.configureObservers();
+	std::cout << "Configuring collectors..." << std::endl;
 	vermont_config.configureCollectors();
-	vermont_config.configureConcentrators();
+	std::cout << "Configuring metering..." << std::endl;
+	vermont_config.configureMeteringProcesses();
+	std::cout << "Configuring exporters..." << std::endl;
 	vermont_config.configureExporters();
+	std::cout << "Connecting subsystems..." << std::endl;
 	vermont_config.connectSubsystems();
+	std::cout << "Starting subsystems..." << std::endl;
 	vermont_config.startSubsystems();
 }
