@@ -30,13 +30,13 @@ VermontConfiguration::VermontConfiguration(const std::string& configFile)
 			ObserverConfiguration* oConf = new ObserverConfiguration(document, current);
 			observerConfigurations.push_back(oConf);
 		} else if (!xmlStrcmp(current->name, (const xmlChar*)"meteringProcess")) {
-			MeteringConfiguration* mConf = new MeteringConfiguration(current);
+			MeteringConfiguration* mConf = new MeteringConfiguration(document, current);
 			meteringConfigurations.push_back(mConf);
 		} else if (!xmlStrcmp(current->name, (const xmlChar*)"exportingProcess")) {
-			ExporterConfiguration* eConf = new ExporterConfiguration(current);
+			ExporterConfiguration* eConf = new ExporterConfiguration(document, current);
 			exporterConfigurations.push_back(eConf);
 		} else if (!xmlStrcmp(current->name, (const xmlChar*)"collectingProcess")) {
-			CollectorConfiguration* cConf = new CollectorConfiguration(current);
+			CollectorConfiguration* cConf = new CollectorConfiguration(document, current);
 			collectorConfigurations.push_back(cConf);
 		}
 
@@ -68,23 +68,31 @@ void VermontConfiguration::configureMainSystem()
 
 void VermontConfiguration::configureObservers()
 {
-	throw std::runtime_error("not yet implemented");
+	for (unsigned i = 0; i != observerConfigurations.size(); ++i) {
+		observerConfigurations[i]->configure();
+	}
 }
 
 void VermontConfiguration::configureCollectors()
 {
-	throw std::runtime_error("not yet implemented");
+	for (unsigned i = 0; i != collectorConfigurations.size(); ++i) {
+		collectorConfigurations[i]->configure();
+	}
 }
 
 void VermontConfiguration::configureMeteringProcesses()
 {
-	throw std::runtime_error("not yet implemented");
+	for (unsigned i = 0; i != meteringConfigurations.size(); ++i) {
+		meteringConfigurations[i]->configure();
+	}
 }
 
 
 void VermontConfiguration::configureExporters()
 {
-	throw std::runtime_error("not yet implemented");
+	for (unsigned i = 0; i != exporterConfigurations.size(); ++i) {
+		exporterConfigurations[i]->configure();
+	}
 }
 
 void VermontConfiguration::connectSubsystems()

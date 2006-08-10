@@ -2,16 +2,27 @@
 #define _EXPORTER_CONFIGURATION_H_
 
 
-#include <libxml/parser.h>
-#include <libxml/tree.h>
+#include "vermont_configuration.h"
 
 
-class ExporterConfiguration {
+class ExporterConfiguration : public Configuration {
 public:
-	ExporterConfiguration(xmlNodePtr startPoint);
+	ExporterConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
+
+	void configure();
 
 private:
-	xmlNodePtr start;
+	void readPacketRestrictions(xmlNodePtr p);
+	void readUdpTemplateManagement(xmlNodePtr p);
+	void readCollector(xmlNodePtr i);
+
+	uint16_t maxPacketSize;
+	unsigned exportDelay;
+	unsigned templateRefreshTime;
+	unsigned templateRefreshRate;
+	std::string ipAddress;
+	unsigned protocolType;
+	uint16_t port;
 };
 
 #endif

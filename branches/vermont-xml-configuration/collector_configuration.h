@@ -2,15 +2,18 @@
 #define _COLLECTOR_CONFIGURATION_H_
 
 
-#include <libxml/parser.h>
-#include <libxml/tree.h>
+#include "vermont_configuration.h"
 
 
-class CollectorConfiguration {
+class CollectorConfiguration : public Configuration{
 public:
-	CollectorConfiguration(xmlNodePtr startPoint);
+	CollectorConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
+
+	void configure();
 private:
-	xmlNodePtr start;
+	std::string ipAddress;
+	unsigned protocolType;
+	uint16_t port;
 };
 
 #endif

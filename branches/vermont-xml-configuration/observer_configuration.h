@@ -2,16 +2,26 @@
 #define _OBSERVER_CONFIGURATION_H_
 
 
-#include <libxml/parser.h>
-#include <libxml/tree.h>
+#include "vermont_configuration.h"
 
 
-class ObserverConfiguration {
+#include <string>
+
+
+class ObserverConfiguration : public Configuration {
 public:
-	ObserverConfiguration(xmlNodePtr startPoint);
+	ObserverConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
+	
+	void configure();
 
 private:
-	xmlNodePtr start;
+	unsigned int observationDomain;
+	std::string type;
+	std::string interface;
+	std::string filter;
+	int captureLength;
+
+	void parseParameters(xmlNodePtr p);
 };
 
 #endif

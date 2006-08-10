@@ -48,7 +48,7 @@ protected:
 
 	std::vector<std::string> nextVector;
 
-	std::string getContent(xmlNodePtr p) {
+	std::string getContent(xmlNodePtr p) const {
 		xmlChar* v = xmlNodeListGetString(doc, p->xmlChildrenNode, 1);
 		std::string ret = (const char*) v;
 		xmlFree(v);
@@ -68,6 +68,20 @@ protected:
 			j = j->next;
 		}
 
+	}
+
+	unsigned getTimeInMsecs(xmlNodePtr i) {
+		unsigned ret = 0;
+		xmlChar* unit = xmlGetProp(i, (const xmlChar*)"unit");
+		if (!xmlStrcmp(unit, (const xmlChar*)"sec")) {
+			ret = (unsigned)atoi(getContent(i).c_str()) * 1000;
+		} else if (!xmlStrcmp(unit, (const xmlChar*)"msec")) {
+			ret = (unsigned)atoi(getContent(i).c_str());
+		} else if (!xmlStrcmp(unit, (const xmlChar*)"usec")) {
+			ret = (unsigned)atoi(getContent(i).c_str()) / 1000;
+		}
+		xmlFree(unit);
+		return ret;
 	}
 };
 
