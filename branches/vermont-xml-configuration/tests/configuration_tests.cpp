@@ -25,14 +25,16 @@ void testConfiguration()
 void testValidFiles()
 {
 	try {
-		std::cout << "Testing valid1.xml: ";
+		std::cout << "Testing valid1.xml:" << std::endl
+			  << "===================" << std::endl;
 		testFile("valid1.xml");
-		std::cout << "passed" << std::endl;
-		std::cout << "Testing valid2.xml: ";
+		std::cout << "valid1.xml passed" << std::endl;
+		std::cout << "Testing valid2.xml:" << std::endl
+			  << "===================" << std::endl;
 		testFile("valid2.xml");
-		std::cout << " passed" << std::endl;
+		std::cout << "valid2.xml passed" << std::endl;
 	} catch (std::runtime_error& e) {
-		std::cout << " failed" << std::endl;
+		std::cout << "test failed!" << std::endl;
 		std::cout << e.what() << std::endl;
 		throw std::exception(e);
 	}
@@ -52,10 +54,10 @@ void testFile(const std::string& filename)
 	vermont_config.configureObservers();
 	std::cout << "Configuring collectors..." << std::endl;
 	vermont_config.configureCollectors();
-	std::cout << "Configuring metering..." << std::endl;
-	vermont_config.configureMeteringProcesses();
 	std::cout << "Configuring exporters..." << std::endl;
 	vermont_config.configureExporters();
+	std::cout << "Configuring metering..." << std::endl;
+	vermont_config.configureMeteringProcesses();
 	std::cout << "Connecting subsystems..." << std::endl;
 	vermont_config.connectSubsystems();
 	std::cout << "Starting subsystems..." << std::endl;
