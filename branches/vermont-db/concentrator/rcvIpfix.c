@@ -962,7 +962,7 @@ IpfixReceiver* createIpfixReceiver(uint16_t port) {
 	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 	serverAddress.sin_port = htons(port);
-	if(bind(ipfixReceiver->socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in)) < 0) {
+	if(bind(ipfixReceiver->socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in)) > 0) {
 		msg(MSG_FATAL, "Could not bind socket");
 		goto out3;
 	}

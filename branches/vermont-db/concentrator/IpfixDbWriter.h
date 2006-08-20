@@ -11,6 +11,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define ExporterID			0
+
 /**
 *	startlen : Length of statement for INSERT IN.., CREATE TABL.., CREATE DATA..
 *	col_width : Length of the string denotes the name of the single columns and datatype to store in table
@@ -20,34 +23,52 @@ extern "C" {
 *	table_len : Length of table name string
 *	Table_Not_Exists : Errornumber, when a table is unaware deleted
 */
-
 #define start_len				50		
 #define col_width				40
 #define ins_width                        25
-#define maxTable			4
+#define maxTable			3
+#define maxExpTable			3
 #define maxstatement		10
 #define table_len				16
-#define Table_Not_Exists		1146
 
-/** 
-* 	Store the single statements for insert in a buffer until statemReceived is equal maxstatemt
-*	 
+
+/**
+*	Struct stores for each bufentry TableBuffer[maxTable]  start-, endtime and tablename for the different tables
 */
 typedef struct {
+	uint64_t startTableTime;
+	uint64_t endTableTime;				
+	char TableName[table_len];
+} bufentry;
+
+/**
+*	Store for each expTable ExporterBuffer[maxExpTable] exporterID,srcID and expIP for the different exporters
+*/
+typedef struct {
+	int Id;								/**Id entry of sourcID and expIP in the ExporterTable*/
+	uint64_t	srcID;						/**SourceID of  the exporter monitor*/
+	uint64_t  expIP;					  	/** IP of the exporter*/
+} expTable;
+
+/** 
+ * 	Store the single statements for insert in a buffer until statemReceived is equal maxstatemt	 
+ */
+typedef struct {
 	int statemReceived;					/**counter of insert into statements*/
-	char** statemBuffer1;	/**buffer  of char pointers to store the insert statements*/
-	char** statemBuffer2;					/**char pointer to point to buffer within  insert statements*/
+	char* statemBuffer[maxstatement];		/**buffer  of char pointers to store the insert statements*/
 } Statement;
 
 /** 
-*	handle the different database name according of the records
+*	makes a buffer for the different tables and the different exporters
 */
 typedef struct {
-	int count_col;						/**counter of columns*/
-	int countbufftable;				/**counter of buffered table names*/		
-	char* tablebuffer[maxTable][2]; 	/**2-dim array of char* to store time of createtable and tablename*/
-	Statement* statement;			/**pointer to struct Statement*/
-} Table;
+	int count_col;							/**counter of columns*/
+	int countbufftable;					/**counter of buffered table names*/
+	bufentry TableBuffer[maxTable];		/**buffer to store struct bufentry*/		
+	int countExpTable;					/**counter of buffered exporter*/
+	expTable ExporterBuffer[maxExpTable];	/**buffer to store struct expTable*/
+	Statement* statement;				/**pointer to struct Statement*/
+} Table;	
 
 /**
 *	IpfixDbWriter powered the communication to the database server
@@ -81,21 +102,23 @@ int deintializeIpfixDbWriter();
 
 int startIpfixDbWriter(IpfixDbWriter* ipfixDbWriter);
 int stopIpfixDbWriter(IpfixDbWriter* ipfixDbWriter);
-int destroyIpfixDbWriter();
+int destroyIpfixDbWriter(IpfixDbWriter*  ipfixDbWriter);
 
 IpfixDbWriter* createIpfixDbWriter();
 int createDB(IpfixDbWriter* ipfixDbWriter);
 int  createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* TableName);
-int createTabExporter(IpfixDbWriter* ipfixDbWriter);
+int createExporterTable(IpfixDbWriter* ipfixDbWriter);
 
 int receiveDataRec(void* ipfixDbWriter,SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID,DataTemplateInfo* dataTemplateInfo,uint16_t length,FieldData* data);
 
+int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID,uint64_t expIP);
 char* getTableName(IpfixDbWriter* ipfixDbWriter,Table* table, uint64_t flowstartsec);
-char* getTableByTime(char* tablename,uint64_t flowstartsec);
-uint64_t getTabStartTime(uint64_t flowstartsec);
+char* getTableNamDependTime(char* tablename,uint64_t flowstartsec);
+uint64_t getTableStartTime(uint64_t flowstartsec);
+uint64_t getTableEndTime(uint64_t StartTime);
 
-int writeToDb(IpfixDbWriter* ipfixDbWriter, Statement* statement);
+int writeToDb(IpfixDbWriter* ipfixDbWriter, Table* table, Statement* statement);
 
 uint64_t getdata(FieldType type, FieldData* data);
 uint64_t getIPFIXdata(FieldType type, FieldData* data);
