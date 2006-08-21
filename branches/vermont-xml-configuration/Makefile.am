@@ -1,4 +1,4 @@
-SUBDIRS=concentrator ipfixlolib sampler tools
+SUBDIRS=concentrator ipfixlolib sampler tools tests
 
 bin_PROGRAMS=vermont
 
@@ -8,7 +8,7 @@ observer_configuration.h subsystems.c subsystems.h uri.c uri.h vermont.cc vermon
 vermont_configuration.h vermont.h
 
 AM_CFLAGS=-I$(top_srcdir) `xml2-config --cflags`
-AM_CXXFLAGS=$(AM_CFLAGS) `xml2-config --libs`
-AM_LDFLAGS=-L$(top_builddir)/concentrator -L$(top_builddir)/sampler -L$(top_builddir)/ipfixlolib
+AM_CXXFLAGS=$(AM_CFLAGS) 
+AM_LDFLAGS=-L$(top_builddir)/concentrator -L$(top_builddir)/sampler -L$(top_builddir)/ipfixlolib `xml2-config --libs`
 vermont_LDADD=$(top_builddir)/concentrator/libconcentrator.a $(top_builddir)/sampler/libsampler.a $(top_builddir)/ipfixlolib/libipfixlo.a -lpcap -lpthread
 vermont_DEPENDENCIES=$(top_builddir)/concentrator/libconcentrator.a $(top_builddir)/sampler/libsampler.a $(top_builddir)/ipfixlolib/libipfixlo.a
