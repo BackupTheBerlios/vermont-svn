@@ -395,7 +395,7 @@ public:
 		varlength_index++;
 	    }
 	    // check if we have 3 octets available
-	    else if (varlength_index + 3 <= sizeof(varlength))
+	    else if ((uint8_t)(varlength_index + 3) <= sizeof(varlength))
 	    {
 		// encode in 2 octets with preceeding 255
 		varlength[varlength_index] = 255;

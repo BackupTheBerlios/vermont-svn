@@ -9,12 +9,14 @@
 #include <string>
 #include <stdexcept>
 #include <vector>
+#include <map>
 
 
 class MeteringConfiguration;
 class ObserverConfiguration;
 class CollectorConfiguration;
 class ExporterConfiguration;
+
 
 namespace configTypes
 {
@@ -37,6 +39,11 @@ public:
 
 	virtual void configure() = 0;
 
+	/**
+	 * connects c to this (data will flow from c to this)
+	 */
+	virtual void connect(Configuration* c) = 0;
+
 	std::string getId() {
 		return id;
 	}
@@ -47,42 +54,11 @@ protected:
 	std::string id;
 
 	std::vector<std::string> nextVector;
+	std::string getContent(xmlNodePtr p) const; 
+	void fillNextVector(xmlNodePtr p);
+	unsigned getTimeInMsecs(xmlNodePtr i) const;
 
-	std::string getContent(xmlNodePtr p) const {
-		xmlChar* v = xmlNodeListGetString(doc, p->xmlChildrenNode, 1);
-		std::string ret = (const char*) v;
-		xmlFree(v);
-		return ret;
-	}
-
-	void fillNextVector(xmlNodePtr p) {
-		xmlNodePtr j = p->xmlChildrenNode;
-		while (NULL != j) {
-			if (!xmlStrcmp(j->name, (const xmlChar*)"meteringProcessId")) {
-				nextVector.push_back(configTypes::metering + 
-						     getContent(j));
-			} else if (!xmlStrcmp(j->name, (const xmlChar*)"exportingProcessId")) {
-				nextVector.push_back(configTypes::exporter +
-						     getContent(j));
-			}
-			j = j->next;
-		}
-
-	}
-
-	unsigned getTimeInMsecs(xmlNodePtr i) {
-		unsigned ret = 0;
-		xmlChar* unit = xmlGetProp(i, (const xmlChar*)"unit");
-		if (!xmlStrcmp(unit, (const xmlChar*)"sec")) {
-			ret = (unsigned)atoi(getContent(i).c_str()) * 1000;
-		} else if (!xmlStrcmp(unit, (const xmlChar*)"msec")) {
-			ret = (unsigned)atoi(getContent(i).c_str());
-		} else if (!xmlStrcmp(unit, (const xmlChar*)"usec")) {
-			ret = (unsigned)atoi(getContent(i).c_str()) / 1000;
-		}
-		xmlFree(unit);
-		return ret;
-	}
+	virtual void setUp() = 0;
 };
 
 
@@ -94,21 +70,16 @@ public:
 	VermontConfiguration(const std::string& configFile);
 	~VermontConfiguration();
 	
-	void configureObservers();
-	void configureCollectors();
-	void configureMeteringProcesses();
-	void configureExporters();
-
-	void configureMainSystem();
+	void readSubsystemConfiguration();
+	void readMainConfiguration();
 
 	void connectSubsystems();
 	void startSubsystems();
 		
 private:
-	std::vector<ObserverConfiguration*> observerConfigurations;
-	std::vector<CollectorConfiguration*> collectorConfigurations;
-	std::vector<MeteringConfiguration*> meteringConfigurations;
-	std::vector<ExporterConfiguration*> exporterConfigurations;
+	typedef std::map<std::string, Configuration*> SubsystemConfiguration;
+	
+	SubsystemConfiguration subsystems;
 
 	xmlDocPtr document;
 	xmlNodePtr current;

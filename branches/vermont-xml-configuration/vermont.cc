@@ -14,7 +14,7 @@
 #include <vector>
 
 /* own systems */
-#include "iniparser.h"
+//#include "iniparser.h"
 #include "msg.h"
 #include "subsystems.h"
 #include "vermont.h"
@@ -26,7 +26,7 @@ using namespace std;
 static void usage();
 static void sig_handler(int x);
 static int setup_signal(int signal, void (*handler)(int));
-static int vermont_readconf(dictionary **conf, char *file);
+//static int vermont_readconf(dictionary **conf, char *file);
 static int vermont_configure(struct v_objects *v);
 static int vermont_start_all(struct v_objects *v);
 static int configure_logging(struct v_objects *v);

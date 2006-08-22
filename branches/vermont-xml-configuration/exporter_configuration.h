@@ -9,7 +9,11 @@ class ExporterConfiguration : public Configuration {
 public:
 	ExporterConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
 
-	void configure();
+	virtual void configure();
+	virtual void connect(Configuration*);
+
+protected:
+	void setUp();
 
 private:
 	void readPacketRestrictions(xmlNodePtr p);

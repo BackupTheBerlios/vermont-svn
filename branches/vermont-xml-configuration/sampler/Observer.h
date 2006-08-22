@@ -42,7 +42,7 @@
 class Observer {
 public:
         // ObserverThread constructor
-	Observer(char *interface) : thread(Observer::observerThread), allDevices(NULL),
+	Observer(const char *interface) : thread(Observer::observerThread), allDevices(NULL),
 		captureDevice(NULL), capturelen(CAPTURE_LENGTH), pcap_timeout(PCAP_TIMEOUT), 
 		pcap_promisc(1), ready(false), exitFlag(false)
         {
@@ -185,7 +185,7 @@ protected:
 public:
         bool exitFlag;
         // interface we capture traffic on - string
-	char *captureInterface;
+	const char *captureInterface;
 
         // vector of Queues that will get the packets we pass out
 	std::vector<ConcurrentQueue<Packet> *> receivers;

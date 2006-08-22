@@ -69,3 +69,13 @@ void ExporterConfiguration::readCollector(xmlNodePtr i)
 		i = i->next;
 	}
 }
+
+void ExporterConfiguration::setUp()
+{
+
+}
+
+void ExporterConfiguration::connect(Configuration*)
+{
+
+}

@@ -1,5 +1,7 @@
 #include "configuration_tests.h"
 
+#include "msg.h"
+
 
 #include <vector>
 #include <string>
@@ -20,6 +22,7 @@ void printSummary(const std::vector<std::string>& vec)
 
 
 int main(int argc, char** argv) {
+	msg_setlevel(MSG_INFO);
 	std::vector<std::string> summaryMessages;
 
 	try {

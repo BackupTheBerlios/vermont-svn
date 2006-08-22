@@ -5,23 +5,35 @@
 #include "vermont_configuration.h"
 
 
+#include "sampler/Observer.h"
+
+
 #include <string>
 
 
 class ObserverConfiguration : public Configuration {
 public:
 	ObserverConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
+	~ObserverConfiguration();
 	
-	void configure();
+	virtual void configure();
+	virtual void connect(Configuration*);
+
+protected:
+	void setUp();
 
 private:
 	unsigned int observationDomain;
 	std::string type;
 	std::string interface;
-	std::string filter;
+	std::string pcapFilter;
 	int captureLength;
+	// TODO:  needed because Observer needs char*
+	char* pcapChar;
 
 	void parseParameters(xmlNodePtr p);
+
+	Observer* observer;
 };
 
 #endif

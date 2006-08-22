@@ -4,6 +4,50 @@
 #include "collector_configuration.h"
 #include "exporter_configuration.h"
 
+/*********************************** Configuration *****************************/
+
+std::string Configuration::getContent(xmlNodePtr p) const
+{
+	xmlChar* v = xmlNodeListGetString(doc, p->xmlChildrenNode, 1);
+	std::string ret = (const char*) v;
+	xmlFree(v);
+	return ret;
+}
+
+
+void Configuration::fillNextVector(xmlNodePtr p)
+{
+	xmlNodePtr j = p->xmlChildrenNode;
+	while (NULL != j) {
+		if (!xmlStrcmp(j->name, (const xmlChar*)"meteringProcessId")) {
+			nextVector.push_back(configTypes::metering + 
+					     getContent(j));
+		} else if (!xmlStrcmp(j->name, (const xmlChar*)"exportingProcessId")) {
+			nextVector.push_back(configTypes::exporter +
+					     getContent(j));
+		}
+		j = j->next;
+	}
+
+}
+
+unsigned Configuration::getTimeInMsecs(xmlNodePtr i) const
+{
+	unsigned ret = 0;
+	xmlChar* unit = xmlGetProp(i, (const xmlChar*)"unit");
+	if (!xmlStrcmp(unit, (const xmlChar*)"sec")) {
+		ret = (unsigned)atoi(getContent(i).c_str()) * 1000;
+	} else if (!xmlStrcmp(unit, (const xmlChar*)"msec")) {
+		ret = (unsigned)atoi(getContent(i).c_str());
+	} else if (!xmlStrcmp(unit, (const xmlChar*)"usec")) {
+		ret = (unsigned)atoi(getContent(i).c_str()) / 1000;
+	}
+	xmlFree(unit);
+	return ret;
+}
+
+/****************************** VermontConfiguration ***************************/
+
 
 VermontConfiguration::VermontConfiguration(const std::string& configFile)
 {
@@ -28,16 +72,16 @@ VermontConfiguration::VermontConfiguration(const std::string& configFile)
 			vermontNode = current;
 		} else if (!xmlStrcmp(current->name, (const xmlChar*)"observationPoint")) {
 			ObserverConfiguration* oConf = new ObserverConfiguration(document, current);
-			observerConfigurations.push_back(oConf);
+			subsystems[oConf->getId()] = oConf;
 		} else if (!xmlStrcmp(current->name, (const xmlChar*)"meteringProcess")) {
 			MeteringConfiguration* mConf = new MeteringConfiguration(document, current);
-			meteringConfigurations.push_back(mConf);
+			subsystems[mConf->getId()] = mConf;
 		} else if (!xmlStrcmp(current->name, (const xmlChar*)"exportingProcess")) {
 			ExporterConfiguration* eConf = new ExporterConfiguration(document, current);
-			exporterConfigurations.push_back(eConf);
+			subsystems[eConf->getId()] = eConf;
 		} else if (!xmlStrcmp(current->name, (const xmlChar*)"collectingProcess")) {
 			CollectorConfiguration* cConf = new CollectorConfiguration(document, current);
-			collectorConfigurations.push_back(cConf);
+			subsystems[cConf->getId()] = cConf;
 		}
 
 		current = current->next;
@@ -46,52 +90,23 @@ VermontConfiguration::VermontConfiguration(const std::string& configFile)
 
 VermontConfiguration::~VermontConfiguration()
 {
-	for (unsigned i = 0; i != observerConfigurations.size(); ++i) {
-		delete observerConfigurations[i];
-	}
-	for (unsigned i = 0; i != meteringConfigurations.size(); ++i) {
-		delete meteringConfigurations[i];
-	}
-	for (unsigned i = 0; i != exporterConfigurations.size(); ++i) {
-		delete exporterConfigurations[i];
-	}
-	for (unsigned i = 0; i != collectorConfigurations.size(); ++i) {
-		delete collectorConfigurations[i];
+	for (SubsystemConfiguration::iterator i = subsystems.begin();
+	     i != subsystems.end(); ++i) {
+		delete i->second;
 	}
 	xmlFreeDoc(document);
 }
 
-void VermontConfiguration::configureMainSystem()
+void VermontConfiguration::readMainConfiguration()
 {
 	
 }
 
-void VermontConfiguration::configureObservers()
+void VermontConfiguration::readSubsystemConfiguration()
 {
-	for (unsigned i = 0; i != observerConfigurations.size(); ++i) {
-		observerConfigurations[i]->configure();
-	}
-}
-
-void VermontConfiguration::configureCollectors()
-{
-	for (unsigned i = 0; i != collectorConfigurations.size(); ++i) {
-		collectorConfigurations[i]->configure();
-	}
-}
-
-void VermontConfiguration::configureMeteringProcesses()
-{
-	for (unsigned i = 0; i != meteringConfigurations.size(); ++i) {
-		meteringConfigurations[i]->configure();
-	}
-}
-
-
-void VermontConfiguration::configureExporters()
-{
-	for (unsigned i = 0; i != exporterConfigurations.size(); ++i) {
-		exporterConfigurations[i]->configure();
+	for (SubsystemConfiguration::iterator i = subsystems.begin();
+	     i != subsystems.end(); ++i) {
+		i->second->configure();
 	}
 }
 

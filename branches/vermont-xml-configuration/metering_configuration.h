@@ -5,6 +5,11 @@
 #include "vermont_configuration.h"
 
 
+#include <sampler/Template.h>
+#include <sampler/PacketProcessor.h>
+#include <sampler/Filter.h>
+
+
 #include <vector>
 
 
@@ -13,7 +18,13 @@ public:
 	MeteringConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
 	~MeteringConfiguration();
 	
-	void configure();
+	virtual void configure();
+	virtual void connect(Configuration*);
+
+protected:
+	void setUp();
+	void buildFilter();
+	void buildTemplate();
 
 private:
 	class InfoElementId;
@@ -26,9 +37,14 @@ private:
 
 	int interval;
 	int spacing;
+	int templateId;
 
-	std::vector<InfoElementId*> filters;
+	//std::vector<InfoElementId*> filters;
+	std::vector<PacketProcessor*> filters;
 	std::vector<ReportedIE*> exportedFields;
+
+	Template* t;
+	Filter* filter;
 };
 
 #endif

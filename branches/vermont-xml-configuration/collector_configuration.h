@@ -9,7 +9,12 @@ class CollectorConfiguration : public Configuration{
 public:
 	CollectorConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
 
-	void configure();
+	virtual void configure();
+	virtual void connect(Configuration*);
+
+protected:
+	void setUp();
+	
 private:
 	std::string ipAddress;
 	unsigned protocolType;
