@@ -72,7 +72,8 @@ int configure_concentrator(struct v_objects *v)
 	 loop over all given URIs
 	 parse URI
 	 */
-	DPRINTF("IpfixSender URIs: %s\n", l);
+
+/*	DPRINTF("IpfixSender URIs: %s\n", l);
 	while((token=strsep(&l, ",")) && exports < MAX_URIS) {
 		uri *u;
 
@@ -86,23 +87,24 @@ int configure_concentrator(struct v_objects *v)
         exports--;
 
 	free(l);
+*/	
 
         /* Initialize concentrator subsystems reversely */
 
         /* make IPFIX exporter/sender */
-        msg(MSG_DEBUG, "Config: now making IPFIX sender");
+ /*       msg(MSG_DEBUG, "Config: now making IPFIX sender");
         initializeIpfixSenders();
 
 	if(!(ips=createIpfixSender(sID, export_uri[0]->host, export_uri[0]->port))
           ) {
-                goto out;
+		 goto out;
         }
-
+ */	
 	/*
 	 loop over all exports and add to sender
          uri[0] is already added above at creation time!
 	 */
-	while(exports > 0) {
+/*	while(exports > 0) {
 		msg(MSG_DEBUG, "Config: adding collector %s:%d to IpfixSender",
 		    export_uri[exports]->host, export_uri[exports]->port
 		   );
@@ -120,9 +122,9 @@ int configure_concentrator(struct v_objects *v)
 
         startIpfixSender(ips);
         subsys_on(&(v->v_subsystems), SUBSYS_CONC_EXPORT);
-
+*/
         /* make IPFIX aggregator */
-        msg(MSG_DEBUG, "Config: now making IPFIX aggregator");
+/*        msg(MSG_DEBUG, "Config: now making IPFIX aggregator");
         initializeAggregators();
 	rules=iniparser_getvalue(conf, CONF_SEC, "rules");
 	buffertime_min=iniparser_getvalue(conf, CONF_SEC, "buffertime_min");
@@ -145,7 +147,7 @@ int configure_concentrator(struct v_objects *v)
 
 	addAggregatorCallbacks(ipa, getIpfixSenderCallbackInfo(ips));
         subsys_on(&(v->v_subsystems), SUBSYS_CONC_ACCOUNT);
-
+*/
         /* make IPFIX receiver/collector */
         initializeIpfixReceivers();
 	if(!(listen=iniparser_getvalue(conf, CONF_SEC, "listen"))) {
@@ -163,15 +165,16 @@ int configure_concentrator(struct v_objects *v)
                         msg(MSG_FATAL, "Config: IpfixReceiver creation failure for port %d", listen_portn);
                         goto out2;
                 }
-                addIpfixReceiverCallbacks(ipr, getAggregatorCallbackInfo(ipa));
+		
+          //      addIpfixReceiverCallbacks(ipr, getAggregatorCallbackInfo(ipa));
                 subsys_on(&(v->v_subsystems), SUBSYS_CONC_RECEIVE);
         } else {
                 msg(MSG_DEBUG, "Config: not running IpfixReceiver part of concentrator");
         }
 
         v->conc_receiver=ipr;
-        v->conc_exporter=ips;
-        v->conc_aggregator=ipa;
+ //      v->conc_exporter=ips;
+//       v->conc_aggregator=ipa;
 	
 	/*juergen*/
 	if(!(ipw=createIpfixDbWriter() )){
@@ -180,14 +183,15 @@ int configure_concentrator(struct v_objects *v)
 	}
 	else
 	{
-		addAggregatorCallbacks(ipa,getIpfixDbWriterCallbackInfo(ipw));
+		addIpfixReceiverCallbacks(ipr ,getIpfixDbWriterCallbackInfo(ipw));
+		//addAggregatorCallbacks(ipa,getIpfixDbWriterCallbackInfo(ipw));
 		v->conc_DbWriter=ipw;
 	}
 	
-	msg(MSG_INFO, "Config: now setting up periodic concentrator logging");
-	if (v->conc_receiver) msg_thread_add_log_function(statsIpfixReceiver, v->conc_receiver);
-	if (v->conc_aggregator) msg_thread_add_log_function(statsAggregator, v->conc_aggregator);
-	if (v->conc_exporter) msg_thread_add_log_function(statsIpfixSender, v->conc_exporter);
+//	msg(MSG_INFO, "Config: now setting up periodic concentrator logging");
+//	if (v->conc_receiver) msg_thread_add_log_function(statsIpfixReceiver, v->conc_receiver);
+//	if (v->conc_aggregator) msg_thread_add_log_function(statsAggregator, v->conc_aggregator);
+//	if (v->conc_exporter) msg_thread_add_log_function(statsIpfixSender, v->conc_exporter);
 
         return 0;
 out4:
