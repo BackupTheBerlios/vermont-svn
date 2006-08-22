@@ -1,0 +1,38 @@
+\section{Related Work}
+\label{sec:related-work}
+
+%Network monitoring tools have a long history in the communications domain. 
+%Usually, such approaches were integrated into special-purpose applications for accounting or traffic engineering environments. 
+%With the development of the Netflow protocol by Cisco, a standardized method emerged that allows a strict separation of monitoring and analysis. The IETF recognized the need for an Internet-wide standard for collecting and transporting monitoring data. Therefore, NetFlow.v9, IPFIX and PSAMP are being standardized as RFCs.
+
+In this section, we provide a brief overview to open-source implementations of monitoring probes.
+There are several implementations supporting the NetFlow.v9 format, e.g. nprobe~\cite{deri2003nprobe} and NetMate~\cite{schmoll2004netmate}. Currently, the authors of these tools are working on IPFIX compliant versions.
+Table~\ref{tab:features} compares the supported features of these implementations and Vermont.
+%Futher, there exist implementations at Cisco Systems and IBM~\cite{ibm-ipfix} which are not available under an open-source compatible license and as such not listed here.
+
+Vermont, being a reference implementation for both the IPFIX and the PSAMP standard, already supports IPFIX, PSAMP, and IPFIX aggregation schemes.
+
+\begin{table}
+%% increase table row spacing, adjust to taste
+\renewcommand{\arraystretch}{1.0}
+\caption{Feature Comparision}
+\label{tab:features}
+\begin{center}
+%% Some packages, such as MDW tools, offer better commands for making tables
+%% than the plain LaTeX2e tabular which is used here.
+\begin{tabular}{r|c|c|c}
+ & Vermont & nProbe & NetMate\\
+\hline
+IPFIX Support & yes & planned & \\
+PSAMP Support & yes &  & \\
+IPFIX Aggregation & yes & planned & planned\\
+Collector Functionality & yes &  & \\
+Save Data To Disk &  & yes & \\
+Save Data To SQL DB & yes & & \\
+Remote Reconfigurability & yes &  & yes\\
+Plugin Architecture &  & yes & yes\\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
