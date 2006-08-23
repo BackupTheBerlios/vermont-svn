@@ -18,8 +18,7 @@
 #include "msg.h"
 #include "subsystems.h"
 #include "vermont.h"
-#include "config_sampler.h"
-#include "config_concentrator.h"
+#include "vermont_configuration.h"
 
 using namespace std;
 
@@ -27,10 +26,6 @@ static void usage();
 static void sig_handler(int x);
 static int setup_signal(int signal, void (*handler)(int));
 //static int vermont_readconf(dictionary **conf, char *file);
-static int vermont_configure(struct v_objects *v);
-static int vermont_start_all(struct v_objects *v);
-static int configure_logging(struct v_objects *v);
-static int using_log_thread;
 
 
 int main(int ac, char **dc)
@@ -61,12 +56,41 @@ int main(int ac, char **dc)
                         exit(1);
                 }
         }
+	
+	if (config_file == NULL) {
+		msg(MSG_FATAL, "no config file given, but mandatory");
+		usage();
+		return -1;	
+	}
 
 	/* setup verboseness */
         msg_setlevel(debug_level);
 
 	setup_signal(SIGINT, sig_handler);
-
+	
+	
+	VermontConfiguration* vermontConfig = NULL;
+	
+	try {
+		vermontConfig = new VermontConfiguration(config_file);
+		vermontConfig->readMainConfiguration();
+		vermontConfig->readSubsystemConfiguration();
+		vermontConfig->connectSubsystems();
+		vermontConfig->startSubsystems();
+	} catch (std::exception& e) {
+		msg(MSG_FATAL, "%s", e.what());
+		delete vermontConfig;
+		return -1;
+	}
+	
+	time_t t = time(NULL);
+	msg(MSG_DIALOG, "up and running at %s", ctime(&t));
+	
+	pause();
+	
+	delete vermontConfig;
+	
+	return 0;
 //         /*
 //          read the main configuration file
 
@@ -116,6 +140,57 @@ int main(int ac, char **dc)
 //         return 0;
 }
 
+
+/* bla bla bla */
+static void usage()
+{
+	printf(
+			"VERsatile MONitoring Tool - VERMONT\n" \
+			" mandatory:\n" \
+			"    -f <inifile>     load config\n" \
+			" optional:\n" \
+			"    -d               increase debug level (specify multiple for even more)\n" \
+	      );
+}
+
+
+static int setup_signal(int signal, void (*handler)(int))
+{
+	struct sigaction sig;
+
+	sig.sa_handler=sig_handler;
+	sig.sa_flags=SA_RESTART;
+	sigemptyset(&sig.sa_mask);
+	return(sigaction(signal, &sig, NULL));
+}
+
+
+/* just shallow right now */
+static void sig_handler(int x)
+{
+	msg(MSG_DIALOG, "got signal %d - exiting", x);
+	exit(2);
+}
+
+
+static void __cplusplus_really_sucks_andPeopleUsingVeryStrangeNamingConventionsWithLongLongExplicitBlaBlaAndfUnNycasE()
+{
+	/*
+	The Paris crew at MOME Interop 2005
+
+	Christoph "C'est bon" "Das koennte beruehmt sein" Sommer
+	Lothar "Pragmatic" "Ai verdammt, das funktioniert nicht" Braun
+	Ronny T. "Agent Provocateur" "Le (SVN-)depot, c'est moi" Lampert
+
+
+	Thanks to
+
+	Falko "Ich hab da mal so ne Idee" Dressler
+	Gerhard "Man muesste mal" Muenz
+
+	who made it possible to fly to Paris.
+	*/
+};
 
 /*
  read the config from *file and attach the iniparser stuff to **conf
@@ -322,56 +397,3 @@ int main(int ac, char **dc)
 
 //         return 0;
 // }
-
-
-
-/* bla bla bla */
-static void usage()
-{
-        printf(
-               "VERsatile MONitoring Tool - VERMONT\n" \
-               " mandatory:\n" \
-               "    -f <inifile>     load config\n" \
-               " optional:\n" \
-               "    -d               increase debug level (specify multiple for even more)\n" \
-              );
-}
-
-
-static int setup_signal(int signal, void (*handler)(int))
-{
-        struct sigaction sig;
-
-        sig.sa_handler=sig_handler;
-        sig.sa_flags=SA_RESTART;
-        sigemptyset(&sig.sa_mask);
-        return(sigaction(signal, &sig, NULL));
-}
-
-
-/* just shallow right now */
-static void sig_handler(int x)
-{
-        msg(MSG_DIALOG, "got signal %d - exiting", x);
-        exit(2);
-}
-
-
-static void __cplusplus_really_sucks_andPeopleUsingVeryStrangeNamingConventionsWithLongLongExplicitBlaBlaAndfUnNycasE()
-{
-	/*
-	 The Paris crew at MOME Interop 2005
-
-	 Christoph "C'est bon" "Das koennte beruehmt sein" Sommer
-	 Lothar "Pragmatic" "Ai verdammt, das funktioniert nicht" Braun
-	 Ronny T. "Agent Provocateur" "Le (SVN-)depot, c'est moi" Lampert
-
-
-	 Thanks to
-
-	 Falko "Ich hab da mal so ne Idee" Dressler
-	 Gerhard "Man muesste mal" Muenz
-
-	 who made it possible to fly to Paris.
-	 */
-};

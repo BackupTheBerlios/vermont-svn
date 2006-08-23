@@ -93,6 +93,9 @@ void ExporterConfiguration::setUp()
 void ExporterConfiguration::createExporterSink(Template* t, uint16_t sourceId)
 {
 	exporterSink = new ExporterSink(t, sourceId);
+	exporterSink->addCollector(ipAddress.c_str(),
+				   port,
+				   protocolType.c_str());
 }
 
 void ExporterConfiguration::connect(Configuration*)
