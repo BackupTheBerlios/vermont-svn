@@ -10,7 +10,7 @@ public:
 	ExporterConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
 
 	virtual void configure();
-	virtual void connect(Configuration*);
+	virtual void connect(const Configuration*);
 
 protected:
 	void setUp();
@@ -25,8 +25,10 @@ private:
 	unsigned templateRefreshTime;
 	unsigned templateRefreshRate;
 	std::string ipAddress;
-	unsigned protocolType;
+	std::string protocolType;
 	uint16_t port;
+
+	bool hasCollector;
 };
 
 #endif

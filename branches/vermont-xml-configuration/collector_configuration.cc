@@ -39,7 +39,7 @@ void CollectorConfiguration::setUp()
 
 }
 
-void CollectorConfiguration::connect(Configuration*)
+void CollectorConfiguration::connect(const Configuration*)
 {
 	throw std::runtime_error("A collector cannot be a target to Configuration::connect()!");
 }

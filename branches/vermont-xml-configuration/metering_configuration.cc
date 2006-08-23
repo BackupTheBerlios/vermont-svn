@@ -1,6 +1,10 @@
 #include "metering_configuration.h"
 
 #include <ipfixlolib/ipfix_names.h>
+#include <sampler/Template.h>
+#include <sampler/ExporterSink.h>
+#include <sampler/Filter.h>
+#include <sampler/PacketProcessor.h>
 
 #include <cctype>
 
@@ -61,7 +65,8 @@ private:
 /*************************** MeteringConfiguration ***************************/
 
 MeteringConfiguration::MeteringConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), t(0), templateId(0), filter(0)
+	: Configuration(document, startPoint), t(0), templateId(0), filter(0),
+	sampling(false), aggregating(false), exporterSink(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -81,6 +86,7 @@ MeteringConfiguration::~MeteringConfiguration()
 	}
 	delete t;
 	delete filter;
+	delete exporterSink;
 }
 
 void MeteringConfiguration::configure()
@@ -138,6 +144,7 @@ void MeteringConfiguration::readPacketSelection(xmlNodePtr i)
 				j = j->next;
 			}
 			filters.push_back(new RandomSampler(n, N));
+			sampling = true;
 		} else if (!xmlStrcmp(i->name, (const xmlChar*)"uniProb")) {
 			throw std::runtime_error("uniProb not yet implemented!");
 		} else if (!xmlStrcmp(i->name, (const xmlChar*)"nonUniProb")) {
@@ -226,7 +233,18 @@ void MeteringConfiguration::buildTemplate()
 	msg(MSG_DEBUG, "Template: got %d fields", t->getFieldCount());
 }
 
-void MeteringConfiguration::connect(Configuration*)
+void MeteringConfiguration::connect(const Configuration*)
 {
+	
+}
 
+ExporterSink* MeteringConfiguration::getExporterSink() const
+{
+	if (!sampling) {
+		std::runtime_error("Metering isn't configured to do packet sampling -> illegal call to MeteringConfiguration::getExporterSink(). This is a bug! Please report it.");
+	}
+	if (exporterSink == NULL) {
+		std::runtime_error("MeteringConfiguration::getExporerSink(): Didn't create an ExporterSink yet. This is a bug! Please report it");	
+	}
+	return exporterSink;
 }

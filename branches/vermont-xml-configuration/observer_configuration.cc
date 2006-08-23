@@ -1,6 +1,11 @@
 #include "observer_configuration.h"
 #include "msg.h"
 
+#include <sampler/Template.h>
+#include <sampler/PacketProcessor.h>
+#include <sampler/Filter.h>
+#include <sampler/ExporterSink.h>
+
 
 #include <stdexcept>
 #include <cstdlib>
@@ -80,7 +85,7 @@ void ObserverConfiguration::setUp()
 	}
 }
 
-void ObserverConfiguration::connect(Configuration*)
+void ObserverConfiguration::connect(const Configuration*)
 {
 	throw std::runtime_error("An Observer cannot be a target to Configuration::connect()!");
 }

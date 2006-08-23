@@ -112,7 +112,18 @@ void VermontConfiguration::readSubsystemConfiguration()
 
 void VermontConfiguration::connectSubsystems()
 {
-	throw std::runtime_error("not yet implemented");
+	for (SubsystemConfiguration::iterator i = subsystems.begin();
+	     i != subsystems.end(); ++i) {
+		Configuration* c = i->second;
+		std::string id = i->first;
+		const std::vector<std::string>& nextVector = c->getNextVector();
+		for (unsigned j = 0; j != nextVector.size(); ++j) {
+			if (subsystems.find(nextVector[j]) == subsystems.end()) {
+				throw std::runtime_error("Could not find " + nextVector[j] + " in subsystem list");
+			}
+			subsystems[nextVector[j]]->connect(c);
+		}
+	}
 }
 
 void VermontConfiguration::startSubsystems()

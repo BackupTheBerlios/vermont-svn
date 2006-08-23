@@ -5,12 +5,13 @@
 #include "vermont_configuration.h"
 
 
-#include <sampler/Template.h>
-#include <sampler/PacketProcessor.h>
-#include <sampler/Filter.h>
-
-
 #include <vector>
+
+
+class ExporterSink;
+class Filter;
+class PacketProcessor;
+class Template;
 
 
 class MeteringConfiguration : public Configuration {
@@ -19,10 +20,14 @@ public:
 	~MeteringConfiguration();
 	
 	virtual void configure();
-	virtual void connect(Configuration*);
+	virtual void setUp();
+	virtual void connect(const Configuration*);
 
+	bool isSampling() const { return sampling; }
+	bool isAggregating() const { return aggregating; }
+
+	ExporterSink* getExporterSink() const;
 protected:
-	void setUp();
 	void buildFilter();
 	void buildTemplate();
 
@@ -45,6 +50,10 @@ private:
 
 	Template* t;
 	Filter* filter;
+	ExporterSink* exporterSink;
+
+	bool sampling;
+	bool aggregating;
 };
 
 #endif

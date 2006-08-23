@@ -42,11 +42,13 @@ public:
 	/**
 	 * connects c to this (data will flow from c to this)
 	 */
-	virtual void connect(Configuration* c) = 0;
+	virtual void connect(const Configuration* c) = 0;
 
-	std::string getId() {
+	std::string getId() const{
 		return id;
 	}
+
+	const std::vector<std::string>& getNextVector() { return nextVector; }
 
 protected:
 	xmlNodePtr start;

@@ -8,5 +8,5 @@ vtests_SOURCES=vermont_tests.cpp vermont_tests.h configuration_tests.cpp configu
 AM_CFLAGS=-I$(top_srcdir) `xml2-config --cflags`
 AM_CXXFLAGS=$(AM_CFLAGS)
 AM_LDFLAGS=-L$(top_builddir)/concentrator -L$(top_builddir)/ipfixlolib -L$(topbuilddir)/sampler/ -lpthread -lpcap `xml2-config --libs`
-vtests_LDADD=$(top_builddir)/concentrator/libconcentrator.a $(top_builddir)/ipfixlolib/libipfixlo.a $(top_builddir)/sampler/libsampler.a
-vtests_DEPENDENCIES=$(top_builddir)/concentrator/libconcentrator.a $(top_builddir)/ipfixlolib/libipfixlo.a $(top_builddir)/sampler/libsampler.a
+vtests_LDADD=$(top_builddir)/concentrator/libconcentrator.a $(top_builddir)/sampler/libsampler.a $(top_builddir)/ipfixlolib/libipfixlo.a
+vtests_DEPENDENCIES=$(top_builddir)/concentrator/libconcentrator.a $(top_builddir)/sampler/libsampler.a $(top_builddir)/ipfixlolib/libipfixlo.a

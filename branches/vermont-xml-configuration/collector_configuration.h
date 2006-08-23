@@ -10,7 +10,7 @@ public:
 	CollectorConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
 
 	virtual void configure();
-	virtual void connect(Configuration*);
+	virtual void connect(const Configuration*);
 
 protected:
 	void setUp();

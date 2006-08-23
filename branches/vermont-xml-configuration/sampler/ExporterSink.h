@@ -211,7 +211,7 @@ public:
                 return true;
 	}
 
-        bool addCollector(char *address, unsigned short port, const char *protocol);
+        bool addCollector(const char *address, unsigned short port, const char *protocol);
 
 protected:
         int sourceID;
