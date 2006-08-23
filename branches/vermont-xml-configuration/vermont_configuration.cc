@@ -112,22 +112,46 @@ void VermontConfiguration::readSubsystemConfiguration()
 
 void VermontConfiguration::connectSubsystems()
 {
-	for (SubsystemConfiguration::iterator i = subsystems.begin();
-	     i != subsystems.end(); ++i) {
-		Configuration* c = i->second;
-		std::string id = i->first;
-		const std::vector<std::string>& nextVector = c->getNextVector();
-		for (unsigned j = 0; j != nextVector.size(); ++j) {
-			if (subsystems.find(nextVector[j]) == subsystems.end()) {
-				throw std::runtime_error("Could not find " + nextVector[j] + " in subsystem list");
+
+	// sequence is important!!!
+	// 1.) connect observers
+	// 2.) connect exporters
+	// 3.) connect collectors
+	// 4.) connect metering processes
+	// TODO: this is ugly!
+	std::string TYPES[] = {
+		configTypes::observer,
+		configTypes::exporter,
+		configTypes::collector,
+		configTypes::metering,
+	};
+	// TODO: this is inefficient
+	for (unsigned t = 0; t != 4; ++t) {
+		for (SubsystemConfiguration::iterator i = subsystems.begin();
+	    	 i != subsystems.end(); ++i) {	
+			std::string id = i->first;
+			if (id.find(TYPES[t])) {
+				continue;
 			}
-			subsystems[nextVector[j]]->connect(c);
+			Configuration* c = i->second;
+			const std::vector<std::string>& nextVector = c->getNextVector();
+			for (unsigned j = 0; j != nextVector.size(); ++j) {
+				if (subsystems.find(nextVector[j]) == subsystems.end()) {
+					throw std::runtime_error("Could not find " + nextVector[j] + " in subsystem list");
+				}
+				if (!c) msg(MSG_ERROR, "c is null");
+				if (!subsystems[nextVector[j]]) msg(MSG_ERROR, "subsystems[nextVector[j]] is null!");
+				c->connect(subsystems[nextVector[j]]);
+			}
 		}
 	}
 }
 
 void VermontConfiguration::startSubsystems()
 {
-	throw std::runtime_error("not yet implemented");
+	for (SubsystemConfiguration::iterator i = subsystems.begin();
+	     i != subsystems.end(); ++i) {
+		i->second->startSystem();
+	}
 }
 

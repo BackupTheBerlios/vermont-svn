@@ -1,10 +1,10 @@
 #include "exporter_configuration.h"
 #include "metering_configuration.h"
 
-#include "sampler/ExporterSink.h"
+#include <sampler/ExporterSink.h>
 
 ExporterConfiguration::ExporterConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), hasCollector(false)
+	: Configuration(document, startPoint), hasCollector(false), exporterSink(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -12,6 +12,11 @@ ExporterConfiguration::ExporterConfiguration(xmlDocPtr document, xmlNodePtr star
 	}
 	id = configTypes::exporter + (const char*)idString;
 	xmlFree(idString);
+}
+
+ExporterConfiguration::~ExporterConfiguration()
+{
+	delete exporterSink;
 }
 
 void ExporterConfiguration::configure()
@@ -85,19 +90,17 @@ void ExporterConfiguration::setUp()
 
 }
 
-void ExporterConfiguration::connect(const Configuration* c)
+void ExporterConfiguration::createExporterSink(Template* t, uint16_t sourceId)
 {
-	const MeteringConfiguration* metering;
-	metering = dynamic_cast<const MeteringConfiguration*>(c);
-	if (metering) {
-		if (metering->isSampling()) {
-			ExporterSink* e = metering->getExporterSink();
-			e->addCollector(ipAddress.c_str(),
-					port,
-					protocolType.c_str());
-		}
-		return;
-	}
+	exporterSink = new ExporterSink(t, sourceId);
+}
 
-	throw std::runtime_error("Object " + c->getId() + " cannot be connected to an Exporter!");
+void ExporterConfiguration::connect(Configuration*)
+{
+	throw std::runtime_error("Exporter is an end target and cannot be connected to something!");
+}
+
+void ExporterConfiguration::startSystem()
+{
+	exporterSink->runSink();
 }

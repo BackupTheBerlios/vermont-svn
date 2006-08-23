@@ -11,13 +11,17 @@
 #include <string>
 
 
+class Filter;
+
+
 class ObserverConfiguration : public Configuration {
 public:
 	ObserverConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
 	~ObserverConfiguration();
 	
 	virtual void configure();
-	virtual void connect(const Configuration*);
+	virtual void connect(Configuration*);
+	virtual void startSystem();
 
 protected:
 	void setUp();

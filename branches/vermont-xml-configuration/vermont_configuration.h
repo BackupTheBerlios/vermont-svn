@@ -38,11 +38,12 @@ public:
 	}
 
 	virtual void configure() = 0;
+	virtual void startSystem() = 0;
 
 	/**
-	 * connects c to this (data will flow from c to this)
+	 * connects c to this
 	 */
-	virtual void connect(const Configuration* c) = 0;
+	virtual void connect(Configuration* c) = 0;
 
 	std::string getId() const{
 		return id;

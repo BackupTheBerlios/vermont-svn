@@ -5,13 +5,21 @@
 #include "vermont_configuration.h"
 
 
+class ExporterSink;
+class Template;
+
+
 class ExporterConfiguration : public Configuration {
 public:
 	ExporterConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
-
+	~ExporterConfiguration();
+	
 	virtual void configure();
-	virtual void connect(const Configuration*);
+	virtual void connect(Configuration*);
+	virtual void startSystem();
 
+	void createExporterSink(Template* t, uint16_t sourceId);
+	ExporterSink* getExporterSink() { return exporterSink; }
 protected:
 	void setUp();
 
@@ -29,6 +37,7 @@ private:
 	uint16_t port;
 
 	bool hasCollector;
+	ExporterSink* exporterSink;
 };
 
 #endif

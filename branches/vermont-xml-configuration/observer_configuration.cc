@@ -1,4 +1,5 @@
 #include "observer_configuration.h"
+#include "metering_configuration.h"
 #include "msg.h"
 
 #include <sampler/Template.h>
@@ -85,7 +86,20 @@ void ObserverConfiguration::setUp()
 	}
 }
 
-void ObserverConfiguration::connect(const Configuration*)
+
+void ObserverConfiguration::connect(Configuration* c)
 {
-	throw std::runtime_error("An Observer cannot be a target to Configuration::connect()!");
+	MeteringConfiguration* metering = dynamic_cast<MeteringConfiguration*>(c);
+	if (metering) {
+		metering->setObservationId(observationDomain);
+		observer->addReceiver(metering->getFilters());
+		return;
+	}
+	
+	throw std::runtime_error("Cannot connect Observer to " + c->getId() + "!");
+}
+
+void ObserverConfiguration::startSystem()
+{
+	observer->startCapture();
 }

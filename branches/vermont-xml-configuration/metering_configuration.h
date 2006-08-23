@@ -8,7 +8,6 @@
 #include <vector>
 
 
-class ExporterSink;
 class Filter;
 class PacketProcessor;
 class Template;
@@ -21,12 +20,15 @@ public:
 	
 	virtual void configure();
 	virtual void setUp();
-	virtual void connect(const Configuration*);
+	virtual void connect(Configuration*);
+	virtual void startSystem();
+	
+	void setObservationId(uint16_t id);
 
+	Filter* getFilters() const { return filter; }
+	
 	bool isSampling() const { return sampling; }
 	bool isAggregating() const { return aggregating; }
-
-	ExporterSink* getExporterSink() const;
 protected:
 	void buildFilter();
 	void buildTemplate();
@@ -50,10 +52,12 @@ private:
 
 	Template* t;
 	Filter* filter;
-	ExporterSink* exporterSink;
 
 	bool sampling;
 	bool aggregating;
+	
+	int observationId;
+	bool observationIdSet;
 };
 
 #endif

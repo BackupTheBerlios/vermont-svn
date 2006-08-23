@@ -4,6 +4,9 @@
 #include "../vermont_configuration.h"
 
 
+#include <unistd.h>
+
+
 #include <iostream>
 #include <stdexcept>
 
@@ -58,4 +61,7 @@ void testFile(const std::string& filename)
 	vermont_config.connectSubsystems();
 	std::cout << "Starting subsystems..." << std::endl;
 	vermont_config.startSubsystems();
+	std::cout << "Up and running! Waiting for some seconds ... " << std::endl;
+	sleep(3);
+	std::cout << "cleaning up!" << std::endl;
 }

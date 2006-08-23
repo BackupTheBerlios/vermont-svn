@@ -1,4 +1,5 @@
 #include "metering_configuration.h"
+#include "exporter_configuration.h"
 
 #include <ipfixlolib/ipfix_names.h>
 #include <sampler/Template.h>
@@ -66,7 +67,7 @@ private:
 
 MeteringConfiguration::MeteringConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
 	: Configuration(document, startPoint), t(0), templateId(0), filter(0),
-	sampling(false), aggregating(false), exporterSink(0)
+	sampling(false), aggregating(false), observationIdSet(false)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -86,7 +87,6 @@ MeteringConfiguration::~MeteringConfiguration()
 	}
 	delete t;
 	delete filter;
-	delete exporterSink;
 }
 
 void MeteringConfiguration::configure()
@@ -99,6 +99,8 @@ void MeteringConfiguration::configure()
 			readPacketReporting(i);
 		} else if (!xmlStrcmp(i->name, (const xmlChar*)"flowMetering")) {
 			readFlowMetering(i);
+		} else if (!xmlStrcmp(i->name, (const xmlChar*)"next")) {
+			fillNextVector(i);
 		}
 		i = i->next;
 	}
@@ -204,7 +206,7 @@ void MeteringConfiguration::buildFilter()
 
 void MeteringConfiguration::buildTemplate()
 {
-	Template* t = new Template(templateId);
+	t = new Template(templateId);
 	
 	for (unsigned i = 0; i != exportedFields.size(); ++i) {
 		int tmpId = exportedFields[i]->getId();
@@ -233,18 +235,30 @@ void MeteringConfiguration::buildTemplate()
 	msg(MSG_DEBUG, "Template: got %d fields", t->getFieldCount());
 }
 
-void MeteringConfiguration::connect(const Configuration*)
+void MeteringConfiguration::setObservationId(uint16_t id)
 {
-	
+	observationId = id;
+	observationIdSet = true;
 }
 
-ExporterSink* MeteringConfiguration::getExporterSink() const
-{
-	if (!sampling) {
-		std::runtime_error("Metering isn't configured to do packet sampling -> illegal call to MeteringConfiguration::getExporterSink(). This is a bug! Please report it.");
+void MeteringConfiguration::connect(Configuration* c)
+{	
+	ExporterConfiguration* exporter = dynamic_cast<ExporterConfiguration*>(c);
+	if (exporter) {
+		if (sampling) {
+			if (!observationIdSet) {
+				throw std::runtime_error("MeteringConfiguration: ObservationId not set. This is a bug!!! Please report it.");
+			}
+			exporter->createExporterSink(t, observationId);
+			filter->setReceiver(exporter->getExporterSink());
+		}
+		return;
 	}
-	if (exporterSink == NULL) {
-		std::runtime_error("MeteringConfiguration::getExporerSink(): Didn't create an ExporterSink yet. This is a bug! Please report it");	
-	}
-	return exporterSink;
+	throw std::runtime_error("Cannot connect " + c->getId() + " to an metering process!");
 }
+
+void MeteringConfiguration::startSystem()
+{
+	filter->startFilter();
+}
+
