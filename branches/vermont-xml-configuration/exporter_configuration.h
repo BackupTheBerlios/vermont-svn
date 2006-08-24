@@ -5,6 +5,9 @@
 #include "vermont_configuration.h"
 
 
+#include <concentrator/sndIpfix.h>
+
+
 class ExporterSink;
 class Template;
 
@@ -19,7 +22,10 @@ public:
 	virtual void startSystem();
 
 	void createExporterSink(Template* t, uint16_t sourceId);
-	ExporterSink* getExporterSink() { return exporterSink; }
+	ExporterSink* getExporterSink() const { return exporterSink; }
+	
+	void createIpfixSender(uint16_t sourceId);
+	IpfixSender* getIpfixSender() const { return ipfixSender; }
 protected:
 	void setUp();
 
@@ -38,6 +44,7 @@ private:
 
 	bool hasCollector;
 	ExporterSink* exporterSink;
+	IpfixSender* ipfixSender;
 };
 
 #endif

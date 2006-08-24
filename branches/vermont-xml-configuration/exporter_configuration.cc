@@ -4,7 +4,8 @@
 #include <sampler/ExporterSink.h>
 
 ExporterConfiguration::ExporterConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), hasCollector(false), exporterSink(0)
+	: Configuration(document, startPoint), hasCollector(false), exporterSink(0),
+	ipfixSender(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -17,6 +18,11 @@ ExporterConfiguration::ExporterConfiguration(xmlDocPtr document, xmlNodePtr star
 ExporterConfiguration::~ExporterConfiguration()
 {
 	delete exporterSink;
+	if (ipfixSender) {
+		stopIpfixSender(ipfixSender);
+		destroyIpfixSender(ipfixSender);
+		deinitializeIpfixSenders();
+	}
 }
 
 void ExporterConfiguration::configure()
@@ -98,6 +104,21 @@ void ExporterConfiguration::createExporterSink(Template* t, uint16_t sourceId)
 				   protocolType.c_str());
 }
 
+void ExporterConfiguration::createIpfixSender(uint16_t sourceId)
+{
+	initializeIpfixSenders();
+	ipfixSender = ::createIpfixSender(sourceId,
+					ipAddress.c_str(),
+					port);
+	if (!ipfixSender) {
+		throw std::runtime_error("Could not create IpfixSender!");
+	}
+	// we need to start IpfixSender right here, because ipfixAggregator
+	// needs a running IpfixSender before it can be created
+	// TODO: FIX THIS!
+	startIpfixSender(ipfixSender);
+}
+
 void ExporterConfiguration::connect(Configuration*)
 {
 	throw std::runtime_error("Exporter is an end target and cannot be connected to something!");
@@ -105,5 +126,13 @@ void ExporterConfiguration::connect(Configuration*)
 
 void ExporterConfiguration::startSystem()
 {
-	exporterSink->runSink();
+	if (exporterSink) {
+		msg(MSG_DEBUG, "ExporterConfiguration: Starting ExporterSink for Sampler");
+		exporterSink->runSink();
+	} else if (ipfixSender) {
+		msg(MSG_DEBUG, "ExporterConfiguration: Running IpfixSender");
+		// ipfixSender already runs (see createIpfixSender())
+	} else {
+		throw std::runtime_error("Can neither start an ExporterSink, nor an IpfixSender -> something is broken!");
+	}
 }

@@ -6,6 +6,8 @@
 #include <sampler/PacketProcessor.h>
 #include <sampler/Filter.h>
 #include <sampler/ExporterSink.h>
+#include <sampler/HookingFilter.h>
+#include <concentrator/sampler_hook_entry.h>
 
 
 #include <stdexcept>
@@ -92,6 +94,9 @@ void ObserverConfiguration::connect(Configuration* c)
 	MeteringConfiguration* metering = dynamic_cast<MeteringConfiguration*>(c);
 	if (metering) {
 		metering->setObservationId(observationDomain);
+		if (metering->isAggregating()) {
+			metering->getFilters()->addProcessor(new HookingFilter(sampler_hook_entry));
+		}
 		observer->addReceiver(metering->getFilters());
 		return;
 	}

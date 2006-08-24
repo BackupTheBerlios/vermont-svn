@@ -86,7 +86,10 @@ int main(int ac, char **dc)
 	time_t t = time(NULL);
 	msg(MSG_DIALOG, "up and running at %s", ctime(&t));
 	
-	pause();
+	while (1) {
+		vermontConfig->pollAggregators();
+		sleep(1);
+	}
 	
 	delete vermontConfig;
 	

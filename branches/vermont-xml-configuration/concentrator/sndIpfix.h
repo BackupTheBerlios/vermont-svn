@@ -27,7 +27,7 @@ typedef struct {
 int initializeIpfixSenders();
 int deinitializeIpfixSenders();
 
-IpfixSender* createIpfixSender(SourceID sourceID, char* ip, uint16_t port);
+IpfixSender* createIpfixSender(SourceID sourceID, const char* ip, uint16_t port);
 void destroyIpfixSender(IpfixSender* ipfixSender);
 
 void startIpfixSender(IpfixSender* ipfixSender);

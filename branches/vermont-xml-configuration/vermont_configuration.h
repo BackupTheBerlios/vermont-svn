@@ -78,6 +78,8 @@ public:
 
 	void connectSubsystems();
 	void startSubsystems();
+
+	void pollAggregators();
 		
 private:
 	typedef std::map<std::string, Configuration*> SubsystemConfiguration;

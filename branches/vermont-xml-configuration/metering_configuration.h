@@ -5,6 +5,9 @@
 #include "vermont_configuration.h"
 
 
+#include <concentrator/aggregator.h>
+
+
 #include <vector>
 
 
@@ -26,9 +29,12 @@ public:
 	void setObservationId(uint16_t id);
 
 	Filter* getFilters() const { return filter; }
+	IpfixAggregator* getAggregator() const;
 	
 	bool isSampling() const { return sampling; }
 	bool isAggregating() const { return aggregating; }
+	
+	void pollAggregator();
 protected:
 	void buildFilter();
 	void buildTemplate();
@@ -52,6 +58,7 @@ private:
 
 	Template* t;
 	Filter* filter;
+	IpfixAggregator* ipfixAggregator;
 
 	bool sampling;
 	bool aggregating;

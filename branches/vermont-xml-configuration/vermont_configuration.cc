@@ -141,7 +141,9 @@ void VermontConfiguration::connectSubsystems()
 				}
 				if (!c) msg(MSG_ERROR, "c is null");
 				if (!subsystems[nextVector[j]]) msg(MSG_ERROR, "subsystems[nextVector[j]] is null!");
+				msg(MSG_DEBUG, "VermontConfiguration: connecting %s to %s", c->getId().c_str(), subsystems[nextVector[j]]->getId().c_str()); 
 				c->connect(subsystems[nextVector[j]]);
+				msg(MSG_DEBUG, "VermontConfiguration: successfully connected %s to %s", c->getId().c_str(), subsystems[nextVector[j]]->getId().c_str());
 			}
 		}
 	}
@@ -152,6 +154,17 @@ void VermontConfiguration::startSubsystems()
 	for (SubsystemConfiguration::iterator i = subsystems.begin();
 	     i != subsystems.end(); ++i) {
 		i->second->startSystem();
+	}
+}
+
+void VermontConfiguration::pollAggregators()
+{
+	for (SubsystemConfiguration::iterator i = subsystems.begin();
+	     i != subsystems.end(); ++i) {
+		MeteringConfiguration* m = dynamic_cast<MeteringConfiguration*>(i->second);
+		if (m) {
+			m->pollAggregator();
+		}
 	}
 }
 

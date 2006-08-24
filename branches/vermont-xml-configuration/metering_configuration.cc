@@ -67,7 +67,8 @@ private:
 
 MeteringConfiguration::MeteringConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
 	: Configuration(document, startPoint), t(0), templateId(0), filter(0),
-	sampling(false), aggregating(false), observationIdSet(false)
+	sampling(false), aggregating(false), observationIdSet(false),
+	ipfixAggregator(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -87,6 +88,12 @@ MeteringConfiguration::~MeteringConfiguration()
 	}
 	delete t;
 	delete filter;
+	
+	if (ipfixAggregator) {
+		stopAggregator(ipfixAggregator);
+		destroyAggregator(ipfixAggregator);
+		deinitializeAggregators();
+	}
 }
 
 void MeteringConfiguration::configure()
@@ -184,7 +191,22 @@ void MeteringConfiguration::readPacketReporting(xmlNodePtr i)
 
 void MeteringConfiguration::readFlowMetering(xmlNodePtr i)
 {
-	throw std::runtime_error("not yet implemented");
+	aggregating = true;
+	msg(MSG_ERROR, "MeteringConfiguration: This isn't implemented properly yet! I'll load a sample configuration to test if all parts of vermont are working at all!");
+	initializeAggregators();
+	
+	// TODO: Bogus demonstration hack!!!!
+	msg(MSG_ERROR, "We don't have an observeration id when aggreagting ... this is a problem!!!!");
+	observationId = 4711;
+	observationIdSet = true;
+	
+	ipfixAggregator = createAggregator("aggregation_rules.conf",
+					   5,
+					   10);
+	if (!ipfixAggregator) {
+		throw std::runtime_error("MeteringConfiguration: Could not create ipfixAggreagtor");
+	}
+	
 }
 
 void MeteringConfiguration::setUp()
@@ -196,9 +218,7 @@ void MeteringConfiguration::setUp()
 void MeteringConfiguration::buildFilter()
 {
 	filter = new Filter();
-
-	// TODO: Where to put the paket hook?
-
+	
 	for (unsigned i = 0; i != filters.size(); ++i) {
 		filter->addProcessor(filters[i]);
 	}
@@ -241,16 +261,27 @@ void MeteringConfiguration::setObservationId(uint16_t id)
 	observationIdSet = true;
 }
 
+IpfixAggregator* MeteringConfiguration::getAggregator() const
+{
+	if (!aggregating) {
+		throw std::runtime_error("Metering process is not aggregating. Illegal call to getAggregator(). This is a bug! Please report it.");
+	}
+	return ipfixAggregator;
+}
+
 void MeteringConfiguration::connect(Configuration* c)
 {	
 	ExporterConfiguration* exporter = dynamic_cast<ExporterConfiguration*>(c);
 	if (exporter) {
+		if (!observationIdSet) {
+			throw std::runtime_error("MeteringConfiguration: ObservationId not set. This is a bug!!! Please report it.");
+		}
 		if (sampling) {
-			if (!observationIdSet) {
-				throw std::runtime_error("MeteringConfiguration: ObservationId not set. This is a bug!!! Please report it.");
-			}
 			exporter->createExporterSink(t, observationId);
 			filter->setReceiver(exporter->getExporterSink());
+		} else if (aggregating) {
+			exporter->createIpfixSender(observationId);
+			addAggregatorCallbacks(ipfixAggregator, getIpfixSenderCallbackInfo(exporter->getIpfixSender()));
 		}
 		return;
 	}
@@ -259,6 +290,19 @@ void MeteringConfiguration::connect(Configuration* c)
 
 void MeteringConfiguration::startSystem()
 {
-	filter->startFilter();
+	if (sampling) {
+		filter->startFilter();
+	} else if (aggregating) {
+		startAggregator(ipfixAggregator);
+	} else {
+		throw std::runtime_error("MeteringConfiguration: Neither sampling, nor aggreagting!?!? This seems like a bug!");
+	}
 }
 
+void MeteringConfiguration::pollAggregator()
+{
+	if (aggregating && ipfixAggregator) {
+		//msg(MSG_DEBUG, "polling aggregator");
+		::pollAggregator(ipfixAggregator);
+	}
+}
