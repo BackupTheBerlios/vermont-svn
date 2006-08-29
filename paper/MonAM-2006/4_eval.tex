@@ -7,9 +7,9 @@ Vermont and its modules have undergone extensive testing with respect to perform
 
 Figure~\ref{fig_perf_sampler} shows the results obtained from benchmarking the sampler module on a dual-processor system\footnote{Dual 3.06GHz Intel Xeon, 2GB RAM, 1GBit NIC, Linux Kernel 2.6.13, libpcap-mmap 0.9.20060417}.
 A specialized version~\cite{pcap-mmap} of the pcap library was used, which avoids multiple copying of captured data by mapping a user-space buffer into the kernel.
-The traffic was generated using a packet generator set to fixed packet generation rates running on a seperate machine. To ensure the desired packet rates the UDP protocol was used 
+The traffic was generated using a packet generator set to fixed packet generation rates running on a separate machine. To ensure the desired packet rates the UDP protocol was used 
 %and the observed rate fluctuation averaged at 1.4\%.
-and every two seconds captured as well as dropped packets were accounted using the counters supplied by the pcap library. Multiple tests have proven the data sample shown in figure~\ref{fig_perf_sampler} to be Vermont's typical behaviour over time.
+and every two seconds captured as well as dropped packets were accounted using the counters supplied by the pcap library. Multiple tests have proven the data sample shown in figure~\ref{fig_perf_sampler} to be Vermont's typical behavior over time.
 
 Until a packet rate of 250,000 packets per second (for 128 byte packets), the capture rate is 100\%.
 420,000 packets per second denotes the maximum packet generation rate and short-lived loss up to 45 percent can be observed; however, the loss is not of permanent nature and numerous measure points suggest the packet loss ratio being substantially smaller, averaging at 9.0 percent. At 300,000 packets per second the loss averages at 3.8 percent.
@@ -27,7 +27,7 @@ Capturing entire packets of 1500 bytes in size showed no loss at a maximum obser
 The concentrator module's performance was tested in a real-world scenario.
 Vermont was configured to capture all packets at the access router of our university's network, perform flow accounting using the rules shown in figure~\ref{fig_rule} and export the resulting records.
 FIXME These rules create aggregated fields for packet and byte counters.
-During the tests, a maximum metering performance of 45,000 flows per second was achieved\footnote{Dual 2.0GHz Intel Xeon, 1GB RAM, 1GBit NIC, Linux Kernel 2.6.13, libpcap-mmap 1.0.20050129}. 
+During the tests, a maximum metering performance of 45,000 packets per second was achieved\footnote{Dual 2.0GHz Intel Xeon, 1GB RAM, 1GBit NIC, Linux Kernel 2.6.13, libpcap-mmap 1.0.20050129}. 
 Repeating the test with different rule sets showed the maximum number of metered flows to be inversely proportional to the number of rules.
 
 \begin{figure}

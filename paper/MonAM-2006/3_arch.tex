@@ -12,9 +12,9 @@ A common exporter library called ipfixlolib realizes the export of monitoring da
 
 Both main modules are broken up into submodules, which are described in the following subsections.
 The main modules, as well as their submodules, have been designed for being instantiated more than once, giving the user a maximum degree of flexibility and caring for a wide range of monitoring needs.
-This modular approach also guarantees a high level of reusability and eases the incorporation of selected components into other software packages.
+This modular approach also guarantees a high level of re-usability and eases the incorporation of selected components into other software packages.
 
-Vermont's modular design excells where customization is needed.
+Vermont's modular design excels where customization is needed.
 Implementing the SQL database writer was a matter of simply writing an alternative export module and changing Vermont's configuration routines so it could be instantiated when configured to.
 A base class takes care of the details like allocating buffered queues and two methods have to be implemented which start and shutdown the submodule's operation.
 We use an URI-based scheme to indicate the export method used, i.e. exporting to the host \texttt{10.20.30.40} with destination port 6677 using the UDP protocol is expressed by \texttt{udp://10.20.30.40:6677}. This scheme can be arbitrarily extended.
