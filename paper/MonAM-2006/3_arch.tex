@@ -17,7 +17,7 @@ This modular approach also guarantees a high level of re-usability and eases the
 Vermont's modular design excels where customization is needed.
 Implementing the SQL database writer was a matter of simply writing an alternative export module and changing Vermont's configuration routines so it could be instantiated when configured to.
 A base class takes care of the details like allocating buffered queues and two methods have to be implemented which start and shutdown the submodule's operation.
-We use an URI-based scheme to indicate the export method used, i.e. exporting to the host \texttt{10.20.30.40} with destination port 6677 using the UDP protocol is expressed by \texttt{udp://10.20.30.40:6677}. This scheme can be arbitrarily extended.
+We use an URI-based scheme to indicate the export method used, i.e. exporting to the host \texttt{10.20.30.40} with destination port 4739 (standard port assigned to IPFIX) using the UDP protocol is expressed by \texttt{udp://10.20.30.40:4739}. This scheme can be arbitrarily extended.
 
 %Internally, each of Vermont's three main functions - capturing, filtering and exporting - is contained within its own thread.
 %Forwarding data between subsystems is done by putting references to the actual data into buffered queues connecting the subsystems.
@@ -26,9 +26,9 @@ Internally, submodules are contained within different threads.
 In order to avoid unnecessary copying of data, only references to the actual data are passed from one subsystem to the other using buffered queues.
 This design was chosen to optimally exploit the asynchronous processing capabilities of multi-processor systems.
 
-Vermont's configuration is maintained in one consistent configuration file; additionally, a back-end for dynamic reconfiguration using Netconf protocol has been implemented~\cite{muenz2006using}, allowing for fast remote distribution of new configuration data.
+Vermont's configuration is maintained in one consistent configuration file, following the XML schema proposed in~\cite{muenz-ipfix-configuration}. In addition, a back-end for dynamic reconfiguration using Netconf protocol has been implemented~\cite{muenz2006using}, allowing for fast remote distribution of new configuration data.
 
-Depending on the configuration, Vermont captures raw packets, performs packet sampling and optional flow accounting and exports the resulting monitoring data using the IPFIX/PSAMP protocol.
+Depending on the configuration, Vermont captures raw packets, performs packet sampling and optional flow accounting, and exports the resulting monitoring data using the IPFIX/PSAMP protocol.
 Alternatively, Vermont can operate as an IPFIX concentrator that receives and aggregates data exported by other monitoring probes in order to reduce the overall data volume.
 
 
