@@ -27,7 +27,7 @@ Capturing entire packets of 1500 bytes in size showed no loss at a maximum obser
 The concentrator module's performance was tested in a real-world scenario.
 Vermont was configured to capture all packets at the access router of our university's network, perform flow accounting using the aggregation rule shown in figure~\ref{fig_rule}, and export the resulting records.
 This rule creates standard IP-quintuple flow records with packet and byte counters.
-During the tests, a maximum metering performance of 45,000 packets per second was achieved\footnote{Dual 2.0GHz Intel Xeon, 1GB RAM, 1GBit NIC, Linux Kernel 2.6.13, libpcap-mmap 1.0.20050129}. 
+During the tests, a maximum metering performance of 45,000 packets per second, corresponding to a maximum aggregation performance of 45,000 incoming flows per second, was achieved\footnote{Dual 2.0GHz Intel Xeon, 1GB RAM, 1GBit NIC, Linux Kernel 2.6.13, libpcap-mmap 1.0.20050129}. 
 Repeating the test with different rule sets showed the maximum number of metered flows to be inversely proportional to the number of rules.
 The big difference to the high packet rates measured with the sampler module alone shows that the flexible, rule-based aggregation scheme takes its toll.
 We intend to improve this with an optimized flow accounting mechanism for standard IP-quintuple flows. 
