@@ -207,7 +207,6 @@ void addAggregatorCallbacks(IpfixAggregator* ipfixAggregator, CallbackInfo handl
 CallbackInfo getAggregatorCallbackInfo(IpfixAggregator* ipfixAggregator)
 {
 	CallbackInfo ci;
-
 	bzero(&ci, sizeof(CallbackInfo));
 	ci.handle = ipfixAggregator;
 	ci.dataRecordCallbackFunction = aggregateDataRecord;

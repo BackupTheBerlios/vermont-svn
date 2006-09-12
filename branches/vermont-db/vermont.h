@@ -18,6 +18,7 @@
 #include "concentrator/sndIpfix.h"
 /*juergen*/
 #include "concentrator/IpfixDbWriter.h"
+#include "concentrator/IpfixDbReader.h"
 
 #define MAX_URIS 16
 
@@ -51,6 +52,7 @@ struct v_objects {
         IpfixSender *conc_exporter;
 	/*juergen*/
 	IpfixDbWriter *conc_DbWriter;
+	IpfixDbReader *conc_DbReader;
         /* poll aggregator this often */
         unsigned short conc_poll_ms;
 

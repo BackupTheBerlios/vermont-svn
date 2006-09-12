@@ -31,6 +31,8 @@ struct column identify [] = {
 	{"pkts", IPFIX_TYPEID_packetDeltaCount, "BIGINT(20) UNSIGNED", 0},
 	{"firstSwitched", IPFIX_TYPEID_flowStartSeconds,  "INTEGER(10) UNSIGNED", 0},
 	{"lastSwitched", IPFIX_TYPEID_flowEndSeconds,  "INTEGER(10) UNSIGNED", 0},
+	//{"firstSwitched", 22,  "INTEGER(10) UNSIGNED", 0},
+	//{"lastSwitched", 21,  "INTEGER(10) UNSIGNED", 0},
 	{"exporterID",ExporterID, "SMALLINT(5) UNSIGNED", 0},
 	{"END"}
 } ;
@@ -86,6 +88,7 @@ IpfixDbWriter* createIpfixDbWriter()
 	ipfixDbWriter->port_num = 0; 			
 	ipfixDbWriter->socket_name = 0 ;	  		
 	ipfixDbWriter->flags = 0;
+	ipfixDbWriter->srcid = 7777;
 	/**Initialize structure members Table*/	  
 	ipfixDbWriter->table = tabl ;
 	tabl->countbufftable = 0;
@@ -292,9 +295,9 @@ int createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* tablename)
 }
 
 /**
-*	function receive the datadatarecord when callback is started
+*	function receive the DataRecord or DataDataRecord when callback is started
 */
-int receiveDataRec(void* ipfixDbWriter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data)
+int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data)
 {
 	Table *tabl = ((IpfixDbWriter*) ipfixDbWriter)->table;
 	Statement* statemen = tabl->statement;
@@ -303,6 +306,11 @@ int receiveDataRec(void* ipfixDbWriter, SourceID sourceID, DataTemplateInfo* dat
 	{
 		msg(MSG_FATAL,"Drop datarecord - still writing to database");
 		return 0;
+	}
+	/** sourceid null ? use default*/
+	if(sourceID == 0)
+	{
+		sourceID = ((IpfixDbWriter*) ipfixDbWriter)->srcid;
 	}
 	/** make a sql insert statement from the recors data */
 	char* insertTableStr = getRecData(ipfixDbWriter, tabl, sourceID, dataTemplateInfo, length, data);
@@ -326,13 +334,34 @@ int receiveDataRec(void* ipfixDbWriter, SourceID sourceID, DataTemplateInfo* dat
 }
 
 /**
+ *	function receive the  when callback is started
+ */
+int writeDataRecord(void* ipfixDbWriter, SourceID sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data)
+{
+	DataTemplateInfo dataTemplateInfo;
+	
+	dataTemplateInfo.id = 0;
+	dataTemplateInfo.preceding = 0;
+	dataTemplateInfo.fieldCount = templateInfo->fieldCount;  /**< number of regular fields */
+	dataTemplateInfo.fieldInfo = templateInfo->fieldInfo;   /**< array of FieldInfos describing each of these fields */
+	dataTemplateInfo.dataCount = 0;   /**< number of fixed-value fields */
+	dataTemplateInfo.dataInfo = NULL;    /**< array of FieldInfos describing each of these fields */
+	dataTemplateInfo.data = NULL;        /**< data start pointer for fixed-value fields */
+	dataTemplateInfo.userData = templateInfo->userData;    /**< pointer to a field that can be used by higher-level modules */
+	
+	msg(MSG_DEBUG,"receiveRec calls receiveDataRec");	
+
+	return writeDataDataRecord(ipfixDbWriter, sourceID, &dataTemplateInfo, length, data);
+}
+
+/**
 *	loop over the DataTemplateInfo (fieldinfo,datainfo) to get the IPFIX values to store in database
 */
 char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID, DataTemplateInfo* dataTemplateInfo,uint16_t length, FieldData* data)
 {
 	int i ,j, k, n;
 	uint64_t intdata = 0;
-	uint64_t flowstartsec = 0;
+	uint32_t flowstartsec = 0;
 	/**begin query string for insert statement*/
 	char insert[start_len+(table->count_col * ins_width)];
 	strcpy(insert,"INSERT INTO ");
@@ -349,79 +378,86 @@ char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID, Da
 	/**data to store and make insert statement*/
 	for( i=0; i < table->count_col; i++)
 	{
-		for( j=0; identify[j].cname != "END"; j++)
+		for( j=0; strcmp(identify[j].cname,"END") != 0; j++)
 		{ 
+			
 			if(columns_names[i] == identify[j].cname)
-			{
+			{	
+				int notfound = 1;
 				strncat(ColValues,"'",sizeof(char)+1);
 				strncat(ColNames,columns_names[i],strlen(columns_names[i])+1);
 				if( i != table->count_col-1)
 					strncat(ColNames,",",sizeof(char)+1);
 				if( i == table->count_col-1)
 					strncat(ColNames,") ",(2*sizeof(char))+1);
-				for(k=0; k < dataTemplateInfo->fieldCount; k++)
-				{	
-					if(dataTemplateInfo->fieldInfo[k].type.id == identify[j].ipfixid)
+				if(dataTemplateInfo->fieldCount > 0)
+				{
+					for(k=0; k < dataTemplateInfo->fieldCount; k++)
+					{	
+						if(dataTemplateInfo->fieldInfo[k].type.id == identify[j].ipfixid)
+						{
+							notfound = 0;						
+							intdata = getdata(dataTemplateInfo->fieldInfo[k].type,(data+dataTemplateInfo->fieldInfo[k].offset));
+							sprintf(stringtmp,"%Lu",(uint64_t)intdata);
+							strncat(ColValues,stringtmp,strlen(stringtmp)+1);
+							strncat(ColValues,"'",sizeof(char)+1);
+							if(identify[j].ipfixid == IPFIX_TYPEID_flowStartSeconds)
+							{
+								flowstartsec = intdata;			
+							}
+							if( i !=  table->count_col-1)
+								strncat(ColValues,",",sizeof(char)+1);
+							if( i == table->count_col-1)
+								strncat(ColValues,")",sizeof(char)+1);	
+							break;
+						}
+					}	
+				}
+				if( dataTemplateInfo->dataCount > 0 && notfound)
+				{
+					for(n=0; n < dataTemplateInfo->dataCount; n++)
 					{
-													
-						intdata = getdata(dataTemplateInfo->fieldInfo[k].type,(data+dataTemplateInfo->fieldInfo[k].offset));
+						if(dataTemplateInfo->dataInfo[n].type.id == identify[j].ipfixid)
+						{
+							notfound = 0;
+							intdata = getdata(dataTemplateInfo->dataInfo[n].type,(dataTemplateInfo->data+dataTemplateInfo->dataInfo[n].offset));
+							sprintf(stringtmp,"%Lu",(uint64_t)intdata);
+							strncat(ColValues,stringtmp,strlen(stringtmp)+1);
+							strncat(ColValues,"'",sizeof(char)+1);
+							if( i != table->count_col-1)
+								strncat(ColValues,",",sizeof(char)+1);
+							if( i == table->count_col-1)
+								strncat(ColValues,")",sizeof(char)+1);					
+							break;
+						}
+					}
+				}
+				if(notfound)
+				{	
+					if(identify[j].ipfixid == ExporterID)
+					{
+						/**lookup exporter buffer to get exporterID from sourcID and expIP**/
+						intdata = getExporterID(ipfixDbWriter, table, sourceID,0);
 						sprintf(stringtmp,"%Lu",(uint64_t)intdata);
 						strncat(ColValues,stringtmp,strlen(stringtmp)+1);
 						strncat(ColValues,"'",sizeof(char)+1);
-						if(identify[j].ipfixid == IPFIX_TYPEID_flowStartSeconds)
-						{
-							flowstartsec = intdata;			
-						}
-						if( i !=  table->count_col-1)
-							strncat(ColValues,",",sizeof(char)+1);
-						if( i == table->count_col-1)
-							strncat(ColValues,")",sizeof(char)+1);	
-						break;
-					}	
-					else if( k == dataTemplateInfo->fieldCount-1)
-					{
-						for(n=0; n < dataTemplateInfo->dataCount; n++)
-						{
-							if(dataTemplateInfo->dataInfo[n].type.id == identify[j].ipfixid)
-							{
-								intdata = getdata(dataTemplateInfo->dataInfo[n].type,(dataTemplateInfo->data+dataTemplateInfo->dataInfo[n].offset));
-								sprintf(stringtmp,"%Lu",(uint64_t)intdata);
-								strncat(ColValues,stringtmp,strlen(stringtmp)+1);
-								strncat(ColValues,"'",sizeof(char)+1);
-								if( i != table->count_col-1)
-									strncat(ColValues,",",sizeof(char)+1);
-								if( i == table->count_col-1)
-									strncat(ColValues,")",sizeof(char)+1);					
-								break;
-							}
-							else if(n == dataTemplateInfo->dataCount-1)
-							{	
-								if(identify[j].ipfixid == ExporterID)
-								{
-									/**lookup exporter buffer to get exporterID from sourcID and expIP**/
-									intdata = getExporterID(ipfixDbWriter, table, sourceID,0);
-									sprintf(stringtmp,"%Lu",(uint64_t)intdata);
-									strncat(ColValues,stringtmp,strlen(stringtmp)+1);
-									strncat(ColValues,"'",sizeof(char)+1);
-								}
-								else
-								{
-									intdata = getdefaultIPFIXdata(identify[j].ipfixid);
-									sprintf(stringtmp,"%Lu",(uint64_t)intdata);
-									strncat(ColValues,stringtmp,strlen(stringtmp)+1);
-									strncat(ColValues,"'",sizeof(char)+1);
-								}
-								if( i != table->count_col-1)
-									strncat(ColValues,",",sizeof(char)+1);
-								if( i == table->count_col-1)
-									strncat(ColValues,")",sizeof(char)+1);					
-							}
-						}
 					}
+					else
+					{
+						intdata = getdefaultIPFIXdata(identify[j].ipfixid);
+						sprintf(stringtmp,"%Lu",(uint64_t)intdata);
+						strncat(ColValues,stringtmp,strlen(stringtmp)+1);
+						strncat(ColValues,"'",sizeof(char)+1);
+					}
+					if( i != table->count_col-1)
+						strncat(ColValues,",",sizeof(char)+1);
+					if( i == table->count_col-1)
+						strncat(ColValues,")",sizeof(char)+1);					
 				}
 			}
 		}
 	}
+		
 	/**make hole query string for the insert statement*/
 	char tablename[table_len] ;
 	char* tablen = getTableName(ipfixDbWriter, table, flowstartsec);
@@ -624,7 +660,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 	msg(MSG_DEBUG,"Content of ExporterBuffer");
 	for(i = 0; i < maxExpTable; i++)
 	{
-		msg(MSG_DEBUG,"exporterID: %d    sourceID: %Lu     expIP: %Lu",table->ExporterBuffer[i].Id, table->ExporterBuffer[i].srcID,table->ExporterBuffer[i].expIP);
+		msg(MSG_DEBUG,"exporterID:%d	   sourceID:%Lu	   expIP:%Lu",table->ExporterBuffer[i].Id, table->ExporterBuffer[i].srcID,table->ExporterBuffer[i].expIP);
 	}
 	/** Is the exporterID in ExporterBuffer*/
 	for(i = 0; i < maxExpTable; i++)
@@ -737,157 +773,38 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 */
 uint64_t getdata(FieldType type, FieldData* data)
 {
-	if(type.id == IPFIX_TYPEID_sourceTransportPort || type.id == IPFIX_TYPEID_destinationTransportPort)
-		return getTransportPort(type, data);
 	if(type.id == IPFIX_TYPEID_sourceIPv4Address || type.id == IPFIX_TYPEID_destinationIPv4Address)
 		return getipv4address(type, data);
-	if(type.id == IPFIX_TYPEID_protocolIdentifier)
-		return getProtocol(type, data);
 	else
-		return getIPFIXdata(type, data);
+		return getIPFIXValue(type, data);
 }
-
-/**
-*	determine the protocol of the data record
-*/
-uint8_t getProtocol(FieldType type, FieldData* data)
-{
-	switch (data[0]) 
-	{
-		case IPFIX_protocolIdentifier_ICMP:
-			return IPFIX_protocolIdentifier_ICMP;
-		case IPFIX_protocolIdentifier_TCP:
-			return IPFIX_protocolIdentifier_TCP;
-		case IPFIX_protocolIdentifier_UDP:
-			return IPFIX_protocolIdentifier_UDP;
-		case IPFIX_protocolIdentifier_RAW:
-			return IPFIX_protocolIdentifier_RAW;
-		default:
-			msg(MSG_FATAL,"No protocolidentifier");
-			return 0;
-	}
-}
-
-/**
-*	determine the transportport of the data record
-*/
-uint16_t getTransportPort(FieldType type, FieldData* data)
-{
-	uint16_t port = 0;
-	if (type.length == 0) 
-	{
-		printf("zero-length Port");
-		if(type.id == IPFIX_TYPEID_sourceTransportPort)
-			return port;
-		if(type.id == IPFIX_TYPEID_destinationTransportPort)
-			return port;
-	}
-	if (type.length == 2) 
-	{
-		port = ((uint16_t)data[0] << 8)+data[1];
-		if(type.id == IPFIX_TYPEID_sourceTransportPort)
-			return port;
-		if(type.id == IPFIX_TYPEID_destinationTransportPort)
-			return port;
-	}
-	else
-	{
-		printf("Port with length %d unparseable", type.length);
-		if(type.id == IPFIX_TYPEID_sourceTransportPort)
-			return port;
-		if(type.id == IPFIX_TYPEID_destinationTransportPort)
-			return port;
-	}
-	return 0;
-}
-
 /**
  *	determine the ipv4address of the data record
  */
 uint32_t getipv4address( FieldType type, FieldData* data)
 {
-	uint32_t octets = 0;
-	char octetstring[10];
-	int octet1 = 0;
-	int octet2 = 0;
-	int octet3 = 0;
-	int octet4 = 0;
-	int imask = 0;
-	if (type.length >= 1) octet1 = data[0];
-	if (type.length >= 2) octet2 = data[1];
-	if (type.length >= 3) octet3 = data[2];
-	if (type.length >= 4) octet4 = data[3];
-	if (type.length >= 5) imask = data[4];
-	
+
 	if (type.length > 5) 
 	{
 		DPRINTF("IPv4 Address with length %d unparseable\n", type.length);
 		return 0;
 	}
-	/**Create octetstring from integers**/
-	if ((type.length == 5) && ( type.id == IPFIX_TYPEID_sourceIPv4Address)) /*&& (imask != 0)*/ 
+
+	if ((type.length == 5) && ( type.id == IPFIX_TYPEID_sourceIPv4Address || IPFIX_TYPEID_destinationIPv4Address )) /*&& (imask != 0)*/ 
 	{
-		sprintf(octetstring,"%d%d%d%d%d",octet1,octet2,octet3,octet4,32-imask);
-		octets = atoi(octetstring);
-		return octets;
+		msg(MSG_DEBUG,"imask drop from ipaddress");
+		type.length = 4;
 	}
-	if ((type.length == 5) && (type.id == IPFIX_TYPEID_destinationIPv4Address)) /*&& (imask != 0)*/ 
+	
+	if ((type.length < 5) &&( type.id == IPFIX_TYPEID_sourceIPv4Address || type.id == IPFIX_TYPEID_destinationIPv4Address)) /*&& (imask == 0)*/ 
 	{
-		sprintf(octetstring,"%d%d%d%d%d",octet1,octet2,octet3,octet4,32-imask);
-		octets = atoi(octetstring);
-		return octets;
+		return getIPFIXValue(type, data);
 	}
-	if ((type.length < 5) &&( type.id == IPFIX_TYPEID_sourceIPv4Address)) /*&& (imask == 0)*/ 
-	{
-		sprintf(octetstring,"%d%d%d%d",octet1,octet2,octet3,octet4);
-		octets = atoi(octetstring);
-		return octets;
-	}	
-	if ((type.length < 5) &&( type.id == IPFIX_TYPEID_destinationIPv4Address)) /*&& (imask == 0)*/ 
-	{
-		sprintf(octetstring,"%d%d%d%d",octet1,octet2,octet3,octet4);
-		octets = atoi(octetstring);
-		return octets;
-	}	
+
 	return 0;
 }
 
-/**
- *	getdata of the data record according to IPFIX_TYPEID
- */
-uint64_t getIPFIXdata(FieldType type, FieldData* data)
-{ 		 
-	if(type.id ==  IPFIX_TYPEID_classOfServiceIPv4)
-	{
-		uint16_t dstTos = getIPFIXValue(type, data);
-		return dstTos;
-	}
-	if(type.id ==  IPFIX_TYPEID_packetDeltaCount)
-	{
-		uint16_t Packetdeltacount = getIPFIXValue(type, data);
-		return Packetdeltacount;
-	}
-	if(type.id ==  IPFIX_TYPEID_octetDeltaCount)
-	{
-		uint Octetdeltacount = getIPFIXValue(type, data);
-		return Octetdeltacount;
-	}		
-	if(type.id ==  IPFIX_TYPEID_flowStartSeconds)
-	{
-		uint64_t Flowstartssecond = getIPFIXValue(type, data);
-		return Flowstartssecond;
-	}				
-	if(type.id ==  IPFIX_TYPEID_flowEndSeconds)
-	{
-		uint64_t Flowendssecond = getIPFIXValue(type, data);
-		return Flowendssecond;
-	}
-	else 
-	{
-		msg(MSG_FATAL,"No IPFIX_TYPEID specified");	
-	}					
-	return 0;
-}
+
 
 /**
 *	get the IPFIX value 
@@ -916,28 +833,11 @@ uint64_t getIPFIXValue(FieldType type, FieldData* data)
 uint32_t getdefaultIPFIXdata(int ipfixtype_id)
 {
 	int i;
-	for( i=0; identify[i].cname != "END"; i++)
+	for( i=0; strcmp(identify[i].cname, "END") != 0; i++)
 	{
 		if(ipfixtype_id == identify[i].ipfixid)
 		{
-			if(ipfixtype_id == IPFIX_TYPEID_sourceTransportPort)
-				return identify[i].default_value;
-			if(ipfixtype_id == IPFIX_TYPEID_destinationTransportPort)
-				return identify[i].default_value;
-			if(ipfixtype_id == IPFIX_TYPEID_sourceIPv4Address)
-				return identify[i].default_value;
-			if(ipfixtype_id == IPFIX_TYPEID_destinationIPv4Address)
-				return identify[i].default_value;
-			if(ipfixtype_id == IPFIX_TYPEID_packetDeltaCount)
-				return identify[i].default_value;
-			if(ipfixtype_id == IPFIX_TYPEID_octetDeltaCount)
-				return identify[i].default_value;
-			if(ipfixtype_id == IPFIX_TYPEID_classOfServiceIPv4)
-				return identify[i].default_value;
-			if(ipfixtype_id == IPFIX_TYPEID_flowStartSeconds)
-				return identify[i].default_value;
-			if(ipfixtype_id == IPFIX_TYPEID_flowEndSeconds)
-				return identify[i].default_value;
+			return identify[i].default_value;
 		}
 	}
 	return 0;
@@ -950,7 +850,8 @@ CallbackInfo getIpfixDbWriterCallbackInfo(IpfixDbWriter *ipfixDbWriter) {
 	CallbackInfo ci;
 	bzero(&ci, sizeof(CallbackInfo));
 	ci.handle = ipfixDbWriter;
-	ci.dataDataRecordCallbackFunction = receiveDataRec;
+	ci.dataRecordCallbackFunction = writeDataRecord;
+	ci.dataDataRecordCallbackFunction = writeDataDataRecord;
 	
 	return ci;
 }

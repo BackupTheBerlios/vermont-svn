@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-#define ExporterID			0
+#define ExporterID			0	
 
 /**
 *	startlen : Length of statement for INSERT IN.., CREATE TABL.., CREATE DATA..
@@ -21,7 +21,6 @@ extern "C" {
 * 	maxTable : count of tablenames 
 *	maxstatem : count of insertstatement to buffer before they store to database
 *	table_len : Length of table name string
-*	Table_Not_Exists : Errornumber, when a table is unaware deleted
 */
 #define start_len				50		
 #define col_width				40
@@ -84,6 +83,7 @@ typedef struct {
 	unsigned int flags;   				 /** Connectionflags (none) */
 	MYSQL* conn; 					/** pointer to connection handle */	
 	Table* table;						/**pointer to struct Table*/
+	SourceID srcid;					/**Exporter default SourceID */
 } IpfixDbWriter;
 
 /**
@@ -109,10 +109,12 @@ int createDB(IpfixDbWriter* ipfixDbWriter);
 int  createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* TableName);
 int createExporterTable(IpfixDbWriter* ipfixDbWriter);
 
-int receiveDataRec(void* ipfixDbWriter,SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+int writeDataRecord(void* ipfixDbWriter,SourceID sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
+int writeDataDataRecord(void* ipfixDbWriter,SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID,DataTemplateInfo* dataTemplateInfo,uint16_t length,FieldData* data);
 
 int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID,uint64_t expIP);
+
 char* getTableName(IpfixDbWriter* ipfixDbWriter,Table* table, uint64_t flowstartsec);
 char* getTableNamDependTime(char* tablename,uint64_t flowstartsec);
 uint64_t getTableStartTime(uint64_t flowstartsec);
@@ -121,12 +123,9 @@ uint64_t getTableEndTime(uint64_t StartTime);
 int writeToDb(IpfixDbWriter* ipfixDbWriter, Table* table, Statement* statement);
 
 uint64_t getdata(FieldType type, FieldData* data);
-uint64_t getIPFIXdata(FieldType type, FieldData* data);
 uint64_t getIPFIXValue(FieldType type, FieldData* data);
 uint32_t getdefaultIPFIXdata(int ipfixtype);
 
-uint8_t getProtocol(FieldType type, FieldData* data);
-uint16_t getTransportPort(FieldType type, FieldData* data);
 uint32_t getipv4address(FieldType type, FieldData* data);
 
 CallbackInfo getIpfixDbWriterCallbackInfo(IpfixDbWriter* ipfixDbWriter);

@@ -21,6 +21,7 @@
 #include "config_sampler.h"
 #include "config_concentrator.h"
 
+
 using namespace std;
 
 static void usage();
@@ -112,7 +113,6 @@ int main(int ac, char **dc)
         } else {
                 pause();
         }
-
         return 0;
 }
 
@@ -311,7 +311,11 @@ static int vermont_start_all(struct v_objects *v)
 	if(v->conc_DbWriter) {
 		startIpfixDbWriter(v->conc_DbWriter);
 	}
-
+	
+	if(v->conc_DbReader) {
+		startIpfixDbReader(v->conc_DbReader);
+	}
+	
         if(v->observer) {
                 v->sink->runSink();
                 v->filter->startFilter();
