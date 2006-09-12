@@ -6,10 +6,6 @@
 
 
 /***** Global Variables ******************************************************/
-/**
- * 	is needed to determine "now" time and the time of flowstartsseconds
- */
-struct tm* time_yet;
 
 struct columnDB tabs[] = {		 
 	{"dstIP", IPFIX_TYPEID_destinationIPv4Address,4},
@@ -145,9 +141,18 @@ IpfixDbReader* createIpfixDbReader()
 	{
 		msg(MSG_DEBUG,"Database %s selected", ipfixDbReader->db_name);
 	}
-	
-	getTables(ipfixDbReader);
-	getColumns(ipfixDbReader);
+	/** get tablenames of the database*/
+	if(getTables(ipfixDbReader) != 0)
+	{
+		msg(MSG_DEBUG,"Error in function getTables");
+		goto out;
+	}
+	/**get columnsname of one table*/
+	if(getColumns(ipfixDbReader) != 0)
+	{
+		msg(MSG_DEBUG,"Error in function getColumns");
+		goto out;
+	}
 	
 	return ipfixDbReader;
 	
@@ -170,7 +175,7 @@ int ReadFromDB(IpfixDbReader* ipfixDbReader)
 	{
 		DbReaderSendDataTemplate(ipfixDbReader, dataTemplateInfo,i);
 	}
-
+	msg(MSG_DEBUG,"sending from database is done");
 	return 0;
 }
 /**
@@ -364,6 +369,17 @@ int getTables(IpfixDbReader* ipfixDbReader)
 	MYSQL_ROW dbRow = NULL;
 	
 	dbResult = mysql_list_tables(ipfixDbReader->conn, wild);
+	if(dbResult == 0)
+	{
+		msg(MSG_FATAL,"There are no tables in database %s", ipfixDbReader->db_name);	
+		return 1;
+	}
+	if(mysql_num_rows(dbResult) < maxTables)
+	{
+		msg(MSG_FATAL,"There are not so much tables in database as defined in maxTable");	
+		return 1;
+	}
+	
 	while(( dbRow = mysql_fetch_row(dbResult)) && i < maxTables)
 	{
 		char *table = (char*)malloc(sizeof(char) * (table_length+1));
@@ -374,11 +390,6 @@ int getTables(IpfixDbReader* ipfixDbReader)
 	}
 	mysql_free_result(dbResult);
 	
-	if(dbdata->tablecount == 0)
-	{
-		msg(MSG_FATAL,"There are no tables in database %s", ipfixDbReader->db_name);	
-		return 1;
-	}
 	return 0;
 }		
 /**
@@ -401,6 +412,13 @@ int getColumns(IpfixDbReader* ipfixDbReader)
 	else
 	{
 		dbResult = mysql_store_result(ipfixDbReader->conn);
+		
+		if(dbResult == 0)
+		{
+			msg(MSG_FATAL,"There are no Columns in the table");	
+			return 1;
+		}
+		
 		while((dbRow = mysql_fetch_row(dbResult)))
 		{
 			if(strcmp(dbRow[0],"exporterID") != 0)

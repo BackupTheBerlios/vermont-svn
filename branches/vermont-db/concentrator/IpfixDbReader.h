@@ -12,10 +12,10 @@
 extern "C" {
 #endif
 
-#define maxTables		1
-#define maxCol			10
-#define table_length 		16
-#define column_length	25
+#define maxTables		1			//count of tables that will be send
+#define maxCol			10			//max count of columns in the table
+#define table_length 		16			//tablename length
+#define column_length	25			//columnname legth
 
 typedef struct {
 	char* tablenames[maxTables];
