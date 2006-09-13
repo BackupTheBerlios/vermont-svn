@@ -43,9 +43,9 @@ void ExporterConfiguration::configure()
 	}
 }
 
-void ExporterConfiguration::readPacketRestrictions(xmlNodePtr i)
+void ExporterConfiguration::readPacketRestrictions(xmlNodePtr p)
 {
-	i = i->xmlChildrenNode;
+	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
 		if (!xmlStrcmp(i->name, (const xmlChar*)"maxPacketSize")) {
 			maxPacketSize = (uint16_t)atoi(getContent(i).c_str());
@@ -56,9 +56,9 @@ void ExporterConfiguration::readPacketRestrictions(xmlNodePtr i)
 	}
 }
 
-void ExporterConfiguration::readUdpTemplateManagement(xmlNodePtr i)
+void ExporterConfiguration::readUdpTemplateManagement(xmlNodePtr p)
 {
-	i = i->xmlChildrenNode;
+	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
 		if (!xmlStrcmp(i->name, (const xmlChar*)"templateRefreshTimeout")) {
 			templateRefreshTime = getTimeInMsecs(i);
@@ -69,9 +69,9 @@ void ExporterConfiguration::readUdpTemplateManagement(xmlNodePtr i)
 	}
 }
 
-void ExporterConfiguration::readCollector(xmlNodePtr i)
+void ExporterConfiguration::readCollector(xmlNodePtr p)
 {
-	i = i->xmlChildrenNode;
+	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
 		if (!xmlStrcmp(i->name, (const xmlChar*)"ipAddressType")) {
 			// we only have ipv4 at the moment
@@ -108,8 +108,8 @@ void ExporterConfiguration::createIpfixSender(uint16_t sourceId)
 {
 	initializeIpfixSenders();
 	ipfixSender = ::createIpfixSender(sourceId,
-					ipAddress.c_str(),
-					port);
+					  ipAddress.c_str(),
+					  port);
 	if (!ipfixSender) {
 		throw std::runtime_error("Could not create IpfixSender!");
 	}

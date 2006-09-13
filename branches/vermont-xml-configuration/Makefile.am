@@ -5,7 +5,7 @@ bin_PROGRAMS=vermont
 vermont_SOURCES=collector_configuration.cc collector_configuration.h exporter_configuration.cc \
 exporter_configuration.h metering_configuration.cc metering_configuration.h msg.c msg.h observer_configuration.cc \
 observer_configuration.h subsystems.c subsystems.h uri.c uri.h vermont.cc vermont_configuration.cc \
-vermont_configuration.h vermont.h
+vermont_configuration.h vermont.h main_configuration.h main_configuration.cc
 
 AM_CFLAGS=-I$(top_srcdir) `xml2-config --cflags`
 AM_CXXFLAGS=$(AM_CFLAGS) 

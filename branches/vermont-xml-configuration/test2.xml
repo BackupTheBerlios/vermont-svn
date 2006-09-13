@@ -1,5 +1,6 @@
 <ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
 
+<!--
     <collectingProcess id="1">
 	<observationDomainId>12345</observationDomainId>
 	<listener>
@@ -13,6 +14,20 @@
 	    <meteringProcessId>1</meteringProcessId>
 	</next>
     </collectingProcess>
+-->
+
+    <observationPoint id="1">
+        <observationDomainId>4711</observationDomainId>
+        <type>pcap</type>
+        <parameters>
+                <interface>eth2</interface>
+                <pcap_filter>ip</pcap_filter>
+        </parameters>
+        <next>
+            <meteringProcessId>1</meteringProcessId>
+        </next>
+    </observationPoint>
+
 
     <meteringProcess id="1">
 	<flowMetering>
@@ -94,9 +109,9 @@
 	</udpTemplateManagement>
 	<collector>
 	    <ipAddressType>4</ipAddressType>
-	    <ipAddress>10.3.0.99</ipAddress>
+	    <ipAddress>127.0.0.1</ipAddress>
 	    <transportProtocol>17</transportProtocol>
-	    <port>4739</port>
+	    <port>1500</port>
 	</collector>
     </exportingProcess>
 

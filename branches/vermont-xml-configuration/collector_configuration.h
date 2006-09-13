@@ -26,6 +26,7 @@ private:
 	std::string ipAddress;
 	unsigned protocolType;
 	uint16_t port;
+	unsigned observationDomainId;
 	
 	IpfixCollector* ipfixCollector;
 	IpfixPacketProcessor* ipfixPacketProcessor;

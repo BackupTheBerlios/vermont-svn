@@ -3,15 +3,21 @@
 #include "metering_configuration.h"
 #include "collector_configuration.h"
 #include "exporter_configuration.h"
+#include "main_configuration.h"
 
-/*********************************** Configuration *****************************/
-
-std::string Configuration::getContent(xmlNodePtr p) const
+std::string getContent(xmlDocPtr doc, xmlNodePtr p)
 {
 	xmlChar* v = xmlNodeListGetString(doc, p->xmlChildrenNode, 1);
 	std::string ret = (const char*) v;
 	xmlFree(v);
 	return ret;
+}
+
+/*********************************** Configuration *****************************/
+
+std::string Configuration::getContent(xmlNodePtr p) const
+{
+	return ::getContent(doc, p);
 }
 
 
@@ -50,6 +56,7 @@ unsigned Configuration::getTimeInMsecs(xmlNodePtr i) const
 
 
 VermontConfiguration::VermontConfiguration(const std::string& configFile)
+	: stop(false)
 {
 	document = xmlParseFile(configFile.c_str());
 	if (NULL == document) {
@@ -68,22 +75,22 @@ VermontConfiguration::VermontConfiguration(const std::string& configFile)
 
 	current = current->xmlChildrenNode;
 	while (current != NULL) {
-		if (!xmlStrcmp(current->name, (const xmlChar*)"vermont")) {
-			vermontNode = current;
-		} else if (!xmlStrcmp(current->name, (const xmlChar*)"observationPoint")) {
-			ObserverConfiguration* oConf = new ObserverConfiguration(document, current);
-			subsystems[oConf->getId()] = oConf;
-		} else if (!xmlStrcmp(current->name, (const xmlChar*)"meteringProcess")) {
-			MeteringConfiguration* mConf = new MeteringConfiguration(document, current);
-			subsystems[mConf->getId()] = mConf;
-		} else if (!xmlStrcmp(current->name, (const xmlChar*)"exportingProcess")) {
-			ExporterConfiguration* eConf = new ExporterConfiguration(document, current);
-			subsystems[eConf->getId()] = eConf;
-		} else if (!xmlStrcmp(current->name, (const xmlChar*)"collectingProcess")) {
-			CollectorConfiguration* cConf = new CollectorConfiguration(document, current);
-			subsystems[cConf->getId()] = cConf;
-		}
+		Configuration* conf = 0;
 
+		if (!xmlStrcmp(current->name, (const xmlChar*)"vermont")) {
+			conf = new MainConfiguration(document, current);
+		} else if (!xmlStrcmp(current->name, (const xmlChar*)"observationPoint")) {
+			conf = new ObserverConfiguration(document, current);
+		} else if (!xmlStrcmp(current->name, (const xmlChar*)"meteringProcess")) {
+			conf = new MeteringConfiguration(document, current);
+		} else if (!xmlStrcmp(current->name, (const xmlChar*)"exportingProcess")) {
+			conf = new ExporterConfiguration(document, current);
+		} else if (!xmlStrcmp(current->name, (const xmlChar*)"collectingProcess")) {
+			conf = new CollectorConfiguration(document, current);
+		}
+		if (conf) {
+			subsystems[conf->getId()] = conf;
+		}
 		current = current->next;
 	}
 }
@@ -95,11 +102,6 @@ VermontConfiguration::~VermontConfiguration()
 		delete i->second;
 	}
 	xmlFreeDoc(document);
-}
-
-void VermontConfiguration::readMainConfiguration()
-{
-	
 }
 
 void VermontConfiguration::readSubsystemConfiguration()
@@ -157,13 +159,15 @@ void VermontConfiguration::startSubsystems()
 	}
 }
 
-void VermontConfiguration::pollAggregators()
+void VermontConfiguration::pollAggregatorLoop()
 {
-	for (SubsystemConfiguration::iterator i = subsystems.begin();
-	     i != subsystems.end(); ++i) {
-		MeteringConfiguration* m = dynamic_cast<MeteringConfiguration*>(i->second);
-		if (m) {
-			m->pollAggregator();
+	while (!stop) {
+		for (SubsystemConfiguration::iterator i = subsystems.begin();
+		     i != subsystems.end(); ++i) {
+			MeteringConfiguration* m = dynamic_cast<MeteringConfiguration*>(i->second);
+			if (m) {
+				m->pollAggregator();
+			}
 		}
 	}
 }

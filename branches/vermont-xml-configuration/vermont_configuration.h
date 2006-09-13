@@ -24,6 +24,7 @@ namespace configTypes
 	const std::string exporter  = "exporter";
 	const std::string collector = "collector";
 	const std::string metering  = "metering";
+	const std::string main      = "main";
 };
 
 
@@ -74,12 +75,11 @@ public:
 	~VermontConfiguration();
 	
 	void readSubsystemConfiguration();
-	void readMainConfiguration();
 
 	void connectSubsystems();
 	void startSubsystems();
 
-	void pollAggregators();
+	void pollAggregatorLoop();
 		
 private:
 	typedef std::map<std::string, Configuration*> SubsystemConfiguration;
@@ -91,6 +91,8 @@ private:
 	
 	// points to vermont specific configuration data
 	xmlNodePtr vermontNode;
+
+	bool stop;
 };
 
 

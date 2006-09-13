@@ -73,7 +73,6 @@ int main(int ac, char **dc)
 	
 	try {
 		vermontConfig = new VermontConfiguration(config_file);
-		vermontConfig->readMainConfiguration();
 		vermontConfig->readSubsystemConfiguration();
 		vermontConfig->connectSubsystems();
 		vermontConfig->startSubsystems();
@@ -82,14 +81,13 @@ int main(int ac, char **dc)
 		delete vermontConfig;
 		return -1;
 	}
-	
+
+	sleep(1);
+
 	time_t t = time(NULL);
 	msg(MSG_DIALOG, "up and running at %s", ctime(&t));
 	
-	while (1) {
-		vermontConfig->pollAggregators();
-		sleep(1);
-	}
+	vermontConfig->pollAggregatorLoop();
 	
 	delete vermontConfig;
 	
@@ -194,49 +192,6 @@ static void __cplusplus_really_sucks_andPeopleUsingVeryStrangeNamingConventionsW
 	who made it possible to fly to Paris.
 	*/
 };
-
-/*
- read the config from *file and attach the iniparser stuff to **conf
- perform basic checks
-
- this does not return the pointer and NULL in case of error, because it
- does also some kind of checking on the config and maybe one wants to report
- specific errors depending on what went wrong, so we stick to int.
-
- NOTE: the funny thing is, all returned strings are direct pointer into
- the dictionary-struct and as such valid until the dictionary is
- free()'d again.
-
- SO WE USUALLY DONT COPY!
- */
-// static int vermont_readconf(dictionary **conf, char *file)
-// {
-//         dictionary *d;
-
-//         /* read configuration */
-//         if(!(d=iniparser_new(file))) {
-//                 if(file) {
-//                         msg(MSG_FATAL, "could not open config_file %s", file);
-//                 } else {
-//                         msg(MSG_FATAL, "no config file given, but mandatory");
-//                         usage();
-//                 }
-//                 return(-1);
-//         }
-
-//         /* light check if all section we need are present */
-//         if((iniparser_find_entry(d, "concentrator") == 1) &&
-//            (iniparser_find_entry(d, "sampler") == 1) &&
-//            (iniparser_find_entry(d, "main") == 1)
-//           ) {
-//                 *conf=d;
-//                 return 0;
-
-//         } else {
-//                 msg(MSG_FATAL, "Config: not all needed sections in config %s", file);
-//                 return -1;
-//         }
-// }
 
 
 // /*

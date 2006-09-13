@@ -6,6 +6,7 @@
 
 
 #include <concentrator/aggregator.h>
+#include <concentrator/rules.h>
 
 
 #include <vector>
@@ -15,6 +16,9 @@ class Filter;
 class PacketProcessor;
 class Template;
 
+class FlowMeteringConfiguration;
+class PacketSelectionConfiguration;
+class PacketReportingConfiguration;
 
 class MeteringConfiguration : public Configuration {
 public:
@@ -43,13 +47,12 @@ private:
 	class InfoElementId;
 	class ReportedIE;
 
-
 	void readPacketSelection(xmlNodePtr i);
 	void readPacketReporting(xmlNodePtr i);
 	void readFlowMetering(xmlNodePtr i);
-
-	int interval;
-	int spacing;
+	Rule* readRule(xmlNodePtr i);
+	PacketProcessor* makeFilterProcessor(const char *name, const char *setting);
+	
 	int templateId;
 
 	//std::vector<InfoElementId*> filters;
@@ -62,6 +65,7 @@ private:
 
 	bool sampling;
 	bool aggregating;
+	bool gotSink;
 	
 	int observationId;
 	bool observationIdSet;

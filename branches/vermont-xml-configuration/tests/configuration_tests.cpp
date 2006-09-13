@@ -53,8 +53,6 @@ void testFile(const std::string& filename)
 {
 	std::cout << "Creating VermontConfiguration object..." << std::endl;
 	VermontConfiguration vermont_config(filename);
-	std::cout << "Reading main configuration ..." << std::endl;
-	vermont_config.readMainConfiguration();
 	std::cout << "Reading subsystem configuration ..." << std::endl;
 	vermont_config.readSubsystemConfiguration();
 	std::cout << "Connecting subsystems ..." << std::endl;

@@ -7,7 +7,8 @@
 
 
 CollectorConfiguration::CollectorConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), ipfixCollector(NULL), hasCollector(false)
+	: Configuration(document, startPoint), ipfixCollector(NULL), hasCollector(false),
+	  observationDomainId(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -35,8 +36,10 @@ void CollectorConfiguration::configure()
 			readListener(i);
 			hasCollector = true;
 		} else if (!xmlStrcmp(i->name, (const xmlChar*)"udpTemplateLifetime")) {
-			msg(MSG_ERROR, "Oooops ... Don't know how to handle udpTemplateLifetime!");	
-		}else if (!xmlStrcmp(i->name, (const xmlChar*)"next")) {
+			msg(MSG_ERROR, "Oooops ... Don't know how to handle udpTemplateLifetime!");
+		} else if (!xmlStrcmp(i->name, (const xmlChar*)"observationDomainId")) {
+			observationDomainId = atoi(getContent(i).c_str());
+		} else if (!xmlStrcmp(i->name, (const xmlChar*)"next")) {
 			fillNextVector(i);
 		}
 		i = i->next;
@@ -44,9 +47,9 @@ void CollectorConfiguration::configure()
 	setUp();
 }
 
-void CollectorConfiguration::readListener(xmlNodePtr i)
+void CollectorConfiguration::readListener(xmlNodePtr p)
 {
-	i = i->xmlChildrenNode;
+	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
 		if (!xmlStrcmp(i->name, (const xmlChar*)"ipAddressType")) {
 			// we only have ipv4 at the moment
@@ -81,6 +84,7 @@ void CollectorConfiguration::connect(Configuration* c)
 	
 	if (metering) {
 		if (metering->isAggregating()) {
+			metering->setObservationId(observationDomainId);
 			msg(MSG_DEBUG, "CollectorConfiguration: Got metering process which is aggreagting");
 			IpfixAggregator* aggregator = metering->getAggregator();
 			if (!aggregator) {

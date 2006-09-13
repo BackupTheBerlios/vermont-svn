@@ -95,7 +95,10 @@ void ObserverConfiguration::connect(Configuration* c)
 	if (metering) {
 		metering->setObservationId(observationDomain);
 		if (metering->isAggregating()) {
-			metering->getFilters()->addProcessor(new HookingFilter(sampler_hook_entry));
+			msg(MSG_INFO, "Adding HookingFilter");
+			HookingFilter* h = new HookingFilter(sampler_hook_entry);
+			h->setContext(metering->getAggregator());
+			metering->getFilters()->addProcessor(h);
 		}
 		observer->addReceiver(metering->getFilters());
 		return;
