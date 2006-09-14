@@ -102,7 +102,7 @@ IpfixDbReader* createIpfixDbReader()
 	}
 	/**Initialize structure members IpfixDbWriter*/
 	ipfixDbReader->host_name = "localhost" ;
-	ipfixDbReader->db_name = "flows10";
+	ipfixDbReader->db_name = "nasty";
 	ipfixDbReader->user_name = 0 ;    		
 	ipfixDbReader->password = 0 ;    			
 	ipfixDbReader->port_num = 0; 			
@@ -272,7 +272,7 @@ int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dat
 					{
 						if((tabs[j].ipfixid ==  IPFIX_TYPEID_octetDeltaCount)  || (tabs[j].ipfixid == IPFIX_TYPEID_packetDeltaCount))
 						{		
-							uint64_t dbentry = htonll(atol(dbRow[i]));
+							uint64_t dbentry = htonll(atoll(dbRow[i]));
 							uint64_t* pdat = &dbentry;
 							dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
 							memcpy(data+dataTemplateInfo->fieldInfo[i].offset,pdat, dataTemplateInfo->fieldInfo[i].type.length);
@@ -280,7 +280,7 @@ int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dat
 						}
 						if((tabs[j].ipfixid == IPFIX_TYPEID_destinationIPv4Address)  || (tabs[j].ipfixid == IPFIX_TYPEID_sourceIPv4Address))
 						{								
-							uint32_t dbentry = htonl(atol(dbRow[i]));
+							uint32_t dbentry = htonl(atoll(dbRow[i]));
 							uint32_t* pdat = &dbentry;
 							dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
 							memcpy(data+dataTemplateInfo->fieldInfo[i].offset,pdat,dataTemplateInfo->fieldInfo[i].type.length);
@@ -291,7 +291,7 @@ int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dat
 							/** set current flowstattime to flows*/
 							if(firstflowstart == 0)
 							{
-								firstflowstart = atol(dbRow[i]);
+								firstflowstart = atoll(dbRow[i]);
 								time_t t;
 								flowstartref = time(&t);
 								flowstart_change = flowstartref;
@@ -300,8 +300,8 @@ int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dat
 							}
 							else
 							{	
-								flowstartHBO = 	flowstartref+atol(dbRow[i])-firstflowstart;
-								flowstart =htonl(flowstartref+atol(dbRow[i])-firstflowstart);
+								flowstartHBO = 	flowstartref+atoll(dbRow[i])-firstflowstart;
+								flowstart =htonl(flowstartHBO);
 							}							
 							uint32_t* pdat = &flowstart;
 							dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
@@ -311,7 +311,7 @@ int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dat
 						if(tabs[j].ipfixid == IPFIX_TYPEID_flowEndSeconds )
 						{		
 							/** set current flowendtime to flows*/
-							flowend = htonl(flowstartref+atol(dbRow[i])-firstflowstart);				
+							flowend = htonl(flowstartref+atoll(dbRow[i])-firstflowstart);				
 							uint32_t* pdat = &flowend;
 							dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
 							memcpy(data+dataTemplateInfo->fieldInfo[i].offset,pdat,dataTemplateInfo->fieldInfo[i].type.length);
@@ -319,7 +319,7 @@ int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dat
 						}			
 						if((tabs[j].ipfixid == IPFIX_TYPEID_sourceTransportPort)  || (tabs[j].ipfixid == IPFIX_TYPEID_destinationTransportPort))
 						{	
-							uint16_t dbentry = htons(atoi(dbRow[i]));
+							uint16_t dbentry = htons(atol(dbRow[i]));
 							uint16_t* pdat = &dbentry;
 							dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
 							memcpy(data+dataTemplateInfo->fieldInfo[i].offset,pdat,dataTemplateInfo->fieldInfo[i].type.length);
