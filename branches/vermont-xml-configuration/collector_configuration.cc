@@ -54,7 +54,9 @@ void CollectorConfiguration::readListener(xmlNodePtr p)
 		if (!xmlStrcmp(i->name, (const xmlChar*)"ipAddressType")) {
 			// we only have ipv4 at the moment
 			// so nothing is implemented yet for ipv6
-			msg(MSG_INFO, "Only ipv4 is supported at the moment. \"ipAddressType\" will be ignored at the moment");
+			if (getContent(i) != "4") {
+				msg(MSG_INFO, "Only ipv4 is supported at the moment. \"ipAddressType\" will be ignored at the moment");
+			}
 		} else  if (!xmlStrcmp(i->name, (const xmlChar*)"ipAddress")) {
 			ipAddress = getContent(i);
 			msg(MSG_INFO, "Listening on a specific interface isn't supported right now. Vermont will listen on all interfaces. \"ipAddress\" will be ignored at the moment");
@@ -69,13 +71,26 @@ void CollectorConfiguration::readListener(xmlNodePtr p)
 
 void CollectorConfiguration::setUp()
 {
-	// TODO: error checkin!!!!
 	ipfixCollector = createIpfixCollector();
+	if (!ipfixCollector) {
+		throw std::runtime_error("Could not create collector");
+	}
+
 	IpfixReceiver* ipfixReceiver = createIpfixReceiver(UDP_IPV4, port);
+	if (!ipfixReceiver) {
+		throw std::runtime_error("Could not create receiver");
+	}
 	addIpfixReceiver(ipfixCollector, ipfixReceiver);
 
 	ipfixPacketProcessor = createIpfixPacketProcessor();
+	if (!ipfixPacketProcessor) {
+		throw std::runtime_error("Could not create IPFIX packet processor");
+	}
+
 	ipfixParser = createIpfixParser();
+	if (!ipfixParser) {
+		throw std::runtime_error("Could not create IPFIX parser");
+	}
 }
 
 void CollectorConfiguration::connect(Configuration* c)
