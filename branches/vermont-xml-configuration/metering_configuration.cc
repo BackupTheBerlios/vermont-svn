@@ -22,17 +22,17 @@ public:
 	{
 		xmlNodePtr i = p->xmlChildrenNode;
 		while (NULL != i) {
-			if (!xmlStrcmp(i->name, (const xmlChar*)"ieName")) {
+			if (m.tagMatches(i, "ieName")) {
 				ieName = m.getContent(i);
-			} else if (!xmlStrcmp(i->name, (const xmlChar*)"match")) {
+			} else if (m.tagMatches(i, "match")) {
 				match = m.getContent(i);
-			} else if (!xmlStrcmp(i->name, (const xmlChar*)"modifier")) {
+			} else if (m.tagMatches(i, "modifier")) {
 				modifier = m.getContent(i);
-			} else if (!xmlStrcmp(i->name, (const xmlChar*)"ieId")) {
+			} else if (m.tagMatches(i, "ieId")) {
 				ieId = m.getContent(i);
-			} else if (!xmlStrcmp(i->name, (const xmlChar*)"ieLength")) {
+			} else if (m.tagMatches(i, "ieLength")) {
 				ieLength = m.getContent(i);
-			} else if (!xmlStrcmp(i->name, (const xmlChar*)"enterpriseNumber")) {
+			} else if (m.tagMatches(i, "enterpriseNumber")) {
 				enterpriseNumber = m.getContent(i);
 			}
 			i = i->next;
@@ -65,12 +65,12 @@ public:
 	{
 		xmlNodePtr i = p->xmlChildrenNode;
 		while (NULL != i) {
-			if (!xmlStrcmp(i->name, (const xmlChar*)"ieId")) {
+			if (m.tagMatches(i, "ieId")) {
 				ieId = atoi(m.getContent(i).c_str());
 				ieName = m.getContent(i);
-			} else if (!xmlStrcmp(i->name, (const xmlChar*)"ieLength")) {
+			} else if (m.tagMatches(i, "ieLength")) {
 				ieLength = atoi(m.getContent(i).c_str());
-			} else if (!xmlStrcmp(i->name, (const xmlChar*)"ieName")) {
+			} else if (m.tagMatches(i, "ieName")) {
 				ieName = m.getContent(i);
 			}
 			i = i->next;
@@ -125,13 +125,13 @@ void MeteringConfiguration::configure()
 {
 	xmlNodePtr i = start->xmlChildrenNode;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"packetSelection")) {
+		if (tagMatches(i, "packetSelection")) {
 			readPacketSelection(i);
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"packetReporting")) {
+		} else if (tagMatches(i, "packetReporting")) {
 			readPacketReporting(i);
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"flowMetering")) {
+		} else if (tagMatches(i, "flowMetering")) {
 			readFlowMetering(i);
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"next")) {
+		} else if (tagMatches(i, "next")) {
 			fillNextVector(i);
 		}
 		i = i->next;
@@ -143,71 +143,71 @@ void MeteringConfiguration::readPacketSelection(xmlNodePtr p)
 {
 	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"countBased")) {
+		if (tagMatches(i, "countBased")) {
 			xmlNodePtr j = i->xmlChildrenNode;
 			int interval = 0;
 			int spacing = 0;
 			while (NULL != j) {
-				if (!xmlStrcmp(j->name, (const xmlChar*)"interval")) {
+				if (tagMatches(j, "interval")) {
 					interval = atoi(getContent(j).c_str());
-				} else if (!xmlStrcmp(j->name, (const xmlChar*)"spacing")) {
+				} else if (tagMatches(j, "spacing")) {
 					spacing = atoi(getContent(j).c_str());
 				}
 				j = j->next;
 			}
 			filters.push_back(new SystematicSampler(SYSTEMATIC_SAMPLER_COUNT_BASED,
 								interval, spacing));
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"timeBased")) {
+		} else if (tagMatches(i, "timeBased")) {
 			xmlNodePtr j = i->xmlChildrenNode;
 			int interval = 0;
 			int spacing = 0;
 			while (NULL != j) {
-				if (!xmlStrcmp(j->name, (const xmlChar*)"interval")) {
+				if (tagMatches(j, "interval")) {
 					interval = atoi(getContent(j).c_str());
-				} else if (!xmlStrcmp(j->name, (const xmlChar*)"spacing")) {
+				} else if (tagMatches(j, "spacing")) {
 					spacing = atoi(getContent(j).c_str());
 				}
 				j = j->next;
 			}
 			filters.push_back(new SystematicSampler(SYSTEMATIC_SAMPLER_TIME_BASED,
 								interval, spacing));
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"filterMatch")) {
+		} else if (tagMatches(i, "filterMatch")) {
 			xmlNodePtr j = i->xmlChildrenNode;
 			while (NULL != j) {
 				// TODO: construct filter ...
 				throw std::runtime_error("filterMatch not yet implemented!");
 				j = j->next;
 			}
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"randOutOfN")) {
+		} else if (tagMatches(i, "randOutOfN")) {
 			xmlNodePtr j = i->xmlChildrenNode;
 			int N, n;
 			n = N = 0;
 			while (NULL != j) {
-				if (!xmlStrcmp(j->name, (const xmlChar*)"population")) {
+				if (tagMatches(j, "population")) {
 					N = atoi(getContent(j).c_str());
-				} else if (!xmlStrcmp(j->name, (const xmlChar*)"sample")) {
+				} else if (tagMatches(j, "sample")) {
 					n = atoi(getContent(j).c_str());
 				}
 				j = j->next;
 			}
 			filters.push_back(new RandomSampler(n, N));
 			sampling = true;
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"uniProb")) {
+		} else if (tagMatches(i, "uniProb")) {
 			throw std::runtime_error("uniProb not yet implemented!");
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"nonUniProb")) {
+		} else if (tagMatches(i, "nonUniProb")) {
 			throw std::runtime_error("nonUniProb not yet implemented");
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"flowState")) {
+		} else if (tagMatches(i, "flowState")) {
 			throw std::runtime_error("flowState not yet implemted");
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"filterHash")) {
+		} else if (tagMatches(i, "filterHash")) {
 			throw std::runtime_error("filterHash not yet implemented");
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"filterRState")) {
+		} else if (tagMatches(i, "filterRState")) {
 			throw std::runtime_error("filterRState not yet implemented");
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"rawFilter")) {
+		} else if (tagMatches(i, "rawFilter")) {
 			// TODO: remove the rawfilter ...
 			std::string settings;
 			xmlNodePtr j = i->xmlChildrenNode;
 			while (NULL != j) {
-				if (!xmlStrcmp(j->name, (const xmlChar*)"settings")) {
+				if (tagMatches(j, "settings")) {
 					settings = getContent(j);
 				}
 				j = j->next;
@@ -225,10 +225,10 @@ void MeteringConfiguration::readPacketReporting(xmlNodePtr p)
 	xmlNodePtr i = p->xmlChildrenNode;
 	bool gotTemplateId = false;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"reportedIE")) {
+		if (tagMatches(i, "reportedIE")) {
 			exportedFields.push_back(new ReportedIE(i, *this));
 		}
-		if (!xmlStrcmp(i->name, (const xmlChar*)"templateId")) {
+		if (tagMatches(i, "templateId")) {
 			templateId = atoi(getContent(i).c_str());
 			gotTemplateId = true;
 		}
@@ -248,9 +248,9 @@ Rule* MeteringConfiguration::readRule(xmlNodePtr p) {
 
 	Rule* rule = mallocRule();
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"templateId")) {
+		if (tagMatches(i, "templateId")) {
 			rule->id = atoi(getContent(i).c_str());
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"flowKey")) {
+		} else if (tagMatches(i, "flowKey")) {
 			try {
 				InfoElementId ie(i, *this);
 				RuleField* ruleField = mallocRuleField();
@@ -329,7 +329,7 @@ Rule* MeteringConfiguration::readRule(xmlNodePtr p) {
 				}
 				rule->field[rule->fieldCount++] = ruleField;
 			} catch (std::exception e) {}
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"nonFlowKey")) {
+		} else if (tagMatches(i, "nonFlowKey")) {
 				InfoElementId ie(i, *this);
 				RuleField* ruleField = mallocRuleField();
 				ruleField->modifier = FIELD_MODIFIER_AGGREGATE;
@@ -380,20 +380,18 @@ void MeteringConfiguration::readFlowMetering(xmlNodePtr p)
 
 
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"rule")) {
+		if (tagMatches(i, "rule")) {
 			Rule* r = readRule(i);
 			if (r->fieldCount > 0) {
 				rules->rule[rules->count++] = r;
 			}
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"expiration")) {
+		} else if (tagMatches(i, "expiration")) {
 			xmlNodePtr j = i->xmlChildrenNode;
 			while (NULL != j) {
-				if (!xmlStrcmp(j->name, (const xmlChar*)"activeTimeout")) {
-					// TODO: Fix me
-					minBufferTime = getTimeInMsecs(j) / 1000;
-				} else if (!xmlStrcmp(j->name, (const xmlChar*)"inactiveTimeout")) {
-					// TODO: Fix me
-					maxBufferTime = getTimeInMsecs(j) / 1000;
+				if (tagMatches(j, "activeTimeout")) {
+					minBufferTime = getTimeInSecs(j);
+				} else if (tagMatches(j, "inactiveTimeout")) {
+					maxBufferTime = getTimeInSecs(j);
 				}
 				j = j->next;
 			}
@@ -401,15 +399,11 @@ void MeteringConfiguration::readFlowMetering(xmlNodePtr p)
 		i = i->next;
 	}
 
-// 	if (!rules) {
-// 		throw std::runtime_error("MeteringConfiguration: Could not read rules for ipfixAggregator");
-// 	}
-
 	ipfixAggregator = createAggregatorFromRules(rules,
 						    minBufferTime,
 						    maxBufferTime);
 	if (!ipfixAggregator) {
-		throw std::runtime_error("MeteringConfiguration: Could not create ipfixAggreagtor");
+		throw std::runtime_error("MeteringConfiguration: Could not create aggreagtor");
 	}
 }
 

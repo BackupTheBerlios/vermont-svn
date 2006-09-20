@@ -45,6 +45,8 @@ public:
 	 * connects c to this
 	 */
 	virtual void connect(Configuration* c) = 0;
+	
+	bool tagMatches(const xmlNodePtr node, const std::string& tagName) const;
 
 	std::string getId() const{
 		return id;
@@ -60,7 +62,10 @@ protected:
 	std::vector<std::string> nextVector;
 	std::string getContent(xmlNodePtr p) const; 
 	void fillNextVector(xmlNodePtr p);
+
 	unsigned getTimeInMsecs(xmlNodePtr i) const;
+	unsigned getTimeInSecs(xmlNodePtr i) const;
+	unsigned getTimeInUsecs(xmlNodePtr i) const;
 
 	virtual void setUp() = 0;
 };

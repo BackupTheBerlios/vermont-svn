@@ -29,17 +29,17 @@ void CollectorConfiguration::configure()
 {
 	xmlNodePtr i = start->xmlChildrenNode;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"listener")) {
+		if (tagMatches(i, "listener")) {
 			if (hasCollector) {
 				throw std::runtime_error("Only one listener within a collector allowed! If you need more listeners, you'll have to create more collectors");
 			}
 			readListener(i);
 			hasCollector = true;
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"udpTemplateLifetime")) {
+		} else if (tagMatches(i, "udpTemplateLifetime")) {
 			msg(MSG_ERROR, "Oooops ... Don't know how to handle udpTemplateLifetime!");
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"observationDomainId")) {
+		} else if (tagMatches(i, "observationDomainId")) {
 			observationDomainId = atoi(getContent(i).c_str());
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"next")) {
+		} else if (tagMatches(i, "next")) {
 			fillNextVector(i);
 		}
 		i = i->next;
@@ -51,18 +51,18 @@ void CollectorConfiguration::readListener(xmlNodePtr p)
 {
 	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"ipAddressType")) {
+		if (tagMatches(i, "ipAddressType")) {
 			// we only have ipv4 at the moment
 			// so nothing is implemented yet for ipv6
 			if (getContent(i) != "4") {
 				msg(MSG_INFO, "Only ipv4 is supported at the moment. \"ipAddressType\" will be ignored at the moment");
 			}
-		} else  if (!xmlStrcmp(i->name, (const xmlChar*)"ipAddress")) {
+		} else  if (tagMatches(i, "ipAddress")) {
 			ipAddress = getContent(i);
 			msg(MSG_INFO, "Listening on a specific interface isn't supported right now. Vermont will listen on all interfaces. \"ipAddress\" will be ignored at the moment");
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"transportProtocol")) {
+		} else if (tagMatches(i, "transportProtocol")) {
 			protocolType = atoi(getContent(i).c_str());
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"port")) {
+		} else if (tagMatches(i, "port")) {
 			port = (uint16_t)atoi(getContent(i).c_str());
 		}
 		i = i->next;

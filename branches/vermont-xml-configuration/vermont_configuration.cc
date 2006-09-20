@@ -13,6 +13,11 @@ std::string getContent(xmlDocPtr doc, xmlNodePtr p)
 	return ret;
 }
 
+bool xmlCompare(const xmlNodePtr node, const std::string& tagName)
+{
+	return !xmlStrcmp(node->name, (const xmlChar*)tagName.c_str());
+}
+
 /*********************************** Configuration *****************************/
 
 std::string Configuration::getContent(xmlNodePtr p) const
@@ -20,15 +25,20 @@ std::string Configuration::getContent(xmlNodePtr p) const
 	return ::getContent(doc, p);
 }
 
+bool Configuration::tagMatches(const xmlNodePtr node, const std::string& tagName) const
+{
+	return xmlCompare(node, tagName);
+}
+
 
 void Configuration::fillNextVector(xmlNodePtr p)
 {
 	xmlNodePtr j = p->xmlChildrenNode;
 	while (NULL != j) {
-		if (!xmlStrcmp(j->name, (const xmlChar*)"meteringProcessId")) {
+		if (tagMatches(j, "meteringProcessId")) {
 			nextVector.push_back(configTypes::metering + 
 					     getContent(j));
-		} else if (!xmlStrcmp(j->name, (const xmlChar*)"exportingProcessId")) {
+		} else if (tagMatches(j, "exportingProcessId")) {
 			nextVector.push_back(configTypes::exporter +
 					     getContent(j));
 		}
@@ -37,19 +47,29 @@ void Configuration::fillNextVector(xmlNodePtr p)
 
 }
 
-unsigned Configuration::getTimeInMsecs(xmlNodePtr i) const
+unsigned Configuration::getTimeInUsecs(xmlNodePtr i) const
 {
 	unsigned ret = 0;
 	xmlChar* unit = xmlGetProp(i, (const xmlChar*)"unit");
 	if (!xmlStrcmp(unit, (const xmlChar*)"sec")) {
-		ret = (unsigned)atoi(getContent(i).c_str()) * 1000;
+		ret = (unsigned)atoi(getContent(i).c_str()) * 1000000;
 	} else if (!xmlStrcmp(unit, (const xmlChar*)"msec")) {
-		ret = (unsigned)atoi(getContent(i).c_str());
+		ret = (unsigned)atoi(getContent(i).c_str()) * 1000;
 	} else if (!xmlStrcmp(unit, (const xmlChar*)"usec")) {
-		ret = (unsigned)atoi(getContent(i).c_str()) / 1000;
+		ret = (unsigned)atoi(getContent(i).c_str());
 	}
 	xmlFree(unit);
-	return ret;
+	return ret;	
+}
+
+unsigned Configuration::getTimeInMsecs(xmlNodePtr i) const
+{
+	return getTimeInUsecs(i) / 1000;
+}
+
+unsigned Configuration::getTimeInSecs(xmlNodePtr i) const
+{
+	return getTimeInUsecs(i) / 10000000;
 }
 
 /****************************** VermontConfiguration ***************************/
@@ -59,15 +79,15 @@ VermontConfiguration::VermontConfiguration(const std::string& configFile)
 	: stop(false)
 {
 	document = xmlParseFile(configFile.c_str());
-	if (NULL == document) {
+	if (!document) {
 		throw std::runtime_error("Could not parse " + configFile + "!");
 	}
 	current = xmlDocGetRootElement(document);
-	if (NULL == document) {
+	if (!current) {
 		throw std::runtime_error(configFile + " is an empty XML-Document!");
 	}
 
-	if (xmlStrcmp(current->name, (const xmlChar *) "ipfixConfig")) {
+	if (xmlCompare(current, "ipfixConfig")) {
 		xmlFreeDoc(document);
 		throw std::runtime_error("Root element does not match \"ipfixConfig\"."
 					 " This is not a valid configuration file!");
@@ -77,15 +97,15 @@ VermontConfiguration::VermontConfiguration(const std::string& configFile)
 	while (current != NULL) {
 		Configuration* conf = 0;
 
-		if (!xmlStrcmp(current->name, (const xmlChar*)"vermont")) {
+		if (xmlCompare(current, "vermont")) {
 			conf = new MainConfiguration(document, current);
-		} else if (!xmlStrcmp(current->name, (const xmlChar*)"observationPoint")) {
+		} else if (xmlCompare(current, "observationPoint")) {
 			conf = new ObserverConfiguration(document, current);
-		} else if (!xmlStrcmp(current->name, (const xmlChar*)"meteringProcess")) {
+		} else if (xmlCompare(current, "meteringProcess")) {
 			conf = new MeteringConfiguration(document, current);
-		} else if (!xmlStrcmp(current->name, (const xmlChar*)"exportingProcess")) {
+		} else if (xmlCompare(current, "exportingProcess")) {
 			conf = new ExporterConfiguration(document, current);
-		} else if (!xmlStrcmp(current->name, (const xmlChar*)"collectingProcess")) {
+		} else if (xmlCompare(current, "collectingProcess")) {
 			conf = new CollectorConfiguration(document, current);
 		}
 		if (conf) {

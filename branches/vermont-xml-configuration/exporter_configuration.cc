@@ -29,11 +29,11 @@ void ExporterConfiguration::configure()
 {
 	xmlNodePtr i = start->xmlChildrenNode;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"ipfixPacketRestrictions")) {
+		if (tagMatches(i, "ipfixPacketRestrictions")) {
 			readPacketRestrictions(i);
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"udpTemplateManagement")) {
+		} else if (tagMatches(i, "udpTemplateManagement")) {
 			readUdpTemplateManagement(i);
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"collector")) {
+		} else if (tagMatches(i, "collector")) {
 			if (hasCollector) {
 				throw std::runtime_error("VERMONT currently supports one collector per Exporter! If you need to send to more than one collector, you'll have to create a new exporter section in your config file");
 			}
@@ -47,9 +47,9 @@ void ExporterConfiguration::readPacketRestrictions(xmlNodePtr p)
 {
 	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"maxPacketSize")) {
+		if (tagMatches(i, "maxPacketSize")) {
 			maxPacketSize = (uint16_t)atoi(getContent(i).c_str());
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"maxExportDelay")) {
+		} else if (tagMatches(i, "maxExportDelay")) {
 			exportDelay = getTimeInMsecs(i);
 		}
 		i = i->next;
@@ -60,9 +60,9 @@ void ExporterConfiguration::readUdpTemplateManagement(xmlNodePtr p)
 {
 	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"templateRefreshTimeout")) {
+		if (tagMatches(i, "templateRefreshTimeout")) {
 			templateRefreshTime = getTimeInMsecs(i);
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"templateRefreshRate")) {
+		} else if (tagMatches(i, "templateRefreshRate")) {
 			templateRefreshRate = (unsigned)atoi(getContent(i).c_str());
 		}
 		i = i->next;
@@ -73,17 +73,17 @@ void ExporterConfiguration::readCollector(xmlNodePtr p)
 {
 	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"ipAddressType")) {
+		if (tagMatches(i, "ipAddressType")) {
 			// we only have ipv4 at the moment
 			// so nothing is implemented yet for ipv6
-		} else  if (!xmlStrcmp(i->name, (const xmlChar*)"ipAddress")) {
+		} else  if (tagMatches(i, "ipAddress")) {
 			ipAddress = getContent(i);
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"transportProtocol")) {
+		} else if (tagMatches(i, "transportProtocol")) {
 			protocolType = getContent(i);
 			if (protocolType == "17") {
 				protocolType = "UDP";
 			}
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"port")) {
+		} else if (tagMatches(i, "port")) {
 			port = (uint16_t)atoi(getContent(i).c_str());
 		}		
 		i = i->next;

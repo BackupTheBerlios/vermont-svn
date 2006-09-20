@@ -36,17 +36,17 @@ void ObserverConfiguration::configure()
 {
 	xmlNodePtr i = start->xmlChildrenNode;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"observationDomainId")) {
+		if (tagMatches(i, "observationDomainId")) {
 			observationDomain = std::atoi(getContent(i).c_str());
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"type")) {
+		} else if (tagMatches(i, "type")) {
 			type = getContent(i);
 			if (type != "pcap") {
 				msg(MSG_FATAL, "Vermont does not provide any observer type but pcap");
 				throw std::runtime_error("Could not read observer configuration");
 			}
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"parameters")) {
+		} else if (tagMatches(i, "parameters")) {
 			parseParameters(i);
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"next")) {
+		} else if (tagMatches(i, "next")) {
 			fillNextVector(i);
 		}
 		i = i->next;
@@ -59,11 +59,11 @@ void ObserverConfiguration::parseParameters(xmlNodePtr p)
 {
 	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
-		if (!xmlStrcmp(i->name, (const xmlChar*)"interface")) {
+		if (tagMatches(i, "interface")) {
 			interface = getContent(i);
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"pcap_filter")) {
+		} else if (tagMatches(i, "pcap_filter")) {
 			pcapFilter = getContent(i);
-		} else if (!xmlStrcmp(i->name, (const xmlChar*)"capture_len")) {
+		} else if (tagMatches(i, "capture_len")) {
 			captureLength = atoi(getContent(i).c_str());
 		}
 		i = i->next;
