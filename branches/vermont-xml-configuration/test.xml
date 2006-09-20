@@ -71,6 +71,12 @@
 	    <transportProtocol>17</transportProtocol>
 	    <port>1500</port>
 	</collector>
+	<collector>
+	    <ipAddressType>4</ipAddressType>
+	    <ipAddress>127.0.0.1</ipAddress>
+	    <transportProtocol>17</transportProtocol>
+	    <port>1501</port>
+	</collector>
     </exportingProcess>
 
     <vermont>

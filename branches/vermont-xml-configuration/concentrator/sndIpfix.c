@@ -120,7 +120,7 @@ void stopIpfixSender(IpfixSender* ipfixSender) {
  * @param port port number
  * FIXME: support for other than UDP
  */
-int ipfixSenderAddCollector(IpfixSender *ips, char *ip, uint16_t port)
+int ipfixSenderAddCollector(IpfixSender *ips, const char *ip, uint16_t port)
 {
 	ipfix_exporter *ex = (ipfix_exporter *)ips->ipfixExporter;
 

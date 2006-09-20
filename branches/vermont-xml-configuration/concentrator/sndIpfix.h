@@ -33,7 +33,7 @@ void destroyIpfixSender(IpfixSender* ipfixSender);
 void startIpfixSender(IpfixSender* ipfixSender);
 void stopIpfixSender(IpfixSender* ipfixSender);
 
-int ipfixSenderAddCollector(IpfixSender *ips, char *ip, uint16_t port);
+int ipfixSenderAddCollector(IpfixSender *ips, const char *ip, uint16_t port);
 
 int sndNewDataTemplate(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 int sndDestroyDataTemplate(void* ipfixSender, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);

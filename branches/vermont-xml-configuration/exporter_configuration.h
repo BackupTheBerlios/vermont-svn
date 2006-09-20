@@ -7,6 +7,8 @@
 
 #include <concentrator/sndIpfix.h>
 
+#include <vector>
+
 
 class ExporterSink;
 class Template;
@@ -25,11 +27,18 @@ public:
 	ExporterSink* getExporterSink() const { return exporterSink; }
 	
 	void createIpfixSender(uint16_t sourceId);
-	IpfixSender* getIpfixSender() const { return ipfixSender; }
+	IpfixSender* getIpfixSender() { return ipfixSender; }
 protected:
 	void setUp();
 
 private:
+	struct Collector {
+		std::string ipAddress;
+		unsigned ipAddressType;
+		std::string protocolType;
+		uint16_t port;
+	};
+
 	void readPacketRestrictions(xmlNodePtr p);
 	void readUdpTemplateManagement(xmlNodePtr p);
 	void readCollector(xmlNodePtr i);
@@ -38,11 +47,9 @@ private:
 	unsigned exportDelay;
 	unsigned templateRefreshTime;
 	unsigned templateRefreshRate;
-	std::string ipAddress;
-	std::string protocolType;
-	uint16_t port;
+	
+	std::vector<Collector*> collectors;
 
-	bool hasCollector;
 	ExporterSink* exporterSink;
 	IpfixSender* ipfixSender;
 };
