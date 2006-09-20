@@ -87,7 +87,7 @@ VermontConfiguration::VermontConfiguration(const std::string& configFile)
 		throw std::runtime_error(configFile + " is an empty XML-Document!");
 	}
 
-	if (xmlCompare(current, "ipfixConfig")) {
+	if (!xmlCompare(current, "ipfixConfig")) {
 		xmlFreeDoc(document);
 		throw std::runtime_error("Root element does not match \"ipfixConfig\"."
 					 " This is not a valid configuration file!");

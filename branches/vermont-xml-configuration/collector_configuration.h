@@ -8,6 +8,8 @@
 #include <concentrator/rcvIpfix.h>
 
 
+#include <vector>
+
 
 class CollectorConfiguration : public Configuration{
 public:
@@ -23,15 +25,18 @@ protected:
 	void readListener(xmlNodePtr i);
 	
 private:
-	std::string ipAddress;
-	unsigned protocolType;
-	uint16_t port;
+	struct Listener {
+		std::string ipAddress;
+		unsigned protocolType;
+		uint16_t port;
+	};
+
+	std::vector<Listener*> listeners;
 	unsigned observationDomainId;
 	
 	IpfixCollector* ipfixCollector;
 	IpfixPacketProcessor* ipfixPacketProcessor;
 	IpfixParser* ipfixParser;
-	bool hasCollector;
 };
 
 #endif

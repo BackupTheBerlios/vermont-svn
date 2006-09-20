@@ -7,8 +7,7 @@
 
 
 CollectorConfiguration::CollectorConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), ipfixCollector(NULL), hasCollector(false),
-	  observationDomainId(0)
+	: Configuration(document, startPoint), ipfixCollector(NULL), observationDomainId(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -20,6 +19,9 @@ CollectorConfiguration::CollectorConfiguration(xmlDocPtr document, xmlNodePtr st
 
 CollectorConfiguration::~CollectorConfiguration()
 {
+	for (unsigned i = 0; i != listeners.size(); ++i) {
+		delete listeners[i];
+	}
 	stopIpfixCollector(ipfixCollector);
 	destroyIpfixCollector(ipfixCollector);
 	deinitializeIpfixReceivers();
@@ -30,11 +32,7 @@ void CollectorConfiguration::configure()
 	xmlNodePtr i = start->xmlChildrenNode;
 	while (NULL != i) {
 		if (tagMatches(i, "listener")) {
-			if (hasCollector) {
-				throw std::runtime_error("Only one listener within a collector allowed! If you need more listeners, you'll have to create more collectors");
-			}
 			readListener(i);
-			hasCollector = true;
 		} else if (tagMatches(i, "udpTemplateLifetime")) {
 			msg(MSG_ERROR, "Oooops ... Don't know how to handle udpTemplateLifetime!");
 		} else if (tagMatches(i, "observationDomainId")) {
@@ -50,6 +48,9 @@ void CollectorConfiguration::configure()
 void CollectorConfiguration::readListener(xmlNodePtr p)
 {
 	xmlNodePtr i = p->xmlChildrenNode;
+
+	Listener* listener = new Listener();
+
 	while (NULL != i) {
 		if (tagMatches(i, "ipAddressType")) {
 			// we only have ipv4 at the moment
@@ -58,15 +59,16 @@ void CollectorConfiguration::readListener(xmlNodePtr p)
 				msg(MSG_INFO, "Only ipv4 is supported at the moment. \"ipAddressType\" will be ignored at the moment");
 			}
 		} else  if (tagMatches(i, "ipAddress")) {
-			ipAddress = getContent(i);
+			listener->ipAddress = getContent(i);
 			msg(MSG_INFO, "Listening on a specific interface isn't supported right now. Vermont will listen on all interfaces. \"ipAddress\" will be ignored at the moment");
 		} else if (tagMatches(i, "transportProtocol")) {
-			protocolType = atoi(getContent(i).c_str());
+			listener->protocolType = atoi(getContent(i).c_str());
 		} else if (tagMatches(i, "port")) {
-			port = (uint16_t)atoi(getContent(i).c_str());
+			listener->port = (uint16_t)atoi(getContent(i).c_str());
 		}
 		i = i->next;
 	}
+	listeners.push_back(listener);
 }
 
 void CollectorConfiguration::setUp()
@@ -76,11 +78,13 @@ void CollectorConfiguration::setUp()
 		throw std::runtime_error("Could not create collector");
 	}
 
-	IpfixReceiver* ipfixReceiver = createIpfixReceiver(UDP_IPV4, port);
-	if (!ipfixReceiver) {
-		throw std::runtime_error("Could not create receiver");
+	for (unsigned i = 0; i != listeners.size(); ++i) {
+		IpfixReceiver* ipfixReceiver = createIpfixReceiver(UDP_IPV4, listeners[i]->port);
+		if (!ipfixReceiver) {
+			throw std::runtime_error("Could not create receiver");
+		}
+		addIpfixReceiver(ipfixCollector, ipfixReceiver);
 	}
-	addIpfixReceiver(ipfixCollector, ipfixReceiver);
 
 	ipfixPacketProcessor = createIpfixPacketProcessor();
 	if (!ipfixPacketProcessor) {

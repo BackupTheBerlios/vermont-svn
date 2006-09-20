@@ -561,11 +561,13 @@ void MeteringConfiguration::connect(Configuration* c)
 			throw std::runtime_error("MeteringConfiguration: ObservationId not set. This is a bug!!! Please report it.");
 		}
 		if (sampling) {
+			msg(MSG_INFO, "Setting up exporter sink");
 			exporter->createExporterSink(t, observationId);
 			filter->setReceiver(exporter->getExporterSink());
 			gotSink = true;
 		}
 		if (aggregating) {
+			msg(MSG_INFO, "Setting up IpfixSender");
 			exporter->createIpfixSender(observationId);
 			addAggregatorCallbacks(ipfixAggregator, getIpfixSenderCallbackInfo(exporter->getIpfixSender()));
 		}
