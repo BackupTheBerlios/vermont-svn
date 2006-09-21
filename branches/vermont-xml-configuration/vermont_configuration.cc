@@ -5,6 +5,8 @@
 #include "exporter_configuration.h"
 #include "main_configuration.h"
 
+#include <ctime>
+
 std::string getContent(xmlDocPtr doc, xmlNodePtr p)
 {
 	xmlChar* v = xmlNodeListGetString(doc, p->xmlChildrenNode, 1);
@@ -76,7 +78,7 @@ unsigned Configuration::getTimeInSecs(xmlNodePtr i) const
 
 
 VermontConfiguration::VermontConfiguration(const std::string& configFile)
-	: stop(false)
+	: stop(false), isAggregating(false)
 {
 	document = xmlParseFile(configFile.c_str());
 	if (!document) {
@@ -181,12 +183,29 @@ void VermontConfiguration::startSubsystems()
 
 void VermontConfiguration::pollAggregatorLoop()
 {
+	unsigned poll_interval = 0;
+	if (subsystems.find(configTypes::main) != subsystems.end()) {
+		MainConfiguration* m = dynamic_cast<MainConfiguration*>(subsystems[configTypes::main]);
+		poll_interval = m->getPollInterval();
+		msg(MSG_INFO, "Polling aggregator each %u msec", poll_interval);
+	}
+
+	timespec req;
+        /* break millisecond polltime into seconds and nanoseconds */
+        req.tv_sec=(poll_interval * 1000000) / 1000000000;
+        req.tv_nsec=(poll_interval * 1000000) % 1000000000;
+	
+	/* TODO: dangerous inefficient */
 	while (!stop) {
-		for (SubsystemConfiguration::iterator i = subsystems.begin();
-		     i != subsystems.end(); ++i) {
-			MeteringConfiguration* m = dynamic_cast<MeteringConfiguration*>(i->second);
-			if (m) {
-				m->pollAggregator();
+		if (poll_interval == 0) {
+			pause();
+		} else {
+			for (SubsystemConfiguration::iterator i = subsystems.begin();
+			     i != subsystems.end(); ++i) {
+				MeteringConfiguration* m = dynamic_cast<MeteringConfiguration*>(i->second);
+				if (m) {
+					m->pollAggregator(req);
+				}
 			}
 		}
 	}

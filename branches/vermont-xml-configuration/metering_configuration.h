@@ -10,6 +10,7 @@
 
 
 #include <vector>
+#include <ctime>
 
 
 class Filter;
@@ -38,7 +39,7 @@ public:
 	bool isSampling() const { return sampling; }
 	bool isAggregating() const { return aggregating; }
 	
-	void pollAggregator();
+	void pollAggregator(timespec);
 protected:
 	void buildFilter();
 	void buildTemplate();

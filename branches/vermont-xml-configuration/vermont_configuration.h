@@ -98,6 +98,7 @@ private:
 	xmlNodePtr vermontNode;
 
 	bool stop;
+	bool isAggregating;
 };
 
 

@@ -4,6 +4,8 @@
 
 #include "vermont_configuration.h"
 
+#include <string>
+
 
 class MainConfiguration : public Configuration {
 public:
@@ -11,11 +13,17 @@ public:
 	~MainConfiguration();
 		
 	virtual void configure();
-	virtual void startSystem() {}
-	virtual void connect(Configuration*) {}
+	virtual void startSystem();
+	virtual void connect(Configuration*);
+
+	unsigned getPollInterval() { return poll_interval; }
 	
 protected:
-	virtual void setUp() {}		
+	virtual void setUp() {}
+
+	unsigned poll_interval;
+	std::string logfile;
+	unsigned log_interval;
 };
 
 #endif

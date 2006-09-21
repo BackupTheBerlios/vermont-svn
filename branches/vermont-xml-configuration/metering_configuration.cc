@@ -611,10 +611,11 @@ void MeteringConfiguration::startSystem()
 	}
 }
 
-void MeteringConfiguration::pollAggregator()
+void MeteringConfiguration::pollAggregator(timespec t)
 {
 	if (aggregating && ipfixAggregator) {
-		//msg(MSG_DEBUG, "polling aggregator");
+		static timespec rem;
+		nanosleep(&t, &rem);
 		::pollAggregator(ipfixAggregator);
 	}
 }
