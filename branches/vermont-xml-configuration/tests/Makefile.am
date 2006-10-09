@@ -4,7 +4,9 @@ vtests_SOURCES=vermont_tests.cpp vermont_tests.h configuration_tests.cpp configu
 ../msg.c ../vermont_configuration.cc ../vermont_configuration.h ../collector_configuration.cc \
 ../collector_configuration.h ../exporter_configuration.cc ../exporter_configuration.h ../metering_configuration.cc \
 ../metering_configuration.h ../observer_configuration.cc ../observer_configuration.h ../main_configuration.h \
-../main_configuration.cc
+../main_configuration.cc ../packetselection_configuration.h ../packetselection_configuration.cc \
+../packetreporting_configuration.h ../packetreporting_configuration.cc ../flowmetering_configuration.h \
+../flowmetering_configuration.cc
 
 AM_CFLAGS=-I$(top_srcdir) `xml2-config --cflags`
 AM_CXXFLAGS=$(AM_CFLAGS)

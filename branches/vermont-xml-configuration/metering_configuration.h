@@ -4,18 +4,11 @@
 
 #include "vermont_configuration.h"
 
-
 #include <concentrator/aggregator.h>
-#include <concentrator/rules.h>
-
 
 #include <vector>
 #include <ctime>
 
-
-class Filter;
-class PacketProcessor;
-class Template;
 
 class FlowMeteringConfiguration;
 class PacketSelectionConfiguration;
@@ -27,49 +20,21 @@ public:
 	~MeteringConfiguration();
 	
 	virtual void configure();
-	virtual void setUp();
 	virtual void connect(Configuration*);
 	virtual void startSystem();
-	
-	void setObservationId(uint16_t id);
 
-	Filter* getFilters() const { return filter; }
-	IpfixAggregator* getAggregator() const;
-	
-	bool isSampling() const { return sampling; }
-	bool isAggregating() const { return aggregating; }
-	
-	void pollAggregator(timespec);
-protected:
-	void buildFilter();
-	void buildTemplate();
+	void setObservationDomainId(uint16_t id);
 
+	FlowMeteringConfiguration* getFlowMeteringConfiguration() { return flowMetering; }
+	PacketReportingConfiguration* getPacketReportingConfiguration() { return packetReporting; }
+	PacketSelectionConfiguration* getPacketSelectionConfiguration();
 private:
-	class InfoElementId;
-	class ReportedIE;
+	PacketSelectionConfiguration* packetSelection;
+	PacketReportingConfiguration* packetReporting;
+	FlowMeteringConfiguration* flowMetering;
+	bool gotSection;
 
-	void readPacketSelection(xmlNodePtr i);
-	void readPacketReporting(xmlNodePtr i);
-	void readFlowMetering(xmlNodePtr i);
-	Rule* readRule(xmlNodePtr i);
-	PacketProcessor* makeFilterProcessor(const char *name, const char *setting);
-	
-	int templateId;
-
-	//std::vector<InfoElementId*> filters;
-	std::vector<PacketProcessor*> filters;
-	std::vector<ReportedIE*> exportedFields;
-
-	Template* t;
-	Filter* filter;
-	IpfixAggregator* ipfixAggregator;
-
-	bool sampling;
-	bool aggregating;
-	bool gotSink;
-	
-	int observationId;
-	bool observationIdSet;
+	uint16_t observationDomainId;
 };
 
 #endif

@@ -1,34 +1,31 @@
 <ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
 
-<!--
     <collectingProcess id="1">
 	<observationDomainId>12345</observationDomainId>
 	<listener>
 	    <ipAddressType>4</ipAddressType>
 	    <ipAddress>10.2.0.99</ipAddress>
 	    <transportProtocol>17</transportProtocol>
-	    <port>4739</port>
+	    <port>4711</port>
 	</listener>
 	<udpTemplateLifetime unit="sec">15</udpTemplateLifetime>
 	<next>
 	    <meteringProcessId>1</meteringProcessId>
 	</next>
     </collectingProcess>
--->
-
+<!--
     <observationPoint id="1">
         <observationDomainId>4711</observationDomainId>
         <type>pcap</type>
         <parameters>
-                <interface>eth0</interface>
+                <interface>lo</interface>
                 <pcap_filter>ip</pcap_filter>
         </parameters>
         <next>
             <meteringProcessId>1</meteringProcessId>
         </next>
     </observationPoint>
-
-
+-->
     <meteringProcess id="1">
 	<flowMetering>
 	    <rule>
@@ -49,6 +46,7 @@
 		<flowKey>
 		    <ieName>destinationTransportPort</ieName>
 		</flowKey>
+<!--
 		<nonFlowKey>
 		    <ieName>flowStartSeconds</ieName>
 		</nonFlowKey>
@@ -61,6 +59,7 @@
 		<nonFlowKey>
 		    <ieName>packetDeltaCount</ieName>
 		</nonFlowKey>
+-->
 	    </rule>
 	    <rule>
 		<templateId>999</templateId>
@@ -75,6 +74,7 @@
 		    <ieName>protocolIdentifier</ieName>
 		    <match>TCP</match>
 		</flowKey>
+<!--
 		<nonFlowKey>
 		    <ieName>flowStartSeconds</ieName>
 		</nonFlowKey>
@@ -87,6 +87,7 @@
 		<nonFlowKey>
 		    <ieName>packetDeltaCount</ieName>
 		</nonFlowKey>
+-->
 	    </rule>
 	    <expiration>
 		<activeTimeout unit="sec">5</activeTimeout>
@@ -97,7 +98,6 @@
 	    <exportingProcessId>1</exportingProcessId>
 	</next>
     </meteringProcess>
-
     <exportingProcess id="1">
 	<ipfixPacketRestrictions>
 	    <maxPacketSize>1500</maxPacketSize>
@@ -114,6 +114,13 @@
 	    <port>1500</port>
 	</collector>
     </exportingProcess>
+
+    <vermont>
+        <poll_interval unit="msec">500</poll_interval>
+        <log_file>log.stat</log_file>
+        <log_interval unit="msec">300000</log_interval>
+    </vermont>
+
 
 </ipfixConfig>
 		    

@@ -32,7 +32,7 @@ private:
 	};
 
 	std::vector<Listener*> listeners;
-	unsigned observationDomainId;
+	uint16_t observationDomainId;
 	
 	IpfixCollector* ipfixCollector;
 	IpfixPacketProcessor* ipfixPacketProcessor;

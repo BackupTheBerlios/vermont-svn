@@ -1,13 +1,13 @@
 #include "observer_configuration.h"
 #include "metering_configuration.h"
+#include "packetselection_configuration.h"
+#include "flowmetering_configuration.h"
 #include "msg.h"
 
 #include <sampler/Template.h>
 #include <sampler/PacketProcessor.h>
 #include <sampler/Filter.h>
 #include <sampler/ExporterSink.h>
-#include <sampler/HookingFilter.h>
-#include <concentrator/sampler_hook_entry.h>
 
 
 #include <stdexcept>
@@ -34,6 +34,7 @@ ObserverConfiguration::~ObserverConfiguration()
 
 void ObserverConfiguration::configure()
 {
+	msg(MSG_INFO, "ObserverConfiguration: Start reading observationProcess section");
 	xmlNodePtr i = start->xmlChildrenNode;
 	while (NULL != i) {
 		if (tagMatches(i, "observationDomainId")) {
@@ -53,6 +54,7 @@ void ObserverConfiguration::configure()
 	}
 
 	setUp();
+	msg(MSG_INFO, "ObserverConfiguration: Successfully parsed observationProcess section");
 }
 
 void ObserverConfiguration::parseParameters(xmlNodePtr p)
@@ -91,16 +93,18 @@ void ObserverConfiguration::setUp()
 
 void ObserverConfiguration::connect(Configuration* c)
 {
+	// the observer process can put it's data into
+	// - a metering process that does PacketSelection
+	//   (since every metering process _must_ perform
+	//   some sort of packet selection (even if it is "take all")
+	//   every metering process can be connected to an observer
+
 	MeteringConfiguration* metering = dynamic_cast<MeteringConfiguration*>(c);
 	if (metering) {
-		metering->setObservationId(observationDomain);
-		if (metering->isAggregating()) {
-			msg(MSG_INFO, "Adding HookingFilter");
-			HookingFilter* h = new HookingFilter(sampler_hook_entry);
-			h->setContext(metering->getAggregator());
-			metering->getFilters()->addProcessor(h);
-		}
-		observer->addReceiver(metering->getFilters());
+		msg(MSG_DEBUG, "Connecting observer to metering process");
+		metering->setObservationDomainId(observationDomain);
+		PacketSelectionConfiguration* ps = metering->getPacketSelectionConfiguration();
+		observer->addReceiver(ps->getFilters());
 		return;
 	}
 	

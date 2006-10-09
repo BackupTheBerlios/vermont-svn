@@ -27,6 +27,7 @@ ExporterConfiguration::~ExporterConfiguration()
 
 void ExporterConfiguration::configure()
 {
+	msg(MSG_INFO, "ExporterConfiguration: Start reading exportingProcess section");
 	xmlNodePtr i = start->xmlChildrenNode;
 	while (NULL != i) {
 		if (tagMatches(i, "ipfixPacketRestrictions")) {
@@ -38,6 +39,7 @@ void ExporterConfiguration::configure()
 		}
 		i = i->next;
 	}
+	msg(MSG_INFO, "ExporterConfiguration: Successfully parsed exportingProcess section");
 }
 
 void ExporterConfiguration::readPacketRestrictions(xmlNodePtr p)
@@ -102,6 +104,9 @@ void ExporterConfiguration::createExporterSink(Template* t, uint16_t sourceId)
 	msg(MSG_INFO, "Creating exporter sink");
 	exporterSink = new ExporterSink(t, sourceId);
 	for (unsigned i = 0; i != collectors.size(); ++i) {
+		msg(MSG_DEBUG, "Exporter: adding collector %s:%d to ExporterSink",
+		    collectors[i]->ipAddress.c_str(),
+		    collectors[i]->port);
 		exporterSink->addCollector(collectors[i]->ipAddress.c_str(),
 					   collectors[i]->port,
 					   collectors[i]->protocolType.c_str());
@@ -115,6 +120,7 @@ void ExporterConfiguration::createIpfixSender(uint16_t sourceId)
 	}
 
 	initializeIpfixSenders();
+	msg(MSG_DEBUG, "Exporter: Creating IpfixSender");
 	ipfixSender = ::createIpfixSender(sourceId,
 					  collectors[0]->ipAddress.c_str(),
 					  collectors[0]->port);

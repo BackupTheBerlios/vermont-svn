@@ -3,6 +3,7 @@
 #include "metering_configuration.h"
 #include "collector_configuration.h"
 #include "exporter_configuration.h"
+#include "flowmetering_configuration.h"
 #include "main_configuration.h"
 
 #include <ctime>
@@ -73,6 +74,7 @@ unsigned Configuration::getTimeInSecs(xmlNodePtr i) const
 {
 	return getTimeInUsecs(i) / 10000000;
 }
+
 
 /****************************** VermontConfiguration ***************************/
 
@@ -149,7 +151,6 @@ void VermontConfiguration::connectSubsystems()
 		configTypes::collector,
 		configTypes::metering,
 	};
-	// TODO: this is inefficient
 	for (unsigned t = 0; t != 4; ++t) {
 		for (SubsystemConfiguration::iterator i = subsystems.begin();
 	    	 i != subsystems.end(); ++i) {	
@@ -158,13 +159,22 @@ void VermontConfiguration::connectSubsystems()
 				continue;
 			}
 			Configuration* c = i->second;
+
+			// get aggregators from metering processes (we
+			// need them for aggregator polling :/
+			MeteringConfiguration* m = dynamic_cast<MeteringConfiguration*>(c);
+			if (m) {
+				FlowMeteringConfiguration* fm = m->getFlowMeteringConfiguration();
+				if (fm) 
+					aggregators.push_back(fm->getIpfixAggregator());
+			}
+
 			const std::vector<std::string>& nextVector = c->getNextVector();
 			for (unsigned j = 0; j != nextVector.size(); ++j) {
 				if (subsystems.find(nextVector[j]) == subsystems.end()) {
 					throw std::runtime_error("Could not find " + nextVector[j] + " in subsystem list");
 				}
-				if (!c) msg(MSG_ERROR, "c is null");
-				if (!subsystems[nextVector[j]]) msg(MSG_ERROR, "subsystems[nextVector[j]] is null!");
+				if (!subsystems[nextVector[j]])
 				msg(MSG_DEBUG, "VermontConfiguration: connecting %s to %s", c->getId().c_str(), subsystems[nextVector[j]]->getId().c_str()); 
 				c->connect(subsystems[nextVector[j]]);
 				msg(MSG_DEBUG, "VermontConfiguration: successfully connected %s to %s", c->getId().c_str(), subsystems[nextVector[j]]->getId().c_str());
@@ -190,22 +200,18 @@ void VermontConfiguration::pollAggregatorLoop()
 		msg(MSG_INFO, "Polling aggregator each %u msec", poll_interval);
 	}
 
-	timespec req;
+	timespec req, rem;
         /* break millisecond polltime into seconds and nanoseconds */
         req.tv_sec=(poll_interval * 1000000) / 1000000000;
         req.tv_nsec=(poll_interval * 1000000) % 1000000000;
 	
-	/* TODO: dangerous inefficient */
 	while (!stop) {
-		if (poll_interval == 0) {
+		if (poll_interval == 0 || aggregators.empty()) {
 			pause();
 		} else {
-			for (SubsystemConfiguration::iterator i = subsystems.begin();
-			     i != subsystems.end(); ++i) {
-				MeteringConfiguration* m = dynamic_cast<MeteringConfiguration*>(i->second);
-				if (m) {
-					m->pollAggregator(req);
-				}
+			nanosleep(&req, &rem);
+			for (unsigned i = 0; i != aggregators.size(); ++i) {
+				::pollAggregator(aggregators[i]);
 			}
 		}
 	}
