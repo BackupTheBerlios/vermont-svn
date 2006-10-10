@@ -15,10 +15,7 @@
 #include <vector>
 
 /* own systems */
-//#include "iniparser.h"
 #include "msg.h"
-#include "subsystems.h"
-#include "vermont.h"
 #include "ipfix_configuration.h"
 
 using namespace std;
@@ -26,7 +23,6 @@ using namespace std;
 static void usage();
 static void sig_handler(int x);
 static int setup_signal(int signal, void (*handler)(int));
-//static int vermont_readconf(dictionary **conf, char *file);
 
 
 int main(int ac, char **dc)
