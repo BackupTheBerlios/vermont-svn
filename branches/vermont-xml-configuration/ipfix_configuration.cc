@@ -4,7 +4,7 @@
 #include "collector_configuration.h"
 #include "exporter_configuration.h"
 #include "flowmetering_configuration.h"
-#include "main_configuration.h"
+#include "vermontmain_configuration.h"
 
 #include <ctime>
 
@@ -101,8 +101,8 @@ IpfixConfiguration::IpfixConfiguration(const std::string& configFile)
 	while (current != NULL) {
 		Configuration* conf = 0;
 
-		if (xmlCompare(current, "vermont")) {
-			conf = new MainConfiguration(document, current);
+		if (xmlCompare(current, "vermont_main")) {
+			conf = new VermontMainConfiguration(document, current);
 		} else if (xmlCompare(current, "observationPoint")) {
 			conf = new ObserverConfiguration(document, current);
 		} else if (xmlCompare(current, "meteringProcess")) {
@@ -195,7 +195,7 @@ void IpfixConfiguration::pollAggregatorLoop()
 {
 	unsigned poll_interval = 0;
 	if (subsystems.find(configTypes::main) != subsystems.end()) {
-		MainConfiguration* m = dynamic_cast<MainConfiguration*>(subsystems[configTypes::main]);
+		VermontMainConfiguration* m = dynamic_cast<VermontMainConfiguration*>(subsystems[configTypes::main]);
 		poll_interval = m->getPollInterval();
 	}
 

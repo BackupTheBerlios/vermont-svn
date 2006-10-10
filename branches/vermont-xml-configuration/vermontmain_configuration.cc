@@ -1,20 +1,25 @@
-#include "main_configuration.h"
+/*
+ released under GPL v2
+ (C) by Lothar Braun
+ */
+
+#include "vermontmain_configuration.h"
 
 #include "msg.h"
 
 
-MainConfiguration::MainConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
+VermontMainConfiguration::VermontMainConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
 	: Configuration(document, startPoint), log_interval(0), poll_interval(0)
 {
 	id = configTypes::main;	
 }
 
-MainConfiguration::~MainConfiguration()
+VermontMainConfiguration::~VermontMainConfiguration()
 {
 	
 }
 
-void MainConfiguration::configure()
+void VermontMainConfiguration::configure()
 {
 	xmlNodePtr i = start->xmlChildrenNode;
 	while (i) {
@@ -29,7 +34,7 @@ void MainConfiguration::configure()
 	}
 }
 
-void MainConfiguration::startSystem()
+void VermontMainConfiguration::startSystem()
 {
 	if (logfile.empty()) {
 		msg(MSG_DEBUG, "Main: logging subsystem is off");
@@ -68,7 +73,7 @@ void MainConfiguration::startSystem()
 	msg_thread_start();
 }
 
-void MainConfiguration::connect(Configuration*)
+void VermontMainConfiguration::connect(Configuration*)
 {
-	throw std::runtime_error("Cannot connect anything to MainConfiguration");
+	throw std::runtime_error("Cannot connect anything to VermontMainConfiguration");
 }

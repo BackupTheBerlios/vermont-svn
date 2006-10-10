@@ -5,8 +5,8 @@ bin_PROGRAMS=vermont
 vermont_SOURCES=collector_configuration.cc collector_configuration.h exporter_configuration.cc \
 exporter_configuration.h metering_configuration.cc metering_configuration.h msg.c msg.h \
 observer_configuration.cc observer_configuration.h subsystems.c subsystems.h uri.c uri.h \
-vermont.cc ipfix_configuration.cc ipfix_configuration.h vermont.h main_configuration.h \
-main_configuration.cc packetselection_configuration.h packetselection_configuration.cc \
+vermont.cc ipfix_configuration.cc ipfix_configuration.h vermont.h vermontmain_configuration.h \
+vermontmain_configuration.cc packetselection_configuration.h packetselection_configuration.cc \
 packetreporting_configuration.h packetreporting_configuration.cc flowmetering_configuration.h \
 flowmetering_configuration.cc
 

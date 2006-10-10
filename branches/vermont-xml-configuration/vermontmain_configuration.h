@@ -1,5 +1,11 @@
-#ifndef _MAIN_CONFIGURATION_H_
-#define _MAIN_CONFIGURATION_H_
+/*
+ released under GPL v2
+ (C) by Lothar Braun
+ */
+
+
+#ifndef _VERMONTMAIN_CONFIGURATION_H_
+#define _VERMONTMAIN_CONFIGURATION_H_
 
 
 #include "ipfix_configuration.h"
@@ -7,10 +13,10 @@
 #include <string>
 
 
-class MainConfiguration : public Configuration {
+class VermontMainConfiguration : public Configuration {
 public:
-	MainConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
-	~MainConfiguration();
+	VermontMainConfiguration(xmlDocPtr document, xmlNodePtr startPoint);
+	~VermontMainConfiguration();
 		
 	virtual void configure();
 	virtual void startSystem();
