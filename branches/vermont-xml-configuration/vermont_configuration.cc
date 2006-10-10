@@ -197,7 +197,6 @@ void VermontConfiguration::pollAggregatorLoop()
 	if (subsystems.find(configTypes::main) != subsystems.end()) {
 		MainConfiguration* m = dynamic_cast<MainConfiguration*>(subsystems[configTypes::main]);
 		poll_interval = m->getPollInterval();
-		msg(MSG_INFO, "Polling aggregator each %u msec", poll_interval);
 	}
 
 	timespec req, rem;
@@ -205,10 +204,11 @@ void VermontConfiguration::pollAggregatorLoop()
         req.tv_sec=(poll_interval * 1000000) / 1000000000;
         req.tv_nsec=(poll_interval * 1000000) % 1000000000;
 	
-	while (!stop) {
-		if (poll_interval == 0 || aggregators.empty()) {
-			pause();
-		} else {
+	if (poll_interval == 0 || aggregators.empty()) {
+		pause();
+	} else {
+	        msg(MSG_INFO, "Polling aggregator each %u msec", poll_interval);
+		while (!stop) {
 			nanosleep(&req, &rem);
 			for (unsigned i = 0; i != aggregators.size(); ++i) {
 				::pollAggregator(aggregators[i]);
