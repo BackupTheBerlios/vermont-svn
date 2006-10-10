@@ -1,7 +1,7 @@
 #ifndef   	PACKETSELECTION_CONFIGURATION_H_
 #define   	PACKETSELECTION_CONFIGURATION_H_
 
-#include "vermont_configuration.h"
+#include "ipfix_configuration.h"
 
 #include <vector>
 

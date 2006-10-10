@@ -3,6 +3,7 @@
  released under GPL v2
 
  (C) by Ronny T. Lampert
+ (C) by Lothar Braun
 
  */
 #include <stdio.h>
@@ -18,7 +19,7 @@
 #include "msg.h"
 #include "subsystems.h"
 #include "vermont.h"
-#include "vermont_configuration.h"
+#include "ipfix_configuration.h"
 
 using namespace std;
 
@@ -30,11 +31,8 @@ static int setup_signal(int signal, void (*handler)(int));
 
 int main(int ac, char **dc)
 {
-// 	dictionary *config;
  	int c, debug_level=MSG_DEFAULT;
  	char *config_file=NULL;
-
-// 	struct v_objects v_objects={0};
 
         /* parse command line */
 	while((c=getopt(ac, dc, "hf:d")) != -1) {
@@ -69,16 +67,16 @@ int main(int ac, char **dc)
 	setup_signal(SIGINT, sig_handler);
 	
 	
-	VermontConfiguration* vermontConfig = NULL;
+	IpfixConfiguration* ipfixConfig = NULL;
 	
 	try {
-		vermontConfig = new VermontConfiguration(config_file);
-		vermontConfig->readSubsystemConfiguration();
-		vermontConfig->connectSubsystems();
-		vermontConfig->startSubsystems();
+		ipfixConfig = new IpfixConfiguration(config_file);
+	        ipfixConfig->readSubsystemConfiguration();
+		ipfixConfig->connectSubsystems();
+		ipfixConfig->startSubsystems();
 	} catch (std::exception& e) {
 		msg(MSG_FATAL, "%s", e.what());
-		delete vermontConfig;
+		delete ipfixConfig;
 		return -1;
 	}
 
@@ -87,9 +85,9 @@ int main(int ac, char **dc)
 	time_t t = time(NULL);
 	msg(MSG_DIALOG, "up and running at %s", ctime(&t));
 	
-	vermontConfig->pollAggregatorLoop();
+	ipfixConfig->pollAggregatorLoop();
 	
-	delete vermontConfig;
+	delete ipfixConfig;
 	
 	return 0;
 //         /*

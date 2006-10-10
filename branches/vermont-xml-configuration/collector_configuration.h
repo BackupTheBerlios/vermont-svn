@@ -2,7 +2,7 @@
 #define _COLLECTOR_CONFIGURATION_H_
 
 
-#include "vermont_configuration.h"
+#include "ipfix_configuration.h"
 
 
 #include <concentrator/rcvIpfix.h>

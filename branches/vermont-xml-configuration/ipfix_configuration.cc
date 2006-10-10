@@ -1,4 +1,4 @@
-#include "vermont_configuration.h"
+#include "ipfix_configuration.h"
 #include "observer_configuration.h"
 #include "metering_configuration.h"
 #include "collector_configuration.h"
@@ -76,10 +76,10 @@ unsigned Configuration::getTimeInSecs(xmlNodePtr i) const
 }
 
 
-/****************************** VermontConfiguration ***************************/
+/****************************** IpfixConfiguration ***************************/
 
 
-VermontConfiguration::VermontConfiguration(const std::string& configFile)
+IpfixConfiguration::IpfixConfiguration(const std::string& configFile)
 	: stop(false), isAggregating(false)
 {
 	document = xmlParseFile(configFile.c_str());
@@ -119,7 +119,7 @@ VermontConfiguration::VermontConfiguration(const std::string& configFile)
 	}
 }
 
-VermontConfiguration::~VermontConfiguration()
+IpfixConfiguration::~IpfixConfiguration()
 {
 	for (SubsystemConfiguration::iterator i = subsystems.begin();
 	     i != subsystems.end(); ++i) {
@@ -128,7 +128,7 @@ VermontConfiguration::~VermontConfiguration()
 	xmlFreeDoc(document);
 }
 
-void VermontConfiguration::readSubsystemConfiguration()
+void IpfixConfiguration::readSubsystemConfiguration()
 {
 	for (SubsystemConfiguration::iterator i = subsystems.begin();
 	     i != subsystems.end(); ++i) {
@@ -136,7 +136,7 @@ void VermontConfiguration::readSubsystemConfiguration()
 	}
 }
 
-void VermontConfiguration::connectSubsystems()
+void IpfixConfiguration::connectSubsystems()
 {
 
 	// sequence is important!!!
@@ -175,15 +175,15 @@ void VermontConfiguration::connectSubsystems()
 					throw std::runtime_error("Could not find " + nextVector[j] + " in subsystem list");
 				}
 				if (!subsystems[nextVector[j]])
-				msg(MSG_DEBUG, "VermontConfiguration: connecting %s to %s", c->getId().c_str(), subsystems[nextVector[j]]->getId().c_str()); 
+				msg(MSG_DEBUG, "IpfixConfiguration: connecting %s to %s", c->getId().c_str(), subsystems[nextVector[j]]->getId().c_str()); 
 				c->connect(subsystems[nextVector[j]]);
-				msg(MSG_DEBUG, "VermontConfiguration: successfully connected %s to %s", c->getId().c_str(), subsystems[nextVector[j]]->getId().c_str());
+				msg(MSG_DEBUG, "IpfixConfiguration: successfully connected %s to %s", c->getId().c_str(), subsystems[nextVector[j]]->getId().c_str());
 			}
 		}
 	}
 }
 
-void VermontConfiguration::startSubsystems()
+void IpfixConfiguration::startSubsystems()
 {
 	for (SubsystemConfiguration::iterator i = subsystems.begin();
 	     i != subsystems.end(); ++i) {
@@ -191,7 +191,7 @@ void VermontConfiguration::startSubsystems()
 	}
 }
 
-void VermontConfiguration::pollAggregatorLoop()
+void IpfixConfiguration::pollAggregatorLoop()
 {
 	unsigned poll_interval = 0;
 	if (subsystems.find(configTypes::main) != subsystems.end()) {

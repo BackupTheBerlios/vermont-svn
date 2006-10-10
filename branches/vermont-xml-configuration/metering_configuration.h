@@ -2,7 +2,7 @@
 #define _METERING_CONFIGURATION_H_
 
 
-#include "vermont_configuration.h"
+#include "ipfix_configuration.h"
 
 #include <concentrator/aggregator.h>
 

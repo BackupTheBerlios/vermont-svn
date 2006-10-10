@@ -1,7 +1,7 @@
 #ifndef   	PACKETREPORTING_CONFIGURATION_H_
 #define   	PACKETREPORTING_CONFIGURATION_H_
 
-#include "vermont_configuration.h"
+#include "ipfix_configuration.h"
 
 class Template;
 class MeteringConfiguration;

@@ -1,5 +1,10 @@
-#ifndef _VERMONT_CONFIGURATION_H_
-#define _VERMONT_CONFIGURATION_H_
+/*
+  released under GPL v2
+  (C) Lothar Braun <mail@lobraun.de>
+*/
+
+#ifndef _IPFIX_CONFIGURATION_H_
+#define _IPFIX_CONFIGURATION_H_
 
 
 #include <libxml/parser.h>
@@ -78,15 +83,15 @@ protected:
 };
 
 
-/*************************** VermontConfiguration ***************************/
+/*************************** IpfixConfiguration ***************************/
 
 /**
  * holding the configuration data for vermont and it's subsystems.
  */
-class VermontConfiguration {
+class IpfixConfiguration {
 public:
-	VermontConfiguration(const std::string& configFile);
-	~VermontConfiguration();
+	IpfixConfiguration(const std::string& configFile);
+	~IpfixConfiguration();
 	
 	void readSubsystemConfiguration();
 

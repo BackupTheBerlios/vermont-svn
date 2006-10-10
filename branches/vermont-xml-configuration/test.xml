@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>lo0</interface>
+		<interface>iwi0</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
@@ -14,11 +14,11 @@
 
     <meteringProcess id="1">
 	<packetSelection>
+	    <!--
 	    <countBased>
 		<interval>10</interval>
 		<spacing>500</spacing>
 	    </countBased>
-	    <!--
 	    <filterMatch>
 		<infoElementId>
 		    <ieName>destinationIPv4Address</ieName>
@@ -29,11 +29,11 @@
 		    <match>80,443</match>
 		</infoElementId>
 	    </filterMatch>
-	    -->
 	    <randOutOfN>
 		<population>10</population>
 		<sample>5</sample>
 	    </randOutOfN>
+	    -->
 	</packetSelection>
 	<packetReporting>
 	    <templateId>888</templateId>
@@ -66,12 +66,6 @@
 	    <ipAddress>127.0.0.1</ipAddress>
 	    <transportProtocol>17</transportProtocol>
 	    <port>1500</port>
-	</collector>
-	<collector>
-	    <ipAddressType>4</ipAddressType>
-	    <ipAddress>127.0.0.1</ipAddress>
-	    <transportProtocol>17</transportProtocol>
-	    <port>1501</port>
 	</collector>
     </exportingProcess>
 
