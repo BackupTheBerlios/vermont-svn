@@ -46,7 +46,9 @@ public:
 		captureDevice(NULL), capturelen(CAPTURE_LENGTH), pcap_timeout(PCAP_TIMEOUT), 
 		pcap_promisc(1), ready(false), exitFlag(false)
         {
-		captureInterface=interface;
+		//captureInterface=interface;
+		captureInterface = (char*)malloc(strlen(interface) + 1);
+		strcpy(captureInterface, interface);
 	};
 
 	~Observer()
@@ -67,6 +69,7 @@ public:
                         pcap_freealldevs(allDevices);
                 }
 
+		delete captureInterface;
 		msg(MSG_DEBUG, "Observer: successful shutdown");
         };
 
@@ -185,7 +188,7 @@ protected:
 public:
         bool exitFlag;
         // interface we capture traffic on - string
-	const char *captureInterface;
+	char *captureInterface;
 
         // vector of Queues that will get the packets we pass out
 	std::vector<ConcurrentQueue<Packet> *> receivers;
