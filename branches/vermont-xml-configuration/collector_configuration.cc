@@ -9,7 +9,8 @@
 
 
 CollectorConfiguration::CollectorConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), ipfixCollector(NULL), observationDomainId(0)
+	: Configuration(document, startPoint), observationDomainId(0),
+		ipfixCollector(0), ipfixPacketProcessor(0), ipfixParser(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {

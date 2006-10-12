@@ -30,7 +30,7 @@
 class Filter : public PacketReceiver
 {
 public:
-        Filter() : thread(Filter::filterProcess), exitFlag(false), pktIn(0), pktOut(0), hasReceiver_(false)
+        Filter() : thread(Filter::filterProcess), hasReceiver_(false), exitFlag(false),  pktIn(0), pktOut(0)
         {
         }
 

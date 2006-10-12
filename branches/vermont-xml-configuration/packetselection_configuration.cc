@@ -177,7 +177,7 @@ PacketProcessor* PacketSelectionConfiguration::makeFilterProcessor(const char *n
 		msg(MSG_FATAL, "Filter: cannot make PacketProcessor with ID %d, settings %s", id, setting);
 		n=NULL;
 	}
- out:
+ //out:
 	free(l);
 
 	return n;

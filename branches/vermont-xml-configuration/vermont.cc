@@ -120,8 +120,8 @@ static void sig_handler(int x)
 }
 
 
-static void __cplusplus_really_sucks_andPeopleUsingVeryStrangeNamingConventionsWithLongLongExplicitBlaBlaAndfUnNycasE()
-{
+//static void __cplusplus_really_sucks_andPeopleUsingVeryStrangeNamingConventionsWithLongLongExplicitBlaBlaAndfUnNycasE()
+//{
 	/*
 	The Paris crew at MOME Interop 2005
 
@@ -137,4 +137,4 @@ static void __cplusplus_really_sucks_andPeopleUsingVeryStrangeNamingConventionsW
 
 	who made it possible to fly to Paris.
 	*/
-};
+//};

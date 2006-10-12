@@ -32,7 +32,6 @@ private:
 	PacketSelectionConfiguration* packetSelection;
 	PacketReportingConfiguration* packetReporting;
 	FlowMeteringConfiguration* flowMetering;
-	bool gotSection;
 
 	uint16_t observationDomainId;
 };

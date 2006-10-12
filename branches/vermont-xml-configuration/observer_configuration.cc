@@ -15,7 +15,7 @@
 
 
 ObserverConfiguration::ObserverConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), observer(NULL), captureLength(0), pcapChar(NULL)
+	: Configuration(document, startPoint), captureLength(0), observer(NULL)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -28,7 +28,6 @@ ObserverConfiguration::ObserverConfiguration(xmlDocPtr document, xmlNodePtr star
 ObserverConfiguration::~ObserverConfiguration()
 {
 	delete observer;
-	delete pcapChar;
 }
 
 
@@ -82,9 +81,9 @@ void ObserverConfiguration::setUp()
 		}
 	}
 	
-	pcapChar = new char[pcapFilter.size() + 1];
-	strncpy(pcapChar, pcapFilter.c_str(), pcapFilter.size() + 1);	
-	if (!observer->prepare(pcapChar)) {
+	//pcapChar = new char[pcapFilter.size() + 1];
+	//strncpy(pcapChar, pcapFilter.c_str(), pcapFilter.size() + 1);	
+	if (!observer->prepare(pcapFilter.c_str())) {
 		msg(MSG_FATAL, "Observer: preparing failed");
 		throw std::runtime_error("Observer setup failed!");
 	}

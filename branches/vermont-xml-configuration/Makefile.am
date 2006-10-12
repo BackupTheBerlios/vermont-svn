@@ -10,7 +10,7 @@ vermontmain_configuration.cc packetselection_configuration.h packetselection_con
 packetreporting_configuration.h packetreporting_configuration.cc flowmetering_configuration.h \
 flowmetering_configuration.cc
 
-AM_CFLAGS=-I$(top_srcdir) `xml2-config --cflags`
+AM_CFLAGS=-I$(top_srcdir) `xml2-config --cflags` -Wall -Werror
 AM_CXXFLAGS=$(AM_CFLAGS) 
 AM_LDFLAGS=-L$(top_builddir)/concentrator -L$(top_builddir)/sampler -L$(top_builddir)/ipfixlolib `xml2-config --libs`
 vermont_LDADD=$(top_builddir)/concentrator/libconcentrator.a $(top_builddir)/sampler/libsampler.a $(top_builddir)/ipfixlolib/libipfixlo.a -lpcap -lpthread

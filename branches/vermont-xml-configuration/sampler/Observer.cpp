@@ -106,8 +106,14 @@ void *Observer::observerThread(void *arg)
  error checking on pcap here, because it can't be done in the constructor
  and it may be too late, if done in the thread
  */
-bool Observer::prepare(char *filter_exp)
+bool Observer::prepare(const std::string& filter)
 {
+	// we need to store the filter expression, because pcap needs
+	// a char* and doesn't accept a const char* ... nasty pcap-devs!!!
+	if (!filter.empty()) {
+		filter_exp = new char[filter.size() + 1];
+		strcpy(filter_exp, filter.c_str());
+	}
 	struct in_addr i_netmask, i_network;
 
 	// query all available capture devices

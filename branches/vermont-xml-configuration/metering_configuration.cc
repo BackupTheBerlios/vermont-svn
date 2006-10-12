@@ -16,8 +16,8 @@
 /*************************** MeteringConfiguration ***************************/
 
 MeteringConfiguration::MeteringConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), observationDomainId(0),
-	  packetSelection(0), packetReporting(0), flowMetering(0), gotSection(false)
+	: Configuration(document, startPoint), packetSelection(0), packetReporting(0),
+		 flowMetering(0), observationDomainId(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {

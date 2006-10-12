@@ -9,7 +9,7 @@
 
 
 VermontMainConfiguration::VermontMainConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), log_interval(0), poll_interval(0)
+	: Configuration(document, startPoint), poll_interval(0), log_interval(0)
 {
 	id = configTypes::main;	
 }

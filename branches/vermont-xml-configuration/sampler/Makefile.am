@@ -6,4 +6,4 @@ packet_hook.h PacketProcessor.h PacketReceiver.h PacketSink.cpp PacketSink.h Ran
 RandomSampler.h Semaphore.h Sink.h SystematicSampler.cpp SystematicSampler.h Template.cpp \
 Template.h Thread.h TimeoutSemaphore.h
 
-AM_CXXFLAGS=-I$(top_srcdir)
+AM_CXXFLAGS=-I$(top_srcdir) -Wall -Werror

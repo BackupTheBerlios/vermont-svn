@@ -47,6 +47,7 @@ public:
 		start = startNode;
 		doc = document;
 	}
+	virtual ~Configuration() {};
 
 	virtual void configure() = 0;
 	virtual void startSystem() = 0;

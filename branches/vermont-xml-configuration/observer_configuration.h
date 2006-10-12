@@ -32,8 +32,6 @@ private:
 	std::string interface;
 	std::string pcapFilter;
 	int captureLength;
-	// TODO:  needed because Observer needs char*
-	char* pcapChar;
 
 	void parseParameters(xmlNodePtr p);
 

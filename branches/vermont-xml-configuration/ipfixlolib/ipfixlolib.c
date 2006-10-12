@@ -514,7 +514,7 @@ static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf)
         *sendbuf=tmp;
         return 0;
 
-out1:
+//out1:
         free(tmp);
 out:
         return -1;
