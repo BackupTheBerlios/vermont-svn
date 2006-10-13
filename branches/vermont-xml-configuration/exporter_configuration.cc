@@ -20,9 +20,11 @@ ExporterConfiguration::~ExporterConfiguration()
 		delete collectors[i];
 	}
 	delete exporterSink;
-	stopIpfixSender(ipfixSender);
-	destroyIpfixSender(ipfixSender);
-	deinitializeIpfixSenders();
+	if (ipfixSender) {
+		stopIpfixSender(ipfixSender);
+		destroyIpfixSender(ipfixSender);
+		deinitializeIpfixSenders();
+	}
 }
 
 void ExporterConfiguration::configure()

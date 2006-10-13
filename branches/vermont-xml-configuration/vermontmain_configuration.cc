@@ -1,6 +1,6 @@
 /*
  released under GPL v2
- (C) by Lothar Braun
+ (C) by Lothar Braun <mail@lobraun.de>
  */
 
 #include "vermontmain_configuration.h"

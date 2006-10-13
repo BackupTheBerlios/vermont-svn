@@ -3,7 +3,7 @@
  released under GPL v2
 
  (C) by Ronny T. Lampert
- (C) by Lothar Braun
+ (C) by Lothar Braun <mail@lobraun.de>
 
  */
 #include <stdio.h>

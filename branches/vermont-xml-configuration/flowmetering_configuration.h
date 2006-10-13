@@ -1,3 +1,8 @@
+/*
+ released under GPL v2
+ (C) by Lothar Braun <mail@lobraun.de>
+*/
+
 #ifndef   	FLOWMETERING_CONFIGURATION_H_
 #define   	FLOWMETERING_CONFIGURATION_H_
 

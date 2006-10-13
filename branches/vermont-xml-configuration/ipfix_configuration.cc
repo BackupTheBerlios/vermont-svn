@@ -121,8 +121,10 @@ IpfixConfiguration::IpfixConfiguration(const std::string& configFile)
 
 IpfixConfiguration::~IpfixConfiguration()
 {
+	msg(MSG_INFO, "IpfixConfiguration: Cleaning up");
 	for (SubsystemConfiguration::iterator i = subsystems.begin();
 	     i != subsystems.end(); ++i) {
+		std::string id = i->second->getId();
 		delete i->second;
 	}
 	xmlFreeDoc(document);

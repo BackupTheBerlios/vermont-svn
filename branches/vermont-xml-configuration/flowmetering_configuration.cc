@@ -1,3 +1,9 @@
+/*
+ released under GPL v2
+ (C) by Lothar Braun <mail@lobraun.de>
+*/
+
+
 #include "flowmetering_configuration.h"
 #include "msg.h"
 

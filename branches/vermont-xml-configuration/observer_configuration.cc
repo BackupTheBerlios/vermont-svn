@@ -1,3 +1,9 @@
+/*
+ released under GPL v2
+ (C) by Lothar Braun <mail@lobraun.de>
+*/
+
+
 #include "observer_configuration.h"
 #include "metering_configuration.h"
 #include "packetselection_configuration.h"

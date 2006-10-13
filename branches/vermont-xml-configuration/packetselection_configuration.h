@@ -1,3 +1,8 @@
+/*
+ released under GPL v2
+ (C) by Lothar Braun <mail@lobraun.de>
+*/
+
 #ifndef   	PACKETSELECTION_CONFIGURATION_H_
 #define   	PACKETSELECTION_CONFIGURATION_H_
 

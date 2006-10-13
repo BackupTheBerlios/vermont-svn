@@ -1,3 +1,9 @@
+/*
+ released under GPL v2
+ (C) by Lothar Braun <mail@lobraun.de>
+*/
+
+
 #ifndef _OBSERVER_CONFIGURATION_H_
 #define _OBSERVER_CONFIGURATION_H_
 

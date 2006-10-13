@@ -1,7 +1,7 @@
 /*
  released under GPL v2
- (C) by Lothar Braun
- */
+ (C) by Lothar Braun <mail@lobraun.de>
+*/
 
 
 #ifndef _VERMONTMAIN_CONFIGURATION_H_

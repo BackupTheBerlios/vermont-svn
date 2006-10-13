@@ -4,13 +4,25 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>eth1</interface>
+		<interface>lo</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
 	    <meteringProcessId>1</meteringProcessId>
 	</next>
     </observationPoint>
+
+    <observationPoint id="2">
+	<observationDomainId>4712</observationDomainId>
+	<type>pcap</type>
+	<parameters>
+		<interface>eth1</interface>
+		<pcap_filter>ip</pcap_filter>
+	</parameters>
+	<next>
+		<meteringProcessId>1</meteringProcessId>
+	</next>
+   </observationPoint>
 
     <meteringProcess id="1">
 	<packetSelection>

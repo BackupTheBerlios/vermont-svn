@@ -1,3 +1,9 @@
+/*
+ released under GPL v2
+ (C) by Lothar Braun <mail@lobraun.de>
+*/
+
+
 #include "collector_configuration.h"
 #include "metering_configuration.h"
 #include "flowmetering_configuration.h"
@@ -25,9 +31,11 @@ CollectorConfiguration::~CollectorConfiguration()
 	for (unsigned i = 0; i != listeners.size(); ++i) {
 		delete listeners[i];
 	}
-	stopIpfixCollector(ipfixCollector);
-	destroyIpfixCollector(ipfixCollector);
-	deinitializeIpfixReceivers();
+	if (ipfixCollector) {
+		stopIpfixCollector(ipfixCollector);
+		destroyIpfixCollector(ipfixCollector);
+		deinitializeIpfixReceivers();
+	}
 }
 
 void CollectorConfiguration::configure()
