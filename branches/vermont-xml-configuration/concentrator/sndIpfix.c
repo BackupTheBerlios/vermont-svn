@@ -78,6 +78,7 @@ IpfixSender* createIpfixSender(SourceID sourceID, const char* ip, uint16_t port)
 out1:
 	ipfix_deinit_exporter(*exporterP);
 out:
+	free(ipfixSender);
 	return NULL;	
 }
 
@@ -256,6 +257,7 @@ int sndNewDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* 
 
 	if (0 != ipfix_put_template_data(exporter, my_template_id, data, dataLength)) {
 		msg(MSG_FATAL, "ipfix_put_template_data failed");
+		free(data);
 		return -1;
 	}
 	free(data);
