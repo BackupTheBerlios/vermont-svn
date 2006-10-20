@@ -206,8 +206,6 @@ void IpfixConfiguration::pollAggregatorLoop()
         req.tv_sec=(poll_interval * 1000000) / 1000000000;
         req.tv_nsec=(poll_interval * 1000000) % 1000000000;
 
-	msg(MSG_DEBUG, "%i %i", poll_interval, aggregators.size());
-	
 	if (poll_interval == 0 || aggregators.empty()) {
 		pause();
 	} else {

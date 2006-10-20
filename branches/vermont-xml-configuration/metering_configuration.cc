@@ -119,10 +119,12 @@ void MeteringConfiguration::connect(Configuration* c)
 			packetSelection->filter->addProcessor(h);
 		}
 		if (metering->packetReporting) {
-			std::vector<PacketProcessor *> filters = packetSelection->filter->getProcessors();
-			for (unsigned i = 0; i != filters.size(); ++i) {
-				metering->packetSelection->filter->addProcessor(filters[i]);
-			}
+			// install our packetSelection into the other meteringprocess
+			delete metering->packetSelection;
+			metering->packetSelection = packetSelection;
+			// since the other metering process will no handle the packet selection
+			// work, we can forget it and lean back
+			packetSelection = NULL;
 		}
 		
 		return;

@@ -68,7 +68,7 @@ void PacketSelectionConfiguration::configure()
 			xmlNodePtr j = i->xmlChildrenNode;
 			while (NULL != j) {
 				// TODO: construct filter ...
-				throw std::runtime_error("filterMatch not yet implemented!");
+				msg(MSG_ERROR, "packetSlection: filterMatch not yet implemented!");
 				j = j->next;
 			}
 		} else if (tagMatches(i, "randOutOfN")) {
@@ -85,15 +85,15 @@ void PacketSelectionConfiguration::configure()
 			}
 			filter->addProcessor(new RandomSampler(n, N));
 		} else if (tagMatches(i, "uniProb")) {
-			throw std::runtime_error("uniProb not yet implemented!");
+			msg(MSG_ERROR, "packetSelection: uniProb not yet implemented!");
 		} else if (tagMatches(i, "nonUniProb")) {
-			throw std::runtime_error("nonUniProb not yet implemented");
+			msg(MSG_ERROR, "packetSelection: nonUniProb not yet implemented");
 		} else if (tagMatches(i, "flowState")) {
-			throw std::runtime_error("flowState not yet implemted");
+			msg(MSG_ERROR, "packetSelection: flowState not yet implemted");
 		} else if (tagMatches(i, "filterHash")) {
-			throw std::runtime_error("filterHash not yet implemented");
+			msg(MSG_ERROR, "packetSelection: filterHash not yet implemented");
 		} else if (tagMatches(i, "filterRState")) {
-			throw std::runtime_error("filterRState not yet implemented");
+			msg(MSG_ERROR, "packetSelection: filterRState not yet implemented");
 		} else if (tagMatches(i, "rawFilter")) {
 			// TODO: remove the rawfilter ...
 			std::string settings;

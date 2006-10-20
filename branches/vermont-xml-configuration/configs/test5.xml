@@ -1,6 +1,5 @@
 <ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
 
-<!--
     <collectingProcess id="1">
 	<observationDomainId>12345</observationDomainId>
 	<listener>
@@ -14,18 +13,6 @@
 	    <meteringProcessId>1</meteringProcessId>
 	</next>
     </collectingProcess>
--->
-    <observationPoint id="1">
-        <observationDomainId>4711</observationDomainId>
-        <type>pcap</type>
-        <parameters>
-                <interface>lo</interface>
-                <pcap_filter>ip</pcap_filter>
-        </parameters>
-        <next>
-            <meteringProcessId>1</meteringProcessId>
-        </next>
-    </observationPoint>
 
     <meteringProcess id="1">
 	<flowMetering>
@@ -47,20 +34,6 @@
 		<flowKey>
 		    <ieName>destinationTransportPort</ieName>
 		</flowKey>
-<!--
-		<nonFlowKey>
-		    <ieName>flowStartSeconds</ieName>
-		</nonFlowKey>
-		<nonFlowKey>
-		    <ieName>flowEndSeconds</ieName>
-		</nonFlowKey>
-		<nonFlowKey>
-		    <ieName>octetDeltaCount</ieName>
-		</nonFlowKey>
-		<nonFlowKey>
-		    <ieName>packetDeltaCount</ieName>
-		</nonFlowKey>
--->
 	    </rule>
 	    <rule>
 		<templateId>999</templateId>
@@ -71,24 +44,6 @@
 		<flowKey>
 		    <ieName>destinationIPv4Address</ieName>
 		</flowKey>
-		<flowKey>
-		    <ieName>protocolIdentifier</ieName>
-		    <match>TCP</match>
-		</flowKey>
-<!--
-		<nonFlowKey>
-		    <ieName>flowStartSeconds</ieName>
-		</nonFlowKey>
-		<nonFlowKey>
-		    <ieName>flowEndSeconds</ieName>
-		</nonFlowKey>
-		<nonFlowKey>
-		    <ieName>octetDeltaCount</ieName>
-		</nonFlowKey>
-		<nonFlowKey>
-		    <ieName>packetDeltaCount</ieName>
-		</nonFlowKey>
--->
 	    </rule>
 	    <expiration>
 		<activeTimeout unit="sec">5</activeTimeout>

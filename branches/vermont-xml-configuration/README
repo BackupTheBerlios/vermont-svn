@@ -28,8 +28,8 @@ Technically it allows the DPRINTF()s in the source to be in effect.
 
 CONFIGURATION
 
-Packaged comes a commented test.ini file.
-As there are 2 subsystems, each one can be configured independently.
+Packaged comes a commented test.xml file. See file CONFIGURATION for more
+information.
 
 
 SAMPLER

@@ -4,13 +4,14 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>eth1</interface>
+		<interface>lo</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
 	    <meteringProcessId>1</meteringProcessId>
 	</next>
     </observationPoint>
+
     <meteringProcess id="1">
 	<packetSelection>
 	    <countBased>
@@ -62,7 +63,7 @@
 	    <ipAddressType>4</ipAddressType>
 	    <ipAddress>127.0.0.1</ipAddress>
 	    <transportProtocol>17</transportProtocol>
-	    <port>4711</port>
+	    <port>1500</port>
 	</collector>
     </exportingProcess>
 

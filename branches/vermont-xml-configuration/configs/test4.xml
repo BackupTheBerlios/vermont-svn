@@ -1,20 +1,5 @@
 <ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
 
-<!--
-    <collectingProcess id="1">
-	<observationDomainId>12345</observationDomainId>
-	<listener>
-	    <ipAddressType>4</ipAddressType>
-	    <ipAddress>10.2.0.99</ipAddress>
-	    <transportProtocol>17</transportProtocol>
-	    <port>4711</port>
-	</listener>
-	<udpTemplateLifetime unit="sec">15</udpTemplateLifetime>
-	<next>
-	    <meteringProcessId>1</meteringProcessId>
-	</next>
-    </collectingProcess>
--->
     <observationPoint id="1">
         <observationDomainId>4711</observationDomainId>
         <type>pcap</type>
@@ -47,7 +32,6 @@
 		<flowKey>
 		    <ieName>destinationTransportPort</ieName>
 		</flowKey>
-<!--
 		<nonFlowKey>
 		    <ieName>flowStartSeconds</ieName>
 		</nonFlowKey>
@@ -60,7 +44,6 @@
 		<nonFlowKey>
 		    <ieName>packetDeltaCount</ieName>
 		</nonFlowKey>
--->
 	    </rule>
 	    <rule>
 		<templateId>999</templateId>
@@ -75,7 +58,6 @@
 		    <ieName>protocolIdentifier</ieName>
 		    <match>TCP</match>
 		</flowKey>
-<!--
 		<nonFlowKey>
 		    <ieName>flowStartSeconds</ieName>
 		</nonFlowKey>
@@ -88,7 +70,6 @@
 		<nonFlowKey>
 		    <ieName>packetDeltaCount</ieName>
 		</nonFlowKey>
--->
 	    </rule>
 	    <expiration>
 		<activeTimeout unit="sec">5</activeTimeout>
