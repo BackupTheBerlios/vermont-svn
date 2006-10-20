@@ -94,7 +94,7 @@ static void usage()
 	printf(
 			"VERsatile MONitoring Tool - VERMONT\n" \
 			" mandatory:\n" \
-			"    -f <inifile>     load config\n" \
+			"    -f <xmlfile>     load config\n" \
 			" optional:\n" \
 			"    -d               increase debug level (specify multiple for even more)\n" \
 	      );
@@ -116,6 +116,8 @@ static int setup_signal(int signal, void (*handler)(int))
 static void sig_handler(int x)
 {
 	msg(MSG_DIALOG, "got signal %d - exiting", x);
+	// TODO: this needs fixing. none of our cool destructors will
+	// be called when exiting with exit()!
 	exit(2);
 }
 

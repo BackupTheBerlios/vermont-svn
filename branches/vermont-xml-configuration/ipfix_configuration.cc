@@ -195,7 +195,7 @@ void IpfixConfiguration::startSubsystems()
 
 void IpfixConfiguration::pollAggregatorLoop()
 {
-	unsigned poll_interval = 0;
+	unsigned poll_interval = 500;
 	if (subsystems.find(configTypes::main) != subsystems.end()) {
 		VermontMainConfiguration* m = dynamic_cast<VermontMainConfiguration*>(subsystems[configTypes::main]);
 		poll_interval = m->getPollInterval();
@@ -205,6 +205,8 @@ void IpfixConfiguration::pollAggregatorLoop()
         /* break millisecond polltime into seconds and nanoseconds */
         req.tv_sec=(poll_interval * 1000000) / 1000000000;
         req.tv_nsec=(poll_interval * 1000000) % 1000000000;
+
+	msg(MSG_DEBUG, "%i %i", poll_interval, aggregators.size());
 	
 	if (poll_interval == 0 || aggregators.empty()) {
 		pause();

@@ -206,6 +206,7 @@ void PacketSelectionConfiguration::startSystem()
 		// any, there will be a memory leak (no packets will
 		// be freed within the sampler)
 		filter->setReceiver(new PacketSink());
+		msg(MSG_INFO, "Added packet sink");
 	}
 	filter->startFilter();
 }

@@ -114,6 +114,7 @@ void MeteringConfiguration::connect(Configuration* c)
 		
 		if (metering->flowMetering) {
 			HookingFilter* h = new HookingFilter(sampler_hook_entry);
+			msg(MSG_INFO, "Added HookingFilter");
 			h->setContext(metering->flowMetering->ipfixAggregator);
 			packetSelection->filter->addProcessor(h);
 		}
@@ -132,7 +133,10 @@ void MeteringConfiguration::connect(Configuration* c)
 
 void MeteringConfiguration::startSystem()
 {
-	packetSelection->startSystem();
+	msg(MSG_INFO, "MeteringConfiguration: Running metering process.");
+	if (packetSelection) {
+		packetSelection->startSystem();
+	}
 	if (flowMetering) {
 		flowMetering->startSystem();
 	}
