@@ -853,7 +853,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                                                 }
                                         }
                                 }
-                                DPRINTF("IPFIX: Sendbuffer really contains %u bytes!\n", tested_length )#;
+                                DPRINTF("IPFIX: Sendbuffer really contains %u bytes!\n", tested_length );
 #endif
 				
                                 ret=writev( exporter->collector_arr[i].data_socket,
@@ -1356,14 +1356,14 @@ int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void
         p_end = p_pos +  (*exporter).template_arr[found_index].max_fields_length;
 
         DPRINTF("ipfix_put_template_data: template found at %i\n", found_index);
-        DPRINTF("ipfix_put_template_data: A p_pos %u, p_end %u\n", p_pos, p_end);
+        DPRINTF("ipfix_put_template_data: A p_pos %p, p_end %p\n", p_pos, p_end);
         DPRINTF("ipfix_put_template_data: max_fields_len %u \n", (*exporter).template_arr[found_index].max_fields_length);
         DPRINTF("ipfix_put_template_data: fieldss_len %u \n", (*exporter).template_arr[found_index].fields_length);
 
         // add offset to the buffer's beginning: this is, where we will write to.
         p_pos += (*exporter).template_arr[found_index].fields_length;
 
-        DPRINTF("ipfix_put_template_data: B p_pos %u, p_end %u\n", p_pos, p_end);
+        DPRINTF("ipfix_put_template_data: B p_pos %p, p_end %p\n", p_pos, p_end);
 
 	for(i = 0; i < data_length; i++) {
 		ret = write_octet(&p_pos, p_end, *(((uint8_t*)data)+i) );
