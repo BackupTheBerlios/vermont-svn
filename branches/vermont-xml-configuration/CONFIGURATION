@@ -1,5 +1,6 @@
 The XML configuration schema allows configurations which are not supported by
-VERMONT. This is a list of working configurations.
+VERMONT. This is a list of working configurations. See directory configs/ for
+some working configuration files.
 
 WARNING: Unsupported configurations may result in a "Segmentation Fault" 
 

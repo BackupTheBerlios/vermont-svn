@@ -87,7 +87,29 @@ protected:
 /*************************** IpfixConfiguration ***************************/
 
 /**
- * holding the configuration data for vermont and it's subsystems.
+ * Holds the configuration data for vermont and it's subsystems.
+ * 
+ * There is a class for each major configuration point which is
+ * defined within the configuraiton shema (ipfix-config-schema.xsd)
+ * These configuration points are mapped to this classes:
+ *   - ObservationConfiguration (observer_configuration.[h][cc])
+ *   - CollectorConfiguration (collector_configuration.[h][cc])
+ *   - MeteringConfiguration (metering_configuration.[h][cc])
+ *   - ExporterConfiguration (exporter_configuration.[h][cc])
+ * Each of the classes is responsible for handling one section in
+ * the XML-Configuration file. @c IpfixConfiguration will create and
+ * connect the Configuration classes.
+ * The XML configuration schema permits many configurations. Some of
+ * them aren't supported. Braindead configurations (like Exporting process
+ * -> Metering process) will lead to an error and a correct shutdown of
+ * the system. 
+ * If a configuration looks sane, VERMONT will try to create it. If this 
+ * configuration is not (yet) supported by the subsystems then the behavior
+ * of vermont is unspecified (most likely: it will crash ...)
+ * Have a look at the file CONFIGURATION to get an idea of the supported
+ * configurations.
+ * If you see an additional configuration which works, feel free to add it
+ * to the end of the file :)
  */
 class IpfixConfiguration {
 public:

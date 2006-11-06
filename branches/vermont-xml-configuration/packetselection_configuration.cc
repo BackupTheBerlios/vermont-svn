@@ -40,7 +40,8 @@ void PacketSelectionConfiguration::configure()
 			xmlNodePtr j = i->xmlChildrenNode;
 			int interval = 0;
 			int spacing = 0;
-			while (NULL != j) {
+			msg(MSG_INFO, "packetSelection: Creating count based filter");
+			while (NULL != j) { 
 				if (tagMatches(j, "interval")) {
 					interval = atoi(getContent(j).c_str());
 				} else if (tagMatches(j, "spacing")) {
@@ -54,6 +55,7 @@ void PacketSelectionConfiguration::configure()
 			xmlNodePtr j = i->xmlChildrenNode;
 			int interval = 0;
 			int spacing = 0;
+			msg(MSG_INFO, "packetSelection: Creating time based filter");
 			while (NULL != j) {
 				if (tagMatches(j, "interval")) {
 					interval = atoi(getContent(j).c_str());
@@ -68,13 +70,14 @@ void PacketSelectionConfiguration::configure()
 			xmlNodePtr j = i->xmlChildrenNode;
 			while (NULL != j) {
 				// TODO: construct filter ...
-				msg(MSG_ERROR, "packetSlection: filterMatch not yet implemented!");
+				msg(MSG_ERROR, "packetSelection: filterMatch not yet implemented!");
 				j = j->next;
 			}
 		} else if (tagMatches(i, "randOutOfN")) {
 			xmlNodePtr j = i->xmlChildrenNode;
 			int N, n;
 			n = N = 0;
+			msg(MSG_INFO, "packetSelection: Creating radom filter");
 			while (NULL != j) {
 				if (tagMatches(j, "population")) {
 					N = atoi(getContent(j).c_str());
@@ -98,6 +101,7 @@ void PacketSelectionConfiguration::configure()
 			// TODO: remove the rawfilter ...
 			std::string settings;
 			xmlNodePtr j = i->xmlChildrenNode;
+			msg(MSG_INFO, "packetSelection: Creating raw filter");
 			while (NULL != j) {
 				if (tagMatches(j, "settings")) {
 					settings = getContent(j);
