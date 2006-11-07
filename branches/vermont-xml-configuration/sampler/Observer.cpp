@@ -138,6 +138,12 @@ bool Observer::prepare(const std::string& filter)
 		goto out1;
 	}
 
+        if (pcap_datalink(captureDevice) != DLT_EN10MB) {
+                msg(MSG_FATAL, "Data link isn't an ethernet device. This will screw the observer. Aborting ...");
+                goto out2;
+        }
+
+
 	/* we need the netmask for the pcap_compile */
 	if(pcap_lookupnet(captureInterface, &network, &netmask, errorBuffer) == -1) {
 		msg(MSG_ERROR, "Observer: unable to determine netmask/network: %s", errorBuffer);
