@@ -309,7 +309,7 @@ int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInf
 	/** sourceid null ? use default*/
 	//if(sourceID == 0)
 	/* overwrite sourceid if defined */
-	if(((IpfixDbWriter*) ipfixDbWriter)->src != 0)
+	if(((IpfixDbWriter*) ipfixDbWriter)->srcid != 0)
 	{
 		sourceID = ((IpfixDbWriter*) ipfixDbWriter)->srcid;
 	}

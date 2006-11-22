@@ -7,6 +7,7 @@ AC_PROG_RANLIB
 
 AM_PATH_XML2(2.4.0,,AC_MSG_ERROR([*** LibXML version $XML_VERSION not found!]))
 ACX_PTHREAD
+AX_LIB_MYSQL([1.0])
 
 
 AC_MSG_WARN([We lack a check for libpcap. Please install the library, if you haven't done this already.])
