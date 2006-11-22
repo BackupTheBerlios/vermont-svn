@@ -97,8 +97,8 @@ struct column{
 	int default_value;					/**when no IPFIX_TYPEID is stored in the record, use defaultvalue to store in database*/
 };
 
-int initializeIpfixDbWriter();
-int deintializeIpfixDbWriter();
+int initializeIpfixDbWriters();
+int deinitializeIpfixDbWriters();
 
 int startIpfixDbWriter(IpfixDbWriter* ipfixDbWriter);
 int stopIpfixDbWriter(IpfixDbWriter* ipfixDbWriter);

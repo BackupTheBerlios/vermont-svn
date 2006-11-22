@@ -56,8 +56,8 @@ struct columnDB {
 
 	
 
-int initializeIpfixDbReader();
-int deintializeIpfixDbReader();
+int initializeIpfixDbReaders();
+int deintializeIpfixDbReaders();
 int destroyIpfixDbReader(IpfixDbReader* ipfixDbReader);
 
 int startIpfixDbReader(IpfixDbReader* ipfixDbReader);

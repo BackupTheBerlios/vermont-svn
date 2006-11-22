@@ -1,0 +1,57 @@
+<ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
+
+    <observationPoint id="1">
+	<observationDomainId>4711</observationDomainId>
+	<type>pcap</type>
+	<parameters>
+		<interface>eth1</interface>
+		<pcap_filter>ip</pcap_filter>
+	</parameters>
+	<next>
+	    <meteringProcessId>1</meteringProcessId>
+	</next>
+    </observationPoint>
+
+    <meteringProcess id="1">
+	<flowMetering>
+		<rule>
+			<templateId>1234</templateId>
+			<nonFlowKey>
+				<ieName>sourceIPv4Address</ieName>
+			</nonFlowKey>
+			<nonFlowKey>
+				<ieName>destinationIPv4Address</ieName>
+			</nonFlowKey>
+			<nonFlowKey>
+				<ieName>protocolIdentifier</ieName>
+			</nonFlowKey>
+			<!--
+			<nonFlowKey>
+				<ieName>sourceTransportPort</ieName>
+			</nonFlowKey>
+			<nonFlowKey>
+				<ieName>destinationTransportPort</ieName>
+			</nonFlowKey>
+			-->
+		</rule>
+	</flowMetering>
+	<next>
+	    <dbWriter>1</dbWriter>
+	</next>
+    </meteringProcess>
+
+	<dbWriter id="1">
+			
+	</dbWriter>
+    
+    <vermont_main>
+	<poll_interval unit="msec">500</poll_interval>
+	<log_file>log.stat</log_file>
+	<log_interval unit="msec">300000</log_interval>
+    </vermont_main>
+    
+</ipfixConfig>
+		    
+			
+		
+		

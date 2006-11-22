@@ -46,7 +46,7 @@ struct column identify [] = {
  * To be called on application startup
  * @return 0 on success
  */
-int initializeIpfixDbWriter() {
+int initializeIpfixDbWriters() {
 	return 0;
 }
 																				 					     
@@ -55,7 +55,7 @@ int initializeIpfixDbWriter() {
  * To be called on application shutdown
  * @return 0 on success
  */
-int deinitializeIpfixDbWriter() {
+int deinitializeIpfixDbWriters() {
 	return 0;
 }																				 					     
 												 					     
@@ -102,6 +102,7 @@ IpfixDbWriter* createIpfixDbWriter()
 		strcpy(tabl->TableBuffer[i].TableName, "NULL");
 	}
 	/**count columns*/
+	tabl->count_col = 0;
 	for(i=0; columns_names[i] !=0; i++)
 		tabl->count_col++;
 	
@@ -122,18 +123,18 @@ IpfixDbWriter* createIpfixDbWriter()
 	}				
 	
 	/**Connect to Database*/
-	ipfixDbWriter->conn = mysql_real_connect(ipfixDbWriter->conn,
-			ipfixDbWriter->host_name, ipfixDbWriter->user_name,ipfixDbWriter->password,
-			0, ipfixDbWriter->port_num, ipfixDbWriter->socket_name,
-			ipfixDbWriter->flags);
-	if(ipfixDbWriter->conn == 0)
+	if (!mysql_real_connect(ipfixDbWriter->conn,
+				ipfixDbWriter->host_name, ipfixDbWriter->user_name,
+				ipfixDbWriter->password, 0, ipfixDbWriter->port_num,
+				ipfixDbWriter->socket_name, ipfixDbWriter->flags))
 	{
-		msg(MSG_FATAL,"Connection to database failed");
+		msg(MSG_FATAL,"Connection to database failed. Error: %s",
+		    mysql_error(ipfixDbWriter->conn));
 		goto out;
 	}
 	else
 	{
-		msg(MSG_DEBUG,"Connect to database");		
+		msg(MSG_DEBUG,"Succesfully connected to database");
 	}
 	/** create Database*/
 	if(createDB(ipfixDbWriter) !=0)
@@ -144,8 +145,8 @@ IpfixDbWriter* createIpfixDbWriter()
 	
 	return ipfixDbWriter;
 	
-out : 
-		destroyIpfixDbWriter(ipfixDbWriter);
+out: 
+	destroyIpfixDbWriter(ipfixDbWriter);
 		
 	return NULL;	
 }
@@ -155,7 +156,6 @@ out :
  * @param ipfixDbWriter handle obtained by calling @c createipfixDbWriter()
  */
 int destroyIpfixDbWriter(IpfixDbWriter* ipfixDbWriter) {
-	deinitializeIpfixDbWriter();
 	mysql_close(ipfixDbWriter->conn);
 	free(ipfixDbWriter->table->statement);
 	free(ipfixDbWriter->table);
@@ -300,12 +300,16 @@ int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInf
 {
 	Table *tabl = ((IpfixDbWriter*) ipfixDbWriter)->table;
 	Statement* statemen = tabl->statement;
+
+	msg(MSG_DEBUG, "Writing data data record");
+
 	/** if the writeToDb process not ready - drop record*/
 	if(strcmp(statemen->statemBuffer[maxstatement-1],"NULL") != 0)
 	{
 		msg(MSG_FATAL,"Drop datarecord - still writing to database");
 		return 0;
 	}
+
 	/** sourceid null ? use default*/
 	//if(sourceID == 0)
 	/* overwrite sourceid if defined */
@@ -313,6 +317,7 @@ int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInf
 	{
 		sourceID = ((IpfixDbWriter*) ipfixDbWriter)->srcid;
 	}
+
 	/** make a sql insert statement from the recors data */
 	char* insertTableStr = getRecData(ipfixDbWriter, tabl, sourceID, dataTemplateInfo, length, data);
 	msg(MSG_DEBUG,"Insert statement: %s",insertTableStr);	
@@ -366,9 +371,11 @@ char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID, Da
 	/**begin query string for insert statement*/
 	char insert[start_len+(table->count_col * ins_width)];
 	strcpy(insert,"INSERT INTO ");
+
 	/**make string for the column names*/
 	char ColNames[table->count_col * ins_width];
 	strcpy(ColNames," (");
+
 	/**make string for the values  given by the IPFIX_TYPEID stored in the record*/ 
 	char ColValues[table->count_col * ins_width]; 
 	strcpy(ColValues," VALUES (");	

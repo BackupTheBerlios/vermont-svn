@@ -8,6 +8,7 @@
 #include "metering_configuration.h"
 #include "flowmetering_configuration.h"
 #include "exporter_configuration.h"
+#include "dbwriter_configuration.h"
 
 
 #include <msg.h>
@@ -157,6 +158,16 @@ void CollectorConfiguration::connect(Configuration* c)
 		msg(MSG_DEBUG, "Adding IpfixPacketProcessor to IpfixCollector");
 		addIpfixPacketProcessor(ipfixCollector, ipfixPacketProcessor);
 		msg(MSG_DEBUG, "Successfully set up connection between collector and exporter");
+		return;
+	}
+
+	DbWriterConfiguration* dbWriterConfiguration = dynamic_cast<DbWriterConfiguration*>(c);
+	if (dbWriterConfiguration) {
+		msg(MSG_DEBUG, "Adding DBwriter to IpfixCollector");
+		addIpfixParserCallbacks(ipfixParser, getIpfixDbWriterCallbackInfo(dbWriterConfiguration->getDbWriter()));
+		setIpfixParser(ipfixPacketProcessor, ipfixParser);
+		addIpfixPacketProcessor(ipfixCollector, ipfixPacketProcessor);
+		msg(MSG_DEBUG, "Successfully set up connction between collector and dbwriter");
 		return;
 	}
 

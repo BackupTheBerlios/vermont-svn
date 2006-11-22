@@ -5,6 +5,8 @@
 #include "exporter_configuration.h"
 #include "flowmetering_configuration.h"
 #include "vermontmain_configuration.h"
+#include "dbwriter_configuration.h"
+
 
 #include <ctime>
 
@@ -43,6 +45,9 @@ void Configuration::fillNextVector(xmlNodePtr p)
 					     getContent(j));
 		} else if (tagMatches(j, "exportingProcessId")) {
 			nextVector.push_back(configTypes::exporter +
+					     getContent(j));
+		} else if (tagMatches(j, "dbWriter")) {
+			nextVector.push_back(configTypes::dbwriter +
 					     getContent(j));
 		}
 		j = j->next;
@@ -111,7 +116,9 @@ IpfixConfiguration::IpfixConfiguration(const std::string& configFile)
 			conf = new ExporterConfiguration(document, current);
 		} else if (xmlCompare(current, "collectingProcess")) {
 			conf = new CollectorConfiguration(document, current);
-		}
+		} else if (xmlCompare(current, "dbWriter")) {
+			conf = new DbWriterConfiguration(document, current);
+		} 
 		if (conf) {
 			subsystems[conf->getId()] = conf;
 		}
@@ -141,19 +148,15 @@ void IpfixConfiguration::readSubsystemConfiguration()
 void IpfixConfiguration::connectSubsystems()
 {
 
-	// sequence is important!!!
-	// 1.) connect observers
-	// 2.) connect exporters
-	// 3.) connect collectors
-	// 4.) connect metering processes
-	// TODO: this is ugly!
 	std::string TYPES[] = {
 		configTypes::observer,
 		configTypes::exporter,
+		configTypes::dbwriter,
+		configTypes::dbreader,
 		configTypes::collector,
 		configTypes::metering,
 	};
-	for (unsigned t = 0; t != 4; ++t) {
+	for (unsigned t = 0; t != 6; ++t) {
 		for (SubsystemConfiguration::iterator i = subsystems.begin();
 	    	 i != subsystems.end(); ++i) {	
 			std::string id = i->first;

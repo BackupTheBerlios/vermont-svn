@@ -31,7 +31,7 @@ struct columnDB tabs[] = {
  * To be called on application startup
  * @return 0 on success
  */
-int initializeIpfixDbReader() {
+int initializeIpfixDbReaders() {
 	return 0;
 }
 																				 					     
@@ -40,7 +40,7 @@ int initializeIpfixDbReader() {
  * To be called on application shutdown
  * @return 0 on success
  */
-int deinitializeIpfixDbReader() {
+int deinitializeIpfixDbReaders() {
 	return 0;
 }																				 					     
 

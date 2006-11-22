@@ -9,6 +9,7 @@
 #include "packetselection_configuration.h"
 #include "packetreporting_configuration.h"
 #include "flowmetering_configuration.h"
+#include "dbwriter_configuration.h"
 
 #include <sampler/Filter.h>
 #include <sampler/ExporterSink.h>
@@ -85,6 +86,7 @@ void MeteringConfiguration::connect(Configuration* c)
 	// - an exporting process (if it does FlowMetering or PacketReporting)
 	// - an metering process (if the source does PacketSelection
 	//   and the destination does FlowMetering or PacketReporting
+	// - an dbWriter (if it does FlowMetering)
 
 	ExporterConfiguration* exporter = dynamic_cast<ExporterConfiguration*>(c);
 	if (exporter) {
@@ -127,6 +129,26 @@ void MeteringConfiguration::connect(Configuration* c)
 			packetSelection = NULL;
 		}
 		
+		return;
+	}
+
+	DbWriterConfiguration* dbWriterConfiguration = dynamic_cast<DbWriterConfiguration*>(c);
+	if (dbWriterConfiguration) {
+		if (!flowMetering) {
+			throw std::runtime_error("MeteringProcess: Can only be connected to an "
+						 "dbWriter if it does flowMetetering!");
+		}
+
+		if (packetSelection) {
+			msg(MSG_DEBUG, "Setting up HookingFilter");
+			HookingFilter* h = new HookingFilter(sampler_hook_entry);
+			h->setContext(flowMetering->ipfixAggregator);
+			packetSelection->filter->addProcessor(h);
+		}
+
+		msg(MSG_DEBUG, "Adding aggregator call backs");
+		addAggregatorCallbacks(flowMetering->ipfixAggregator, 
+				       getIpfixDbWriterCallbackInfo(dbWriterConfiguration->getDbWriter()));
 		return;
 	}
 
