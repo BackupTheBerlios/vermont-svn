@@ -12,97 +12,83 @@
 extern "C" {
 #endif
 
-#define ExporterID        0	
+#define ExporterID        0     
 
 /**
- * startlen  : Length of statement for INSERT IN.., CREATE TABL.., CREATE DATA..
- * col_width : Length of the string denotes the name of the single columns
- *             and datatype to store in table
- * ins_width : Length of the string for insert statement in depency of count columns
- * maxTable  : count of tablenames 
- * maxstatem : count of insertstatement to buffer before they store to database
- * table_len : Length of table name string
+ * STARTLEN     : Length of statement for INSERT IN.., CREATE TABL.., CREATE DATA..
+ * COL_WIDTH    : Length of the string denotes the name of the single columns
+ *                and datatype to store in table
+ * INS_WIDTH    : Length of the string for insert statement in depency of count columns
+ * MAX_TABLE    : count of tablenames 
+ * MAX_STATMENT : count of insertstatement to buffer before they store to database
+ * TABLE_LEN    : Length of table name string
  */
-#define start_len         50		
-#define col_width         40
-#define ins_width         25
-#define maxTable           3
-#define maxExpTable        3
-#define maxstatement	  10
-#define table_len         16
+#define STARTLEN         50             
+#define COL_WIDTH        40
+#define INS_WIDTH        25
+#define MAX_TABLE         3
+#define MAX_EXP_TABLE     3
+#define MAX_STATEMENT    10
+#define TABLE_LEN        16
 
 
 /**
- * Struct stores for each bufentry TableBuffer[maxTable]
+ * Struct stores for each BufEntry TableBuffer[maxTable]
  *  start-, endtime and tablename for the different tables
  */
 typedef struct {
-	uint64_t startTableTime;
-	uint64_t endTableTime;				
-	char TableName[table_len];
-} bufentry;
+        uint64_t startTableTime;
+        uint64_t endTableTime;                          
+        char TableName[TABLE_LEN];
+} BufEntry;
 
 /**
  * Store for each expTable ExporterBuffer[maxExpTable]
  * exporterID,srcID and expIP for the different exporters
  */
 typedef struct {
-	int Id;          /** Id entry of sourcID and expIP in the ExporterTable */
-	uint64_t srcID;	 /** SourceID of  the exporter monitor */
-	uint64_t  expIP; /** IP of the exporter */
-} expTable;
+        int Id;          /** Id entry of sourcID and expIP in the ExporterTable */
+        uint64_t srcId;  /** SourceID of  the exporter monitor */
+        uint64_t  expIp; /** IP of the exporter */
+} ExpTable;
 
 /** 
- * Store the single statements for insert in a buffer until statemReceived is equal maxstatemt	 
+ * Store the single statements for insert in a buffer until statemReceived is equal maxstatemt   
  */
 typedef struct {
-	int statemReceived;               /**counter of insert into statements*/
-	char* statemBuffer[maxstatement]; /**buffer  of char pointers to store the insert statements*/
+        int statemReceived;                /**counter of insert into statements*/
+        char* statemBuffer[MAX_STATEMENT];  /**buffer  of char pointers to store the insert statements*/
 } Statement;
 
 /** 
-*	makes a buffer for the different tables and the different exporters
-*/
+ * makes a buffer for the different tables and the different exporters
+ */
 typedef struct {
-	int count_col;                         /**counter of columns*/
-	int countbufftable;		       /**counter of buffered table names*/
-	bufentry TableBuffer[maxTable];	       /**buffer to store struct bufentry*/		
-	int countExpTable;                     /**counter of buffered exporter*/
-	expTable ExporterBuffer[maxExpTable];  /**buffer to store struct expTable*/
-	Statement* statement;                  /**pointer to struct Statement*/
-} Table;	
+        int countCol;                            /**counter of columns*/
+        int countBuffTable;                      /**counter of buffered table names*/
+        BufEntry tableBuffer[MAX_TABLE];         /**buffer to store struct BufEntry*/             
+        int countExpTable;                       /**counter of buffered exporter*/
+        ExpTable exporterBuffer[MAX_EXP_TABLE];  /**buffer to store struct expTable*/
+        Statement* statement;                    /**pointer to struct Statement*/
+} Table;        
 
 /**
  * IpfixDbWriter powered the communication to the database server
  * also between the other structs
  */
 typedef struct {
-	char* host_name;        /** Hostname*/
-	char* db_name;          /**Name of the database*/
-	char* user_name;      	/**Username (default: Standarduser) */
-	char* password ;        /** Password (default: none) */
-	unsigned int port_num;  /** Portnumber (use default) */
-	char* socket_name ;     /** Socketname (use default) */
-	unsigned int flags;     /** Connectionflags (none) */
-	MYSQL* conn;            /** pointer to connection handle */	
-	Table* table;           /**pointer to struct Table*/
-	SourceID srcid;         /**Exporter default SourceID */
+        const char* hostName;        /** Hostname*/
+        const char* dbName;          /**Name of the database*/
+        const char* userName;        /**Username (default: Standarduser) */
+        const char* password ;       /** Password (default: none) */
+        unsigned int portNum;        /** Portnumber (use default) */
+        const char* socketName;      /** Socketname (use default) */
+        unsigned int flags;          /** Connectionflags (none) */
+        MYSQL* conn;                 /** pointer to connection handle */       
+        Table* table;                /**pointer to struct Table*/
+        SourceID srcId;              /**Exporter default SourceID */
 } IpfixDbWriter;
 
-/**
- * Identify the depency between columns names and 
- * IPFIX_TYPEID working with a char pointer array
- * in this array there is also standing  the defaultvalue
- * of the IPFIX_TYPEID and the datatype to store in database
-*/
-struct column{
-	char* cname;       /** column name */
-	int ipfixid;       /** IPFIX_TYPEID */
-	char* datatype;    /** which datatype to store in database */
-	int default_value; /** when no IPFIX_TYPEID is stored in the record,
-			    *  use defaultvalue to store in database
-			    */
-};
 
 int initializeIpfixDbWriters();
 int deinitializeIpfixDbWriters();
@@ -111,7 +97,9 @@ int startIpfixDbWriter(IpfixDbWriter* ipfixDbWriter);
 int stopIpfixDbWriter(IpfixDbWriter* ipfixDbWriter);
 int destroyIpfixDbWriter(IpfixDbWriter*  ipfixDbWriter);
 
-IpfixDbWriter* createIpfixDbWriter();
+IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
+                                   const char* userName, const char* password,
+                                   unsigned int port, SourceID sourceId);
 
 CallbackInfo getIpfixDbWriterCallbackInfo(IpfixDbWriter* ipfixDbWriter);
 

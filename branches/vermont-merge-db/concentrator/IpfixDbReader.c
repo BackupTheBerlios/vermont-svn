@@ -40,7 +40,10 @@ void* readFromDB(void* ipfixDbReader);
 int DbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataTemplateInfo);
 int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo, int n);
 
-int connectToDataBase(IpfixDbReader* ipfixDbReader);
+int connectToDb(IpfixDbReader* ipfixDbReader,
+		const char* hostName, const char* dbName, 
+		const char* username, const char* password,
+		unsigned int port, SourceID sourceId);
 
 
 /**
@@ -322,7 +325,11 @@ int getColumns(IpfixDbReader* ipfixDbReader)
 }
 
 
-int connectToDb(IpfixDbReader* ipfixDbReader)
+int connectToDb(IpfixDbReader* ipfixDbReader,
+		const char* hostName, const char* dbName, 
+		const char* userName, const char* password,
+		unsigned int port, SourceID sourceId)
+
 {
 	/** get the mysl init handle*/
 	ipfixDbReader->conn = mysql_init(0); 
@@ -334,14 +341,14 @@ int connectToDb(IpfixDbReader* ipfixDbReader)
 		msg(MSG_DEBUG,"mysql init successfull");
 	}
 	/**Initialize structure members IpfixDbWriter*/
-	ipfixDbReader->hostName = "localhost" ;
-	ipfixDbReader->dbName = "flows";
-	ipfixDbReader->userName = 0 ;    		
-	ipfixDbReader->password = 0 ;    			
-	ipfixDbReader->portNum = 0; 			
-	ipfixDbReader->socketName = 0 ;	  		
+	ipfixDbReader->hostName = hostName;
+	ipfixDbReader->dbName = dbName;
+	ipfixDbReader->userName = userName;
+	ipfixDbReader->password = password;
+	ipfixDbReader->portNum = port;
+	ipfixDbReader->socketName = 0;	  		
 	ipfixDbReader->flags = 0;
-	ipfixDbReader->srcId = 8888;
+	ipfixDbReader->srcId = sourceId;
 	/**Initialize structure members DbReader*/
 	ipfixDbReader->dbReader->callbackInfo = NULL;
 	ipfixDbReader->dbReader->callbackCount = 0;
@@ -422,7 +429,9 @@ int destroyIpfixDbReader(IpfixDbReader* ipfixDbReader) {
  * Creates a new ipfixDbReader. Do not forget to call @c startipfixDbReader() to begin reading from Database
  * @return handle to use when calling @c destroyipfixDbRreader()
  */
-IpfixDbReader* createIpfixDbReader()
+IpfixDbReader* createIpfixDbReader(const char* hostName, const char* dbName, 
+				   const char* userName, const char* password,
+				   unsigned int port, SourceID sourceId)
 {
 	IpfixDbReader* ipfixDbReader = (IpfixDbReader*)malloc(sizeof(IpfixDbReader));
 	if (!ipfixDbReader) {
@@ -454,7 +463,10 @@ IpfixDbReader* createIpfixDbReader()
 	
 	ipfixDbReader->dbReader = dbReader;
 	dbReader->dbData = dbData;
-	connectToDb(ipfixDbReader);
+	if (connectToDb(ipfixDbReader, hostName, dbName, userName,
+			password, port, sourceId)) {
+		goto out3;
+	}
 	msg(MSG_DEBUG,"Connected to database");
 	
 	/** use database  with db_name**/	

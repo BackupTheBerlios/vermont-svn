@@ -4,23 +4,40 @@
 #include "msg.h"
 
 
+/***** Internal types ******************************************************/
+
+/**
+ * Identify the depency between columns names and 
+ * IPFIX_TYPEID working with a char pointer array
+ * in this array there is also standing  the defaultvalue
+ * of the IPFIX_TYPEID and the datatype to store in database
+*/
+struct Column{
+        char* cname;       /** column name */
+        int ipfixId;       /** IPFIX_TYPEID */
+        char* dataType;    /** which datatype to store in database */
+        int defaultValue;  /** when no IPFIX_TYPEID is stored in the record,
+                            *  use defaultvalue to store in database
+                            */
+};
+
 
 /***** Global Variables ******************************************************/
 /**
 * 	is needed to determine "now" time and the time of flowstartsseconds
 */
-struct tm* time_now;
+struct tm* timeNow;
 
 /**
 *	column names as a array of char pointer
 */
-char *columns_names[] = {"srcIP", "dstIP", "srcPort", "dstPort", "proto", "dstTos","bytes","pkts","firstSwitched","lastSwitched","exporterID",0};					  
+char *columnsNames[] = {"srcIP", "dstIP", "srcPort", "dstPort", "proto", "dstTos","bytes","pkts","firstSwitched","lastSwitched","exporterID",0};					  
  
  /**
- *	struct to identify column names with IPFIX_TYPEID an the datatype to store in database
+ *	struct to identify column names with IPFIX_TYPEID an the dataType to store in database
  *	ExporterID is no IPFIX_TYPEID, its user specified
  */
-struct column identify [] = {		 
+struct Column identify [] = {
 	{"dstIP", IPFIX_TYPEID_destinationIPv4Address, "INTEGER(10) UNSIGNED",0},
 	{"srcIP", IPFIX_TYPEID_sourceIPv4Address, "INTEGER(10) UNSIGNED", 0},	
 	{"srcPort", IPFIX_TYPEID_sourceTransportPort,  "SMALLINT(5) UNSIGNED", 0},	
@@ -47,7 +64,7 @@ int writeDataRecord(void* ipfixDbWriter,SourceID sourceID, TemplateInfo* templat
 int writeDataDataRecord(void* ipfixDbWriter,SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID,DataTemplateInfo* dataTemplateInfo,uint16_t length,FieldData* data);
 
-int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID,uint64_t expIP);
+int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID,uint64_t expIp);
 
 char* getTableName(IpfixDbWriter* ipfixDbWriter,Table* table, uint64_t flowstartsec);
 char* getTableNamDependTime(char* tablename,uint64_t flowstartsec);
@@ -69,48 +86,48 @@ uint32_t getipv4address(FieldType type, FieldData* data);
 int createDB(IpfixDbWriter* ipfixDbWriter)
 {
 	/**Is there a already a database with the same name - drop  them*/
-	char dropDb[start_len];
+	char dropDb[STARTLEN];
 	strcpy(dropDb, "DROP DATABASE IF EXISTS ");
-	strncat(dropDb, ipfixDbWriter->db_name,strlen(ipfixDbWriter->db_name)+1);
+	strncat(dropDb, ipfixDbWriter->dbName,strlen(ipfixDbWriter->dbName)+1);
 	if(mysql_query(ipfixDbWriter->conn, dropDb) != 0 )
 	{
 		msg(MSG_FATAL,"Drop of exists database failed");
 	}
 	/** make query string to create database**/
-	char  createDbStr[start_len] ;
+	char  createDbStr[STARTLEN] ;
 	strcpy(createDbStr,"CREATE DATABASE IF NOT EXISTS ");
-	strncat(createDbStr,ipfixDbWriter->db_name,strlen(ipfixDbWriter->db_name)+1);
+	strncat(createDbStr,ipfixDbWriter->dbName,strlen(ipfixDbWriter->dbName)+1);
 	/**create database*/
 	if(mysql_query(ipfixDbWriter->conn, createDbStr) != 0 )
 	{
-		msg(MSG_FATAL,"Creation of database %s failed", ipfixDbWriter->db_name);
+		msg(MSG_FATAL,"Creation of database %s failed", ipfixDbWriter->dbName);
 	}
 	else
 	{
-		msg(MSG_DEBUG,"Database %s created",ipfixDbWriter->db_name);
+		msg(MSG_DEBUG,"Database %s created",ipfixDbWriter->dbName);
 	}
-	/** use database  with db_name**/	
-	if(mysql_select_db(ipfixDbWriter->conn, ipfixDbWriter->db_name) !=0)
+	/** use database  with dbName**/	
+	if(mysql_select_db(ipfixDbWriter->conn, ipfixDbWriter->dbName) !=0)
 	{
-		msg(MSG_FATAL,"Database %s not selectable", ipfixDbWriter->db_name);	
+		msg(MSG_FATAL,"Database %s not selectable", ipfixDbWriter->dbName);	
 	}
 	else
 	{
-		msg(MSG_DEBUG,"Database %s selected", ipfixDbWriter->db_name);
+		msg(MSG_DEBUG,"Database %s selected", ipfixDbWriter->dbName);
 	}
 	return 0;
 }
 
 int createExporterTable(IpfixDbWriter* ipfixDbWriter)
 {
-	char dropExporterTab[start_len];
+	char dropExporterTab[STARTLEN];
 	strcpy(dropExporterTab,"DROP TABLE IF EXISTS exporter");
 	/**is there already a table with the same name - drop them*/
 	if(mysql_query(ipfixDbWriter->conn, dropExporterTab) != 0)
 	{
 		msg(MSG_FATAL,"Drop of exists exporter table failed");
 	}
-	char createExporterTab[start_len+(3 * col_width)];
+	char createExporterTab[STARTLEN+(3 * COL_WIDTH)];
 	strcpy(createExporterTab,"CREATE TABLE IF NOT EXISTS exporter (id SMALLINT(5) NOT NULL AUTO_INCREMENT,sourceID INTEGER(10) UNSIGNED DEFAULT NULL,srcIP INTEGER(10) UNSIGNED DEFAULT NULL,PRIMARY KEY(id))");
 	/** create table exporter*/
 	if(mysql_query(ipfixDbWriter->conn,createExporterTab) != 0)
@@ -130,22 +147,22 @@ int createExporterTable(IpfixDbWriter* ipfixDbWriter)
 int createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* tablename)
 {
 	int i, j ;
-	char createTableStr[start_len+(table->count_col* col_width)];
+	char createTableStr[STARTLEN+(table->countCol* COL_WIDTH)];
 	strcpy(createTableStr , "CREATE TABLE IF NOT EXISTS ");
 	strncat(createTableStr,tablename,strlen(tablename)+1);
 	strncat(createTableStr," (",(2*sizeof(char))+1);
-	/**collect the names for columns and the datatypes for the table in a string*/
-	for(i=0; i < table->count_col; i++)
+	/**collect the names for columns and the dataTypes for the table in a string*/
+	for(i=0; i < table->countCol; i++)
 	{
 		for(j=0; strcmp(identify[j].cname,"END") != 0 ;j++)
 		{
-			/**if columns_names equal identify.cname then ...*/
-			if( strcmp(columns_names[i], identify[j].cname) == 0)
+			/**if columnsNames equal identify.cname then ...*/
+			if( strcmp(columnsNames[i], identify[j].cname) == 0)
 			{
 				strncat(createTableStr,identify[j].cname,strlen(identify[j].cname)+1);
 				strncat(createTableStr," ",sizeof(char)+1);
-				strncat(createTableStr,identify[j].datatype,strlen(identify[j].datatype)+1);
-				if( i  != table->count_col-1)
+				strncat(createTableStr,identify[j].dataType,strlen(identify[j].dataType)+1);
+				if( i  != table->countCol-1)
 				{
 					strncat(createTableStr,",",sizeof(char)+1);
 				}
@@ -155,7 +172,7 @@ int createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* tablename)
 	strncat(createTableStr,")",sizeof(char)+1);
 	
 	/**Is there a already a table with the same name - drop them*/
-	char dropTable[start_len];
+	char dropTable[STARTLEN];
 	strcpy(dropTable,"DROP TABLE IF EXISTS ");
 	strncat(dropTable, tablename,strlen(tablename)+1);
 	if(mysql_query(ipfixDbWriter->conn, dropTable) != 0)
@@ -185,7 +202,7 @@ int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInf
 	msg(MSG_DEBUG, "Writing data data record");
 
 	/** if the writeToDb process not ready - drop record*/
-	if(strcmp(statemen->statemBuffer[maxstatement-1],"NULL") != 0)
+	if(strcmp(statemen->statemBuffer[MAX_STATEMENT-1],"NULL") != 0)
 	{
 		msg(MSG_FATAL,"Drop datarecord - still writing to database");
 		return 0;
@@ -194,9 +211,9 @@ int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInf
 	/** sourceid null ? use default*/
 	//if(sourceID == 0)
 	/* overwrite sourceid if defined */
-	if(((IpfixDbWriter*) ipfixDbWriter)->srcid != 0)
+	if(((IpfixDbWriter*) ipfixDbWriter)->srcId != 0)
 	{
-		sourceID = ((IpfixDbWriter*) ipfixDbWriter)->srcid;
+		sourceID = ((IpfixDbWriter*) ipfixDbWriter)->srcId;
 	}
 
 	/** make a sql insert statement from the recors data */
@@ -204,11 +221,11 @@ int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInf
 	msg(MSG_DEBUG,"Insert statement: %s",insertTableStr);	
 	
 	/** if statement counter lower as  max count of statement then insert record in statemenBuffer*/
-	if((statemen->statemReceived) < maxstatement)
+	if((statemen->statemReceived) < MAX_STATEMENT)
 	{	
 		statemen->statemBuffer[statemen->statemReceived] = insertTableStr;
 		/** statemBuffer is filled ->  insert in table*/	
-		if(statemen->statemReceived == maxstatement-1)
+		if(statemen->statemReceived == MAX_STATEMENT-1)
 		{
 			writeToDb(ipfixDbWriter, tabl, statemen);
 		}
@@ -250,53 +267,53 @@ char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID, Da
 	uint64_t intdata = 0;
 	uint32_t flowstartsec = 0;
 	/**begin query string for insert statement*/
-	char insert[start_len+(table->count_col * ins_width)];
+	char insert[STARTLEN+(table->countCol * INS_WIDTH)];
 	strcpy(insert,"INSERT INTO ");
 
 	/**make string for the column names*/
-	char ColNames[table->count_col * ins_width];
+	char ColNames[table->countCol * INS_WIDTH];
 	strcpy(ColNames," (");
 
 	/**make string for the values  given by the IPFIX_TYPEID stored in the record*/ 
-	char ColValues[table->count_col * ins_width]; 
+	char ColValues[table->countCol * INS_WIDTH]; 
 	strcpy(ColValues," VALUES (");	
 	
-	char stringtmp[ins_width];// needed to cast from char to string
+	char stringtmp[INS_WIDTH];// needed to cast from char to string
 			
 	/**loop over the columname and loop over the IPFIX_TYPEID of the record  to get the corresponding */
 	/**data to store and make insert statement*/
-	for( i=0; i < table->count_col; i++)
+	for( i=0; i < table->countCol; i++)
 	{
 		for( j=0; strcmp(identify[j].cname,"END") != 0; j++)
 		{ 
 			
-			if(columns_names[i] == identify[j].cname)
+			if(columnsNames[i] == identify[j].cname)
 			{	
 				int notfound = 1;
 				strncat(ColValues,"'",sizeof(char)+1);
-				strncat(ColNames,columns_names[i],strlen(columns_names[i])+1);
-				if( i != table->count_col-1)
+				strncat(ColNames,columnsNames[i],strlen(columnsNames[i])+1);
+				if( i != table->countCol-1)
 					strncat(ColNames,",",sizeof(char)+1);
-				if( i == table->count_col-1)
+				if( i == table->countCol-1)
 					strncat(ColNames,") ",(2*sizeof(char))+1);
 				if(dataTemplateInfo->fieldCount > 0)
 				{
 					for(k=0; k < dataTemplateInfo->fieldCount; k++)
 					{	
-						if(dataTemplateInfo->fieldInfo[k].type.id == identify[j].ipfixid)
+						if(dataTemplateInfo->fieldInfo[k].type.id == identify[j].ipfixId)
 						{
 							notfound = 0;						
 							intdata = getdata(dataTemplateInfo->fieldInfo[k].type,(data+dataTemplateInfo->fieldInfo[k].offset));
 							sprintf(stringtmp,"%Lu",(uint64_t)intdata);
 							strncat(ColValues,stringtmp,strlen(stringtmp)+1);
 							strncat(ColValues,"'",sizeof(char)+1);
-							if(identify[j].ipfixid == IPFIX_TYPEID_flowStartSeconds)
+							if(identify[j].ipfixId == IPFIX_TYPEID_flowStartSeconds)
 							{
 								flowstartsec = intdata;			
 							}
-							if( i !=  table->count_col-1)
+							if( i !=  table->countCol-1)
 								strncat(ColValues,",",sizeof(char)+1);
-							if( i == table->count_col-1)
+							if( i == table->countCol-1)
 								strncat(ColValues,")",sizeof(char)+1);	
 							break;
 						}
@@ -306,16 +323,16 @@ char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID, Da
 				{
 					for(n=0; n < dataTemplateInfo->dataCount; n++)
 					{
-						if(dataTemplateInfo->dataInfo[n].type.id == identify[j].ipfixid)
+						if(dataTemplateInfo->dataInfo[n].type.id == identify[j].ipfixId)
 						{
 							notfound = 0;
 							intdata = getdata(dataTemplateInfo->dataInfo[n].type,(dataTemplateInfo->data+dataTemplateInfo->dataInfo[n].offset));
 							sprintf(stringtmp,"%Lu",(uint64_t)intdata);
 							strncat(ColValues,stringtmp,strlen(stringtmp)+1);
 							strncat(ColValues,"'",sizeof(char)+1);
-							if( i != table->count_col-1)
+							if( i != table->countCol-1)
 								strncat(ColValues,",",sizeof(char)+1);
-							if( i == table->count_col-1)
+							if( i == table->countCol-1)
 								strncat(ColValues,")",sizeof(char)+1);					
 							break;
 						}
@@ -323,9 +340,9 @@ char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID, Da
 				}
 				if(notfound)
 				{	
-					if(identify[j].ipfixid == ExporterID)
+					if(identify[j].ipfixId == ExporterID)
 					{
-						/**lookup exporter buffer to get exporterID from sourcID and expIP**/
+						/**lookup exporter buffer to get exporterID from sourcID and expIp**/
 						intdata = getExporterID(ipfixDbWriter, table, sourceID,0);
 						sprintf(stringtmp,"%Lu",(uint64_t)intdata);
 						strncat(ColValues,stringtmp,strlen(stringtmp)+1);
@@ -333,14 +350,14 @@ char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID, Da
 					}
 					else
 					{
-						intdata = getdefaultIPFIXdata(identify[j].ipfixid);
+						intdata = getdefaultIPFIXdata(identify[j].ipfixId);
 						sprintf(stringtmp,"%Lu",(uint64_t)intdata);
 						strncat(ColValues,stringtmp,strlen(stringtmp)+1);
 						strncat(ColValues,"'",sizeof(char)+1);
 					}
-					if( i != table->count_col-1)
+					if( i != table->countCol-1)
 						strncat(ColValues,",",sizeof(char)+1);
-					if( i == table->count_col-1)
+					if( i == table->countCol-1)
 						strncat(ColValues,")",sizeof(char)+1);					
 				}
 			}
@@ -348,7 +365,7 @@ char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID, Da
 	}
 		
 	/**make hole query string for the insert statement*/
-	char tablename[table_len] ;
+	char tablename[TABLE_LEN] ;
 	char* tablen = getTableName(ipfixDbWriter, table, flowstartsec);
 	strcpy(tablename, tablen);
 	/** Insert statement = INSERT INTO + tablename +  Columnsname + Values of record*/
@@ -370,17 +387,17 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 {
 	int i ;
 	
-	char LockTables[start_len * maxTable] ; 
+	char LockTables[STARTLEN * MAX_TABLE] ; 
 	strcpy(LockTables,"LOCK TABLES ");
 	/**Look all tables in the buffer to store the insert statements*/
-	for(i=0; i < maxTable; i++)
+	for(i=0; i < MAX_TABLE; i++)
 	{
-		if(strcmp(table->TableBuffer[i].TableName,"NULL") != 0)
+		if(strcmp(table->tableBuffer[i].TableName,"NULL") != 0)
 		{
-			strncat(LockTables, table->TableBuffer[i].TableName,strlen(table->TableBuffer[i].TableName)+1);
+			strncat(LockTables, table->tableBuffer[i].TableName,strlen(table->tableBuffer[i].TableName)+1);
 			strncat(LockTables," WRITE",(6*sizeof(char))+1);
 		}
-		if(strcmp(table->TableBuffer[i+1].TableName,"NULL") != 0 && (i+1) < maxTable)
+		if(strcmp(table->tableBuffer[i+1].TableName,"NULL") != 0 && (i+1) < MAX_TABLE)
 			strncat(LockTables,",",sizeof(char)+1);
 	}
 	if(mysql_query(ipfixDbWriter->conn, LockTables) != 0)
@@ -388,7 +405,7 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 		msg(MSG_FATAL,"Lock of table failed");
 	}
 	/**Write the insert statement to database*/
-	for(i=0; i < maxstatement; i++)
+	for(i=0; i < MAX_STATEMENT; i++)
 	{
 		if(mysql_query(ipfixDbWriter->conn, statement->statemBuffer[i]) != 0)
 		{
@@ -402,7 +419,7 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 		statement->statemBuffer[i] = "NULL";
 	}
 	
-	char UnLockTable[start_len] = "UNLOCK TABLES";
+	char UnLockTable[STARTLEN] = "UNLOCK TABLES";
 	if(mysql_query(ipfixDbWriter->conn, UnLockTable) != 0)
 	{
 		msg(MSG_FATAL,"Unlock of tables failed");
@@ -418,55 +435,55 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 char* getTableName(IpfixDbWriter* ipfixDbWriter,Table*  table , uint64_t flowstartsec)
 {
 	int i;
-	msg(MSG_DEBUG,"Content of TableBuffer :");
-	for(i = 0; i < maxTable; i++)
+	msg(MSG_DEBUG,"Content of tableBuffer :");
+	for(i = 0; i < MAX_TABLE; i++)
 	{
-		msg(MSG_DEBUG,"TableStartTime : %Lu TableEndTime : %Lu TableName : %s", table->TableBuffer[i].startTableTime, table->TableBuffer[i].endTableTime, table->TableBuffer[i].TableName);	
+		msg(MSG_DEBUG,"TableStartTime : %Lu TableEndTime : %Lu TableName : %s", table->tableBuffer[i].startTableTime, table->tableBuffer[i].endTableTime, table->tableBuffer[i].TableName);	
 	}
 	/** Is  flowstartsec in intervall of tablecreationtime in buffer ?*/
-	for(i = 0; i < maxTable; i++)
+	for(i = 0; i < MAX_TABLE; i++)
 	{
 		/**Is flowstartsec between  the range of tablecreattime and tablecreattime+30 min*/
-		if(table->TableBuffer[i].startTableTime <= flowstartsec && flowstartsec < table->TableBuffer[i].endTableTime)
+		if(table->tableBuffer[i].startTableTime <= flowstartsec && flowstartsec < table->tableBuffer[i].endTableTime)
 		{
-			msg(MSG_DEBUG,"Table: %s is in TableBuffer",  table->TableBuffer[i].TableName);
-			return table->TableBuffer[i].TableName;
+			msg(MSG_DEBUG,"Table: %s is in tableBuffer",  table->tableBuffer[i].TableName);
+			return table->tableBuffer[i].TableName;
 		}
 	}
-	/**Tablename is not in TableBuffer*/	
-	char tabNam[table_len];
+	/**Tablename is not in tableBuffer*/	
+	char tabNam[TABLE_LEN];
 	getTableNamDependTime(tabNam, flowstartsec);
 	
 	uint64_t startTime = getTableStartTime(flowstartsec);
 	uint64_t endTime = getTableEndTime(startTime);
 
-	table->TableBuffer[table->countbufftable].startTableTime = startTime;
-	table->TableBuffer[table->countbufftable].endTableTime = endTime;
-	strcpy(table->TableBuffer[table->countbufftable].TableName, tabNam);
+	table->tableBuffer[table->countBuffTable].startTableTime = startTime;
+	table->tableBuffer[table->countBuffTable].endTableTime = endTime;
+	strcpy(table->tableBuffer[table->countBuffTable].TableName, tabNam);
 
 	/** createTable when not in buffer*/
-	if(createDBTable(ipfixDbWriter, table, table->TableBuffer[table->countbufftable].TableName) != 0)
+	if(createDBTable(ipfixDbWriter, table, table->tableBuffer[table->countBuffTable].TableName) != 0)
 	{	
 		msg(MSG_DEBUG,"Struct bufentry clean up after failure");
-		table->TableBuffer[table->countbufftable].startTableTime = 0;
-		table->TableBuffer[table->countbufftable].endTableTime = 0;
-		strcpy(table->TableBuffer[table->countbufftable].TableName,"NULL");
+		table->tableBuffer[table->countBuffTable].startTableTime = 0;
+		table->tableBuffer[table->countBuffTable].endTableTime = 0;
+		strcpy(table->tableBuffer[table->countBuffTable].TableName,"NULL");
 		return 0; 
 	}
 	/** If end of tablebuffer reached ?  Begin from  the start*/  
-	if(table->countbufftable < maxTable-1)
+	if(table->countBuffTable < MAX_TABLE-1)
 	{
-		table->countbufftable++;
+		table->countBuffTable++;
 	}
 	else
 	{
-		table->countbufftable = 0;
+		table->countBuffTable = 0;
 	}
-	/** countbufftable is null, when the last entry of tablebuffer is reached*/
-	if(table->countbufftable == 0)
-		return table->TableBuffer[maxTable-1].TableName;
+	/** countBuffTable is null, when the last entry of tablebuffer is reached*/
+	if(table->countBuffTable == 0)
+		return table->tableBuffer[MAX_TABLE-1].TableName;
 	else 
-		return table->TableBuffer[table->countbufftable-1].TableName;
+		return table->tableBuffer[table->countBuffTable-1].TableName;
 }
 
 /** 
@@ -476,24 +493,24 @@ char* getTableName(IpfixDbWriter* ipfixDbWriter,Table*  table , uint64_t flowsta
  */
 char* getTableNamDependTime(char* tablename, uint64_t flowstartsec)
 {
-	char strtmp[table_len];
+	char strtmp[TABLE_LEN];
 	/** according to flowstartsec make the tablename*/
 	time_t  t = flowstartsec;
 	/**time in Coordinated Universal Time - UTC, it was formerly Greenwich Mean Time - GMT*/
 	/** for use local time, change expression gmtime() to localtime()*/
-	time_now = gmtime(&t);
+	timeNow = gmtime(&t);
 	strcpy(tablename,"h_");
-	sprintf(strtmp,"%u",time_now->tm_year+1900);
+	sprintf(strtmp,"%u",timeNow->tm_year+1900);
 	strncat(tablename,strtmp,strlen(strtmp)+1);
-	sprintf(strtmp,"%02u",time_now->tm_mon+1);
+	sprintf(strtmp,"%02u",timeNow->tm_mon+1);
 	strncat(tablename,strtmp,strlen(strtmp)+1);
-	sprintf(strtmp,"%02u",time_now->tm_mday);
-	strncat(tablename,strtmp,strlen(strtmp)+1);
-	strncat(tablename,"_",sizeof(char)+1);
-	sprintf(strtmp,"%02u",time_now->tm_hour);
+	sprintf(strtmp,"%02u",timeNow->tm_mday);
 	strncat(tablename,strtmp,strlen(strtmp)+1);
 	strncat(tablename,"_",sizeof(char)+1);
-	sprintf(strtmp,"%u",time_now->tm_min<30?0:1);
+	sprintf(strtmp,"%02u",timeNow->tm_hour);
+	strncat(tablename,strtmp,strlen(strtmp)+1);
+	strncat(tablename,"_",sizeof(char)+1);
+	sprintf(strtmp,"%u",timeNow->tm_min<30?0:1);
 	strncat(tablename,strtmp,strlen(strtmp)+1);
 	
 	return tablename;
@@ -507,20 +524,20 @@ uint64_t getTableStartTime(uint64_t flowstartsec)
 {
 	uint64_t startTime;
 	time_t  t = flowstartsec;
-	time_now = localtime(&t);
+	timeNow = localtime(&t);
 	
-	if(time_now->tm_min< 30)
+	if(timeNow->tm_min< 30)
 	{
-		time_now->tm_min = 0;
-		time_now->tm_sec = 0;
-		startTime = mktime(time_now);
+		timeNow->tm_min = 0;
+		timeNow->tm_sec = 0;
+		startTime = mktime(timeNow);
 		return startTime;
 	}
 	else
 	{
-		time_now->tm_min = 30;
-		time_now->tm_sec = 0;
-		startTime = mktime(time_now);
+		timeNow->tm_min = 30;
+		timeNow->tm_sec = 0;
+		startTime = mktime(timeNow);
 		return startTime;
 	}
 	return 0;
@@ -538,29 +555,29 @@ uint64_t getTableEndTime(uint64_t startTime)
 
 /**
 *	Returns the exporterID 
-*  	For every different sourcID and expIP a unique ExporterID will be generated from the database
-* 	First lookup for the ExporterID in the ExporterBuffer according sourceID and expIP, is there nothing
-*  	lookup in the ExporterTable, is there also nothing insert sourceID and expIP an return the generated
+*  	For every different sourcID and expIp a unique ExporterID will be generated from the database
+* 	First lookup for the ExporterID in the exporterBuffer according sourceID and expIp, is there nothing
+*  	lookup in the ExporterTable, is there also nothing insert sourceID and expIp an return the generated
 *      ExporterID
 */
-int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, uint64_t expIP)
+int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, uint64_t expIp)
 {
 	int i;
-	msg(MSG_DEBUG,"Content of ExporterBuffer");
-	for(i = 0; i < maxExpTable; i++)
+	msg(MSG_DEBUG,"Content of exporterBuffer");
+	for(i = 0; i < MAX_EXP_TABLE; i++)
 	{
-		msg(MSG_DEBUG,"exporterID:%d	   sourceID:%Lu	   expIP:%Lu",table->ExporterBuffer[i].Id, table->ExporterBuffer[i].srcID,table->ExporterBuffer[i].expIP);
+		msg(MSG_DEBUG,"exporterID:%d	   sourceID:%Lu	   expIp:%Lu",table->exporterBuffer[i].Id, table->exporterBuffer[i].srcId,table->exporterBuffer[i].expIp);
 	}
-	/** Is the exporterID in ExporterBuffer*/
-	for(i = 0; i < maxExpTable; i++)
+	/** Is the exporterID in exporterBuffer*/
+	for(i = 0; i < MAX_EXP_TABLE; i++)
 	{
-		if(table->ExporterBuffer[i].srcID==sourceID && table->ExporterBuffer[i].expIP== expIP  && table->ExporterBuffer[i].Id > 0)
+		if(table->exporterBuffer[i].srcId==sourceID && table->exporterBuffer[i].expIp== expIp  && table->exporterBuffer[i].Id > 0)
 		{
-			msg(MSG_DEBUG,"Exporter sourceID/IP with ID %d is in the ExporterBuffer",table->ExporterBuffer[i].Id);
-			return table->ExporterBuffer[i].Id;
+			msg(MSG_DEBUG,"Exporter sourceID/IP with ID %d is in the exporterBuffer",table->exporterBuffer[i].Id);
+			return table->exporterBuffer[i].Id;
 		}
 	}
-	/**exporterID is not in ExporterBuffer*/
+	/**exporterID is not in exporterBuffer*/
 	MYSQL_RES* dbResult;
 	MYSQL_ROW dbRow;
 	int exporterID = 0;
@@ -570,7 +587,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 	sprintf(stringtmp,"%u",sourceID);
 	strncat(selectStr, stringtmp,strlen(stringtmp)+1);
 	strncat(selectStr," AND srcIP=",(11*sizeof(char))+1);
-	sprintf(stringtmp,"%Lu",expIP);
+	sprintf(stringtmp,"%Lu",expIp);
 	strncat(selectStr, stringtmp,strlen(stringtmp)+1);
 		
 	if(mysql_query(ipfixDbWriter->conn, selectStr) != 0)
@@ -587,12 +604,12 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 			exporterID = atoi(dbRow[0]);
 			mysql_free_result(dbResult);
 			msg(MSG_DEBUG,"ExporterID %d is in exporter table",exporterID);
-			/**Write new exporter in the ExporterBuffer*/
-			table->ExporterBuffer[table->countExpTable].Id = exporterID;
-			table->ExporterBuffer[table->countExpTable].srcID = sourceID;
-			table->ExporterBuffer[table->countExpTable].expIP = expIP;
+			/**Write new exporter in the exporterBuffer*/
+			table->exporterBuffer[table->countExpTable].Id = exporterID;
+			table->exporterBuffer[table->countExpTable].srcId = sourceID;
+			table->exporterBuffer[table->countExpTable].expIp = expIp;
 			
-			if(table->countExpTable < maxExpTable-1)
+			if(table->countExpTable < MAX_EXP_TABLE-1)
 			{
 				table->countExpTable++;
 			}
@@ -604,14 +621,14 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 		}
 		else
 		{
-			/**ExporterID is not in exporter table - insert expID and expIP and return the exporterID*/
-			char LockExporter[start_len] = "LOCK TABLES exporter WRITE";
-			char UnLockExporter[start_len] = "UNLOCK TABLES";
+			/**ExporterID is not in exporter table - insert expID and expIp and return the exporterID*/
+			char LockExporter[STARTLEN] = "LOCK TABLES exporter WRITE";
+			char UnLockExporter[STARTLEN] = "UNLOCK TABLES";
 			char insertStr[70] = "INSERT INTO exporter (ID,sourceID,srcIP) VALUES('NULL','";
 			sprintf(stringtmp,"%u",sourceID);
 			strncat(insertStr,stringtmp,strlen(stringtmp)+1);
 			strncat(insertStr,"','",(3*sizeof(char))+1);
-			sprintf(stringtmp,"%Lu",expIP);
+			sprintf(stringtmp,"%Lu",expIp);
 			strncat(insertStr, stringtmp,strlen(stringtmp)+1);
 			strncat(insertStr,"')",(2*sizeof(char))+1);	
 			
@@ -634,12 +651,12 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 			{
 				exporterID = mysql_insert_id(ipfixDbWriter->conn); 
 				msg(MSG_DEBUG,"ExporterID %d inserted in exporter table", exporterID);
-				/**Write new exporter in the ExporterBuffer*/
-				table->ExporterBuffer[table->countExpTable].Id = exporterID;
-				table->ExporterBuffer[table->countExpTable].srcID = sourceID;
-				table->ExporterBuffer[table->countExpTable].expIP = expIP;
+				/**Write new exporter in the exporterBuffer*/
+				table->exporterBuffer[table->countExpTable].Id = exporterID;
+				table->exporterBuffer[table->countExpTable].srcId = sourceID;
+				table->exporterBuffer[table->countExpTable].expIp = expIp;
 			
-				if(table->countExpTable < maxExpTable-1)
+				if(table->countExpTable < MAX_EXP_TABLE-1)
 				{
 					table->countExpTable++;
 				}
@@ -724,9 +741,9 @@ uint32_t getdefaultIPFIXdata(int ipfixtype_id)
 	int i;
 	for( i=0; strcmp(identify[i].cname, "END") != 0; i++)
 	{
-		if(ipfixtype_id == identify[i].ipfixid)
+		if(ipfixtype_id == identify[i].ipfixId)
 		{
-			return identify[i].default_value;
+			return identify[i].defaultValue;
 		}
 	}
 	return 0;
@@ -756,7 +773,9 @@ int deinitializeIpfixDbWriters() {
  * Creates a new ipfixDbWriter. Do not forget to call @c startipfixDbWriter() to begin writing to Database
  * @return handle to use when calling @c destroyipfixDbWriter()
  */
-IpfixDbWriter* createIpfixDbWriter() 
+IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
+                                   const char* userName, const char* password,
+                                   unsigned int port, SourceID sourceId)
 {	
 	IpfixDbWriter* ipfixDbWriter = (IpfixDbWriter*)malloc(sizeof(IpfixDbWriter));
 	Table* tabl = (Table*)malloc(sizeof(Table));
@@ -773,53 +792,53 @@ IpfixDbWriter* createIpfixDbWriter()
 		msg(MSG_DEBUG,"Get MySQL init handler");
 	}
 	/**Initialize structure members IpfixDbWriter*/
-	ipfixDbWriter->host_name = "localhost" ;
-	ipfixDbWriter->db_name = "flows";
-	ipfixDbWriter->user_name = 0 ;    		
-	ipfixDbWriter->password = 0 ;    			
-	ipfixDbWriter->port_num = 0; 			
-	ipfixDbWriter->socket_name = 0 ;	  		
+	ipfixDbWriter->hostName = hostName;
+	ipfixDbWriter->dbName = dbName;
+	ipfixDbWriter->userName = userName;    		
+	ipfixDbWriter->password = password;		
+	ipfixDbWriter->portNum = port;
+	ipfixDbWriter->socketName = 0;
 	ipfixDbWriter->flags = 0;
-	ipfixDbWriter->srcid = 7777;
+	ipfixDbWriter->srcId = sourceId;
 	/**Initialize structure members Table*/	  
 	ipfixDbWriter->table = tabl ;
-	tabl->countbufftable = 0;
+	tabl->countBuffTable = 0;
 	tabl->countExpTable = 0;
 	
-	/**Init TableBuffer start- , endTime and name of the tables*/
+	/**Init tableBuffer start- , endTime and name of the tables*/
 	int i ;
-	for(i = 0; i < maxTable; i++)
+	for(i = 0; i < MAX_TABLE; i++)
 	{
-		tabl->TableBuffer[i].startTableTime = 0;
-		tabl->TableBuffer[i].endTableTime  = 0;
-		strcpy(tabl->TableBuffer[i].TableName, "NULL");
+		tabl->tableBuffer[i].startTableTime = 0;
+		tabl->tableBuffer[i].endTableTime  = 0;
+		strcpy(tabl->tableBuffer[i].TableName, "NULL");
 	}
 	/**count columns*/
-	tabl->count_col = 0;
-	for(i=0; columns_names[i] !=0; i++)
-		tabl->count_col++;
+	tabl->countCol = 0;
+	for(i=0; columnsNames[i] !=0; i++)
+		tabl->countCol++;
 	
 	/**Initialize structure members Statement*/	   	 	
 	tabl->statement= statemen;
 	statemen->statemReceived = 0;
-	for( i = 0; i < maxstatement; i++)
+	for( i = 0; i < MAX_STATEMENT; i++)
 	{
 		statemen->statemBuffer[i] = "NULL";
 	}
 	
 	/**Init struct expTable*/
-	for(i = 0; i < maxExpTable; i++)
+	for(i = 0; i < MAX_EXP_TABLE; i++)
 	{
-		tabl->ExporterBuffer[i].Id = 0;
-		tabl->ExporterBuffer[i].srcID = 0;
-		tabl->ExporterBuffer[i].expIP = 0;
+		tabl->exporterBuffer[i].Id = 0;
+		tabl->exporterBuffer[i].srcId = 0;
+		tabl->exporterBuffer[i].expIp = 0;
 	}				
 	
 	/**Connect to Database*/
 	if (!mysql_real_connect(ipfixDbWriter->conn,
-				ipfixDbWriter->host_name, ipfixDbWriter->user_name,
-				ipfixDbWriter->password, 0, ipfixDbWriter->port_num,
-				ipfixDbWriter->socket_name, ipfixDbWriter->flags))
+				ipfixDbWriter->hostName, ipfixDbWriter->userName,
+				ipfixDbWriter->password, 0, ipfixDbWriter->portNum,
+				ipfixDbWriter->socketName, ipfixDbWriter->flags))
 	{
 		msg(MSG_FATAL,"Connection to database failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));

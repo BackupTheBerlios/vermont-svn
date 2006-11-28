@@ -13,6 +13,9 @@
 #include <concentrator/IpfixDbWriter.h>
 
 
+#include <string>
+
+
 
 class DbWriterConfiguration : public Configuration {
 public:
@@ -30,6 +33,12 @@ protected:
 
 private:
 	IpfixDbWriter* dbWriter;
+	std::string hostName;
+	std::string dbName;
+	std::string userName;
+	std::string password;
+	unsigned int portNumber;
+	uint16_t sourceId;
 };
 
 #endif

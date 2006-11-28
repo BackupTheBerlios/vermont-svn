@@ -11,7 +11,7 @@
 
 
 DbReaderConfiguration::DbReaderConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), ipfixDbReader(0)
+	: Configuration(document, startPoint), ipfixDbReader(0), portNumber(0), sourceId(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -35,7 +35,19 @@ void DbReaderConfiguration::configure()
 	msg(MSG_INFO, "DbReaderConfiguration: Start reading dbreader section");
 	xmlNodePtr i = start->xmlChildrenNode;
 	while (NULL != i) {
-		if (tagMatches(i, "next")) {
+		if (tagMatches(i, "hostName")) {
+			hostName = getContent(i);
+		} else if (tagMatches(i, "userName")) {
+			userName = getContent(i);
+		} else if (tagMatches(i, "dbName")) {
+			dbName = getContent(i);
+		} else if (tagMatches(i, "password")) {
+			password = getContent(i);
+		} else if (tagMatches(i, "port")) {
+			portNumber = atoi(getContent(i).c_str());
+		} else if (tagMatches(i, "sourceId")) {
+			sourceId = atoi(getContent(i).c_str());
+		} else if (tagMatches(i, "next")) {
 			fillNextVector(i);
 		}
 		i = i->next;
@@ -47,7 +59,9 @@ void DbReaderConfiguration::configure()
 void DbReaderConfiguration::setUp()
 {
 	initializeIpfixDbReaders();
-	ipfixDbReader = createIpfixDbReader();
+	ipfixDbReader = createIpfixDbReader(hostName.c_str(), dbName.c_str(),
+					    userName.c_str(), password.c_str(),
+					    portNumber, sourceId);
 	if (!ipfixDbReader) {
 		throw std::runtime_error("DbReaderConfiguration: Could not create IpfixDbReader!");
 	}

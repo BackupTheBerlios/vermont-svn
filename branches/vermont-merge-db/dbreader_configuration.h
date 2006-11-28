@@ -28,6 +28,12 @@ protected:
 
 private:
 	IpfixDbReader* ipfixDbReader;
+	std::string hostName;
+	std::string dbName;
+	std::string userName;
+	std::string password;
+	unsigned int portNumber;
+	uint16_t sourceId;
 };
 
 #endif
