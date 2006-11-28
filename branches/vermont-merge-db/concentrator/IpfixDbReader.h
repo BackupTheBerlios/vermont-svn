@@ -4,31 +4,34 @@
 #include "rcvIpfix.h"
 #include "ipfix.h"
 #include "ipfixlolib/ipfixlolib.h"
-#include<mysql/mysql.h>
+
 #include <netinet/in.h>
 #include <time.h>
+#include <pthread.h>
+
+#include <mysql/mysql.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define maxTables		1			//count of tables that will be send
-#define maxCol			10			//max count of columns in the table
-#define table_length 		16			//tablename length
-#define column_length	25			//columnname legth
+#define maxTables        1     // count of tables that will be send
+#define maxCol          10     // max count of columns in the table
+#define tableLength    16     // tablename length
+#define columnLength   25     // columnname legth
 
 typedef struct {
-	char* tablenames[maxTables];
-	int tablecount;
-	char* colnames[maxCol];
-	int colcount;
-} DBdata;
+	char* tableNames[maxTables];
+	int tableCount;
+	char* colNames[maxCol];
+	int colCount;
+} DbData;
 
 
 typedef struct {
 	CallbackInfo* callbackInfo;
 	int callbackCount;
-	DBdata* Dbdata;
+	DbData* dbData;
 } DbReader;
 
 /**
@@ -36,28 +39,24 @@ typedef struct {
  *	also between the other structs
  */
 typedef struct {
-	char* host_name ; 				 /** Hostname*/
-	char* db_name;					/**Name of the database*/
-	char* user_name ;    				/**Username (default: Standarduser) */
-	char* password ;    				 /** Password (default: none) */
-	unsigned int port_num; 			/** Portnumber (use default) */
-	char* socket_name ;	 			 /** Socketname (use default) */
-	unsigned int flags;   				 /** Connectionflags (none) */
-	MYSQL* conn; 					/** pointer to connection handle */	
-	SourceID srcid;
-	DbReader* Dbreader;
+	char* hostName;         /** Hostname*/
+	char* dbName;           /**Name of the database*/
+	char* userName ;    	 /**Username (default: Standarduser) */
+	char* password ;    	 /** Password (default: none) */
+	unsigned int portNum; 	 /** Portnumber (use default) */
+	char* socketName ;      /** Socketname (use default) */
+	unsigned int flags;      /** Connectionflags (none) */
+	MYSQL* conn;             /** pointer to connection handle */	
+	SourceID srcId;
+	DbReader* dbReader;
+	pthread_mutex_t mutex;   /** start/stop mutex for db replaying process */
+	pthread_t thread;
 } IpfixDbReader;
-
-struct columnDB {
-	char* cname;						/**column name*/
-	uint16_t ipfixid;					/**IPFIX_TYPEID*/
-	uint8_t length;					/**IPFIX length*/
-};
 
 	
 
 int initializeIpfixDbReaders();
-int deintializeIpfixDbReaders();
+int deinitializeIpfixDbReaders();
 int destroyIpfixDbReader(IpfixDbReader* ipfixDbReader);
 
 int startIpfixDbReader(IpfixDbReader* ipfixDbReader);
@@ -65,15 +64,9 @@ int stopIpfixDbReader(IpfixDbReader* ipfixDbReader);
 
 IpfixDbReader* createIpfixDbReader();
 
-int getTables(IpfixDbReader* ipfixDbReader);
-int getColumns(IpfixDbReader* ipfixDbReader);
-
-int ReadFromDB(IpfixDbReader* ipfixDbReader);
-
-int DbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataTemplateInfo);
-int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo, int n);
-
 void addIpfixDbReaderCallbacks(IpfixDbReader* ipfixDbReader, CallbackInfo handles);
+
+
 #ifdef __cplusplus
 }
 #endif

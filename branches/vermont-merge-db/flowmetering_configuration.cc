@@ -91,6 +91,8 @@ Rule* FlowMeteringConfiguration::readRule(xmlNodePtr p) {
 				RuleField* ruleField = mallocRuleField();
 				if (ie.getModifier().empty()) {
 					ruleField->modifier = FIELD_MODIFIER_KEEP;
+				} else if (ie.getModifier() == "discard") {
+					ruleField->modifier = FIELD_MODIFIER_DISCARD;
 				} else {
 					ruleField->modifier = FIELD_MODIFIER_MASK_START;
 					ruleField->modifier += atoi(ie.getModifier().c_str() + 5);

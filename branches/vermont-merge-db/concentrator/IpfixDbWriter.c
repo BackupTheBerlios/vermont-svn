@@ -1,5 +1,5 @@
 #include <string.h>
-#include<stdlib.h>
+#include <stdlib.h>
 #include "IpfixDbWriter.h"
 #include "msg.h"
 
@@ -39,148 +39,29 @@ struct column identify [] = {
 	
 /***** Internal Functions ****************************************************/
 
-/***** Exported Functions ****************************************************/
+int createDB(IpfixDbWriter* ipfixDbWriter);
+int  createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* TableName);
+int createExporterTable(IpfixDbWriter* ipfixDbWriter);
 
-/**
- * Initializes internal structures.
- * To be called on application startup
- * @return 0 on success
- */
-int initializeIpfixDbWriters() {
-	return 0;
-}
-																				 					     
-/**
- * Deinitializes internal structures.
- * To be called on application shutdown
- * @return 0 on success
- */
-int deinitializeIpfixDbWriters() {
-	return 0;
-}																				 					     
-												 					     
-/**
- * Creates a new ipfixDbWriter. Do not forget to call @c startipfixDbWriter() to begin writing to Database
- * @return handle to use when calling @c destroyipfixDbWriter()
- */
-IpfixDbWriter* createIpfixDbWriter() 
-{	
-	IpfixDbWriter* ipfixDbWriter = (IpfixDbWriter*)malloc(sizeof(IpfixDbWriter));
-	Table* tabl = (Table*)malloc(sizeof(Table));
-	Statement* statemen = (Statement*)malloc(sizeof(Statement));
-	
-	ipfixDbWriter->conn = mysql_init(0);  /** get the mysl init handle*/
-	if(ipfixDbWriter->conn == 0)
-	{
-		msg(MSG_FATAL,"Get MySQL connect handle failed");
-		goto out;
-	}
-	else
-	{
-		msg(MSG_DEBUG,"Get MySQL init handler");
-	}
-	/**Initialize structure members IpfixDbWriter*/
-	ipfixDbWriter->host_name = "localhost" ;
-	ipfixDbWriter->db_name = "flows";
-	ipfixDbWriter->user_name = 0 ;    		
-	ipfixDbWriter->password = 0 ;    			
-	ipfixDbWriter->port_num = 0; 			
-	ipfixDbWriter->socket_name = 0 ;	  		
-	ipfixDbWriter->flags = 0;
-	ipfixDbWriter->srcid = 7777;
-	/**Initialize structure members Table*/	  
-	ipfixDbWriter->table = tabl ;
-	tabl->countbufftable = 0;
-	tabl->countExpTable = 0;
-	
-	/**Init TableBuffer start- , endTime and name of the tables*/
-	int i ;
-	for(i = 0; i < maxTable; i++)
-	{
-		tabl->TableBuffer[i].startTableTime = 0;
-		tabl->TableBuffer[i].endTableTime  = 0;
-		strcpy(tabl->TableBuffer[i].TableName, "NULL");
-	}
-	/**count columns*/
-	tabl->count_col = 0;
-	for(i=0; columns_names[i] !=0; i++)
-		tabl->count_col++;
-	
-	/**Initialize structure members Statement*/	   	 	
-	tabl->statement= statemen;
-	statemen->statemReceived = 0;
-	for( i = 0; i < maxstatement; i++)
-	{
-		statemen->statemBuffer[i] = "NULL";
-	}
-	
-	/**Init struct expTable*/
-	for(i = 0; i < maxExpTable; i++)
-	{
-		tabl->ExporterBuffer[i].Id = 0;
-		tabl->ExporterBuffer[i].srcID = 0;
-		tabl->ExporterBuffer[i].expIP = 0;
-	}				
-	
-	/**Connect to Database*/
-	if (!mysql_real_connect(ipfixDbWriter->conn,
-				ipfixDbWriter->host_name, ipfixDbWriter->user_name,
-				ipfixDbWriter->password, 0, ipfixDbWriter->port_num,
-				ipfixDbWriter->socket_name, ipfixDbWriter->flags))
-	{
-		msg(MSG_FATAL,"Connection to database failed. Error: %s",
-		    mysql_error(ipfixDbWriter->conn));
-		goto out;
-	}
-	else
-	{
-		msg(MSG_DEBUG,"Succesfully connected to database");
-	}
-	/** create Database*/
-	if(createDB(ipfixDbWriter) !=0)
-		goto out;
-	/**create table exporter*/
-	if(createExporterTable(ipfixDbWriter) !=0)
-		goto out;
-	
-	return ipfixDbWriter;
-	
-out: 
-	destroyIpfixDbWriter(ipfixDbWriter);
-		
-	return NULL;	
-}
+int writeDataRecord(void* ipfixDbWriter,SourceID sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
+int writeDataDataRecord(void* ipfixDbWriter,SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID,DataTemplateInfo* dataTemplateInfo,uint16_t length,FieldData* data);
 
-/**
- * Frees memory used by an ipfixDbWriter
- * @param ipfixDbWriter handle obtained by calling @c createipfixDbWriter()
- */
-int destroyIpfixDbWriter(IpfixDbWriter* ipfixDbWriter) {
-	mysql_close(ipfixDbWriter->conn);
-	free(ipfixDbWriter->table->statement);
-	free(ipfixDbWriter->table);
-	free(ipfixDbWriter);
+int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID,uint64_t expIP);
 
-	return 0;
-}
+char* getTableName(IpfixDbWriter* ipfixDbWriter,Table* table, uint64_t flowstartsec);
+char* getTableNamDependTime(char* tablename,uint64_t flowstartsec);
+uint64_t getTableStartTime(uint64_t flowstartsec);
+uint64_t getTableEndTime(uint64_t StartTime);
 
-/**
- * Starts or resumes database
- * @param ipfixDbWriter handle obtained by calling @c createipfixDbWriter()
- */
-int  startIpfixDbWriter(IpfixDbWriter* ipfixDbWriter) {
-	/* unimplemented, we can't be paused - TODO: or should we? */
-	return 0;
-}
+int writeToDb(IpfixDbWriter* ipfixDbWriter, Table* table, Statement* statement);
 
-/**
- * Temporarily pauses database
- * @param ipfixDbWriter handle obtained by calling @c createipfixDbWriter()
- */
-int stopIpfixDbWriter(IpfixDbWriter* ipfixDbWriter) {
-	/* unimplemented, we can't be paused - TODO: or should we? */
-	return 0;
-}
+uint64_t getdata(FieldType type, FieldData* data);
+uint64_t getIPFIXValue(FieldType type, FieldData* data);
+uint32_t getdefaultIPFIXdata(int ipfixtype);
+
+uint32_t getipv4address(FieldType type, FieldData* data);
+
 
 /**
 * create the database given by the name dbnam->dbn
@@ -851,8 +732,148 @@ uint32_t getdefaultIPFIXdata(int ipfixtype_id)
 	return 0;
 }
 
+/***** Exported Functions ****************************************************/
 
+/**
+ * Initializes internal structures.
+ * To be called on application startup
+ * @return 0 on success
+ */
+int initializeIpfixDbWriters() {
+	return 0;
+}
+																				 					     
+/**
+ * Deinitializes internal structures.
+ * To be called on application shutdown
+ * @return 0 on success
+ */
+int deinitializeIpfixDbWriters() {
+	return 0;
+}																				 					     
+												 					     
+/**
+ * Creates a new ipfixDbWriter. Do not forget to call @c startipfixDbWriter() to begin writing to Database
+ * @return handle to use when calling @c destroyipfixDbWriter()
+ */
+IpfixDbWriter* createIpfixDbWriter() 
+{	
+	IpfixDbWriter* ipfixDbWriter = (IpfixDbWriter*)malloc(sizeof(IpfixDbWriter));
+	Table* tabl = (Table*)malloc(sizeof(Table));
+	Statement* statemen = (Statement*)malloc(sizeof(Statement));
+	
+	ipfixDbWriter->conn = mysql_init(0);  /** get the mysl init handle*/
+	if(ipfixDbWriter->conn == 0)
+	{
+		msg(MSG_FATAL,"Get MySQL connect handle failed");
+		goto out;
+	}
+	else
+	{
+		msg(MSG_DEBUG,"Get MySQL init handler");
+	}
+	/**Initialize structure members IpfixDbWriter*/
+	ipfixDbWriter->host_name = "localhost" ;
+	ipfixDbWriter->db_name = "flows";
+	ipfixDbWriter->user_name = 0 ;    		
+	ipfixDbWriter->password = 0 ;    			
+	ipfixDbWriter->port_num = 0; 			
+	ipfixDbWriter->socket_name = 0 ;	  		
+	ipfixDbWriter->flags = 0;
+	ipfixDbWriter->srcid = 7777;
+	/**Initialize structure members Table*/	  
+	ipfixDbWriter->table = tabl ;
+	tabl->countbufftable = 0;
+	tabl->countExpTable = 0;
+	
+	/**Init TableBuffer start- , endTime and name of the tables*/
+	int i ;
+	for(i = 0; i < maxTable; i++)
+	{
+		tabl->TableBuffer[i].startTableTime = 0;
+		tabl->TableBuffer[i].endTableTime  = 0;
+		strcpy(tabl->TableBuffer[i].TableName, "NULL");
+	}
+	/**count columns*/
+	tabl->count_col = 0;
+	for(i=0; columns_names[i] !=0; i++)
+		tabl->count_col++;
+	
+	/**Initialize structure members Statement*/	   	 	
+	tabl->statement= statemen;
+	statemen->statemReceived = 0;
+	for( i = 0; i < maxstatement; i++)
+	{
+		statemen->statemBuffer[i] = "NULL";
+	}
+	
+	/**Init struct expTable*/
+	for(i = 0; i < maxExpTable; i++)
+	{
+		tabl->ExporterBuffer[i].Id = 0;
+		tabl->ExporterBuffer[i].srcID = 0;
+		tabl->ExporterBuffer[i].expIP = 0;
+	}				
+	
+	/**Connect to Database*/
+	if (!mysql_real_connect(ipfixDbWriter->conn,
+				ipfixDbWriter->host_name, ipfixDbWriter->user_name,
+				ipfixDbWriter->password, 0, ipfixDbWriter->port_num,
+				ipfixDbWriter->socket_name, ipfixDbWriter->flags))
+	{
+		msg(MSG_FATAL,"Connection to database failed. Error: %s",
+		    mysql_error(ipfixDbWriter->conn));
+		goto out;
+	}
+	else
+	{
+		msg(MSG_DEBUG,"Succesfully connected to database");
+	}
+	/** create Database*/
+	if(createDB(ipfixDbWriter) !=0)
+		goto out;
+	/**create table exporter*/
+	if(createExporterTable(ipfixDbWriter) !=0)
+		goto out;
+	
+	return ipfixDbWriter;
+	
+out: 
+	destroyIpfixDbWriter(ipfixDbWriter);
+		
+	return NULL;	
+}
 
+/**
+ * Frees memory used by an ipfixDbWriter
+ * @param ipfixDbWriter handle obtained by calling @c createipfixDbWriter()
+ */
+int destroyIpfixDbWriter(IpfixDbWriter* ipfixDbWriter) {
+	mysql_close(ipfixDbWriter->conn);
+	free(ipfixDbWriter->table->statement);
+	free(ipfixDbWriter->table);
+	free(ipfixDbWriter);
+
+	return 0;
+}
+
+/**
+ * Starts or resumes database
+ * @param ipfixDbWriter handle obtained by calling @c createipfixDbWriter()
+ */
+int  startIpfixDbWriter(IpfixDbWriter* ipfixDbWriter) {
+	/* unimplemented, we can't be paused - TODO: or should we? */
+	return 0;
+}
+
+/**
+ * Temporarily pauses database
+ * @param ipfixDbWriter handle obtained by calling @c createipfixDbWriter()
+ */
+int stopIpfixDbWriter(IpfixDbWriter* ipfixDbWriter) {
+	/* unimplemented, we can't be paused - TODO: or should we? */
+	return 0;
+}
 
 CallbackInfo getIpfixDbWriterCallbackInfo(IpfixDbWriter *ipfixDbWriter) {
 	CallbackInfo ci;

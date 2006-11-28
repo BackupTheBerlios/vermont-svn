@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>eth1</interface>
+		<interface>lo</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
@@ -16,24 +16,92 @@
 	<flowMetering>
 		<rule>
 			<templateId>1234</templateId>
-			<nonFlowKey>
-				<ieName>sourceIPv4Address</ieName>
-			</nonFlowKey>
-			<nonFlowKey>
-				<ieName>destinationIPv4Address</ieName>
-			</nonFlowKey>
-			<nonFlowKey>
+			<flowKey>
 				<ieName>protocolIdentifier</ieName>
-			</nonFlowKey>
-			<!--
+				<modifier>discard</modifier>
+				<match>TCP</match>
+			</flowKey>
+                        <flowKey>
+                                <ieName>sourceTransportPort</ieName>
+                        </flowKey>
+			<flowKey>
+				<ieName>sourceIPv4Address</ieName>
+			</flowKey>
+                        <flowKey>
+                                <ieName>destinationTransportPort</ieName>
+                        </flowKey>
+			<flowKey>
+				<ieName>destinationIPv4Address</ieName>
+			</flowKey>
+			<flowKey>
+				<ieName>tcpControlBits</ieName>
+			</flowKey>
+                        <nonFlowKey>
+                                <ieName>packetdeltacount</ieName>
+                        </nonFlowKey>
+                        <nonFlowKey>
+                                <ieName>octetDeltaCount</ieName>
+                        </nonFlowKey>
 			<nonFlowKey>
-				<ieName>sourceTransportPort</ieName>
+				<ieName>flowStartSeconds</ieName>
 			</nonFlowKey>
 			<nonFlowKey>
-				<ieName>destinationTransportPort</ieName>
+				<ieName>flowEndSeconds</ieName>
 			</nonFlowKey>
-			-->
 		</rule>
+		<rule>
+			<flowKey>
+				<ieName>protocolIdentifier</ieName>
+				<modifier>discard</modifier>
+				<match>UDP</match>
+			</flowKey>
+			<flowKey>
+				<ieName>sourceTransportPort</ieName>
+			</flowKey>
+			<flowKey>
+				<ieName>sourceIpV4Address</ieName>
+			</flowKey>
+			<flowKey>
+				<ieName>destinationTransportPort</ieName>
+			</flowKey>
+			<flowKey>
+				<ieName>destinationIpV4Address</ieName>
+			</flowKey>
+			<nonFlowKey>
+				<ieName>packetDeltaCount</ieName>
+			</nonFlowKey>
+			<nonFlowKey>
+				<ieName>octetDeltaCount</ieName>
+			</nonFlowKey>
+			<nonFlowKey>
+				<ieName>flowStartSeconds</ieName>
+			</nonFlowKey>
+			<nonFlowKey>
+				<ieName>flowEndSeconds</ieName>
+			</nonFlowKey>
+		</rule>
+		<rule>
+			<flowKey>
+				<ieName>protocolIdentifier</ieName>
+				<modifier>discard</modifier>
+				<match>ICMP</match>
+			</flowKey>
+                        <flowKey>
+                                <ieName>icmpTypeCodeIpV4</ieName>
+                        </flowKey>
+			<nonFlowKey>
+				<ieName>packetDeltaCount</ieName>
+			</nonFlowKey>
+			<nonFlowKey>
+				<ieName>octetDeltaCount</ieName>
+			</nonFlowKey>
+			<nonFlowKey>
+				<ieName>flowStartSeconds</ieName>
+			</nonFlowKey>
+			<nonFlowKey>
+				<ieName>flowEndSeconds</ieName>
+			</nonFlowKey>
+		</rule>	
 	</flowMetering>
 	<next>
 	    <dbWriter>1</dbWriter>

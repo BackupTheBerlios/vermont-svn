@@ -7,7 +7,6 @@
 
 #include <string.h>
 #include "sndIpfix.h"
-#include "ipfixlolib/ipfixlolib.h"
 #include "ipfix.h"
 
 #include "msg.h"
@@ -56,7 +55,7 @@ int deinitializeIpfixSenders() {
  */
 IpfixSender* createIpfixSender(SourceID sourceID, const char* ip, uint16_t port) {
 	IpfixSender* ipfixSender = (IpfixSender*)malloc(sizeof(IpfixSender));
-	ipfix_exporter** exporterP = (ipfix_exporter**)&ipfixSender->ipfixExporter;
+	ipfix_exporter** exporterP = &ipfixSender->ipfixExporter;
 	strcpy(ipfixSender->ip, ip);
 	ipfixSender->port = port;
 	ipfixSender->sentRecords = 0;

@@ -705,7 +705,7 @@ int templateDataMatchesRule(TemplateInfo* info, FieldData* data, Rule* rule) {
 			}
 
 			/* no corresponding data field found, this flow cannot match */
-			DPRINTF("No corresponding DataRecord field for RuleField of type %s", typeid2string(ruleField->type.id));
+			msg(MSG_DEBUG, "No corresponding DataRecord field for RuleField of type %s", typeid2string(ruleField->type.id));
 			return 0;
 		}
 		/* if a non-discarding rule field specifies no pattern, check at least if the data field exists */
@@ -762,7 +762,7 @@ int dataTemplateDataMatchesRule(DataTemplateInfo* info, FieldData* data, Rule* r
 			*/
 
 			/* no corresponding data field or fixed data field found, this flow cannot match */
-			DPRINTF("No corresponding DataDataRecord field for RuleField of type %s", typeid2string(ruleField->type.id));
+			msg(MSG_DEBUG, "No corresponding DataDataRecord field for RuleField of type %s", typeid2string(ruleField->type.id));
 			return 0;
 		}
 	}

@@ -2,6 +2,7 @@
 #define SNDIPFIX_H
 
 #include "rcvIpfix.h"
+#include "ipfixlolib/ipfixlolib.h"
 
 /***** Constants ************************************************************/
 
@@ -15,7 +16,7 @@ extern "C" {
  * Create with @c createIpfixSender()
  */
 typedef struct {
-	void* ipfixExporter; /**< underlying ipfix_exporter structure. Cast from void* to minimize header dependencies */
+	ipfix_exporter* ipfixExporter; /**< underlying ipfix_exporter structure. Cast from void* to minimize header dependencies */
 	uint16_t lastTemplateId; /**< Template ID of last created Template */
 	char ip[128]; /**< IP of Collector we export to */
 	uint16_t port; /**< Port of Collector we export to */
