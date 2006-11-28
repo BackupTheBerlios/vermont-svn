@@ -154,7 +154,8 @@ int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dat
 	strcat(select," ORDER BY firstSwitched");
 	/** get all data from database*/
 	if(mysql_query(ipfixDbReader->conn, select) != 0) {
-		msg(MSG_DEBUG,"Select on table faild");
+		msg(MSG_DEBUG,"Select on table failed. Error: %s",
+		    mysql_error(ipfixDbReader->conn));
 		return 1;
 	}
 
@@ -296,7 +297,8 @@ int getColumns(IpfixDbReader* ipfixDbReader)
 	char showcolStr[50] = "SHOW COLUMNS FROM ";
 	strncat(showcolStr, dbData->tableNames[0],strlen(dbData->tableNames[0])+1);
 	if(mysql_query(ipfixDbReader->conn, showcolStr) != 0) {	
-		msg(MSG_DEBUG,"Show columns on table %s failed");
+		msg(MSG_DEBUG,"Show columns on table %s failed. Error: %s",
+		    mysql_error(ipfixDbReader->conn));
 		return 1;
 	} else {
 		dbResult = mysql_store_result(ipfixDbReader->conn);
@@ -362,7 +364,8 @@ int connectToDb(IpfixDbReader* ipfixDbReader,
 				ipfixDbReader->userName,ipfixDbReader->password,
 				0, ipfixDbReader->portNum, ipfixDbReader->socketName,
 				ipfixDbReader->flags)) {
-		msg(MSG_FATAL,"Connection to database failed. Error: %s", mysql_error(ipfixDbReader->conn));
+		msg(MSG_FATAL,"Connection to database failed. Error: %s",
+		    mysql_error(ipfixDbReader->conn));
 		return 1;
 	}
 

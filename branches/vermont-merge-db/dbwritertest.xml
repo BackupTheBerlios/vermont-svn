@@ -109,7 +109,7 @@
     </meteringProcess>
 
 	<dbWriter id="1">
-			
+		<dbName>flows</dbName>		
 	</dbWriter>
     
     <vermont_main>
