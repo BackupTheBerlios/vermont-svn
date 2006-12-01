@@ -4,18 +4,7 @@
 #include "msg.h"
 
 
-/**** Internal types *********************************************************/
-
-struct columnDB {
-	char* cname;       /**column name*/
-	uint16_t ipfixId;  /**IPFIX_TYPEID*/
-	uint8_t length;    /**IPFIX length*/
-};
-
-
-/***** Global Variables ******************************************************/
-
-struct columnDB tabs[] = {		 
+columnDB tabs[] = {		 
 	{"dstIP", IPFIX_TYPEID_destinationIPv4Address,4},
 	{"srcIP", IPFIX_TYPEID_sourceIPv4Address, 4},	
 	{"srcPort", IPFIX_TYPEID_sourceTransportPort, 2},	
@@ -33,12 +22,14 @@ struct columnDB tabs[] = {
 /***** Internal Functions ****************************************************/
 
 int getTables(IpfixDbReader* ipfixDbReader);
+
+columnDB* getColumnByName(const char* name);
 int getColumns(IpfixDbReader* ipfixDbReader);
 
 void* readFromDB(void* ipfixDbReader);
 
-int DbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataTemplateInfo);
-int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo, int n);
+int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataTemplateInfo);
+int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo, int n);
 
 int connectToDb(IpfixDbReader* ipfixDbReader,
 		const char* hostName, const char* dbName, 
@@ -50,7 +41,6 @@ int connectToDb(IpfixDbReader* ipfixDbReader,
  * First send a a new template , then send the dataTemplates for the
  * count of tables
  */
-// TODO: make this run in a thread!!!!
 void* readFromDB(void* ipfixDbReader_)
 {
 	int i;
@@ -60,10 +50,10 @@ void* readFromDB(void* ipfixDbReader_)
 	DbData* dbData = ipfixDbReader->dbReader->dbData;
 
 	// TODO: make IpfixDbReader exit if exit was requested!
-	for(i = 0; i < dbData->tableCount && i < maxTables; i++) {
+	for(i = 0; i < dbData->tableCount && i < MAX_TABLES; i++) {
 		pthread_mutex_lock(&ipfixDbReader->mutex);
-		DbReaderSendNewTemplate(ipfixDbReader, dataTemplateInfo);
-		DbReaderSendDataTemplate(ipfixDbReader, dataTemplateInfo,i);
+		dbReaderSendNewTemplate(ipfixDbReader, dataTemplateInfo);
+		dbReaderSendTable(ipfixDbReader, dataTemplateInfo,i);
 		pthread_mutex_unlock(&ipfixDbReader->mutex);
 	}
 
@@ -75,7 +65,7 @@ void* readFromDB(void* ipfixDbReader_)
  * the collector must be announced what for types and length of
  * data are following
 */
-int DbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataTemplateInfo)
+int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataTemplateInfo)
 {
 	int i,n;
 	int fieldLength  = 0;
@@ -92,22 +82,16 @@ int DbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataT
 	dataTemplateInfo->data = NULL;
 	dataTemplateInfo->userData = NULL;
 		
-	for(i = 0; i < dbData->colCount; i++) {
-		for(n = 0; strcmp(tabs[n].cname,"END") != 0; n++) {
-			if(strcmp(dbData->colNames[i],tabs[n].cname) != 0) {
-				continue;
-			}
-			
-			dataTemplateInfo->fieldCount++;
-			dataTemplateInfo->fieldInfo = realloc(dataTemplateInfo->fieldInfo,
-							      sizeof(FieldInfo)*dataTemplateInfo->fieldCount);
-			FieldInfo* fi = &dataTemplateInfo->fieldInfo[dataTemplateInfo->fieldCount - 1];	
-			fi->type.id = tabs[n].ipfixId;
-			fi->type.length = tabs[n].length;
-			fi->type.eid = 0;
-			fi->offset = fieldLength;
-			fieldLength = fieldLength + fi->type.length; 
-		}
+	for(i = 0; i < dbData->colCount; i++) {			
+		dataTemplateInfo->fieldCount++;
+		dataTemplateInfo->fieldInfo = realloc(dataTemplateInfo->fieldInfo,
+						      sizeof(FieldInfo)*dataTemplateInfo->fieldCount);
+		FieldInfo* fi = &dataTemplateInfo->fieldInfo[dataTemplateInfo->fieldCount - 1];	
+		fi->type.id = dbData->columns[i]->ipfixId;
+		fi->type.length = dbData->columns[i]->length;
+		fi->type.eid = 0;
+		fi->offset = fieldLength;
+		fieldLength = fieldLength + fi->type.length; 
 	}
 
 	for (n = 0; n != dbReader->callbackCount; n++) {
@@ -121,37 +105,58 @@ int DbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataT
 	return 0;
 }
 
+void copyUintNetByteOrder(FieldData* dest, char* src, FieldType type) {
+        switch (type.length) {
+        case 1:
+		*(uint8_t*)dest = *(uint8_t*)src;
+                return;
+        case 2:
+		*(uint16_t*)dest = htons(*(uint16_t*)src);
+                return;
+        case 4:
+		*(uint32_t*)dest = htonl(*(uint32_t*)src);
+                return;
+        case 8:
+		*(uint64_t*)dest = htonll(*(uint64_t*)src);
+                return;
+        default:
+                msg(MSG_ERROR, "Uint with length %d unparseable", type.length);
+                return;
+        }
+}
+
+
 /**
  * Select a given table and get the values by reading
  * the database. The Typs of the values from database are
  * strings, therefore they must change into IPFIX format 
 */
 
-/* TODO: rename function */
-int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo, int n)
+int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo, int n)
 {
+       	MYSQL_RES* dbResult = NULL;
+	MYSQL_ROW dbRow = NULL;
 	DbReader* dbReader = ipfixDbReader->dbReader;
 	DbData* dbData = dbReader->dbData;
-	int i,  j,k;
-	int dataLength = 0;
-	uint32_t flowstart = 0;
-	uint32_t flowstartref = 0;				//current time 
-	uint32_t firstflowstart = 0;				//old time of first flow starts
-	uint32_t flowstart_change = 0;			//occupied when the starttime of the flows change in relation of current time
-	uint32_t flowstartHBO = 0;				//flowstarttime in host-byte-order
-	uint32_t flowend = 0;
-	MYSQL_RES* dbResult = NULL;
-	MYSQL_ROW dbRow = NULL;
 
-	// TODO:	
-	FieldData* data = (FieldData*)malloc(sizeof(FieldInfo)*dataTemplateInfo->fieldCount);
+	int i;
 	
+	FieldData* data = (FieldData*)malloc(MAX_MSG_LEN);
+
+	int dataLength = 0;
+
+	
+	unsigned delta = 0;
+	unsigned flowTime = 0;
+	unsigned lastFlowTime = 0;
+	long long tmp;
+	
+
 	char selectStr[20] = "SELECT * FROM ";
 	char select[50];
 	strcpy(select,selectStr);
-	strncat(select, dbData->tableNames[n],tableLength+1);
-	// TODO: by lastSwitched
-	strcat(select," ORDER BY firstSwitched");
+	strncat(select, ipfixDbReader->dbReader->dbData->tableNames[n],TABLE_LENGTH+1);
+	strcat(select," ORDER BY lastSwitched");
 	/** get all data from database*/
 	if(mysql_query(ipfixDbReader->conn, select) != 0) {
 		msg(MSG_DEBUG,"Select on table failed. Error: %s",
@@ -161,92 +166,71 @@ int DbReaderSendDataTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dat
 
 	dbResult = mysql_store_result(ipfixDbReader->conn);
 	while((dbRow = mysql_fetch_row(dbResult))) {
-		for(i = 0; i < dbData->colCount; i++) {
-			for(j = 0; j < dbData->colCount; j++) {
-				if(strcmp(dbData->colNames[i], tabs[j].cname) != 0) {
-					// we don't whant this colname
-					continue;
-				}
-				if((tabs[j].ipfixId ==  IPFIX_TYPEID_octetDeltaCount) ||
-				   (tabs[j].ipfixId == IPFIX_TYPEID_packetDeltaCount)) {	
-					uint64_t dbentry = htonll(atoll(dbRow[i]));
-					uint64_t* pdat = &dbentry;
-					dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
-					memcpy(data+dataTemplateInfo->fieldInfo[i].offset,pdat, dataTemplateInfo->fieldInfo[i].type.length);
-					break;
-				}
-				if((tabs[j].ipfixId == IPFIX_TYPEID_destinationIPv4Address)
-				   || (tabs[j].ipfixId == IPFIX_TYPEID_sourceIPv4Address)) {
-					uint32_t dbentry = htonl(atoll(dbRow[i]));
-					uint32_t* pdat = &dbentry;
-					dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
-					memcpy(data+dataTemplateInfo->fieldInfo[i].offset,pdat,dataTemplateInfo->fieldInfo[i].type.length);
-					break;
-				}	
-				// TODO:
-				// - exportzeitpunkte anhand von lastswitched (nicht firstswitched)
-				// - tut das unabhaengig von Reihenfolge der beiden zeitstempel in der tabelle --> zeitstempelumrechnung nach iteration
-				if( tabs[j].ipfixId == IPFIX_TYPEID_flowStartSeconds ) {	
-					/** set current flowstattime to flows*/
-					if(firstflowstart == 0){
-						firstflowstart = atoll(dbRow[i]);
-						time_t t;
-						flowstartref = time(&t);
-						flowstart_change = flowstartref;
-						flowstartHBO = flowstartref;
-						flowstart = htonl(flowstartref);	
-					}else {	
-						// TODO: nur einmal berechnen
-						flowstartHBO = 	flowstartref+atoll(dbRow[i])-firstflowstart;
-						flowstart =htonl(flowstartHBO);
-					}							
-					uint32_t* pdat = &flowstart;
-					dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
-					memcpy(data+dataTemplateInfo->fieldInfo[i].offset,pdat,dataTemplateInfo->fieldInfo[i].type.length);
-					break;
-				}
-				if(tabs[j].ipfixId == IPFIX_TYPEID_flowEndSeconds ) {		
-					/** set current flowendtime to flows*/
-					flowend = htonl(flowstartref+atoll(dbRow[i])-firstflowstart);				
-					uint32_t* pdat = &flowend;
-					dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
-					memcpy(data+dataTemplateInfo->fieldInfo[i].offset,pdat,dataTemplateInfo->fieldInfo[i].type.length);
-					break;
-				}			
-				if((tabs[j].ipfixId == IPFIX_TYPEID_sourceTransportPort) ||
-				   (tabs[j].ipfixId == IPFIX_TYPEID_destinationTransportPort)) {
-					uint16_t dbentry = htons(atol(dbRow[i]));
-					uint16_t* pdat = &dbentry;
-					dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
-					memcpy(data+dataTemplateInfo->fieldInfo[i].offset,pdat,dataTemplateInfo->fieldInfo[i].type.length);
-					break;
-				}
-				if((tabs[j].ipfixId == IPFIX_TYPEID_protocolIdentifier) ||
-				   (tabs[j].ipfixId ==IPFIX_TYPEID_classOfServiceIPv4))	{
-					uint8_t dbentry = atoi(dbRow[i]);
-					uint8_t* pdat = &dbentry;
-					dataLength = dataLength + dataTemplateInfo->fieldInfo[i].type.length;
-					memcpy(data+dataTemplateInfo->fieldInfo[i].offset,pdat,dataTemplateInfo->fieldInfo[i].type.length);
-					break;
+		if (delta == 0) {
+			for (i = 0; i != dbData->colCount; ++i) {
+				if (IPFIX_TYPEID_flowEndSeconds) {
+					delta = time(NULL) - atoll(dbRow[i]);
+					flowTime = lastFlowTime = atoll(dbRow[i]) + delta;
 				}
 			}
+			if (delta == 0) {
+				msg(MSG_FATAL, "flowEndTime in first data base record missing!");
+				return 1;
+			}
 		}
+		for(i = 0; i != dbData->colCount; ++i) {
+			switch(dbData->columns[i]->ipfixId) {
+			case IPFIX_TYPEID_flowEndSeconds:
+			        flowTime = atoll(dbRow[i]) + delta;
+			case IPFIX_TYPEID_flowStartSeconds:
+				tmp = atoll(dbRow[i]) + delta;
+				copyUintNetByteOrder(data + dataTemplateInfo->fieldInfo[i].offset,
+						     (char*)&tmp,
+						     dataTemplateInfo->fieldInfo[i].type);
+				dataLength += dataTemplateInfo->fieldInfo[i].type.length;
+				break;
+			case IPFIX_TYPEID_octetDeltaCount:
+			case IPFIX_TYPEID_packetDeltaCount:
+			case IPFIX_TYPEID_destinationIPv4Address:
+			case IPFIX_TYPEID_sourceIPv4Address:
+			case IPFIX_TYPEID_sourceTransportPort:
+			case IPFIX_TYPEID_destinationTransportPort:
+			case IPFIX_TYPEID_protocolIdentifier:
+			case IPFIX_TYPEID_classOfServiceIPv4:
+				tmp = atoll(dbRow[i]);
+				copyUintNetByteOrder(data + dataTemplateInfo->fieldInfo[i].offset,
+						     (char*)&tmp,
+						     dataTemplateInfo->fieldInfo[i].type);
+				dataLength += dataTemplateInfo->fieldInfo[i].type.length;
+				break;
+			}
+		}
+	
 		/** according to flowstarttime wait for sending the record*/
-		if(flowstart_change != flowstartHBO) {
-			sleep(flowstartHBO - flowstart_change);
-			flowstart_change = flowstartHBO;
+		if(flowTime != lastFlowTime) {
+			time_t t = time(NULL);
+			if (t > flowTime) {
+				msg(MSG_ERROR, "Sending flows too slowly");
+			} else {
+				sleep (flowTime - t);
+			}
+			lastFlowTime = flowTime;
 		}
-		for (k = 0; k < dbReader->callbackCount; k++) {
-			CallbackInfo* ci = &dbReader->callbackInfo[k];
+		for (i = 0; i != dbReader->callbackCount; ++i) {
+			CallbackInfo* ci = &dbReader->callbackInfo[i];
 			if (ci->dataDataRecordCallbackFunction) {
 				ci->dataDataRecordCallbackFunction(ci->handle,
 								   ipfixDbReader->srcId,
-								   dataTemplateInfo,dataLength,data);
-				msg(MSG_DEBUG,"DbReader send template");
+								   dataTemplateInfo,
+								   dataLength,
+								   data);
+				msg(MSG_DEBUG,"DbReader sent record");
 			}
-		}	
+		}
+
 	}
 	mysql_free_result(dbResult);
+	free(data);
 	
 	return 0;
 }
@@ -267,13 +251,13 @@ int getTables(IpfixDbReader* ipfixDbReader)
 		msg(MSG_FATAL,"There are no tables in database %s", ipfixDbReader->dbName);	
 		return 1;
 	}
-	if(mysql_num_rows(dbResult) < maxTables) {
-		msg(MSG_FATAL,"There are not so much tables in database as defined in maxTable");	
+	if(mysql_num_rows(dbResult) < MAX_TABLES) {
+		msg(MSG_FATAL,"There are not so much tables in database as defined in maxTable");
 		return 1;
 	}
 	
-	while(( dbRow = mysql_fetch_row(dbResult)) && i < maxTables) {
-		char *table = (char*)malloc(sizeof(char) * (tableLength+1));
+	while(( dbRow = mysql_fetch_row(dbResult)) && i < MAX_TABLES) {
+		char *table = (char*)malloc(sizeof(char) * (TABLE_LENGTH+1));
 		strcpy(table,dbRow[0]);
 		dbData->tableNames[i] = table;
 		dbData->tableCount++;
@@ -284,13 +268,23 @@ int getTables(IpfixDbReader* ipfixDbReader)
 	return 0;
 }
 
+columnDB* getColumnByName(const char* name)
+{
+	int i;
+	for (i = 0; strcmp(tabs[i].cname, "END"); ++i) {
+		if (!strcmp(tabs[i].cname, name)) {
+			return &tabs[i];
+		}
+	}
+	return NULL;
+}
+
 /**
- * Get the names of columns 
+ * Get the names of columns
  */
 int getColumns(IpfixDbReader* ipfixDbReader)
 {
 	DbData* dbData = ipfixDbReader->dbReader->dbData;
-	int j = 0;
 	MYSQL_RES* dbResult = NULL;
 	MYSQL_ROW dbRow = NULL;
 	
@@ -300,26 +294,32 @@ int getColumns(IpfixDbReader* ipfixDbReader)
 		msg(MSG_DEBUG,"Show columns on table %s failed. Error: %s",
 		    mysql_error(ipfixDbReader->conn));
 		return 1;
-	} else {
-		dbResult = mysql_store_result(ipfixDbReader->conn);
-		
-		if(dbResult == 0) {
-			msg(MSG_FATAL,"There are no Columns in the table");	
-			return 1;
-		}
-		
-		while((dbRow = mysql_fetch_row(dbResult))) {
-			if(strcmp(dbRow[0],"exporterID") != 0) {
-				char* column = (char*)malloc(sizeof(char)*columnLength);
-				strcpy(column, dbRow[0]);
-				dbData->colNames[j]=column;
-				dbData->colCount++;
-				j++;
+	}
+	
+	dbResult = mysql_store_result(ipfixDbReader->conn);
+	
+	if(dbResult == 0) {
+		msg(MSG_FATAL,"There are no Columns in the table");	
+		return 1;
+	}
+	
+	// TODO: don't we have to free the result of mysql_fetch_row?????
+	while((dbRow = mysql_fetch_row(dbResult))) {
+		if(strcmp(dbRow[0],"exporterID") != 0) {
+			if(dbData->colCount > MAX_COL) {
+				msg(MSG_ERROR,"Too many columns in table");
+				return 1;
 			}
+
+			dbData->columns[dbData->colCount] = getColumnByName(dbRow[0]);
+			msg(MSG_ERROR, "%s", dbData->columns[dbData->colCount]->cname);
+			dbData->colCount++;
 		}
 	}
+
 	mysql_free_result(dbResult);
-	if(dbData->colCount > maxCol) {
+
+	if(dbData->colCount > MAX_COL) {
 		msg(MSG_DEBUG,"The Count of Columns differ from define");
 		return 1;
 	}
@@ -383,7 +383,8 @@ int connectToDb(IpfixDbReader* ipfixDbReader,
 int initializeIpfixDbReaders() {
 	return 0;
 }
-																				 					     
+
+
 /**
  * Deinitializes internal structures.
  * To be called on application shutdown
@@ -391,8 +392,7 @@ int initializeIpfixDbReaders() {
  */
 int deinitializeIpfixDbReaders() {
 	return 0;
-}																				 					     
-
+}
 
 /**
  * Starts or resumes database

@@ -118,7 +118,7 @@ void ExporterConfiguration::createExporterSink(Template* t, uint16_t sourceId)
 void ExporterConfiguration::createIpfixSender(uint16_t sourceId)
 {
 	if (collectors.empty()) {
-		msg(MSG_INFO, "Aggreagtor won't export it's result to any collector");
+		msg(MSG_INFO, "Aggregator won't export it's result to any collector");
 	}
 
 	initializeIpfixSenders();

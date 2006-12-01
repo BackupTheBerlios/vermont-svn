@@ -23,8 +23,6 @@
 #include <netdb.h>
 
 
-#define MAX_MSG_LEN     65536
-
 /******************************************* Forward declaration *********************************/
 
 static int createUdpIpv4Receiver(IpfixReceiver* ipfixReceiver, int port);

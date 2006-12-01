@@ -1,6 +1,7 @@
 <ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
 
 	<dbReader id="1">
+		<dbName>flows</dbName>
 		<next>
 			<exportingProcessId>1</exportingProcessId>
 		</next>

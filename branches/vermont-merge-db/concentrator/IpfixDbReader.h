@@ -15,15 +15,21 @@
 extern "C" {
 #endif
 
-#define maxTables       1     // count of tables that will be send
-#define maxCol         10     // max count of columns in the table
-#define tableLength    16     // tablename length
-#define columnLength   25     // columnname legth
+#define MAX_TABLES       1     // count of tables that will be send
+#define MAX_COL         10     // max count of columns in the table
+#define TABLE_LENGTH    16     // tablename length
+#define COLUMN_LENGTH   25     // columnname legth
 
 typedef struct {
-        char* tableNames[maxTables];
+	char* cname;       /**column name*/
+	uint16_t ipfixId;  /**IPFIX_TYPEID*/
+	uint8_t length;    /**IPFIX length*/
+} columnDB;
+
+typedef struct {
+        char* tableNames[MAX_TABLES];
         int tableCount;
-        char* colNames[maxCol];
+        columnDB* columns[MAX_COL];
         int colCount;
 } DbData;
 
