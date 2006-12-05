@@ -21,6 +21,7 @@ columnDB tabs[] = {
 
 /***** Internal Functions ****************************************************/
 
+void copyUintNetByteOrder(FieldData* dest, char* src, FieldType type)
 int getTables(IpfixDbReader* ipfixDbReader);
 
 columnDB* getColumnByName(const char* name);
@@ -38,8 +39,8 @@ int connectToDb(IpfixDbReader* ipfixDbReader,
 
 
 /**
- * First send a a new template , then send the dataTemplates for the
- * count of tables
+ * First send a a new template, then send the dataTemplates for all stored
+ * tables.
  */
 void* readFromDB(void* ipfixDbReader_)
 {
@@ -61,10 +62,9 @@ void* readFromDB(void* ipfixDbReader_)
 	return 0;
 }
 /**
- * First  send a new template before sending a dataTemplate, because
- * the collector must be announced what for types and length of
- * data are following
-*/
+ * Constructs a template from the table data and sends it to all connected
+ * modules.
+ */
 int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataTemplateInfo)
 {
 	int i,n;
@@ -105,6 +105,7 @@ int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataT
 	return 0;
 }
 
+
 void copyUintNetByteOrder(FieldData* dest, char* src, FieldType type) {
         switch (type.length) {
         case 1:
@@ -138,14 +139,9 @@ int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTempla
 	MYSQL_ROW dbRow = NULL;
 	DbReader* dbReader = ipfixDbReader->dbReader;
 	DbData* dbData = dbReader->dbData;
-
 	int i;
-	
 	FieldData* data = (FieldData*)malloc(MAX_MSG_LEN);
-
 	int dataLength = 0;
-
-	
 	unsigned delta = 0;
 	unsigned flowTime = 0;
 	unsigned lastFlowTime = 0;
