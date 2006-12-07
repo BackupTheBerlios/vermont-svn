@@ -85,7 +85,8 @@ uint32_t getipv4address(FieldType type, FieldData* data);
 */
 int createDB(IpfixDbWriter* ipfixDbWriter)
 {
-	/**Is there a already a database with the same name - drop  them*/
+	/**Is there a already a database with the same name - drop it*/
+        /* gerhard: let's keep the database, we do not want to lose data
 	char dropDb[STARTLEN];
 	strcpy(dropDb, "DROP DATABASE IF EXISTS ");
 	strncat(dropDb, ipfixDbWriter->dbName,strlen(ipfixDbWriter->dbName)+1);
@@ -94,7 +95,8 @@ int createDB(IpfixDbWriter* ipfixDbWriter)
 		msg(MSG_FATAL,"Drop of exists database failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 1;
-	}
+	} */
+
 	/** make query string to create database**/
 	char  createDbStr[STARTLEN] ;
 	strcpy(createDbStr,"CREATE DATABASE IF NOT EXISTS ");
@@ -120,17 +122,19 @@ int createDB(IpfixDbWriter* ipfixDbWriter)
 
 int createExporterTable(IpfixDbWriter* ipfixDbWriter)
 {
+	/**is there already a table with the same name - drop it */
+        /* gerhard: let's keep the database, we do not want to lose data
 	char dropExporterTab[STARTLEN];
 	strcpy(dropExporterTab,"DROP TABLE IF EXISTS exporter");
-	/**is there already a table with the same name - drop them*/
 	if(mysql_query(ipfixDbWriter->conn, dropExporterTab) != 0) {
 		msg(MSG_FATAL,"Drop of exists exporter table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 1;
 	}
+	*/
+	/** create table exporter*/
 	char createExporterTab[STARTLEN+(3 * COL_WIDTH)];
 	strcpy(createExporterTab,"CREATE TABLE IF NOT EXISTS exporter (id SMALLINT(5) NOT NULL AUTO_INCREMENT,sourceID INTEGER(10) UNSIGNED DEFAULT NULL,srcIP INTEGER(10) UNSIGNED DEFAULT NULL,PRIMARY KEY(id))");
-	/** create table exporter*/
 	if(mysql_query(ipfixDbWriter->conn,createExporterTab) != 0) {
 		msg(MSG_FATAL,"Creation of table Exporter failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
@@ -167,7 +171,8 @@ int createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* tablename)
 	}
 	strncat(createTableStr,")",sizeof(char)+1);
 	
-	/**Is there a already a table with the same name - drop them*/
+	/**Is there a already a table with the same name - drop it*/
+	/* gerhard: oh no, do not drop any flow tables during operation
 	char dropTable[STARTLEN];
 	strcpy(dropTable,"DROP TABLE IF EXISTS ");
 	strncat(dropTable, tablename,strlen(tablename)+1);
@@ -176,6 +181,7 @@ int createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* tablename)
 		    mysql_error(ipfixDbWriter->conn));
 		return 1;
 	}
+	*/
 	/** create table*/
 	if(mysql_query(ipfixDbWriter->conn,createTableStr) != 0) {
 		msg(MSG_FATAL,"Creation of table failed. Error: %s",
@@ -343,7 +349,7 @@ char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID,
 	}
 	
 	/**make hole query string for the insert statement*/
-	char tablename[TABLE_LEN] ;
+	char tablename[TABLE_WIDTH] ;
 	char* tablen = getTableName(ipfixDbWriter, table, flowstartsec);
 	strcpy(tablename, tablen);
 	/** Insert statement = INSERT INTO + tablename +  Columnsname + Values of record*/
@@ -413,23 +419,27 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 char* getTableName(IpfixDbWriter* ipfixDbWriter,Table*  table , uint64_t flowstartsec)
 {
 	int i;
-	msg(MSG_DEBUG,"Content of tableBuffer :");
+	
+#ifdef DEBUG
+	DPRINTF("Content of tableBuffer :");
 	for(i = 0; i < MAX_TABLE; i++) {
-		msg(MSG_DEBUG,"TableStartTime : %Lu TableEndTime : %Lu TableName : %s",
+	    DPRINTF("TableStartTime : %Lu TableEndTime : %Lu TableName : %s",
 		    table->tableBuffer[i].startTableTime, table->tableBuffer[i].endTableTime,
 		    table->tableBuffer[i].TableName);	
 	}
+#endif
 	/** Is  flowstartsec in intervall of tablecreationtime in buffer ?*/
 	for(i = 0; i < MAX_TABLE; i++) {
-		/**Is flowstartsec between  the range of tablecreattime and tablecreattime+30 min*/
-		if(table->tableBuffer[i].startTableTime <= flowstartsec &&
-		   flowstartsec < table->tableBuffer[i].endTableTime) {
-			msg(MSG_DEBUG,"Table: %s is in tableBuffer",  table->tableBuffer[i].TableName);
-			return table->tableBuffer[i].TableName;
-		}
+	    /**Is flowstartsec between  the range of tablecreattime and tablecreattime+30 min*/
+	    if(table->tableBuffer[i].startTableTime <= flowstartsec &&
+		    flowstartsec < table->tableBuffer[i].endTableTime) {
+		msg(MSG_DEBUG,"Table: %s is in tableBuffer",  table->tableBuffer[i].TableName);
+		return table->tableBuffer[i].TableName;
+	    }
 	}
+
 	/**Tablename is not in tableBuffer*/	
-	char tabNam[TABLE_LEN];
+	char tabNam[TABLE_WIDTH];
 	getTableNamDependTime(tabNam, flowstartsec);
 	
 	uint64_t startTime = getTableStartTime(flowstartsec);
@@ -467,7 +477,7 @@ char* getTableName(IpfixDbWriter* ipfixDbWriter,Table*  table , uint64_t flowsta
  */
 char* getTableNamDependTime(char* tablename, uint64_t flowstartsec)
 {
-	char strtmp[TABLE_LEN];
+	char strtmp[TABLE_WIDTH];
 	/** according to flowstartsec make the tablename*/
 	time_t  t = flowstartsec;
 	/**time in Coordinated Universal Time - UTC, it was formerly Greenwich Mean Time - GMT*/
@@ -536,12 +546,14 @@ uint64_t getTableEndTime(uint64_t startTime)
 int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, uint64_t expIp)
 {
 	int i;
-	msg(MSG_DEBUG,"Content of exporterBuffer");
+#ifdef DEBUG
+	DPRINTF("Content of exporterBuffer");
 	for(i = 0; i < MAX_EXP_TABLE; i++) {
-		msg(MSG_DEBUG,"exporterID:%d	   sourceID:%Lu	   expIp:%Lu",
+		DPRINTF("exporterID:%d	   sourceID:%Lu	   expIp:%Lu",
 		    table->exporterBuffer[i].Id, table->exporterBuffer[i].srcId,
 		    table->exporterBuffer[i].expIp);
 	}
+#endif
 	/** Is the exporterID in exporterBuffer*/
 	for(i = 0; i < MAX_EXP_TABLE; i++) {
 		if(table->exporterBuffer[i].srcId==sourceID &&

@@ -1,6 +1,7 @@
 #ifndef IPFIXDBREADER_H
 #define IPFIXDBREADER_H
 
+#include "IpfixDbCommon.h"
 #include "rcvIpfix.h"
 #include "ipfix.h"
 #include "ipfixlolib/ipfixlolib.h"
@@ -15,10 +16,8 @@
 extern "C" {
 #endif
 
-#define MAX_TABLES       1     // count of tables that will be send
+#define MAX_TABLES      10     // count of tables that will be send
 #define MAX_COL         10     // max count of columns in the table
-#define TABLE_LENGTH    16     // tablename length
-#define COLUMN_LENGTH   25     // columnname legth
 
 typedef struct {
 	char* cname;       /**column name*/

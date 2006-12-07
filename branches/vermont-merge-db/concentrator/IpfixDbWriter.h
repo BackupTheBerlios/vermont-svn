@@ -1,6 +1,7 @@
 #ifndef IPFIXDBWRITER_H
 #define IPFIXDBWRITER_H
 
+#include "IpfixDbCommon.h"
 #include "rcvIpfix.h"
 #include "ipfix.h"
 #include "ipfixlolib/ipfixlolib.h"
@@ -15,21 +16,13 @@ extern "C" {
 #define ExporterID        0     
 
 /**
- * STARTLEN     : Length of statement for INSERT IN.., CREATE TABL.., CREATE DATA..
- * COL_WIDTH    : Length of the string denotes the name of the single columns
- *                and datatype to store in table
- * INS_WIDTH    : Length of the string for insert statement in depency of count columns
- * MAX_TABLE    : count of tablenames 
+ * MAX_TABLE    : count of buffered tablenames 
+ * MAX_EXP_TABLE: count of buffered exporters
  * MAX_STATMENT : count of insertstatement to buffer before they store to database
- * TABLE_LEN    : Length of table name string
  */
-#define STARTLEN         50             
-#define COL_WIDTH        40
-#define INS_WIDTH        25
 #define MAX_TABLE         3
-#define MAX_EXP_TABLE     3
+#define MAX_EXP_TABLE     3 // increase this value if you use more exporters in parallel
 #define MAX_STATEMENT    10
-#define TABLE_LEN        16
 
 
 /**
@@ -39,7 +32,7 @@ extern "C" {
 typedef struct {
         uint64_t startTableTime;
         uint64_t endTableTime;                          
-        char TableName[TABLE_LEN];
+        char TableName[TABLE_WIDTH];
 } BufEntry;
 
 /**

@@ -21,13 +21,13 @@ columnDB tabs[] = {
 
 /***** Internal Functions ****************************************************/
 
-void copyUintNetByteOrder(FieldData* dest, char* src, FieldType type)
+void copyUintNetByteOrder(FieldData* dest, char* src, FieldType type);
 int getTables(IpfixDbReader* ipfixDbReader);
 
 columnDB* getColumnByName(const char* name);
 int getColumns(IpfixDbReader* ipfixDbReader);
 
-void* readFromDB(void* ipfixDbReader);
+void* readFromDB(void* ipfixDbReader_);
 
 int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataTemplateInfo);
 int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo, int n);
@@ -148,15 +148,14 @@ int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTempla
 	long long tmp;
 	
 
-	char selectStr[20] = "SELECT * FROM ";
-	char select[50];
-	strcpy(select,selectStr);
-	strncat(select, ipfixDbReader->dbReader->dbData->tableNames[n],TABLE_LENGTH+1);
+	char select[STARTLEN] = "SELECT * FROM ";
+	strncat(select, ipfixDbReader->dbReader->dbData->tableNames[n],TABLE_WIDTH);
 	strcat(select," ORDER BY lastSwitched");
 	/** get all data from database*/
 	if(mysql_query(ipfixDbReader->conn, select) != 0) {
 		msg(MSG_DEBUG,"Select on table failed. Error: %s",
 		    mysql_error(ipfixDbReader->conn));
+		free(data);
 		return 1;
 	}
 
@@ -171,6 +170,8 @@ int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTempla
 			}
 			if (delta == 0) {
 				msg(MSG_FATAL, "flowEndTime in first data base record missing!");
+				mysql_free_result(dbResult);
+				free(data);
 				return 1;
 			}
 		}
@@ -244,21 +245,22 @@ int getTables(IpfixDbReader* ipfixDbReader)
 	
 	dbResult = mysql_list_tables(ipfixDbReader->conn, wild);
 	if(dbResult == 0) {
-		msg(MSG_FATAL,"There are no tables in database %s", ipfixDbReader->dbName);	
-		return 1;
-	}
-	if(mysql_num_rows(dbResult) < MAX_TABLES) {
-		msg(MSG_FATAL,"There are not so much tables in database as defined in maxTable");
+		msg(MSG_FATAL,"There are no flow tables in database %s", ipfixDbReader->dbName);	
 		return 1;
 	}
 	
+	if(mysql_num_rows(dbResult) > MAX_TABLES) {
+		msg(MSG_ERROR,"There are %i flow tables in the database, but only the first MAX_TABLES tables can be read.", mysql_num_rows(dbResult));
+	}
+
 	while(( dbRow = mysql_fetch_row(dbResult)) && i < MAX_TABLES) {
-		char *table = (char*)malloc(sizeof(char) * (TABLE_LENGTH+1));
+		char *table = (char*)malloc(sizeof(char) * TABLE_WIDTH);
 		strcpy(table,dbRow[0]);
 		dbData->tableNames[i] = table;
 		dbData->tableCount++;
 		i++;
 	}
+
 	mysql_free_result(dbResult);
 	
 	return 0;
@@ -284,7 +286,8 @@ int getColumns(IpfixDbReader* ipfixDbReader)
 	MYSQL_RES* dbResult = NULL;
 	MYSQL_ROW dbRow = NULL;
 	
-	char showcolStr[50] = "SHOW COLUMNS FROM ";
+	char showcolStr[STARTLEN] = "SHOW COLUMNS FROM ";
+	/* get column names from first flow table */
 	strncat(showcolStr, dbData->tableNames[0],strlen(dbData->tableNames[0])+1);
 	if(mysql_query(ipfixDbReader->conn, showcolStr) != 0) {	
 		msg(MSG_DEBUG,"Show columns on table %s failed. Error: %s",
@@ -304,21 +307,18 @@ int getColumns(IpfixDbReader* ipfixDbReader)
 		if(strcmp(dbRow[0],"exporterID") != 0) {
 			if(dbData->colCount > MAX_COL) {
 				msg(MSG_ERROR,"Too many columns in table");
+				mysql_free_result(dbResult);
 				return 1;
 			}
 
 			dbData->columns[dbData->colCount] = getColumnByName(dbRow[0]);
-			msg(MSG_ERROR, "%s", dbData->columns[dbData->colCount]->cname);
+			msg(MSG_DEBUG, "Column name: %s", dbData->columns[dbData->colCount]->cname);
 			dbData->colCount++;
 		}
 	}
 
 	mysql_free_result(dbResult);
 
-	if(dbData->colCount > MAX_COL) {
-		msg(MSG_DEBUG,"The Count of Columns differ from define");
-		return 1;
-	}
 	return 0;
 }
 
