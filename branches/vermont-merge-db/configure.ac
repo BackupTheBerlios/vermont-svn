@@ -12,7 +12,7 @@ AC_PROG_RANLIB
 # IPHeaderOffset switch
 AC_ARG_WITH([ipheader-offset],
             [AS_HELP_STRING([--with-ipheader-offset=ARG],
-              [specify start position of the IP header in an ethernet frame])],
+              [specify start position of the IP header in an ethernet frame in Bytes])],
             [],
             [with_ipheader_offset=check])
 AS_IF([test "x$with_ipheader_offset" = xcheck],
@@ -20,6 +20,12 @@ AS_IF([test "x$with_ipheader_offset" = xcheck],
        AC_DEFINE(IP_HEADER_OFFSET, 14)],
       [AC_MSG_NOTICE([IP header offset set to $with_ipheader_offset])
        AC_DEFINE_UNQUOTED(IP_HEADER_OFFSET, $with_ipheader_offset)])
+
+# turn on debug mode
+AC_ARG_ENABLE([dprint],
+              [AS_HELP_STRING([--enable-dprint],
+                              [enable DPRINT debug messages. This will make VERMONT very noisy])],
+              [AC_DEFINE(DEBUG)])
 
 AM_PATH_XML2(2.4.0,,AC_MSG_ERROR([*** LibXML version $XML_VERSION not found!]))
 ACX_PTHREAD
