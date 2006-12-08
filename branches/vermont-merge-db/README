@@ -53,8 +53,11 @@ value packets.
 NOTES ON MONITORING PORTS
 
 Some switches add an additional field VLAN with size 4Bytes.
-So you have to adjust the pcap_expression to "vlan and ip".
-Futhermore, the Packet::IPHeaderOffset has to adjusted to 18.
+So you have to adjust the pcap_expression (pcap_filter) to "vlan and ip".
+Futhermore, the Packet::IPHeaderOffset has to adjusted to 18. This can be
+done via the configure script. Run configure with
+
+configure --with-ipheader-offset=18 
 
 
 NOTES ON THREADS
