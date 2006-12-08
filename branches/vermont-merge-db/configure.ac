@@ -5,9 +5,9 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_RANLIB
 
-#AC_CHECK_HEADERS(stdio.h unistd.h signal.h stdlib.h stdint.h string.h)
-#AC_CHECK_HEADERS(time.h assert.h stdint.h errno.h netinet/in.h arpa/inet.h)
-#AC_CHECK_HEADERS(sys/socket.h sys/types.h sys/uio.h sys/time.h netdb.h semaphore.h)
+AC_CHECK_HEADERS(stdio.h unistd.h signal.h stdlib.h stdint.h string.h)
+AC_CHECK_HEADERS(time.h assert.h stdint.h errno.h netinet/in.h arpa/inet.h)
+AC_CHECK_HEADERS(sys/socket.h sys/types.h sys/uio.h sys/time.h netdb.h semaphore.h)
 
 # IPHeaderOffset switch
 AC_ARG_WITH([ipheader-offset],
@@ -16,9 +16,9 @@ AC_ARG_WITH([ipheader-offset],
             [],
             [with_ipheader_offset=check])
 AS_IF([test "x$with_ipheader_offset" = xcheck],
-      [AC_MSG_NOTICE([Assuming IP header offset is 14])
+      [AC_MSG_NOTICE([Assuming IP header offset is 14 Bytes])
        AC_DEFINE(IP_HEADER_OFFSET, 14)],
-      [AC_MSG_NOTICE([IP header offset set to $with_ipheader_offset])
+      [AC_MSG_NOTICE([IP header offset set to $with_ipheader_offset Bytes])
        AC_DEFINE_UNQUOTED(IP_HEADER_OFFSET, $with_ipheader_offset)])
 
 # turn on debug mode
