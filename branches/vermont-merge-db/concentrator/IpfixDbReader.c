@@ -58,7 +58,7 @@ void* readFromDB(void* ipfixDbReader_)
 		pthread_mutex_unlock(&ipfixDbReader->mutex);
 	}
 
-	msg(MSG_DEBUG,"sending from database is done");
+	msg(MSG_DIALOG,"sending from database is done");
 	return 0;
 }
 /**

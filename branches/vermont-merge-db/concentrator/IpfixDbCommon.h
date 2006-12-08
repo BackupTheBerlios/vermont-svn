@@ -10,4 +10,3 @@
 #define TABLE_WIDTH      16
 #define COL_WIDTH        40
 #define INS_WIDTH        25
-
