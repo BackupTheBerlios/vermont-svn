@@ -45,8 +45,6 @@ void DbWriterConfiguration::configure()
 			portNumber = atoi(getContent(i).c_str());
 		} else if (tagMatches(i, "sourceId")) {
 			sourceId = atoi(getContent(i).c_str());
-		} else if (tagMatches(i, "next")) {
-			fillNextVector(i);
 		}
 		i = i->next;
 	}
