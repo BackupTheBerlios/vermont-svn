@@ -133,6 +133,8 @@ int createExporterTable(IpfixDbWriter* ipfixDbWriter)
 	}
 	*/
 	/** create table exporter*/
+
+	// TODO: what a fuckin mess!!!!!
 	char createExporterTab[STARTLEN+(3 * COL_WIDTH)];
 	strcpy(createExporterTab,"CREATE TABLE IF NOT EXISTS exporter (id SMALLINT(5) NOT NULL AUTO_INCREMENT,sourceID INTEGER(10) UNSIGNED DEFAULT NULL,srcIP INTEGER(10) UNSIGNED DEFAULT NULL,PRIMARY KEY(id))");
 	if(mysql_query(ipfixDbWriter->conn,createExporterTab) != 0) {
@@ -204,7 +206,7 @@ int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInf
 	msg(MSG_DEBUG, "Writing data data record");
 
 	/** if the writeToDb process not ready - drop record*/
-	if(strcmp(statemen->statemBuffer[MAX_STATEMENT-1],"NULL") != 0) {
+	if(statemen->statemBuffer[statemen->maxStatements-1] != NULL) {
 		msg(MSG_FATAL,"Drop datarecord - still writing to database");
 		return 1;
 	}
@@ -222,10 +224,10 @@ int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInf
 	msg(MSG_DEBUG,"Insert statement: %s",insertTableStr);	
 	
 	/** if statement counter lower as  max count of statement then insert record in statemenBuffer*/
-	if((statemen->statemReceived) < MAX_STATEMENT) {	
+	if((statemen->statemReceived) < statemen->maxStatements) {	
 		statemen->statemBuffer[statemen->statemReceived] = insertTableStr;
 		/** statemBuffer is filled ->  insert in table*/	
-		if(statemen->statemReceived == MAX_STATEMENT-1)	{
+		if(statemen->statemReceived == statemen->maxStatements-1) {
 			writeToDb(ipfixDbWriter, tabl, statemen);
 		} else {
 			statemen->statemReceived++;
@@ -390,7 +392,7 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 		return 1;		    
 	}
 	/**Write the insert statement to database*/
-	for(i=0; i < MAX_STATEMENT; i++) {
+	for(i=0; i != statement->maxStatements; i++) {
 		if(mysql_query(ipfixDbWriter->conn, statement->statemBuffer[i]) != 0) {
 			msg(MSG_FATAL,"Insert of records failed",
 			    mysql_error(ipfixDbWriter->conn));
@@ -399,7 +401,7 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 			msg(MSG_DEBUG,"Record inserted");
 		}
 		free(statement->statemBuffer[i]);
-		statement->statemBuffer[i] = "NULL";
+		statement->statemBuffer[i] = NULL;
 	}
 	
 	char UnLockTable[STARTLEN] = "UNLOCK TABLES";
@@ -748,11 +750,14 @@ int deinitializeIpfixDbWriters() {
  */
 IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
                                    const char* userName, const char* password,
-                                   unsigned int port, SourceID sourceId)
+                                   unsigned int port, SourceID sourceId,
+                                   int maxStatements)
 {	
 	IpfixDbWriter* ipfixDbWriter = (IpfixDbWriter*)malloc(sizeof(IpfixDbWriter));
 	Table* tabl = (Table*)malloc(sizeof(Table));
 	Statement* statemen = (Statement*)malloc(sizeof(Statement));
+	statemen->statemBuffer = (char**)malloc(sizeof(char**)*maxStatements);
+	statemen->maxStatements = maxStatements;
 	
 	ipfixDbWriter->conn = mysql_init(0);  /** get the mysl init handle*/
 	if(ipfixDbWriter->conn == 0) {
@@ -791,8 +796,8 @@ IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
 	/**Initialize structure members Statement*/	   	 	
 	tabl->statement= statemen;
 	statemen->statemReceived = 0;
-	for( i = 0; i < MAX_STATEMENT; i++) {
-		statemen->statemBuffer[i] = "NULL";
+	for( i = 0; i != statemen->maxStatements; i++) {
+		statemen->statemBuffer[i] = NULL;
 	}
 	
 	/**Init struct expTable*/
@@ -820,6 +825,7 @@ IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
 	if(createExporterTable(ipfixDbWriter) !=0)
 		goto out;
 	
+	msg(MSG_ERROR, "dsfasasfdsafa");
 	return ipfixDbWriter;
 	
 out: 

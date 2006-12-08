@@ -110,6 +110,7 @@
 
 	<dbWriter id="1">
 		<dbName>flows</dbName>		
+		<bufferRecords>100</bufferRecords>
 	</dbWriter>
     
     <vermont_main>

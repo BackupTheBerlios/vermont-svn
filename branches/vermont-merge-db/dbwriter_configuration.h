@@ -39,6 +39,7 @@ private:
 	std::string password;
 	unsigned int portNumber;
 	uint16_t sourceId;
+	int bufferRecords;
 };
 
 #endif

@@ -22,7 +22,6 @@ extern "C" {
  */
 #define MAX_TABLE         3
 #define MAX_EXP_TABLE     3 // increase this value if you use more exporters in parallel
-#define MAX_STATEMENT    10
 
 
 /**
@@ -50,7 +49,8 @@ typedef struct {
  */
 typedef struct {
         int statemReceived;                /**counter of insert into statements*/
-        char* statemBuffer[MAX_STATEMENT];  /**buffer  of char pointers to store the insert statements*/
+        char** statemBuffer;               /**buffer  of char pointers to store the insert statements*/
+	int maxStatements;
 } Statement;
 
 /** 
@@ -92,7 +92,8 @@ int destroyIpfixDbWriter(IpfixDbWriter*  ipfixDbWriter);
 
 IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
                                    const char* userName, const char* password,
-                                   unsigned int port, SourceID sourceId);
+                                   unsigned int port, SourceID sourceId,
+                                   int maxStatements);
 
 CallbackInfo getIpfixDbWriterCallbackInfo(IpfixDbWriter* ipfixDbWriter);
 

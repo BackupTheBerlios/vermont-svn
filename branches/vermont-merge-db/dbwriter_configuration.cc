@@ -9,7 +9,7 @@
 
 
 DbWriterConfiguration::DbWriterConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), dbWriter(NULL), portNumber(0), sourceId(0)
+	: Configuration(document, startPoint), dbWriter(NULL), portNumber(0), sourceId(0), bufferRecords(10)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -45,6 +45,8 @@ void DbWriterConfiguration::configure()
 			portNumber = atoi(getContent(i).c_str());
 		} else if (tagMatches(i, "sourceId")) {
 			sourceId = atoi(getContent(i).c_str());
+		} else if (tagMatches(i, "bufferRecords")) {
+			bufferRecords = atoi(getContent(i).c_str());
 		}
 		i = i->next;
 	}
@@ -57,7 +59,7 @@ void DbWriterConfiguration::setUp()
 	initializeIpfixDbWriters();
 	dbWriter = createIpfixDbWriter(hostName.c_str(), dbName.c_str(),
 				       userName.c_str(), password.c_str(),
-				       portNumber, sourceId);
+				       portNumber, sourceId, bufferRecords);
 	if (!dbWriter) {
 		throw std::runtime_error("DbWriterConfiguration: Could not create IpfixDbWriter");
 	}
