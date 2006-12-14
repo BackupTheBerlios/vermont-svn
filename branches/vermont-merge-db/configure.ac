@@ -21,6 +21,12 @@ AS_IF([test "x$with_ipheader_offset" = xcheck],
       [AC_MSG_NOTICE([IP header offset set to $with_ipheader_offset Bytes])
        AC_DEFINE_UNQUOTED(IP_HEADER_OFFSET, $with_ipheader_offset)])
 
+# enable NETFLOWv9 support
+AC_ARG_ENABLE([netflow-v9],
+              [AS_HELP_STRING([--enable-netflow-v9],
+                              [enable NetFlow version 9 support])],
+              [AC_DEFINE(SUPPORT_NETFLOWV9)])
+
 # turn on debug mode
 AC_ARG_ENABLE([dprint],
               [AS_HELP_STRING([--enable-dprint],
