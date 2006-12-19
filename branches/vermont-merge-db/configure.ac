@@ -1,5 +1,5 @@
 AC_INIT
-AC_PREREQ(2.57)
+AC_PREREQ(2.59)
 AM_INIT_AUTOMAKE(vermont, 0.9)
 AC_PROG_CC
 AC_PROG_CXX
@@ -15,7 +15,7 @@ AC_ARG_WITH([ipheader-offset],
               [specify start position of the IP header in an ethernet frame in Bytes])],
             [],
             [with_ipheader_offset=check])
-AS_IF([test "x$with_ipheader_offset" = xcheck],
+AS_IF([test "x$with_ipheader_offset" = "xcheck"],
       [AC_MSG_NOTICE([Assuming IP header offset is 14 Bytes])
        AC_DEFINE(IP_HEADER_OFFSET, 14)],
       [AC_MSG_NOTICE([IP header offset set to $with_ipheader_offset Bytes])
@@ -24,8 +24,11 @@ AS_IF([test "x$with_ipheader_offset" = xcheck],
 # enable NETFLOWv9 support
 AC_ARG_ENABLE([netflow-v9],
               [AS_HELP_STRING([--enable-netflow-v9],
-                              [enable NetFlow version 9 support])],
-              [AC_DEFINE(SUPPORT_NETFLOWV9)])
+                              [enable NetFlow version 9 support (turned on by default)])])
+AS_IF([test "x$enable_netflow_v9" = "xyes" -o "x$enable_netflow_v9" = "x"],
+      [AC_MSG_NOTICE([NetFlow version 9 support enabled])
+       AC_DEFINE(SUPPORT_NETFLOWV9)],
+      [AC_MSG_NOTICE([NetFlow version 9 support disabled])])
 
 # turn on debug mode
 AC_ARG_ENABLE([dprint],
