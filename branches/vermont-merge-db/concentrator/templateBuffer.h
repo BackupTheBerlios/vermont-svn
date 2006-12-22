@@ -45,8 +45,8 @@ typedef struct {
 
 TemplateBuffer* createTemplateBuffer(IpfixParser* parentIpfixParser);
 void destroyTemplateBuffer(TemplateBuffer* templateBuffer);
-BufferedTemplate* getBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, TemplateID templateId);
-void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, TemplateID id);
+BufferedTemplate* getBufferedTemplate(TemplateBuffer* templateBuffer, SourceID* sourceId, TemplateID templateId);
+void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID* sourceId, TemplateID id);
 void bufferTemplate(TemplateBuffer* templateBuffer, BufferedTemplate* bt);
 
 

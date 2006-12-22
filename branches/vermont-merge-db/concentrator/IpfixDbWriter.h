@@ -5,7 +5,7 @@
 #include "rcvIpfix.h"
 #include "ipfix.h"
 #include "ipfixlolib/ipfixlolib.h"
-#include <mysql/mysql.h>
+#include <mysql.h>
 #include <netinet/in.h>
 #include <time.h>
 
@@ -40,6 +40,7 @@ typedef struct {
  */
 typedef struct {
         int Id;          /** Id entry of sourcID and expIP in the ExporterTable */
+        // TODO: rename this into observationDomainId
         uint64_t srcId;  /** SourceID of  the exporter monitor */
         uint64_t  expIp; /** IP of the exporter */
 } ExpTable;
@@ -92,7 +93,7 @@ int destroyIpfixDbWriter(IpfixDbWriter*  ipfixDbWriter);
 
 IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
                                    const char* userName, const char* password,
-                                   unsigned int port, SourceID sourceId,
+                                   unsigned int port, uint16_t observationDomainId,
                                    int maxStatements);
 
 CallbackInfo getIpfixDbWriterCallbackInfo(IpfixDbWriter* ipfixDbWriter);

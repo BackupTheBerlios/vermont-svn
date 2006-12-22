@@ -71,7 +71,7 @@ void DbReaderConfiguration::connect(Configuration* c)
 {
 	ExporterConfiguration* exporter = dynamic_cast<ExporterConfiguration*>(c);
 	if (exporter) {
-		exporter->createIpfixSender(ipfixDbReader->srcId);
+		exporter->createIpfixSender(ipfixDbReader->srcId.observationDomainId);
 		IpfixSender* ipfixSender = exporter->getIpfixSender();
 		msg(MSG_INFO, "DbReaderConfiguration: Adding ipfixSender-callbacks to dbReader");
 		addIpfixDbReaderCallbacks(ipfixDbReader, getIpfixSenderCallbackInfo(ipfixSender));

@@ -53,7 +53,7 @@ int deinitializeIpfixSenders() {
  * @param port destination collector's port
  * @return handle to use when calling @c destroyIpfixSender()
  */
-IpfixSender* createIpfixSender(SourceID sourceID, const char* ip, uint16_t port) {
+IpfixSender* createIpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port) {
 	IpfixSender* ipfixSender = (IpfixSender*)malloc(sizeof(IpfixSender));
 	ipfix_exporter** exporterP = &ipfixSender->ipfixExporter;
 	strcpy(ipfixSender->ip, ip);
@@ -61,7 +61,7 @@ IpfixSender* createIpfixSender(SourceID sourceID, const char* ip, uint16_t port)
 	ipfixSender->sentRecords = 0;
 
 	ipfixSender->lastTemplateId = SENDER_TEMPLATE_ID_LOW;
-	if(ipfix_init_exporter(sourceID, exporterP) != 0) {
+	if(ipfix_init_exporter(observationDomainId, exporterP) != 0) {
 		msg(MSG_FATAL, "ipfix_init_exporter failed");
 		goto out;
 	}
@@ -140,7 +140,7 @@ int ipfixSenderAddCollector(IpfixSender *ips, const char *ip, uint16_t port)
  * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int sndNewDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
+int sndNewDataTemplate(void* ipfixSender_, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo) {
 	uint16_t my_template_id;
 	uint16_t my_preceding;
 	IpfixSender* ipfixSender = ipfixSender_;
@@ -275,7 +275,7 @@ int sndNewDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* 
  * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int sndDestroyDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) {
+int sndDestroyDataTemplate(void* ipfixSender_, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo) {
 	free(dataTemplateInfo->userData);
 	return 0;
 }
@@ -288,7 +288,7 @@ int sndDestroyDataTemplate(void* ipfixSender_, SourceID sourceID, DataTemplateIn
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int sndDataDataRecord(void* ipfixSender_, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
+int sndDataDataRecord(void* ipfixSender_, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
 	IpfixSender* ipfixSender = ipfixSender_;
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
 

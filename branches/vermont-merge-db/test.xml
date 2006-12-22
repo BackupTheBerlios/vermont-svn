@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>lo</interface>
+		<interface>lo0</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>

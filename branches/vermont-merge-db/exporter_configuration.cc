@@ -101,10 +101,10 @@ void ExporterConfiguration::setUp()
 
 }
 
-void ExporterConfiguration::createExporterSink(Template* t, uint16_t sourceId)
+void ExporterConfiguration::createExporterSink(Template* t, uint16_t observationDomainId)
 {
 	msg(MSG_INFO, "Creating exporter sink");
-	exporterSink = new ExporterSink(t, sourceId);
+	exporterSink = new ExporterSink(t, observationDomainId);
 	for (unsigned i = 0; i != collectors.size(); ++i) {
 		msg(MSG_DEBUG, "Exporter: adding collector %s:%d to ExporterSink",
 		    collectors[i]->ipAddress.c_str(),
@@ -115,7 +115,7 @@ void ExporterConfiguration::createExporterSink(Template* t, uint16_t sourceId)
 	}
 }
 
-void ExporterConfiguration::createIpfixSender(uint16_t sourceId)
+void ExporterConfiguration::createIpfixSender(uint16_t observationDomainId)
 {
 	if (collectors.empty()) {
 		msg(MSG_INFO, "Aggregator won't export it's result to any collector");
@@ -124,7 +124,7 @@ void ExporterConfiguration::createIpfixSender(uint16_t sourceId)
 
 	initializeIpfixSenders();
 	msg(MSG_DEBUG, "Exporter: Creating IpfixSender");
-	ipfixSender = ::createIpfixSender(sourceId,
+	ipfixSender = ::createIpfixSender(observationDomainId,
 					  collectors[0]->ipAddress.c_str(),
 					  collectors[0]->port);
 	if (!ipfixSender) {

@@ -60,11 +60,11 @@ int createDB(IpfixDbWriter* ipfixDbWriter);
 int  createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* TableName);
 int createExporterTable(IpfixDbWriter* ipfixDbWriter);
 
-int writeDataRecord(void* ipfixDbWriter,SourceID sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
-int writeDataDataRecord(void* ipfixDbWriter,SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
-char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID sourceID,DataTemplateInfo* dataTemplateInfo,uint16_t length,FieldData* data);
+int writeDataRecord(void* ipfixDbWriter,SourceID* sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
+int writeDataDataRecord(void* ipfixDbWriter,SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID* sourceID,DataTemplateInfo* dataTemplateInfo,uint16_t length,FieldData* data);
 
-int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID,uint64_t expIp);
+int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID,uint64_t expIp);
 
 char* getTableName(IpfixDbWriter* ipfixDbWriter,Table* table, uint64_t flowstartsec);
 char* getTableNamDependTime(char* tablename,uint64_t flowstartsec);
@@ -198,12 +198,13 @@ int createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* tablename)
 /**
 *	function receive the DataRecord or DataDataRecord when callback is started
 */
-int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data)
+int  writeDataDataRecord(void* ipfixDbWriter_, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data)
 {
-	Table *tabl = ((IpfixDbWriter*) ipfixDbWriter)->table;
+        IpfixDbWriter *ipfixDbWriter = (IpfixDbWriter*)ipfixDbWriter_;
+	Table *tabl = ipfixDbWriter->table;
 	Statement* statemen = tabl->statement;
 
-	msg(MSG_DEBUG, "Writing data data record");
+	msg(MSG_DEBUG, "Processing data record");
 
 	/** if the writeToDb process not ready - drop record*/
 	if(statemen->statemBuffer[statemen->maxStatements-1] != NULL) {
@@ -214,22 +215,24 @@ int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInf
 	/** sourceid null ? use default*/
 	//if(sourceID == 0)
 	/* overwrite sourceid if defined */
-	if(((IpfixDbWriter*) ipfixDbWriter)->srcId != 0) {
-		sourceID = ((IpfixDbWriter*) ipfixDbWriter)->srcId;
+	if(ipfixDbWriter->srcId.observationDomainId != 0 || sourceID == NULL) {
+		sourceID = &ipfixDbWriter->srcId;
 	}
 
 	/** make a sql insert statement from the recors data */
 	char* insertTableStr = getRecData(ipfixDbWriter, tabl, sourceID,
 					  dataTemplateInfo, length, data);
-	msg(MSG_DEBUG,"Insert statement: %s",insertTableStr);	
+	DPRINTF("Insert statement: %s",insertTableStr);	
 	
 	/** if statement counter lower as  max count of statement then insert record in statemenBuffer*/
-	if((statemen->statemReceived) < statemen->maxStatements) {	
+	if(statemen->statemReceived < statemen->maxStatements) {	
 		statemen->statemBuffer[statemen->statemReceived] = insertTableStr;
 		/** statemBuffer is filled ->  insert in table*/	
 		if(statemen->statemReceived == statemen->maxStatements-1) {
+                        msg(MSG_DEBUG, "Writing buffered records to database");
 			writeToDb(ipfixDbWriter, tabl, statemen);
 		} else {
+                        msg(MSG_DEBUG, "Buffering record. Need %i more records before writing to database.", statemen->maxStatements - statemen->statemReceived);
 			statemen->statemReceived++;
 		}
 	}
@@ -239,7 +242,7 @@ int  writeDataDataRecord(void* ipfixDbWriter, SourceID sourceID, DataTemplateInf
 /**
  *	function receive the  when callback is started
  */
-int writeDataRecord(void* ipfixDbWriter, SourceID sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data)
+int writeDataRecord(void* ipfixDbWriter, SourceID* sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data)
 {
 	DataTemplateInfo dataTemplateInfo;
 	
@@ -260,7 +263,7 @@ int writeDataRecord(void* ipfixDbWriter, SourceID sourceID, TemplateInfo* templa
 /**
 *	loop over the DataTemplateInfo (fieldinfo,datainfo) to get the IPFIX values to store in database
 */
-char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID,
+char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID,
 		 DataTemplateInfo* dataTemplateInfo,uint16_t length, FieldData* data)
 {
 	int i ,j, k, n;
@@ -545,7 +548,7 @@ uint64_t getTableEndTime(uint64_t startTime)
 *  	lookup in the ExporterTable, is there also nothing insert sourceID and expIp an return the generated
 *      ExporterID
 */
-int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, uint64_t expIp)
+int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID, uint64_t expIp)
 {
 	int i;
 #ifdef DEBUG
@@ -558,7 +561,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 #endif
 	/** Is the exporterID in exporterBuffer*/
 	for(i = 0; i < MAX_EXP_TABLE; i++) {
-		if(table->exporterBuffer[i].srcId==sourceID &&
+		if(table->exporterBuffer[i].srcId == sourceID->observationDomainId &&
 		   table->exporterBuffer[i].expIp== expIp  &&
 		   table->exporterBuffer[i].Id > 0) {
 			msg(MSG_DEBUG,"Exporter sourceID/IP with ID %d is in the exporterBuffer",
@@ -573,7 +576,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 
 	char selectStr[70] = "SELECT id FROM exporter WHERE sourceID=";
 	char stringtmp[10];
-	sprintf(stringtmp,"%u",sourceID);
+	sprintf(stringtmp,"%u",sourceID->observationDomainId);
 	strncat(selectStr, stringtmp,strlen(stringtmp)+1);
 	strncat(selectStr," AND srcIP=",(11*sizeof(char))+1);
 	sprintf(stringtmp,"%Lu",expIp);
@@ -592,7 +595,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 			msg(MSG_DEBUG,"ExporterID %d is in exporter table",exporterID);
 			/**Write new exporter in the exporterBuffer*/
 			table->exporterBuffer[table->countExpTable].Id = exporterID;
-			table->exporterBuffer[table->countExpTable].srcId = sourceID;
+			table->exporterBuffer[table->countExpTable].srcId = sourceID->observationDomainId;
 			table->exporterBuffer[table->countExpTable].expIp = expIp;
 			
 			if(table->countExpTable < MAX_EXP_TABLE-1) {
@@ -606,7 +609,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 			char LockExporter[STARTLEN] = "LOCK TABLES exporter WRITE";
 			char UnLockExporter[STARTLEN] = "UNLOCK TABLES";
 			char insertStr[70] = "INSERT INTO exporter (ID,sourceID,srcIP) VALUES('NULL','";
-			sprintf(stringtmp,"%u",sourceID);
+			sprintf(stringtmp,"%u",sourceID->observationDomainId);
 			strncat(insertStr,stringtmp,strlen(stringtmp)+1);
 			strncat(insertStr,"','",(3*sizeof(char))+1);
 			sprintf(stringtmp,"%Lu",expIp);
@@ -635,7 +638,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID sourceID, 
 				msg(MSG_DEBUG,"ExporterID %d inserted in exporter table", exporterID);
 				/**Write new exporter in the exporterBuffer*/
 				table->exporterBuffer[table->countExpTable].Id = exporterID;
-				table->exporterBuffer[table->countExpTable].srcId = sourceID;
+				table->exporterBuffer[table->countExpTable].srcId = sourceID->observationDomainId;
 				table->exporterBuffer[table->countExpTable].expIp = expIp;
 			
 				if(table->countExpTable < MAX_EXP_TABLE-1) {
@@ -750,7 +753,7 @@ int deinitializeIpfixDbWriters() {
  */
 IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
                                    const char* userName, const char* password,
-                                   unsigned int port, SourceID sourceId,
+                                   unsigned int port, uint16_t observationDomainId,
                                    int maxStatements)
 {	
 	IpfixDbWriter* ipfixDbWriter = (IpfixDbWriter*)malloc(sizeof(IpfixDbWriter));
@@ -775,7 +778,7 @@ IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
 	ipfixDbWriter->portNum = port;
 	ipfixDbWriter->socketName = 0;
 	ipfixDbWriter->flags = 0;
-	ipfixDbWriter->srcId = sourceId;
+	ipfixDbWriter->srcId.observationDomainId = observationDomainId;
 	/**Initialize structure members Table*/	  
 	ipfixDbWriter->table = tabl ;
 	tabl->countBuffTable = 0;
@@ -825,7 +828,6 @@ IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
 	if(createExporterTable(ipfixDbWriter) !=0)
 		goto out;
 	
-	msg(MSG_ERROR, "dsfasasfdsafa");
 	return ipfixDbWriter;
 	
 out: 

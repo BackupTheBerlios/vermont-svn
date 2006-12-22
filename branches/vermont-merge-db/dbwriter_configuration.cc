@@ -57,6 +57,11 @@ void DbWriterConfiguration::configure()
 void DbWriterConfiguration::setUp()
 {
 	initializeIpfixDbWriters();
+
+        if (dbName == "") {
+                throw std::runtime_error("DBWriterConfigurations: No database name given!");
+        }
+
 	dbWriter = createIpfixDbWriter(hostName.c_str(), dbName.c_str(),
 				       userName.c_str(), password.c_str(),
 				       portNumber, sourceId, bufferRecords);

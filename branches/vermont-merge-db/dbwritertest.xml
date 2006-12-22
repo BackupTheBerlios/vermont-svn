@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>lo</interface>
+		<interface>lo0</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
@@ -87,6 +87,12 @@
 				<match>ICMP</match>
 			</flowKey>
                         <flowKey>
+                                <ieName>sourceIpV4Address</ieName>
+                        </flowKey>
+                        <flowKey>
+                                <ieName>destinationIpV4Address</ieName>
+                        </flowKey>
+                        <flowKey>
                                 <ieName>icmpTypeCodeIpV4</ieName>
                         </flowKey>
 			<nonFlowKey>
@@ -110,7 +116,7 @@
 
 	<dbWriter id="1">
 		<dbName>flows</dbName>		
-		<bufferRecords>100</bufferRecords>
+		<bufferRecords>10</bufferRecords>
 	</dbWriter>
     
     <vermont_main>

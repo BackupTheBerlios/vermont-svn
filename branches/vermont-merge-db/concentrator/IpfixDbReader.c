@@ -35,7 +35,7 @@ int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTempla
 int connectToDb(IpfixDbReader* ipfixDbReader,
 		const char* hostName, const char* dbName, 
 		const char* username, const char* password,
-		unsigned int port, SourceID sourceId);
+		unsigned int port, uint16_t observationDomainId);
 
 
 /**
@@ -97,7 +97,7 @@ int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataT
 	for (n = 0; n != dbReader->callbackCount; n++) {
 		CallbackInfo* ci = &dbReader->callbackInfo[n];
 		if (ci->dataTemplateCallbackFunction) {
-			ci->dataTemplateCallbackFunction(ci->handle, ipfixDbReader->srcId,
+			ci->dataTemplateCallbackFunction(ci->handle, &ipfixDbReader->srcId,
 							 dataTemplateInfo);
 			msg(MSG_DEBUG,"DbReader send new template");
 		}
@@ -217,7 +217,7 @@ int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTempla
 			CallbackInfo* ci = &dbReader->callbackInfo[i];
 			if (ci->dataDataRecordCallbackFunction) {
 				ci->dataDataRecordCallbackFunction(ci->handle,
-								   ipfixDbReader->srcId,
+								   &ipfixDbReader->srcId,
 								   dataTemplateInfo,
 								   dataLength,
 								   data);
@@ -326,7 +326,7 @@ int getColumns(IpfixDbReader* ipfixDbReader)
 int connectToDb(IpfixDbReader* ipfixDbReader,
 		const char* hostName, const char* dbName, 
 		const char* userName, const char* password,
-		unsigned int port, SourceID sourceId)
+		unsigned int port, uint16_t observationDomainId)
 
 {
 	/** get the mysl init handle*/
@@ -346,7 +346,7 @@ int connectToDb(IpfixDbReader* ipfixDbReader,
 	ipfixDbReader->portNum = port;
 	ipfixDbReader->socketName = 0;	  		
 	ipfixDbReader->flags = 0;
-	ipfixDbReader->srcId = sourceId;
+	ipfixDbReader->srcId.observationDomainId = observationDomainId;
 	/**Initialize structure members DbReader*/
 	ipfixDbReader->dbReader->callbackInfo = NULL;
 	ipfixDbReader->dbReader->callbackCount = 0;
@@ -430,7 +430,7 @@ int destroyIpfixDbReader(IpfixDbReader* ipfixDbReader) {
  */
 IpfixDbReader* createIpfixDbReader(const char* hostName, const char* dbName, 
 				   const char* userName, const char* password,
-				   unsigned int port, SourceID sourceId)
+				   unsigned int port, uint16_t observationDomainId)
 {
 	IpfixDbReader* ipfixDbReader = (IpfixDbReader*)malloc(sizeof(IpfixDbReader));
 	if (!ipfixDbReader) {
@@ -463,7 +463,7 @@ IpfixDbReader* createIpfixDbReader(const char* hostName, const char* dbName,
 	ipfixDbReader->dbReader = dbReader;
 	dbReader->dbData = dbData;
 	if (connectToDb(ipfixDbReader, hostName, dbName, userName,
-			password, port, sourceId)) {
+			password, port, observationDomainId)) {
 		goto out3;
 	}
 	msg(MSG_DEBUG,"Connected to database");

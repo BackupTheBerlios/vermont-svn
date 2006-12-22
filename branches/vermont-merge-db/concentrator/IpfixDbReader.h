@@ -10,7 +10,7 @@
 #include <time.h>
 #include <pthread.h>
 
-#include <mysql/mysql.h>
+#include <mysql.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,7 +69,7 @@ int stopIpfixDbReader(IpfixDbReader* ipfixDbReader);
 
 IpfixDbReader* createIpfixDbReader(const char* hostname, const char* dbName,
                                    const char* username, const char* password,
-                                   unsigned int port, SourceID sourceId);
+                                   unsigned int port, uint16_t observationDomainId);
 
 void addIpfixDbReaderCallbacks(IpfixDbReader* ipfixDbReader, CallbackInfo handles);
 
