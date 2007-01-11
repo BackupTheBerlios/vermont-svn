@@ -50,7 +50,7 @@ struct Column identify [] = {
 	{"lastSwitched", IPFIX_TYPEID_flowEndSeconds,  "INTEGER(10) UNSIGNED", 0},
 	//{"firstSwitched", 22,  "INTEGER(10) UNSIGNED", 0},
 	//{"lastSwitched", 21,  "INTEGER(10) UNSIGNED", 0},
-	{"exporterID",ExporterID, "SMALLINT(5) UNSIGNED", 0},
+	{"exporterID",EXPORTERID, "SMALLINT(5) UNSIGNED", 0},
 	{"END"}
 } ;
 	
@@ -64,7 +64,7 @@ int writeDataRecord(void* ipfixDbWriter,SourceID* sourceID, TemplateInfo* templa
 int writeDataDataRecord(void* ipfixDbWriter,SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table,SourceID* sourceID,DataTemplateInfo* dataTemplateInfo,uint16_t length,FieldData* data);
 
-int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID,uint64_t expIp);
+int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID);
 
 char* getTableName(IpfixDbWriter* ipfixDbWriter,Table* table, uint64_t flowstartsec);
 char* getTableNamDependTime(char* tablename,uint64_t flowstartsec);
@@ -134,7 +134,7 @@ int createExporterTable(IpfixDbWriter* ipfixDbWriter)
 	*/
 	/** create table exporter*/
 
-	// TODO: what a fuckin mess!!!!!
+	// TODO: make this less ugly
 	char createExporterTab[STARTLEN+(3 * COL_WIDTH)];
 	strcpy(createExporterTab,"CREATE TABLE IF NOT EXISTS exporter (id SMALLINT(5) NOT NULL AUTO_INCREMENT,sourceID INTEGER(10) UNSIGNED DEFAULT NULL,srcIP INTEGER(10) UNSIGNED DEFAULT NULL,PRIMARY KEY(id))");
 	if(mysql_query(ipfixDbWriter->conn,createExporterTab) != 0) {
@@ -213,7 +213,6 @@ int  writeDataDataRecord(void* ipfixDbWriter_, SourceID* sourceID, DataTemplateI
 	}
 	
 	/** sourceid null ? use default*/
-	//if(sourceID == 0)
 	/* overwrite sourceid if defined */
 	if(ipfixDbWriter->srcId.observationDomainId != 0 || sourceID == NULL) {
 		sourceID = &ipfixDbWriter->srcId;
@@ -332,10 +331,10 @@ char* getRecData(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID,
 					}
 				}
 				if(notfound) {	
-					if(identify[j].ipfixId == ExporterID) {
+					if(identify[j].ipfixId == EXPORTERID) {
 						/**lookup exporter buffer to get exporterID from sourcID and expIp**/
-						intdata = getExporterID(ipfixDbWriter, table, sourceID,0);
-						sprintf(stringtmp,"%Lu",(uint64_t)intdata);
+						uint32_t expID = getExporterID(ipfixDbWriter, table, sourceID);
+						sprintf(stringtmp,"%u",(uint32_t)expID);
 						strncat(ColValues,stringtmp,strlen(stringtmp)+1);
 						strncat(ColValues,"'",sizeof(char)+1);
 					} else {
@@ -548,9 +547,19 @@ uint64_t getTableEndTime(uint64_t startTime)
 *  	lookup in the ExporterTable, is there also nothing insert sourceID and expIp an return the generated
 *      ExporterID
 */
-int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID, uint64_t expIp)
+int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
 {
 	int i;
+        MYSQL_RES* dbResult;
+        MYSQL_ROW dbRow;
+        int exporterID = 0;
+
+        char selectStr[70];
+        char stringtmp[10];
+        uint32_t expIp;
+
+        expIp = *(uint32_t*)(sourceID->exporterAddress.ip); 
+
 #ifdef DEBUG
 	DPRINTF("Content of exporterBuffer");
 	for(i = 0; i < MAX_EXP_TABLE; i++) {
@@ -559,9 +568,9 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID,
 		    table->exporterBuffer[i].expIp);
 	}
 #endif
-	/** Is the exporterID in exporterBuffer*/
+	/** Is the exporterID already in exporterBuffer? */
 	for(i = 0; i < MAX_EXP_TABLE; i++) {
-		if(table->exporterBuffer[i].srcId == sourceID->observationDomainId &&
+		if(table->exporterBuffer[i].observationDomainId == sourceID->observationDomainId &&
 		   table->exporterBuffer[i].expIp== expIp  &&
 		   table->exporterBuffer[i].Id > 0) {
 			msg(MSG_DEBUG,"Exporter sourceID/IP with ID %d is in the exporterBuffer",
@@ -569,94 +578,93 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID,
 			return table->exporterBuffer[i].Id;
 		}
 	}
-	/**exporterID is not in exporterBuffer*/
-	MYSQL_RES* dbResult;
-	MYSQL_ROW dbRow;
-	int exporterID = 0;
 
-	char selectStr[70] = "SELECT id FROM exporter WHERE sourceID=";
-	char stringtmp[10];
+        // it is not: try to get it from the database
+
+        sprintf(selectStr, "%s", "SELECT id FROM exporter WHERE sourceID=");
 	sprintf(stringtmp,"%u",sourceID->observationDomainId);
 	strncat(selectStr, stringtmp,strlen(stringtmp)+1);
 	strncat(selectStr," AND srcIP=",(11*sizeof(char))+1);
-	sprintf(stringtmp,"%Lu",expIp);
+	sprintf(stringtmp,"%u",expIp);
 	strncat(selectStr, stringtmp,strlen(stringtmp)+1);
 		
 	if(mysql_query(ipfixDbWriter->conn, selectStr) != 0) {
 		msg(MSG_DEBUG,"Select on exporter table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 0;// If a failure occurs, return exporterID = 0
-	} else {
-		dbResult = mysql_store_result(ipfixDbWriter->conn);
-		/** is the exporterID in the exporter table ?*/
-		if(( dbRow = mysql_fetch_row(dbResult))) {
-			exporterID = atoi(dbRow[0]);
-			mysql_free_result(dbResult);
-			msg(MSG_DEBUG,"ExporterID %d is in exporter table",exporterID);
-			/**Write new exporter in the exporterBuffer*/
-			table->exporterBuffer[table->countExpTable].Id = exporterID;
-			table->exporterBuffer[table->countExpTable].srcId = sourceID->observationDomainId;
-			table->exporterBuffer[table->countExpTable].expIp = expIp;
-			
-			if(table->countExpTable < MAX_EXP_TABLE-1) {
-				table->countExpTable++;
-			} else {
-				table->countExpTable = 0;					
-			}
-			return exporterID;
+	} 
+
+	dbResult = mysql_store_result(ipfixDbWriter->conn);
+	/** is the exporterID in the exporter table ?*/
+	if(( dbRow = mysql_fetch_row(dbResult))) {
+		exporterID = atoi(dbRow[0]);
+		mysql_free_result(dbResult);
+		msg(MSG_DEBUG,"ExporterID %d is in exporter table",exporterID);
+		/**Write new exporter in the exporterBuffer*/
+		table->exporterBuffer[table->countExpTable].Id = exporterID;
+		table->exporterBuffer[table->countExpTable].observationDomainId = sourceID->observationDomainId;
+		table->exporterBuffer[table->countExpTable].expIp = expIp;
+		
+		if(table->countExpTable < MAX_EXP_TABLE-1) {
+			table->countExpTable++;
 		} else {
-			/**ExporterID is not in exporter table - insert expID and expIp and return the exporterID*/
-			char LockExporter[STARTLEN] = "LOCK TABLES exporter WRITE";
-			char UnLockExporter[STARTLEN] = "UNLOCK TABLES";
-			char insertStr[70] = "INSERT INTO exporter (ID,sourceID,srcIP) VALUES('NULL','";
-			sprintf(stringtmp,"%u",sourceID->observationDomainId);
-			strncat(insertStr,stringtmp,strlen(stringtmp)+1);
-			strncat(insertStr,"','",(3*sizeof(char))+1);
-			sprintf(stringtmp,"%Lu",expIp);
-			strncat(insertStr, stringtmp,strlen(stringtmp)+1);
-			strncat(insertStr,"')",(2*sizeof(char))+1);	
-			
-			mysql_free_result(dbResult);
-			if(mysql_query(ipfixDbWriter->conn, LockExporter) != 0) {
-				msg(MSG_FATAL,"Lock of exporter table failed. Error: %s",
-				    mysql_error(ipfixDbWriter->conn));
-				return 0;
-			}
-			
-			if(mysql_query(ipfixDbWriter->conn, insertStr) != 0) {
-				msg(MSG_DEBUG,"Insert in exporter table failed. Error: %s",
-				    ipfixDbWriter->conn);
-				/**Unlock the table when a failure occur*/
-				if(mysql_query(ipfixDbWriter->conn, UnLockExporter) != 0) {
-					msg(MSG_FATAL,"UnLock of exporter table failed. Error: %s",
-					    mysql_error(ipfixDbWriter->conn));
-					return 0;
-				}
-				return 0;
-			} else {
-				exporterID = mysql_insert_id(ipfixDbWriter->conn); 
-				msg(MSG_DEBUG,"ExporterID %d inserted in exporter table", exporterID);
-				/**Write new exporter in the exporterBuffer*/
-				table->exporterBuffer[table->countExpTable].Id = exporterID;
-				table->exporterBuffer[table->countExpTable].srcId = sourceID->observationDomainId;
-				table->exporterBuffer[table->countExpTable].expIp = expIp;
-			
-				if(table->countExpTable < MAX_EXP_TABLE-1) {
-					table->countExpTable++;
-				} else {
-					table->countExpTable = 0;					
-				}
-				
-				if(mysql_query(ipfixDbWriter->conn, UnLockExporter) != 0) {
-					msg(MSG_FATAL,"UnLock of exporter table failed. Error: %s",
-					    mysql_error(ipfixDbWriter->conn));
-					return 0;
-				}
-			}
-			return exporterID;
+			table->countExpTable = 0;					
 		}
+		return exporterID;
+	} 
+	
+	/**ExporterID is not in exporter table - insert expID and expIp and return the exporterID*/
+	char LockExporter[STARTLEN] = "LOCK TABLES exporter WRITE";
+	char UnLockExporter[STARTLEN] = "UNLOCK TABLES";
+	char insertStr[70] = "INSERT INTO exporter (ID,sourceID,srcIP) VALUES('NULL','";
+        msg(MSG_FATAL, "sourceID %u, expIp %u", sourceID->observationDomainId, expIp);
+	sprintf(stringtmp,"%u",sourceID->observationDomainId);
+	strncat(insertStr,stringtmp,strlen(stringtmp)+1);
+	strncat(insertStr,"','",(3*sizeof(char))+1);
+	sprintf(stringtmp,"%u",expIp);
+	strncat(insertStr, stringtmp,strlen(stringtmp)+1);
+	strncat(insertStr,"')",(2*sizeof(char))+1);
+	
+	mysql_free_result(dbResult);
+	if(mysql_query(ipfixDbWriter->conn, LockExporter) != 0) {
+		msg(MSG_FATAL,"Lock of exporter table failed. Error: %s",
+		    mysql_error(ipfixDbWriter->conn));
+		return 0;
 	}
+	
+	if(mysql_query(ipfixDbWriter->conn, insertStr) != 0) {
+		msg(MSG_DEBUG,"Insert in exporter table failed. Error: %s",
+		    ipfixDbWriter->conn);
+		/**Unlock the table when a failure occur*/
+		if(mysql_query(ipfixDbWriter->conn, UnLockExporter) != 0) {
+			msg(MSG_FATAL,"UnLock of exporter table failed. Error: %s",
+			    mysql_error(ipfixDbWriter->conn));
+			return 0;
+		}
+		return 0;
+        }
+
+	exporterID = mysql_insert_id(ipfixDbWriter->conn); 
+	msg(MSG_DEBUG,"ExporterID %d inserted in exporter table", exporterID);
+	/**Write new exporter in the exporterBuffer*/
+	table->exporterBuffer[table->countExpTable].Id = exporterID;
+	table->exporterBuffer[table->countExpTable].observationDomainId = sourceID->observationDomainId;
+	table->exporterBuffer[table->countExpTable].expIp = expIp;
+	
+	if(table->countExpTable < MAX_EXP_TABLE-1) {
+		table->countExpTable++;
+	} else {
+		table->countExpTable = 0;					
+	}
+		
+	if(mysql_query(ipfixDbWriter->conn, UnLockExporter) != 0) {
+		msg(MSG_FATAL,"UnLock of exporter table failed. Error: %s",
+		    mysql_error(ipfixDbWriter->conn));
+		return 0;
+	}
+	return exporterID;
 }
+
 /**
  *	Get data of the record is given by the IPFIX_TYPEID
 */
@@ -806,7 +814,7 @@ IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
 	/**Init struct expTable*/
 	for(i = 0; i < MAX_EXP_TABLE; i++) {
 		tabl->exporterBuffer[i].Id = 0;
-		tabl->exporterBuffer[i].srcId = 0;
+		tabl->exporterBuffer[i].observationDomainId = 0;
 		tabl->exporterBuffer[i].expIp = 0;
 	}				
 	

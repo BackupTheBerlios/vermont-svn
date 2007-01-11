@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-#define ExporterID        0     
+#define EXPORTERID 0
 
 /**
  * MAX_TABLE    : count of buffered tablenames 
@@ -41,8 +41,8 @@ typedef struct {
 typedef struct {
         int Id;          /** Id entry of sourcID and expIP in the ExporterTable */
         // TODO: rename this into observationDomainId
-        uint64_t srcId;  /** SourceID of  the exporter monitor */
-        uint64_t  expIp; /** IP of the exporter */
+        uint32_t observationDomainId;  /** SourceID of  the exporter monitor */
+        uint32_t  expIp; /** IP of the exporter */
 } ExpTable;
 
 /** 

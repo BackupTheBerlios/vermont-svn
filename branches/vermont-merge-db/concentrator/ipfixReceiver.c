@@ -359,9 +359,9 @@ static void udpListener(IpfixReceiver* ipfixReceiver) {
                 if (isHostAuthorized(ipfixReceiver, &clientAddress.sin_addr, 
 				     sizeof(clientAddress.sin_addr))) {
 
-			msg(MSG_DEBUG, "clientAddressLen == %i", clientAddressLen);
-			memcpy(&sourceID->exporterAddress.ip, &clientAddress.sin_addr, 4);
-			sourceID->exporterAddress.len = clientAddressLen;
+                        uint32_t ip = ntohl(clientAddress.sin_addr.s_addr);
+			memcpy(sourceID->exporterAddress.ip, &ip, 4);
+			sourceID->exporterAddress.len = 4;
 
                         pthread_mutex_lock(&ipfixReceiver->mutex);
                         IpfixPacketProcessor* pp = (IpfixPacketProcessor*)(ipfixReceiver->packetProcessor);
