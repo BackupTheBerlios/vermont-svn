@@ -7,11 +7,12 @@
 #include "dbreader_configuration.h"
 #include "exporter_configuration.h"
 #include "metering_configuration.h"
+#include "flowmetering_configuration.h"
 #include "msg.h"
 
 
 DbReaderConfiguration::DbReaderConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), ipfixDbReader(0), portNumber(0), sourceId(0)
+	: Configuration(document, startPoint), ipfixDbReader(0), portNumber(0), observationDomainId(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -45,8 +46,8 @@ void DbReaderConfiguration::configure()
 			password = getContent(i);
 		} else if (tagMatches(i, "port")) {
 			portNumber = atoi(getContent(i).c_str());
-		} else if (tagMatches(i, "sourceId")) {
-			sourceId = atoi(getContent(i).c_str());
+		} else if (tagMatches(i, "observationDomainId")) {
+			observationDomainId = atoi(getContent(i).c_str());
 		} else if (tagMatches(i, "next")) {
 			fillNextVector(i);
 		}
@@ -61,7 +62,7 @@ void DbReaderConfiguration::setUp()
 	initializeIpfixDbReaders();
 	ipfixDbReader = createIpfixDbReader(hostName.c_str(), dbName.c_str(),
 					    userName.c_str(), password.c_str(),
-					    portNumber, sourceId);
+					    portNumber, observationDomainId);
 	if (!ipfixDbReader) {
 		throw std::runtime_error("DbReaderConfiguration: Could not create IpfixDbReader!");
 	}
@@ -76,6 +77,20 @@ void DbReaderConfiguration::connect(Configuration* c)
 		msg(MSG_INFO, "DbReaderConfiguration: Adding ipfixSender-callbacks to dbReader");
 		addIpfixDbReaderCallbacks(ipfixDbReader, getIpfixSenderCallbackInfo(ipfixSender));
 		msg(MSG_INFO, "DbReaderConfiguration: Successfully set up connection between dbReader and Exporter");
+		return;
+	}
+	MeteringConfiguration* metering = dynamic_cast<MeteringConfiguration*>(c);
+	if (metering) {
+		FlowMeteringConfiguration* fm = metering->getFlowMeteringConfiguration();
+		if (!fm) {
+			throw std::runtime_error("DBReaderConfiguration: Cannot connect to an metering process that does not do flowmetering");
+		}
+		msg(MSG_INFO, "DBReaderConfiguration: Adding dbreader-callbacks to aggregator");
+		IpfixAggregator* aggregator = fm->getIpfixAggregator();
+		addIpfixDbReaderCallbacks(ipfixDbReader, getAggregatorCallbackInfo(aggregator));
+		msg(MSG_INFO, "DbReaderConfiguration: Successfully set up connection between dbReader and metering process");
+		
+
 		return;
 	}
 

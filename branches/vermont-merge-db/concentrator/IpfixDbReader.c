@@ -53,8 +53,10 @@ void* readFromDB(void* ipfixDbReader_)
 	// TODO: make IpfixDbReader exit if exit was requested!
 	for(i = 0; i < dbData->tableCount && i < MAX_TABLES; i++) {
 		pthread_mutex_lock(&ipfixDbReader->mutex);
+                msg(MSG_DIALOG, "Start sending a table");
 		dbReaderSendNewTemplate(ipfixDbReader, dataTemplateInfo);
 		dbReaderSendTable(ipfixDbReader, dataTemplateInfo,i);
+                msg(MSG_DIALOG, "Sended table");
 		pthread_mutex_unlock(&ipfixDbReader->mutex);
 	}
 

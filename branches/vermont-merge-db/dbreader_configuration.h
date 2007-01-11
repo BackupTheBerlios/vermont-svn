@@ -33,7 +33,7 @@ private:
 	std::string userName;
 	std::string password;
 	unsigned int portNumber;
-	uint16_t sourceId;
+	uint16_t observationDomainId;
 };
 
 #endif
