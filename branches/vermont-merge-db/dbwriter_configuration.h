@@ -26,6 +26,8 @@ public:
 	virtual void connect(Configuration*);
 	virtual void startSystem();
 
+        void setObservationDomainId(uint16_t observationDomainId);
+
 	IpfixDbWriter* getDbWriter() { return dbWriter; }
 
 protected:
@@ -38,7 +40,7 @@ private:
 	std::string userName;
 	std::string password;
 	unsigned int portNumber;
-	uint16_t sourceId;
+	uint16_t observationDomainId;
 	int bufferRecords;
 };
 

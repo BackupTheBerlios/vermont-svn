@@ -9,7 +9,7 @@
 
 
 DbWriterConfiguration::DbWriterConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), dbWriter(NULL), portNumber(0), sourceId(0), bufferRecords(10)
+	: Configuration(document, startPoint), dbWriter(NULL), portNumber(0), observationDomainId(0), bufferRecords(10)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -28,6 +28,14 @@ DbWriterConfiguration::~DbWriterConfiguration()
 	}
 }
 
+void DbWriterConfiguration::setObservationDomainId(uint16_t observationDomainId)
+{
+        this->observationDomainId = observationDomainId;
+        if (dbWriter) {
+                dbWriter->srcId.observationDomainId = observationDomainId;
+        }
+}
+
 void DbWriterConfiguration::configure()
 {
 	msg(MSG_INFO, "DbWriterConfiguration: Start reading dbwriter section");
@@ -43,15 +51,13 @@ void DbWriterConfiguration::configure()
 			password = getContent(i);
 		} else if (tagMatches(i, "port")) {
 			portNumber = atoi(getContent(i).c_str());
-		} else if (tagMatches(i, "sourceId")) {
-			sourceId = atoi(getContent(i).c_str());
 		} else if (tagMatches(i, "bufferRecords")) {
 			bufferRecords = atoi(getContent(i).c_str());
 		}
 		i = i->next;
 	}
+        setUp();
 	msg(MSG_INFO, "DbWriterConfiguration: Successfully parsed dbwriter section");
-	setUp();
 }
 
 void DbWriterConfiguration::setUp()
@@ -64,7 +70,7 @@ void DbWriterConfiguration::setUp()
 
 	dbWriter = createIpfixDbWriter(hostName.c_str(), dbName.c_str(),
 				       userName.c_str(), password.c_str(),
-				       portNumber, sourceId, bufferRecords);
+				       portNumber, observationDomainId, bufferRecords);
 	if (!dbWriter) {
 		throw std::runtime_error("DbWriterConfiguration: Could not create IpfixDbWriter");
 	}

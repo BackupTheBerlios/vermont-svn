@@ -139,6 +139,7 @@ void MeteringConfiguration::connect(Configuration* c)
 						 "dbWriter if it does flowMetetering!");
 		}
 
+                dbWriterConfiguration->setObservationDomainId(observationDomainId);
 		if (packetSelection) {
 			msg(MSG_DEBUG, "Setting up HookingFilter");
 			HookingFilter* h = new HookingFilter(sampler_hook_entry);

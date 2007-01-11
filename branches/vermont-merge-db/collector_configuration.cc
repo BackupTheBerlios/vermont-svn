@@ -164,6 +164,7 @@ void CollectorConfiguration::connect(Configuration* c)
 	DbWriterConfiguration* dbWriterConfiguration = dynamic_cast<DbWriterConfiguration*>(c);
 	if (dbWriterConfiguration) {
 		msg(MSG_DEBUG, "Adding DBwriter to IpfixCollector");
+                dbWriterConfiguration->setObservationDomainId(observationDomainId);
 		addIpfixParserCallbacks(ipfixParser, getIpfixDbWriterCallbackInfo(dbWriterConfiguration->getDbWriter()));
 		setIpfixParser(ipfixPacketProcessor, ipfixParser);
 		addIpfixPacketProcessor(ipfixCollector, ipfixPacketProcessor);

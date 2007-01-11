@@ -617,7 +617,6 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
 	char LockExporter[STARTLEN] = "LOCK TABLES exporter WRITE";
 	char UnLockExporter[STARTLEN] = "UNLOCK TABLES";
 	char insertStr[70] = "INSERT INTO exporter (ID,sourceID,srcIP) VALUES('NULL','";
-        msg(MSG_FATAL, "sourceID %u, expIp %u", sourceID->observationDomainId, expIp);
 	sprintf(stringtmp,"%u",sourceID->observationDomainId);
 	strncat(insertStr,stringtmp,strlen(stringtmp)+1);
 	strncat(insertStr,"','",(3*sizeof(char))+1);
