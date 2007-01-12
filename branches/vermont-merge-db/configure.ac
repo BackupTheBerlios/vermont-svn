@@ -37,6 +37,9 @@ AC_ARG_ENABLE([dprint],
               [AC_DEFINE(DEBUG)])
 
 AM_PATH_XML2(2.4.0,,AC_MSG_ERROR([*** LibXML version $XML_VERSION not found!]))
+
+
+# check for pthread
 ACX_PTHREAD
 
 # any mysql-version should be adequate
@@ -45,8 +48,14 @@ if test "$MYSQL_VERSION" = ""; then
 	AC_MSG_ERROR([*** mysql client library not found. Please install it.])
 fi
 
-
-AC_MSG_WARN([We lack a check for libpcap. Please install the library, if you haven't done this already.])
+# check for libpcap
+AC_CHECK_HEADER([pcap.h],
+                [],
+                [AC_MSG_ERROR([*** could not find pcap.h. Please install libpcap.])])
+AC_CHECK_LIB([pcap], [pcap_open_live],
+             [LDFLAGS="$LDFLAGS -lpcap"
+              AC_SUBST(LDFLAGS)],
+             [AC_MSG_ERROR([*** could not find libpcap. Please install it.])])
 
 AC_CONFIG_FILES([Makefile concentrator/Makefile sampler/Makefile ipfixlolib/Makefile tools/Makefile])
 
