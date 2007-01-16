@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>lo0</interface>
+		<interface>lo</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
@@ -110,7 +110,7 @@
 		</rule>	
 	</flowMetering>
 	<next>
-	    <dbWriter>1</dbWriter>
+	    <dbWriterId>1</dbWriterId>
 	</next>
     </meteringProcess>
 

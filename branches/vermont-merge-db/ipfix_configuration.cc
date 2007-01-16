@@ -47,11 +47,8 @@ void Configuration::fillNextVector(xmlNodePtr p)
 		} else if (tagMatches(j, "exportingProcessId")) {
 			nextVector.push_back(configTypes::exporter +
 					     getContent(j));
-		} else if (tagMatches(j, "dbWriter")) {
+		} else if (tagMatches(j, "dbWriterId")) {
 			nextVector.push_back(configTypes::dbwriter +
-					     getContent(j));
-		} else if (tagMatches(j, "dbReader")) {
-			nextVector.push_back(configTypes::dbreader +
 					     getContent(j));
 		} 
 		j = j->next;

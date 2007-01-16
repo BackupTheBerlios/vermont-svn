@@ -37,7 +37,7 @@
 		</rule>
 	</flowMetering>
 	<next>
-	    <dbWriter>1</dbWriter>
+	    <dbWriterId>1</dbWriterId>
 	</next>
     </meteringProcess>
 	<dbWriter id="1">

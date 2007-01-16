@@ -9,7 +9,7 @@
 			<port>4711</port>
 		</listener>
 		<next>
-			<dbWriter>1</dbWriter>
+			<dbWriterId>1</dbWriterId>
 		</next>
 	</collectingProcess>
 
