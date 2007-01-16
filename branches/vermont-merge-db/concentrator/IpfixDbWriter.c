@@ -204,11 +204,11 @@ int  writeDataDataRecord(void* ipfixDbWriter_, SourceID* sourceID, DataTemplateI
 	Table *tabl = ipfixDbWriter->table;
 	Statement* statemen = tabl->statement;
 
-	msg(MSG_DEBUG, "Processing data record");
+	DPRINTF("Processing data record\n");
 
 	/** if the writeToDb process not ready - drop record*/
 	if(statemen->statemBuffer[statemen->maxStatements-1] != NULL) {
-		msg(MSG_FATAL,"Drop datarecord - still writing to database");
+		msg(MSG_ERROR,"Statement buffer is full, writing to DB in progress? - drop record");
 		return 1;
 	}
 	
@@ -221,17 +221,17 @@ int  writeDataDataRecord(void* ipfixDbWriter_, SourceID* sourceID, DataTemplateI
 	/** make a sql insert statement from the recors data */
 	char* insertTableStr = getRecData(ipfixDbWriter, tabl, sourceID,
 					  dataTemplateInfo, length, data);
-	DPRINTF("Insert statement: %s",insertTableStr);	
+	DPRINTF("Insert statement: %s\n",insertTableStr);	
 	
 	/** if statement counter lower as  max count of statement then insert record in statemenBuffer*/
 	if(statemen->statemReceived < statemen->maxStatements) {	
 		statemen->statemBuffer[statemen->statemReceived] = insertTableStr;
 		/** statemBuffer is filled ->  insert in table*/	
 		if(statemen->statemReceived == statemen->maxStatements-1) {
-                        msg(MSG_DEBUG, "Writing buffered records to database");
+                        msg(MSG_INFO, "Writing buffered records to database");
 			writeToDb(ipfixDbWriter, tabl, statemen);
 		} else {
-                        msg(MSG_DEBUG, "Buffering record. Need %i more records before writing to database.", statemen->maxStatements - statemen->statemReceived);
+                        msg(MSG_INFO, "Buffering record. Need %i more records before writing to database.", statemen->maxStatements - statemen->statemReceived);
 			statemen->statemReceived++;
 		}
 	}
@@ -254,7 +254,7 @@ int writeDataRecord(void* ipfixDbWriter, SourceID* sourceID, TemplateInfo* templ
 	dataTemplateInfo.data = NULL;        /**< data start pointer for fixed-value fields */
 	dataTemplateInfo.userData = templateInfo->userData;    /**< pointer to a field that can be used by higher-level modules */
 	
-	msg(MSG_DEBUG,"receiveRec calls receiveDataRec");	
+	DPRINTF("receiveRec calls receiveDataRec\n");	
 
 	return writeDataDataRecord(ipfixDbWriter, sourceID, &dataTemplateInfo, length, data);
 }
@@ -389,18 +389,18 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 			strncat(LockTables,",",sizeof(char)+1);
 	}
 	if(mysql_query(ipfixDbWriter->conn, LockTables) != 0) {
-		msg(MSG_FATAL,"Lock of table failed. Error: %s",
+		msg(MSG_ERROR,"Lock of table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 1;		    
 	}
 	/**Write the insert statement to database*/
 	for(i=0; i != statement->maxStatements; i++) {
 		if(mysql_query(ipfixDbWriter->conn, statement->statemBuffer[i]) != 0) {
-			msg(MSG_FATAL,"Insert of records failed",
+			msg(MSG_ERROR,"Insert of records failed",
 			    mysql_error(ipfixDbWriter->conn));
 			return 1;
 		} else {
-			msg(MSG_DEBUG,"Record inserted");
+			DPRINTF("Record inserted\n");
 		}
 		free(statement->statemBuffer[i]);
 		statement->statemBuffer[i] = NULL;
@@ -408,12 +408,12 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 	
 	char UnLockTable[STARTLEN] = "UNLOCK TABLES";
 	if(mysql_query(ipfixDbWriter->conn, UnLockTable) != 0) {
-		msg(MSG_FATAL,"Unlock of tables failed",
+		msg(MSG_ERROR,"Unlock of tables failed",
 		    mysql_error(ipfixDbWriter->conn));
 		return 1;
 	}
 	statement->statemReceived = 0;
-	msg(MSG_DEBUG,"Write to database is complete");
+	msg(MSG_INFO,"Write to database is complete");
 	return 0;
 }
 
@@ -425,9 +425,9 @@ char* getTableName(IpfixDbWriter* ipfixDbWriter,Table*  table , uint64_t flowsta
 	int i;
 	
 #ifdef DEBUG
-	DPRINTF("Content of tableBuffer :");
+	DPRINTF("Content of tableBuffer :\n");
 	for(i = 0; i < MAX_TABLE; i++) {
-	    DPRINTF("TableStartTime : %Lu TableEndTime : %Lu TableName : %s",
+	    DPRINTF("TableStartTime : %Lu TableEndTime : %Lu TableName : %s\n",
 		    table->tableBuffer[i].startTableTime, table->tableBuffer[i].endTableTime,
 		    table->tableBuffer[i].TableName);	
 	}
@@ -437,7 +437,7 @@ char* getTableName(IpfixDbWriter* ipfixDbWriter,Table*  table , uint64_t flowsta
 	    /**Is flowstartsec between  the range of tablecreattime and tablecreattime+30 min*/
 	    if(table->tableBuffer[i].startTableTime <= flowstartsec &&
 		    flowstartsec < table->tableBuffer[i].endTableTime) {
-		msg(MSG_DEBUG,"Table: %s is in tableBuffer",  table->tableBuffer[i].TableName);
+		DPRINTF("Table: %s is in tableBuffer\n",  table->tableBuffer[i].TableName);
 		return table->tableBuffer[i].TableName;
 	    }
 	}
@@ -455,7 +455,7 @@ char* getTableName(IpfixDbWriter* ipfixDbWriter,Table*  table , uint64_t flowsta
 
 	/** createTable when not in buffer*/
 	if(createDBTable(ipfixDbWriter, table, table->tableBuffer[table->countBuffTable].TableName) != 0) {	
-		msg(MSG_DEBUG,"Struct bufentry clean up after failure");
+		DPRINTF("Struct bufentry clean up after failure\n");
 		table->tableBuffer[table->countBuffTable].startTableTime = 0;
 		table->tableBuffer[table->countBuffTable].endTableTime = 0;
 		strcpy(table->tableBuffer[table->countBuffTable].TableName,"NULL");
@@ -561,10 +561,10 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
         expIp = *(uint32_t*)(sourceID->exporterAddress.ip); 
 
 #ifdef DEBUG
-	DPRINTF("Content of exporterBuffer");
+	DPRINTF("Content of exporterBuffer\n");
 	for(i = 0; i < MAX_EXP_TABLE; i++) {
-		DPRINTF("exporterID:%d	   sourceID:%Lu	   expIp:%Lu",
-		    table->exporterBuffer[i].Id, table->exporterBuffer[i].srcId,
+		DPRINTF("exporterID:%d	   observationDomainID:%u	   expIp:%u\n",
+		    table->exporterBuffer[i].Id, table->exporterBuffer[i].observationDomainId,
 		    table->exporterBuffer[i].expIp);
 	}
 #endif
@@ -573,7 +573,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
 		if(table->exporterBuffer[i].observationDomainId == sourceID->observationDomainId &&
 		   table->exporterBuffer[i].expIp== expIp  &&
 		   table->exporterBuffer[i].Id > 0) {
-			msg(MSG_DEBUG,"Exporter sourceID/IP with ID %d is in the exporterBuffer",
+			DPRINTF("Exporter sourceID/IP with ID %d is in the exporterBuffer\n",
 			    table->exporterBuffer[i].Id);
 			return table->exporterBuffer[i].Id;
 		}
@@ -589,7 +589,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
 	strncat(selectStr, stringtmp,strlen(stringtmp)+1);
 		
 	if(mysql_query(ipfixDbWriter->conn, selectStr) != 0) {
-		msg(MSG_DEBUG,"Select on exporter table failed. Error: %s",
+		msg(MSG_ERROR,"Select on exporter table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 0;// If a failure occurs, return exporterID = 0
 	} 
@@ -599,7 +599,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
 	if(( dbRow = mysql_fetch_row(dbResult))) {
 		exporterID = atoi(dbRow[0]);
 		mysql_free_result(dbResult);
-		msg(MSG_DEBUG,"ExporterID %d is in exporter table",exporterID);
+		DPRINTF("ExporterID %d is in exporter table\n",exporterID);
 		/**Write new exporter in the exporterBuffer*/
 		table->exporterBuffer[table->countExpTable].Id = exporterID;
 		table->exporterBuffer[table->countExpTable].observationDomainId = sourceID->observationDomainId;
@@ -626,17 +626,17 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
 	
 	mysql_free_result(dbResult);
 	if(mysql_query(ipfixDbWriter->conn, LockExporter) != 0) {
-		msg(MSG_FATAL,"Lock of exporter table failed. Error: %s",
+		msg(MSG_ERROR,"Lock of exporter table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 0;
 	}
 	
 	if(mysql_query(ipfixDbWriter->conn, insertStr) != 0) {
-		msg(MSG_DEBUG,"Insert in exporter table failed. Error: %s",
+		msg(MSG_ERROR,"Insert in exporter table failed. Error: %s",
 		    ipfixDbWriter->conn);
 		/**Unlock the table when a failure occur*/
 		if(mysql_query(ipfixDbWriter->conn, UnLockExporter) != 0) {
-			msg(MSG_FATAL,"UnLock of exporter table failed. Error: %s",
+			msg(MSG_ERROR,"UnLock of exporter table failed. Error: %s",
 			    mysql_error(ipfixDbWriter->conn));
 			return 0;
 		}
@@ -644,7 +644,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
         }
 
 	exporterID = mysql_insert_id(ipfixDbWriter->conn); 
-	msg(MSG_DEBUG,"ExporterID %d inserted in exporter table", exporterID);
+	msg(MSG_INFO,"ExporterID %d inserted in exporter table", exporterID);
 	/**Write new exporter in the exporterBuffer*/
 	table->exporterBuffer[table->countExpTable].Id = exporterID;
 	table->exporterBuffer[table->countExpTable].observationDomainId = sourceID->observationDomainId;
@@ -657,7 +657,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
 	}
 		
 	if(mysql_query(ipfixDbWriter->conn, UnLockExporter) != 0) {
-		msg(MSG_FATAL,"UnLock of exporter table failed. Error: %s",
+		msg(MSG_ERROR,"UnLock of exporter table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 0;
 	}
@@ -686,7 +686,7 @@ uint32_t getipv4address( FieldType type, FieldData* data)
 	}
 
 	if ((type.length == 5) && ( type.id == IPFIX_TYPEID_sourceIPv4Address || IPFIX_TYPEID_destinationIPv4Address )) /*&& (imask != 0)*/ {
-		msg(MSG_DEBUG,"imask drop from ipaddress");
+		DPRINTF("imask drop from ipaddress\n");
 		type.length = 4;
 	}
 	

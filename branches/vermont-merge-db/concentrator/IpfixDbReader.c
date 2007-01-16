@@ -101,7 +101,7 @@ int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataT
 		if (ci->dataTemplateCallbackFunction) {
 			ci->dataTemplateCallbackFunction(ci->handle, &ipfixDbReader->srcId,
 							 dataTemplateInfo);
-			msg(MSG_DEBUG,"DbReader send new template");
+			msg(MSG_INFO,"DbReader send new template");
 		}
 	}
 	return 0;
@@ -155,7 +155,7 @@ int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTempla
 	strcat(select," ORDER BY lastSwitched");
 	/** get all data from database*/
 	if(mysql_query(ipfixDbReader->conn, select) != 0) {
-		msg(MSG_DEBUG,"Select on table failed. Error: %s",
+		msg(MSG_ERROR,"Select on table failed. Error: %s",
 		    mysql_error(ipfixDbReader->conn));
 		free(data);
 		return 1;
@@ -223,7 +223,7 @@ int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTempla
 								   dataTemplateInfo,
 								   dataLength,
 								   data);
-				msg(MSG_DEBUG,"DbReader sent record");
+				msg(MSG_INFO,"DbReader sent record");
 			}
 		}
 
@@ -252,7 +252,7 @@ int getTables(IpfixDbReader* ipfixDbReader)
 	}
 	
 	if(mysql_num_rows(dbResult) > MAX_TABLES) {
-		msg(MSG_ERROR,"There are %i flow tables in the database, but only the first MAX_TABLES tables can be read.", mysql_num_rows(dbResult));
+		msg(MSG_ERROR,"There are too many flow tables in the database. Only the first MAX_TABLES=%i tables can be read.", MAX_TABLES);
 	}
 
 	while(( dbRow = mysql_fetch_row(dbResult)) && i < MAX_TABLES) {
@@ -292,7 +292,7 @@ int getColumns(IpfixDbReader* ipfixDbReader)
 	/* get column names from first flow table */
 	strncat(showcolStr, dbData->tableNames[0],strlen(dbData->tableNames[0])+1);
 	if(mysql_query(ipfixDbReader->conn, showcolStr) != 0) {	
-		msg(MSG_DEBUG,"Show columns on table %s failed. Error: %s",
+		msg(MSG_ERROR,"Show columns on table %s failed. Error: %s",
 		    mysql_error(ipfixDbReader->conn));
 		return 1;
 	}
@@ -479,12 +479,12 @@ IpfixDbReader* createIpfixDbReader(const char* hostName, const char* dbName,
 	}
 	/** get tableNames of the database*/
 	if(getTables(ipfixDbReader) != 0) {
-		msg(MSG_DEBUG,"Error in function getTables");
+		msg(MSG_ERROR,"Error in function getTables");
 		goto out3;
 	}
 	/**get columnsname of one table*/
 	if(getColumns(ipfixDbReader) != 0) {
-		msg(MSG_DEBUG,"Error in function getColumns");
+		msg(MSG_ERROR,"Error in function getColumns");
 		goto out3;
 	}
 
