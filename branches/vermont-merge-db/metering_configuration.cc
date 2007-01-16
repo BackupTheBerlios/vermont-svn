@@ -46,6 +46,11 @@ void MeteringConfiguration::setObservationDomainId(uint16_t id)
 	observationDomainId = id;
 }
 
+void MeteringConfiguration::setCaptureLength(int len)
+{
+	captureLength = len;
+}
+
 void MeteringConfiguration::configure()
 {
 	msg(MSG_INFO, "MeteringConfiguration: Start reading meteringProcess");
@@ -92,7 +97,10 @@ void MeteringConfiguration::connect(Configuration* c)
 	if (exporter) {
 		if (packetReporting) {
 			msg(MSG_DEBUG, "Connecting packetReporting to exporter");
-			exporter->createExporterSink(packetReporting->t, observationDomainId);
+			// rough estimation of the maximum record length including variable length fields
+			uint16_t recordsPerPacket = packetReporting->recordLength + packetReporting->recordVLFields*captureLength;
+			msg(MSG_INFO, "Estimated record length is %u", recordsPerPacket);	
+			exporter->createExporterSink(packetReporting->t, observationDomainId, recordsPerPacket);
 			packetSelection->filter->setReceiver(exporter->getExporterSink());
 		}
 		if (flowMetering) {

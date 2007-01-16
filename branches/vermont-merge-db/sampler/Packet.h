@@ -291,7 +291,7 @@ public:
 	// If enough data for the network/transport header has been captured, is checked by classify().
 	void * getPacketData(unsigned short offset, unsigned short header, unsigned short fieldLength) const
 	{
-	    DPRINTF("offset: %d header: %d fieldlen: %d available: %d", offset, header, fieldLength, data_length);
+	    DPRINTF("offset: %d header: %d fieldlen: %d available: %d\n", offset, header, fieldLength, data_length);
 	    switch(header)
 	    {
 		

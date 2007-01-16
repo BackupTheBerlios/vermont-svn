@@ -102,6 +102,7 @@
     <xsd:sequence>
     	<xsd:element name="interface" type="xsd:string" minOccurs="0" />
       	<xsd:element name="pcap_filter" type="xsd:string" minOccurs="0" />
+      	<xsd:element name="capture_len" type="xsd:unsignedInt" minOccurs="0" />
     </xsd:sequence>
   </xsd:complexType>
 

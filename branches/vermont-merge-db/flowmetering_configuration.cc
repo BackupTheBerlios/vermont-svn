@@ -89,7 +89,7 @@ Rule* FlowMeteringConfiguration::readRule(xmlNodePtr p) {
 			try {
 				InfoElementId ie(i, *this);
 				RuleField* ruleField = mallocRuleField();
-				if (ie.getModifier().empty()) {
+				if (ie.getModifier().empty() || (ie.getModifier() == "keep")) {
 					ruleField->modifier = FIELD_MODIFIER_KEEP;
 				} else if (ie.getModifier() == "discard") {
 					ruleField->modifier = FIELD_MODIFIER_DISCARD;

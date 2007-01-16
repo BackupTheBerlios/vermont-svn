@@ -4,7 +4,8 @@
 #include <sampler/ExporterSink.h>
 
 ExporterConfiguration::ExporterConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), exporterSink(0), ipfixSender(0)
+	: Configuration(document, startPoint), maxPacketSize(0), exportDelay(0), templateRefreshTime(0), templateRefreshRate(0), 
+	exporterSink(0), ipfixSender(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -101,10 +102,27 @@ void ExporterConfiguration::setUp()
 
 }
 
-void ExporterConfiguration::createExporterSink(Template* t, uint16_t observationDomainId)
+void ExporterConfiguration::createExporterSink(Template* t, uint16_t observationDomainId, uint16_t recordLength)
 {
 	msg(MSG_INFO, "Creating exporter sink");
 	exporterSink = new ExporterSink(t, observationDomainId);
+	if(recordLength || maxPacketSize)
+	{
+	    // IPFIX packet header: 16 bytes, set header: 4 bytes
+	    int recordsPerPacket = (maxPacketSize - 16 - 4) / recordLength;
+	    if(recordsPerPacket <= 0) recordsPerPacket = 1;
+	    msg(MSG_INFO, "Set maximum records per packet to %d", recordsPerPacket);
+	    exporterSink->setMaxRecords(recordsPerPacket);
+	}
+	if(exportDelay)
+	{
+	    msg(MSG_INFO, "Set maximum export timeout to %d", exportDelay);
+	    exporterSink->setExportTimeout(exportDelay);
+	}
+	if(templateRefreshTime || templateRefreshRate)
+	{
+	    msg(MSG_ERROR, "Exporter: Configuration of templateRefreshRate/Time not yet supported.");
+	}
 	for (unsigned i = 0; i != collectors.size(); ++i) {
 		msg(MSG_DEBUG, "Exporter: adding collector %s:%d to ExporterSink",
 		    collectors[i]->ipAddress.c_str(),
@@ -131,6 +149,14 @@ void ExporterConfiguration::createIpfixSender(uint16_t observationDomainId)
 		throw std::runtime_error("Could not create IpfixSender!");
 	}
 
+	if(maxPacketSize || exportDelay)
+	{
+	    msg(MSG_ERROR, "Exporter: maxPacketSize and/or exportDelay not yet supported by IpfixSender. Ignored.");
+	}
+	if(templateRefreshTime || templateRefreshRate)
+	{
+	    msg(MSG_ERROR, "Exporter: Configuration of templateRefreshRate/Time not yet supported.");
+	}
 	for (unsigned i = 1; i != collectors.size(); ++i) {
 		if (ipfixSenderAddCollector(ipfixSender,
 					    collectors[i]->ipAddress.c_str(),

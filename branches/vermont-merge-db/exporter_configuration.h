@@ -23,7 +23,7 @@ public:
 	virtual void connect(Configuration*);
 	virtual void startSystem();
 
-	void createExporterSink(Template* t, uint16_t observationDomainId);
+	void createExporterSink(Template* t, uint16_t observationDomainId, uint16_t recordLength);
 	ExporterSink* getExporterSink() const { return exporterSink; }
 	
 	void createIpfixSender(uint16_t observationDomainId);
