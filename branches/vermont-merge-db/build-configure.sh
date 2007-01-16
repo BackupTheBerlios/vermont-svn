@@ -32,8 +32,8 @@ if [ $action_failed = 1 ]; then
         return 2
 fi
 
-echo "Running automake..."
-$automake -a || action_failed=1
+echo "Running automake --add-missing --copy..."
+$automake --add-missing --copy || action_failed=1
 
 if [ $action_failed = 1 ]; then
         echo "Error running automake. It is possible that you have an incompatible version of automake. Please try 1.7.9"
