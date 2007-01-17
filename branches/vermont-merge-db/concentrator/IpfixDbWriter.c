@@ -103,7 +103,7 @@ int createDB(IpfixDbWriter* ipfixDbWriter)
 	strncat(createDbStr,ipfixDbWriter->dbName,strlen(ipfixDbWriter->dbName)+1);
 	/**create database*/
 	if(mysql_query(ipfixDbWriter->conn, createDbStr) != 0 ) {
-		msg(MSG_FATAL,"Creation of database %s failed. Error: %s",
+		msg(MSG_FATAL,"IpfixDbWriter: Creation of database %s failed. Error: %s",
 		    ipfixDbWriter->dbName, mysql_error(ipfixDbWriter->conn));
 		return 1;
 	} else {
@@ -111,7 +111,7 @@ int createDB(IpfixDbWriter* ipfixDbWriter)
 	}
 	/** use database  with dbName**/	
 	if(mysql_select_db(ipfixDbWriter->conn, ipfixDbWriter->dbName) !=0) {
-		msg(MSG_FATAL,"Database %s not selectable. Error: %s",
+		msg(MSG_FATAL,"IpfixDbWriter: Database %s not selectable. Error: %s",
 		    ipfixDbWriter->dbName, mysql_error(ipfixDbWriter->conn));
 		return 1;
 	} else {
@@ -138,7 +138,7 @@ int createExporterTable(IpfixDbWriter* ipfixDbWriter)
 	char createExporterTab[STARTLEN+(3 * COL_WIDTH)];
 	strcpy(createExporterTab,"CREATE TABLE IF NOT EXISTS exporter (id SMALLINT(5) NOT NULL AUTO_INCREMENT,sourceID INTEGER(10) UNSIGNED DEFAULT NULL,srcIP INTEGER(10) UNSIGNED DEFAULT NULL,PRIMARY KEY(id))");
 	if(mysql_query(ipfixDbWriter->conn,createExporterTab) != 0) {
-		msg(MSG_FATAL,"Creation of table Exporter failed. Error: %s",
+		msg(MSG_FATAL,"IpfixDbWriter: Creation of table Exporter failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 1;
 	} else {
@@ -186,7 +186,7 @@ int createDBTable(IpfixDbWriter* ipfixDbWriter,Table* table, char* tablename)
 	*/
 	/** create table*/
 	if(mysql_query(ipfixDbWriter->conn,createTableStr) != 0) {
-		msg(MSG_FATAL,"Creation of table failed. Error: %s",
+		msg(MSG_FATAL,"IpfixDbWriter: Creation of table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 1;
 	} else {
@@ -208,7 +208,7 @@ int  writeDataDataRecord(void* ipfixDbWriter_, SourceID* sourceID, DataTemplateI
 
 	/** if the writeToDb process not ready - drop record*/
 	if(statemen->statemBuffer[statemen->maxStatements-1] != NULL) {
-		msg(MSG_ERROR,"Statement buffer is full, writing to DB in progress? - drop record");
+		msg(MSG_ERROR,"IpfixDbWriter: Statement buffer is full, writing to DB in progress? - drop record");
 		return 1;
 	}
 	
@@ -389,14 +389,14 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 			strncat(LockTables,",",sizeof(char)+1);
 	}
 	if(mysql_query(ipfixDbWriter->conn, LockTables) != 0) {
-		msg(MSG_ERROR,"Lock of table failed. Error: %s",
+		msg(MSG_ERROR,"IpfixDbWriter: Lock of table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 1;		    
 	}
 	/**Write the insert statement to database*/
 	for(i=0; i != statement->maxStatements; i++) {
 		if(mysql_query(ipfixDbWriter->conn, statement->statemBuffer[i]) != 0) {
-			msg(MSG_ERROR,"Insert of records failed",
+			msg(MSG_ERROR,"IpfixDbWriter: Insert of records failed",
 			    mysql_error(ipfixDbWriter->conn));
 			return 1;
 		} else {
@@ -408,7 +408,7 @@ int writeToDb(IpfixDbWriter* ipfixDbWriter,Table* table, Statement* statement)
 	
 	char UnLockTable[STARTLEN] = "UNLOCK TABLES";
 	if(mysql_query(ipfixDbWriter->conn, UnLockTable) != 0) {
-		msg(MSG_ERROR,"Unlock of tables failed",
+		msg(MSG_ERROR,"IpfixDbWriter: Unlock of tables failed",
 		    mysql_error(ipfixDbWriter->conn));
 		return 1;
 	}
@@ -589,7 +589,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
 	strncat(selectStr, stringtmp,strlen(stringtmp)+1);
 		
 	if(mysql_query(ipfixDbWriter->conn, selectStr) != 0) {
-		msg(MSG_ERROR,"Select on exporter table failed. Error: %s",
+		msg(MSG_ERROR,"IpfixDbWriter: Select on exporter table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 0;// If a failure occurs, return exporterID = 0
 	} 
@@ -626,17 +626,17 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
 	
 	mysql_free_result(dbResult);
 	if(mysql_query(ipfixDbWriter->conn, LockExporter) != 0) {
-		msg(MSG_ERROR,"Lock of exporter table failed. Error: %s",
+		msg(MSG_ERROR,"IpfixDbWriter: Lock of exporter table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 0;
 	}
 	
 	if(mysql_query(ipfixDbWriter->conn, insertStr) != 0) {
-		msg(MSG_ERROR,"Insert in exporter table failed. Error: %s",
+		msg(MSG_ERROR,"IpfixDbWriter: Insert in exporter table failed. Error: %s",
 		    ipfixDbWriter->conn);
 		/**Unlock the table when a failure occur*/
 		if(mysql_query(ipfixDbWriter->conn, UnLockExporter) != 0) {
-			msg(MSG_ERROR,"UnLock of exporter table failed. Error: %s",
+			msg(MSG_ERROR,"IpfixDbWriter: UnLock of exporter table failed. Error: %s",
 			    mysql_error(ipfixDbWriter->conn));
 			return 0;
 		}
@@ -657,7 +657,7 @@ int getExporterID(IpfixDbWriter* ipfixDbWriter,Table* table, SourceID* sourceID)
 	}
 		
 	if(mysql_query(ipfixDbWriter->conn, UnLockExporter) != 0) {
-		msg(MSG_ERROR,"UnLock of exporter table failed. Error: %s",
+		msg(MSG_ERROR,"IpfixDbWriter: UnLock of exporter table failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		return 0;
 	}
@@ -771,11 +771,11 @@ IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
 	
 	ipfixDbWriter->conn = mysql_init(0);  /** get the mysl init handle*/
 	if(ipfixDbWriter->conn == 0) {
-		msg(MSG_FATAL,"Get MySQL connect handle failed. Error: %s",
+		msg(MSG_FATAL,"IpfixDbWriter: Get MySQL connect handle failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		goto out;
 	} else {
-		msg(MSG_DEBUG,"Get MySQL init handler");
+		msg(MSG_DEBUG,"IpfixDbWriter got MySQL init handler");
 	}
 	/**Initialize structure members IpfixDbWriter*/
 	ipfixDbWriter->hostName = hostName;
@@ -822,11 +822,11 @@ IpfixDbWriter* createIpfixDbWriter(const char* hostName, const char* dbName,
 				ipfixDbWriter->hostName, ipfixDbWriter->userName,
 				ipfixDbWriter->password, 0, ipfixDbWriter->portNum,
 				ipfixDbWriter->socketName, ipfixDbWriter->flags)) {
-		msg(MSG_FATAL,"Connection to database failed. Error: %s",
+		msg(MSG_FATAL,"IpfixDbWriter: Connection to database failed. Error: %s",
 		    mysql_error(ipfixDbWriter->conn));
 		goto out;
 	} else {
-		msg(MSG_DEBUG,"Succesfully connected to database");
+		msg(MSG_DEBUG,"IpfixDbWriter succesfully connected to database");
 	}
 	/** create Database*/
 	if(createDB(ipfixDbWriter) !=0)

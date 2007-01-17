@@ -107,8 +107,17 @@ public:
 		bool ret = true;
 		
                 // first, store the packet to be released later, after we have sent the data
-                DPRINTF("Adding packet to stream\n");
-                packetsToRelease[numPacketsToRelease++] = pck;
+		if(numPacketsToRelease < (MAX_PACKETS-1))
+		{
+		    DPRINTF("Adding packet to stream\n");
+		    packetsToRelease[numPacketsToRelease++] = pck;
+		}
+		else
+		{
+		    msg(MSG_ERROR, "ExporterSink: packet buffer too small, packet dropped.");
+		    pck->release();
+		    return false;
+		}
 
 		// first check if packet matches template requirements, i.e. if all fields are available
 		if(templ->checkPacketConformity(pck->classification)) 

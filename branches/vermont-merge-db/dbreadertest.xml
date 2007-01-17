@@ -1,7 +1,7 @@
 <ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
 
 	<dbReader id="1">
-		<dbName>flows</dbName>
+		<dbName>darpa</dbName>
 		<next>
 			<exportingProcessId>1</exportingProcessId>
 		</next>
@@ -20,13 +20,8 @@
             <ipAddressType>4</ipAddressType>
             <ipAddress>127.0.0.1</ipAddress>
             <transportProtocol>17</transportProtocol>
-            <port>4711</port>
-        </collector>
-        <collector>
-            <ipAddressType>4</ipAddressType>
-            <ipAddress>127.0.0.1</ipAddress>
-            <transportProtocol>17</transportProtocol>
-            <port>4712</port>
+            <port>1500</port>
+            <!--<port>4711</port>-->
         </collector>
     </exportingProcess>
 

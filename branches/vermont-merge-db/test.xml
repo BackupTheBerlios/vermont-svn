@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>lo0</interface>
+		<interface>lo</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
@@ -19,6 +19,10 @@
 	    </reportedIE>
 	    <reportedIE>
 		<ieName>destinationIPv4Address</ieName>
+	    </reportedIE>
+	    <reportedIE>
+		<ieName>ipPayloadPacketSection</ieName>
+		<ieLength>65535</ieLength>
 		</reportedIE>
 	</packetReporting>
 	<next>
@@ -39,13 +43,7 @@
 	    <ipAddressType>4</ipAddressType>
 	    <ipAddress>127.0.0.1</ipAddress>
 	    <transportProtocol>17</transportProtocol>
-	    <port>4711</port>
-	</collector>
-	<collector>
-            <ipAddressType>4</ipAddressType>
-            <ipAddress>127.0.0.1</ipAddress>
-            <transportProtocol>17</transportProtocol>	
-	    <port>4712</port>
+	    <port>1500</port>
 	</collector>
     </exportingProcess>
 

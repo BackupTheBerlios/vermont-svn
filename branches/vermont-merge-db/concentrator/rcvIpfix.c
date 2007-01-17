@@ -201,8 +201,7 @@ static void processTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId, Ipf
 		}
         
 		bufferTemplate(ipfixParser->templateBuffer, bt); 
-		// FIXME: Template expiration disabled for debugging
-		// bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
+		bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
 		int n;          
 		for (n = 0; n < ipfixParser->callbackCount; n++) {
@@ -289,8 +288,7 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID* source
 			}
 		}
 		bufferTemplate(ipfixParser->templateBuffer, bt); 
-		// FIXME: Template expiration disabled for debugging
-		// bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
+		bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
 
 		int n;
@@ -398,8 +396,7 @@ static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId,
 		record += dataLength;
 
 		bufferTemplate(ipfixParser->templateBuffer, bt); 
-		// FIXME: Template expiration disabled for debugging
-		// bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
+		bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
 		int n;
 		for (n = 0; n < ipfixParser->callbackCount; n++) {

@@ -76,6 +76,7 @@ void ExporterConfiguration::readCollector(xmlNodePtr p)
 	xmlNodePtr i = p->xmlChildrenNode;
 
 	Collector* c = new Collector();
+	c->port = 4739; // standard port for IPFIX
 	
 	while (NULL != i) {
 		if (tagMatches(i, "ipAddressType")) {

@@ -64,6 +64,7 @@ void CollectorConfiguration::readListener(xmlNodePtr p)
 	xmlNodePtr i = p->xmlChildrenNode;
 
 	Listener* listener = new Listener();
+	listener->port = 4739; // standard port for IPFIX
 
 	while (NULL != i) {
 		if (tagMatches(i, "ipAddressType")) {

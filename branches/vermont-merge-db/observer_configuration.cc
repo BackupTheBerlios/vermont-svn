@@ -21,7 +21,7 @@
 
 
 ObserverConfiguration::ObserverConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), captureLength(0), observer(NULL)
+	: Configuration(document, startPoint), observationDomain(0), captureLength(0), observer(NULL)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
