@@ -9,12 +9,15 @@
 #include "packetselection_configuration.h"
 #include "packetreporting_configuration.h"
 #include "flowmetering_configuration.h"
+#include "expressflowmetering_configuration.h"
 
 #include <sampler/Filter.h>
 #include <sampler/ExporterSink.h>
 #include <sampler/HookingFilter.h>
 #include <concentrator/sampler_hook_entry.h>
 #include <concentrator/ipfix.h>
+#include <flowcon/sampler_hook_entry.h>
+#include <flowcon/ipfix.h>
 
 #include <cctype>
 
@@ -23,7 +26,7 @@
 
 MeteringConfiguration::MeteringConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
 	: Configuration(document, startPoint), packetSelection(0), packetReporting(0),
-		 flowMetering(0), observationDomainId(0)
+		 flowMetering(0), expressflowMetering(0), observationDomainId(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -38,6 +41,7 @@ MeteringConfiguration::~MeteringConfiguration()
 	delete packetReporting;
 	delete packetSelection;
 	delete flowMetering;
+	delete expressflowMetering;
 }
 
 void MeteringConfiguration::setObservationDomainId(uint16_t id)
@@ -59,6 +63,9 @@ void MeteringConfiguration::configure()
 		} else if (tagMatches(i, "flowMetering")) {
 			flowMetering = new FlowMeteringConfiguration(doc, i);
 			flowMetering->configure();
+		} else if (tagMatches(i, "expressflowMetering")) {
+			expressflowMetering = new ExpressFlowMeteringConfiguration(doc, i);
+			expressflowMetering->configure();
 		} else if (tagMatches(i, "next")) {
 			fillNextVector(i);
 		}

@@ -18,6 +18,8 @@
 
 #include <concentrator/ipfix.h>
 #include <concentrator/aggregator.h>
+#include <flowcon/ipfix.h>
+#include <flowcon/aggregator.h>
 #include <ipfixlolib/ipfix_names.h>
 
 
@@ -128,6 +130,7 @@ private:
 	
 	SubsystemConfiguration subsystems;
 	std::vector<IpfixAggregator*> aggregators;
+/*	std::vector<IpfixExpressAggregator*> aggregators;*/
 
 	xmlDocPtr document;
 	xmlNodePtr current;

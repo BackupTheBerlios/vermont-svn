@@ -12,6 +12,7 @@
 
 
 #include <concentrator/rcvIpfix.h>
+#include <flowcon/rcvIpfix.h>
 
 
 #include <vector>

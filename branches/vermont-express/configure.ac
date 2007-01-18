@@ -11,6 +11,6 @@ ACX_PTHREAD
 
 AC_MSG_WARN([We lack a check for libpcap. Please install the library, if you haven't done this already.])
 
-AC_CONFIG_FILES([Makefile concentrator/Makefile sampler/Makefile ipfixlolib/Makefile tools/Makefile])
+AC_CONFIG_FILES([Makefile concentrator/Makefile sampler/Makefile ipfixlolib/Makefile tools/Makefile flowcon/Makefile])
 
 AC_OUTPUT

@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>eth0</interface>
+		<interface>eth1</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
@@ -15,7 +15,7 @@
     <meteringProcess id="1">
 <packetSelection>
 </packetSelection>
-	<flowMetering>
+	<simpleflowMetering>
 	    <rule>
 		<templateId>998</templateId>
 		<flowKey>
@@ -77,7 +77,7 @@
 		<activeTimeout unit="sec">5</activeTimeout>
 		<inactiveTimeout unit="sec">10</inactiveTimeout>
 	    </expiration>
-	</flowMetering>
+	</simpleflowMetering>
 	<next>
 	    <exportingProcessId>1</exportingProcessId>
 	</next>

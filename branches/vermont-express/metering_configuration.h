@@ -11,12 +11,14 @@
 #include "ipfix_configuration.h"
 
 #include <concentrator/aggregator.h>
+#include <flowcon/aggregator.h>
 
 #include <vector>
 #include <ctime>
 
 
 class FlowMeteringConfiguration;
+class ExpressFlowMeteringConfiguration;
 class PacketSelectionConfiguration;
 class PacketReportingConfiguration;
 
@@ -32,12 +34,14 @@ public:
 	void setObservationDomainId(uint16_t id);
 
 	FlowMeteringConfiguration* getFlowMeteringConfiguration() { return flowMetering; }
+	ExpressFlowMeteringConfiguration* getExpressFlowMeteringConfiguration() { return expressflowMetering; }
 	PacketReportingConfiguration* getPacketReportingConfiguration() { return packetReporting; }
 	PacketSelectionConfiguration* getPacketSelectionConfiguration();
 private:
 	PacketSelectionConfiguration* packetSelection;
 	PacketReportingConfiguration* packetReporting;
 	FlowMeteringConfiguration* flowMetering;
+	ExpressFlowMeteringConfiguration* expressflowMetering;
 
 	uint16_t observationDomainId;
 };

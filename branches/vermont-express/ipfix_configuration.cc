@@ -4,6 +4,7 @@
 #include "collector_configuration.h"
 #include "exporter_configuration.h"
 #include "flowmetering_configuration.h"
+#include "expressflowmetering_configuration.h"
 #include "vermontmain_configuration.h"
 
 #include <ctime>
@@ -167,6 +168,7 @@ void IpfixConfiguration::connectSubsystems()
 			MeteringConfiguration* m = dynamic_cast<MeteringConfiguration*>(c);
 			if (m) {
 				FlowMeteringConfiguration* fm = m->getFlowMeteringConfiguration();
+				ExpressFlowMeteringConfiguration* efm = m->getExpressFlowMeteringConfiguration();
 				if (fm) 
 					aggregators.push_back(fm->getIpfixAggregator());
 			}
