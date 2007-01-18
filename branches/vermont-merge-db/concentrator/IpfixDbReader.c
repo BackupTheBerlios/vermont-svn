@@ -55,7 +55,6 @@ void* readFromDB(void* ipfixDbReader_)
 	pthread_mutex_lock(&ipfixDbReader->mutex);
 	msg(MSG_DIALOG, "Start sending tables");
 	for(i = 0; i < dbData->tableCount && i < MAX_TABLES; i++) {
-		msg(MSG_FATAL, "--- we are here2");
 		if(dbReaderSendNewTemplate(ipfixDbReader, dataTemplateInfo, i) != 0)
 		{
 		    msg(MSG_ERROR, "IpfixDbReader: Template error, skip table");
