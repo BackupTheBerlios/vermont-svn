@@ -51,13 +51,15 @@ int deinitializeIpfixSenders() {
  * @param sourceID Source ID this exporter will report
  * @param ip destination collector's address
  * @param port destination collector's port
+ * @param protocol using protocol
  * @return handle to use when calling @c destroyIpfixSender()
  */
-IpfixSender* createIpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port) {
+IpfixSender* createIpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port, const char *proto) {
 	IpfixSender* ipfixSender = (IpfixSender*)malloc(sizeof(IpfixSender));
 	ipfix_exporter** exporterP = &ipfixSender->ipfixExporter;
 	strcpy(ipfixSender->ip, ip);
 	ipfixSender->port = port;
+	strcpy(ipfixSender->protocol, proto);
 	ipfixSender->sentRecords = 0;
 
 	ipfixSender->lastTemplateId = SENDER_TEMPLATE_ID_LOW;
@@ -66,7 +68,7 @@ IpfixSender* createIpfixSender(uint16_t observationDomainId, const char* ip, uin
 		goto out;
 	}
 
-	if(ipfixSenderAddCollector(ipfixSender, ipfixSender->ip, ipfixSender->port) != 0) {
+	if(ipfixSenderAddCollector(ipfixSender, ipfixSender->ip, ipfixSender->port, ipfixSender->protocol) != 0) {
 		goto out1;
 	}
 	
@@ -118,19 +120,32 @@ void stopIpfixSender(IpfixSender* ipfixSender) {
  * @param ips handle to the Exporter
  * @param ip string of the IP
  * @param port port number
- * FIXME: support for other than UDP
+ * @param proto protocol type to use
  */
-int ipfixSenderAddCollector(IpfixSender *ips, const char *ip, uint16_t port)
+int ipfixSenderAddCollector(IpfixSender *ips, const char *ip, uint16_t port, const char *proto)
 {
 	ipfix_exporter *ex = (ipfix_exporter *)ips->ipfixExporter;
+	enum ipfix_transport_protocol pr;
 
-	if(ipfix_add_collector(ex, ip, port, UDP) != 0) {
+	if(strcasecmp(proto, "TCP") == 0) {
+		pr = TCP;
+	} else if(strcasecmp(proto, "UDP") == 0) {
+		pr = UDP;
+	} else if(strcasecmp(proto, "SCTP") == 0) {
+		pr = SCTP;	
+	} else {
+		msg(MSG_ERROR, "IpfixSender: invalid protocol %s for %s",
+		    proto, ip);
+		return -1;
+	}
+
+	msg(MSG_INFO, "IpfixSender: adding %s://%s:%d to exporter", proto, ip, port);
+	
+	if(ipfix_add_collector(ex, ip, port, pr) != 0) {
 		msg(MSG_FATAL, "IpfixSender: ipfix_add_collector of %s:%d failed", ip, port);
 		return -1;
 	}
 	
-	msg(MSG_INFO, "IpfixSender: adding %s:%d to exporter", ip, port);
-
 	return 0;
 }
 

@@ -21,6 +21,7 @@ typedef struct {
 	char ip[128]; /**< IP of Collector we export to */
 	uint16_t port; /**< Port of Collector we export to */
 	uint32_t sentRecords; /**< Statistics: Total number of records sent since last statistics were polled */
+	char protocol[8]; // IP Protocol we are using
 } IpfixSender;
 
 /***** Prototypes ***********************************************************/
@@ -28,13 +29,13 @@ typedef struct {
 int initializeIpfixSenders();
 int deinitializeIpfixSenders();
 
-IpfixSender* createIpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port);
+IpfixSender* createIpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port, const char *proto);
 void destroyIpfixSender(IpfixSender* ipfixSender);
 
 void startIpfixSender(IpfixSender* ipfixSender);
 void stopIpfixSender(IpfixSender* ipfixSender);
 
-int ipfixSenderAddCollector(IpfixSender *ips, const char *ip, uint16_t port);
+int ipfixSenderAddCollector(IpfixSender *ips, const char *ip, uint16_t port, const char *proto);
 
 int sndNewDataTemplate(void* ipfixSender, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
 int sndDestroyDataTemplate(void* ipfixSender, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);

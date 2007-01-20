@@ -89,6 +89,10 @@ void ExporterConfiguration::readCollector(xmlNodePtr p)
 			c->protocolType = getContent(i);
 			if (c->protocolType == "17") {
 				c->protocolType = "UDP";
+			}else if (c->protocolType == "132"){ //SCTP Extension
+				c->protocolType = "SCTP";
+			}else if (c->protocolType == "6"){
+				c->protocolType = "TCP";
 			}
 		} else if (tagMatches(i, "port")) {
 			c->port = (uint16_t)atoi(getContent(i).c_str());
@@ -145,7 +149,8 @@ void ExporterConfiguration::createIpfixSender(uint16_t observationDomainId)
 	msg(MSG_DEBUG, "Exporter: Creating IpfixSender");
 	ipfixSender = ::createIpfixSender(observationDomainId,
 					  collectors[0]->ipAddress.c_str(),
-					  collectors[0]->port);
+					  collectors[0]->port,
+					  collectors[0]->protocolType.c_str());
 	if (!ipfixSender) {
 		throw std::runtime_error("Could not create IpfixSender!");
 	}
@@ -161,7 +166,8 @@ void ExporterConfiguration::createIpfixSender(uint16_t observationDomainId)
 	for (unsigned i = 1; i != collectors.size(); ++i) {
 		if (ipfixSenderAddCollector(ipfixSender,
 					    collectors[i]->ipAddress.c_str(),
-					    collectors[i]->port)) {
+					    collectors[i]->port,
+					    collectors[i]->protocolType.c_str() )) {
 			msg(MSG_ERROR, "Config: error adding collector %s:%d to IpfixSender",
 			    collectors[i]->ipAddress.c_str(), collectors[i]->port);
 		}

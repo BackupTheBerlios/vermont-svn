@@ -33,6 +33,7 @@ extern "C" {
 
 #define bit_set(data, bits) ((data & bits) == bits)
 
+static int init_send_sctp_socket(const char *serv_ip4_addr, int serv_port);
 static int init_send_udp_socket(const char *serv_ip4_addr, int serv_port);
 static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum ipfix_validity cleanness);
 static int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf);
@@ -117,6 +118,50 @@ static int init_send_udp_socket(const char *serv_ip4_addr, int serv_port){
         return s;
 }
 
+
+/********************************************************************
+** SCTP Extension Code: TODO:PR-Functionality
+*********************************************************************/
+/*
+ * Initializes a SCTP-socket to send data to.
+ * Parameters:
+ * char* serv_ip4_addr IP-Address of the recipient (e.g. "123.123.123.123")
+ * serv_port the SCTP-portnumber of the server.
+ * Returns: a socket to write to. -1 on failure
+ */
+static int init_send_sctp_socket(const char *serv_ip4_addr, int serv_port){
+	
+	int s;
+	struct sockaddr_in serv_addr;
+	
+	memset(&serv_addr, 0, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons (serv_port);
+	serv_addr.sin_addr.s_addr = inet_addr(serv_ip4_addr);
+	
+	
+	//create socket:
+	msg(MSG_DEBUG, "Creating SCTP Socket ...");
+	if((s = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP)) < 0 ) {
+                msg(MSG_FATAL, "IPFIX: error opening SCTP socket, %s", strerror(errno));
+                return -1;
+        }
+	msg(MSG_DEBUG, "SCTP Socket created");
+	// connect to server
+	msg(MSG_DEBUG, "SCTP connecting to %s:%i ...",serv_ip4_addr,serv_port );
+	if(connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr) ) < 0) {
+		msg(MSG_FATAL, "IPFIX: SCTP connect failed, %s", strerror(errno));
+		/* clean up */
+		close(s);
+		return -1;
+	}
+	msg(MSG_DEBUG, "SCTP connected to %s:%i ...",serv_ip4_addr,serv_port );
+	return s;
+}
+
+/********************************************************************
+** END of SCTP Extension Code:
+*********************************************************************/
 
 /*
  * Initialize an exporter process
@@ -625,8 +670,9 @@ static int ipfix_init_send_socket(const char *serv_ip4_addr, int serv_port, enum
                 break;
 
         case SCTP:
-                msg(MSG_FATAL, "IPFIX: Transport Protocol SCTP not implemented");
-                break;
+                sock= init_send_sctp_socket( serv_ip4_addr, serv_port);
+//                 msg(MSG_FATAL, "IPFIX: Transport Protocol SCTP not implemented");
+		break;
 
         default:
                 msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
@@ -788,7 +834,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
                                         exporter->collector_arr[i].ipv4address,
                                         exporter->collector_arr[i].port_number
                                        );
-                                ret=writev(exporter->collector_arr[i].data_socket,
+                                ret=writev(exporter->collector_arr[i].data_socket, // TODO: change for SCTP
                                            exporter->template_sendbuffer->entries,
                                            exporter->template_sendbuffer->current
                                           );

@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <netinet/sctp.h>
 
 #include "encoding.h"
 #include "ipfix_names.h"
