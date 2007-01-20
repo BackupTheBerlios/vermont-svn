@@ -48,6 +48,7 @@ static int ipfix_update_template_sendbuffer(ipfix_exporter *exporter);
 static int ipfix_send_templates(ipfix_exporter* exporter);
 static int ipfix_send_data(ipfix_exporter* exporter);
 
+
 #if 0
 static int init_rcv_udp_socket(int lport);
 /* NOT USED */
