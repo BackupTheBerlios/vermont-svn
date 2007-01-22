@@ -155,7 +155,7 @@ static int init_send_sctp_socket(const char *serv_ip4_addr, int serv_port){
 		close(s);
 		return -1;
 	}
-	msg(MSG_DEBUG, "SCTP connected to %s:%i ...",serv_ip4_addr,serv_port );
+	msg(MSG_DEBUG, "SCTP connected to %s:%i",serv_ip4_addr,serv_port );
 	return s;
 }
 

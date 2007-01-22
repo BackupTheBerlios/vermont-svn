@@ -26,9 +26,12 @@
 /******************************************* Forward declaration *********************************/
 
 static int createUdpIpv4Receiver(IpfixReceiver* ipfixReceiver, int port);
+static int createSctpIpv4Receiver(IpfixReceiver* ipfixReceiver, int port);
 static void* listenerThread(void* ipfixReceiver_);
 static void destroyUdpReceiver(IpfixReceiver* ipfixReceiver);
+static void destroySctpReceiver(IpfixReceiver* ipfixReceiver);
 static void udpListener(IpfixReceiver* ipfixReceiver);
+static void sctpListener(IpfixReceiver* ipfixReceiver);
 
 /******************************************* Implementation *************************************/
 
@@ -103,8 +106,10 @@ IpfixReceiver* createIpfixReceiver(Receiver_Type receiver_type, int port) {
                 msg(MSG_FATAL, "TCP over IPv6 support isn't implemented yet");
                 goto out1;
         case SCTP_IPV4:
-                msg(MSG_FATAL, "SCTP over IPv4 support isn't implemented yet");
-                goto out1;
+		createSctpIpv4Receiver(ipfixReceiver, port);
+		break;
+//              msg(MSG_FATAL, "SCTP over IPv4 support isn't implemented yet");
+//              goto out1;             
         case SCTP_IPV6:
                 msg(MSG_FATAL, "SCTP over IPv6 support isn't implemented yet");
                 goto out1;
@@ -143,6 +148,8 @@ void destroyIpfixReceiver(IpfixReceiver* ipfixReceiver) {
         case TCP_IPV4:
         case TCP_IPV6:
         case SCTP_IPV4:
+		destroySctpReceiver(ipfixReceiver);
+                break;
         case SCTP_IPV6:
         default:
                 msg(MSG_FATAL, "Unknown protocol");
@@ -272,6 +279,8 @@ static void* listenerThread(void* ipfixReceiver_) {
         case TCP_IPV4:
         case TCP_IPV6:
         case SCTP_IPV4:
+		sctpListener(ipfixReceiver);
+                break;
         case SCTP_IPV6:
         default:
                 msg(MSG_FATAL, "Unknown protocol");
@@ -380,3 +389,98 @@ static void udpListener(IpfixReceiver* ipfixReceiver) {
         free(data);
 }
 
+/********************************************************************
+** SCTP Extension Code:
+*********************************************************************/
+/** 
+ * Does SCTP/IPv4 specific initialization.
+ * @param ipfixReceiver handle to an IpfixReceiver created by @createIpfixReceiver()
+ * @param port Port to listen on
+ * @return 0 on success, non-zero on error
+ */
+static int createSctpIpv4Receiver(IpfixReceiver* ipfixReceiver, int port) {
+        struct sockaddr_in serverAddress;
+        
+
+        ipfixReceiver->listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_SCTP);
+        if(ipfixReceiver->listen_socket < 0) {
+                perror("Could not create SCTP socket");
+                return -1;
+        }
+        
+	ipfixReceiver->exit = 0;
+        
+        serverAddress.sin_family = AF_INET;
+        serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+        serverAddress.sin_port = htons(port);
+        if(bind(ipfixReceiver->listen_socket, (struct sockaddr*)&serverAddress, 
+		sizeof(struct sockaddr_in)) < 0) {
+                perror("Could not bind SCTP socket");
+                return -1;
+        }
+	//TODO: @param 2 is number of MAX connections 
+	if(listen(ipfixReceiver->listen_socket, 5) < 0 ) {
+		msg(MSG_ERROR , "IPFIX RECEIVER: Error listening on SCTP socket %i", 
+		    ipfixReceiver->listen_socket);
+		return -1;
+	}
+        return 0;
+}
+
+
+/**
+ * Does SCTP/IPv4 specific cleanup
+ * @param ipfixReceiver handle to an IpfixReceiver, created by @createIpfixReceiver()
+ */
+static void destroySctpReceiver(IpfixReceiver* ipfixReceiver) {
+        close(ipfixReceiver->listen_socket);
+}
+
+/**
+ * SCTP specific listener function. This function is called by @c listenerThread(), when receiver_type is
+ * SCTP_IPV4 or SCTP_IPV6.
+ * @param ipfixReceiver handle to an IpfixReceiver, created by @createIpfixReceiver()
+ */
+static void sctpListener(IpfixReceiver* ipfixReceiver) {
+        struct sockaddr_in clientAddress;
+        socklen_t clientAddressLen;
+        byte* data = (byte*)malloc(sizeof(byte)*MAX_MSG_LEN);
+	SourceID *sourceID = (SourceID*)malloc(sizeof(SourceID));
+        int n, i;
+        
+        while(!ipfixReceiver->exit) {
+                clientAddressLen = sizeof(struct sockaddr_in);
+                n = recvfrom(ipfixReceiver->listen_socket, data, MAX_MSG_LEN,
+			     0, (struct sockaddr*)&clientAddress, &clientAddressLen);
+                if (n < 0) {
+                        msg(MSG_DEBUG, "recvfrom returned without data, terminating listener thread");
+                        break;
+                }
+                
+                if (isHostAuthorized(ipfixReceiver, &clientAddress.sin_addr, 
+				     sizeof(clientAddress.sin_addr))) {
+
+                        uint32_t ip = ntohl(clientAddress.sin_addr.s_addr);
+			memcpy(sourceID->exporterAddress.ip, &ip, 4);
+			sourceID->exporterAddress.len = 4;
+
+                        pthread_mutex_lock(&ipfixReceiver->mutex);
+                        IpfixPacketProcessor* pp = (IpfixPacketProcessor*)(ipfixReceiver->packetProcessor);
+                        for (i = 0; i != ipfixReceiver->processorCount; ++i) { 
+                         	pthread_mutex_lock(&pp[i].mutex);
+				pp[i].processPacketCallbackFunction(pp[i].ipfixParser, data, n, sourceID);
+                        	pthread_mutex_unlock(&pp[i].mutex);
+			}
+                        pthread_mutex_unlock(&ipfixReceiver->mutex);
+                }
+                else{
+                        msg(MSG_DEBUG, "packet from unauthorized host %s discarded", inet_ntoa(clientAddress.sin_addr));
+                }
+        }
+        
+        free(data);
+}
+
+/********************************************************************
+** END of SCTP Extension Code:
+*********************************************************************/
