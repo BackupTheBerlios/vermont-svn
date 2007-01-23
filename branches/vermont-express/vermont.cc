@@ -80,7 +80,11 @@ int main(int ac, char **dc)
 	time_t t = time(NULL);
 	msg(MSG_DIALOG, "up and running at %s", ctime(&t));
 	
-	ipfixConfig->pollAggregatorLoop();
+
+	//missing query which concentrator is running
+//	ipfixConfig->pollAggregatorLoop();
+
+	ipfixConfig->pollExpressAggregatorLoop();
 	
 	delete ipfixConfig;
 	

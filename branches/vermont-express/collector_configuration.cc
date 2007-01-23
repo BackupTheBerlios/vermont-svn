@@ -7,12 +7,14 @@
 #include "collector_configuration.h"
 #include "metering_configuration.h"
 #include "flowmetering_configuration.h"
+#include "expressflowmetering_configuration.h"
 #include "exporter_configuration.h"
 #include "dbwriter_configuration.h"
 
 
 #include <msg.h>
 #include <concentrator/aggregator.h>
+#include <flowcon/exp_aggregator.h>
 
 
 CollectorConfiguration::CollectorConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
@@ -126,18 +128,31 @@ void CollectorConfiguration::connect(Configuration* c)
 	if (metering) {
 		metering->setObservationDomainId(observationDomainId);
 		FlowMeteringConfiguration* fm = metering->getFlowMeteringConfiguration();
+		ExpressFlowMeteringConfiguration* efm = metering->getExpressFlowMeteringConfiguration();
 
 		if (!fm) {
 			throw std::runtime_error("Metering process isn't aggregating ->"
 						 " cannot connect it to an collector!");
 		}
+		if (!efm) {
+			throw std::runtime_error("Metering process isn't express-aggregating ->"
+						 " cannot connect it to an collector!");
+		}
+
+
 
 
 		msg(MSG_DEBUG, "CollectorConfiguration: Got metering process which is aggreagting");
 		IpfixAggregator* aggregator = fm->getIpfixAggregator();
+		IpfixExpressAggregator* exp_aggregator = efm->getIpfixExpressAggregator();
 		if (!aggregator) {
 			throw std::runtime_error("CollectorConfiguration: ipfixAggregator is null -> This is a bug! Please report it");
 			}
+		if (!exp_aggregator) {
+			throw std::runtime_error("CollectorConfiguration: ipfixExpressAggregator is null -> This is a bug! Please report it");
+			}
+
+
 		msg(MSG_DEBUG, "Adding aggregator to ipfixParser");
 		addIpfixParserCallbacks(ipfixParser, getAggregatorCallbackInfo(aggregator));
 		msg(MSG_DEBUG, "Adding ipfixParser to ipfixPacketProcessor");

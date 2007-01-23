@@ -9,6 +9,7 @@
 #include "packetselection_configuration.h"
 #include "packetreporting_configuration.h"
 #include "flowmetering_configuration.h"
+#include "expressflowmetering_configuration.h"
 #include "dbwriter_configuration.h"
 
 #include <sampler/Filter.h>
@@ -16,6 +17,8 @@
 #include <sampler/HookingFilter.h>
 #include <concentrator/sampler_hook_entry.h>
 #include <concentrator/ipfix.h>
+#include <flowcon/exp_sampler_hook_entry.h>
+#include <flowcon/exp_ipfix.h>
 
 #include <cctype>
 
@@ -24,7 +27,7 @@
 
 MeteringConfiguration::MeteringConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
 	: Configuration(document, startPoint), packetSelection(0), packetReporting(0),
-		 flowMetering(0), observationDomainId(0)
+		 flowMetering(0), expressflowMetering(0), observationDomainId(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -39,6 +42,7 @@ MeteringConfiguration::~MeteringConfiguration()
 	delete packetReporting;
 	delete packetSelection;
 	delete flowMetering;
+	delete expressflowMetering;
 }
 
 void MeteringConfiguration::setObservationDomainId(uint16_t id)
@@ -65,6 +69,9 @@ void MeteringConfiguration::configure()
 		} else if (tagMatches(i, "flowMetering")) {
 			flowMetering = new FlowMeteringConfiguration(doc, i);
 			flowMetering->configure();
+		} else if (tagMatches(i, "expressflowMetering")) {
+			expressflowMetering = new ExpressFlowMeteringConfiguration(doc, i);
+			expressflowMetering->configure();
 		} else if (tagMatches(i, "next")) {
 			fillNextVector(i);
 		}
@@ -115,6 +122,20 @@ void MeteringConfiguration::connect(Configuration* c)
  			addAggregatorCallbacks(flowMetering->ipfixAggregator, 
  					       getIpfixSenderCallbackInfo(exporter->getIpfixSender()));
 		}
+		if (expressflowMetering) {
+			if (packetSelection) {
+				msg(MSG_DEBUG, "Setting up HookingFilter for ExpressAggregator");
+				HookingFilter* h = new HookingFilter(Express_sampler_hook_entry);
+				h->setContext(expressflowMetering->ipfixExpressAggregator);
+				packetSelection->filter->addProcessor(h);
+			}
+ 			msg(MSG_DEBUG, "Setting up IpfixSender for ExpressAggregator");
+ 			exporter->ExpresscreateIpfixSender(observationDomainId);
+ 			addExpressAggregatorCallbacks(expressflowMetering->ipfixExpressAggregator, 
+ 					       ExpressgetIpfixSenderCallbackInfo(exporter->ExpressgetIpfixSender()));
+		}
+
+
 		return;
 	}
 
@@ -122,6 +143,12 @@ void MeteringConfiguration::connect(Configuration* c)
 	if (metering) {
 		metering->setObservationDomainId(observationDomainId);
 		
+		if (metering->expressflowMetering) {
+			HookingFilter* h = new HookingFilter(Express_sampler_hook_entry);
+			msg(MSG_INFO, "Added HookingFilter for ExpressAggregator");
+			h->setContext(metering->expressflowMetering->ipfixExpressAggregator);
+			packetSelection->filter->addProcessor(h);
+		}
 		if (metering->flowMetering) {
 			HookingFilter* h = new HookingFilter(sampler_hook_entry);
 			msg(MSG_INFO, "Added HookingFilter");
@@ -172,5 +199,8 @@ void MeteringConfiguration::startSystem()
 	}
 	if (flowMetering) {
 		flowMetering->startSystem();
+	}
+	if (expressflowMetering) {
+		expressflowMetering->startSystem();
 	}
 }

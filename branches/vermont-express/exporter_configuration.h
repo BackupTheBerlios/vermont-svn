@@ -6,6 +6,7 @@
 
 
 #include <concentrator/sndIpfix.h>
+#include <flowcon/exp_sndIpfix.h>
 
 #include <vector>
 
@@ -27,7 +28,9 @@ public:
 	ExporterSink* getExporterSink() const { return exporterSink; }
 	
 	void createIpfixSender(uint16_t observationDomainId);
+	void ExpresscreateIpfixSender(uint16_t sourceId);
 	IpfixSender* getIpfixSender() { return ipfixSender; }
+	ExpressIpfixSender* ExpressgetIpfixSender() { return ExpressipfixSender; }
 protected:
 	void setUp();
 
@@ -52,6 +55,7 @@ private:
 
 	ExporterSink* exporterSink;
 	IpfixSender* ipfixSender;
+	ExpressIpfixSender* ExpressipfixSender;
 };
 
 #endif

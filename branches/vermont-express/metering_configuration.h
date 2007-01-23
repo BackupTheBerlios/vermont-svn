@@ -11,12 +11,14 @@
 #include "ipfix_configuration.h"
 
 #include <concentrator/aggregator.h>
+#include <flowcon/exp_aggregator.h>
 
 #include <vector>
 #include <ctime>
 
 
 class FlowMeteringConfiguration;
+class ExpressFlowMeteringConfiguration;
 class PacketSelectionConfiguration;
 class PacketReportingConfiguration;
 
@@ -33,12 +35,15 @@ public:
 	void setCaptureLength(int len);
 
 	FlowMeteringConfiguration* getFlowMeteringConfiguration() { return flowMetering; }
+	ExpressFlowMeteringConfiguration* getExpressFlowMeteringConfiguration() { return expressflowMetering; }
 	PacketReportingConfiguration* getPacketReportingConfiguration() { return packetReporting; }
 	PacketSelectionConfiguration* getPacketSelectionConfiguration();
 private:
+
 	PacketSelectionConfiguration* packetSelection;
 	PacketReportingConfiguration* packetReporting;
 	FlowMeteringConfiguration* flowMetering;
+	ExpressFlowMeteringConfiguration* expressflowMetering;
 
 	uint16_t observationDomainId;
 	int captureLength;

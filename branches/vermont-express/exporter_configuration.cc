@@ -5,7 +5,7 @@
 
 ExporterConfiguration::ExporterConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
 	: Configuration(document, startPoint), maxPacketSize(0), exportDelay(0), templateRefreshTime(0), templateRefreshRate(0), 
-	exporterSink(0), ipfixSender(0)
+	exporterSink(0), ipfixSender(0), ExpressipfixSender(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -134,6 +134,37 @@ void ExporterConfiguration::createExporterSink(Template* t, uint16_t observation
 	}
 }
 
+void ExporterConfiguration::ExpresscreateIpfixSender(uint16_t sourceId)
+{
+	if (collectors.empty()) {
+		msg(MSG_INFO, "ExpressAggreagtor won't export it's result to any collector");
+	}
+
+	ExpressinitializeIpfixSenders();
+	msg(MSG_DEBUG, "Exporter: Creating IpfixSender for ExpressAggregator");
+	ExpressipfixSender = ::ExpresscreateIpfixSender(sourceId,
+					  collectors[0]->ipAddress.c_str(),
+					  collectors[0]->port);
+	if (!ExpressipfixSender) {
+		throw std::runtime_error("Could not create IpfixSender for ExpressAggregator!");
+	}
+
+	for (unsigned i = 1; i != collectors.size(); ++i) {
+		if (ExpressipfixSenderAddCollector(ExpressipfixSender,
+					    collectors[i]->ipAddress.c_str(),
+					    collectors[i]->port)) {
+			msg(MSG_ERROR, "Config: error adding collector %s:%d to IpfixSender for ExpressAggregator",
+			    collectors[i]->ipAddress.c_str(), collectors[i]->port);
+		}
+	}
+	// we need to start IpfixSender right here, because ipfixAggregator
+	// needs a running IpfixSender before it can be created
+	// TODO: FIX THIS!
+	ExpressstartIpfixSender(ExpressipfixSender);
+}
+
+
+
 void ExporterConfiguration::createIpfixSender(uint16_t observationDomainId)
 {
 	if (collectors.empty()) {
@@ -185,6 +216,8 @@ void ExporterConfiguration::startSystem()
 	} else if (ipfixSender) {
 		msg(MSG_DEBUG, "ExporterConfiguration: Running IpfixSenders.");
 		// ipfixSender already runs (see createIpfixSender())
+	} else if (ExpressipfixSender) {
+		msg(MSG_DEBUG, "ExporterConfiguration: Running ExpressIpfixSenders.");
 	} else {
 		throw std::runtime_error("Can neither start an ExporterSink, nor an IpfixSender -> something is broken!");
 	}

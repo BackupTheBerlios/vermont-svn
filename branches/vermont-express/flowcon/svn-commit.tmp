@@ -1,0 +1,24 @@
+Modified Concentrator
+--This line, and those below, will be ignored--
+
+M    rcvIpfix.h
+M    rules.h
+M    printIpfix.h
+M    ipfixReceiver.c
+M    sampler_hook_entry.c
+M    templateBuffer.c
+M    ipfixReceiver.h
+M    sampler_hook_entry.h
+M    templateBuffer.h
+M    ipfix.c
+M    hashing.c
+M    aggregator.c
+M    ipfix.h
+M    sndIpfix.c
+M    hashing.h
+M    aggregator.h
+M    Makefile.am
+M    sndIpfix.h
+M    rcvIpfix.c
+M    rules.c
+M    printIpfix.c

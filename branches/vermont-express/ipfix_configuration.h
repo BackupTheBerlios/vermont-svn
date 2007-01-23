@@ -18,6 +18,8 @@
 
 #include <concentrator/ipfix.h>
 #include <concentrator/aggregator.h>
+#include <flowcon/exp_ipfix.h>
+#include <flowcon/exp_aggregator.h>
 #include <ipfixlolib/ipfix_names.h>
 
 
@@ -124,12 +126,14 @@ public:
 	void startSubsystems();
 
 	void pollAggregatorLoop();
+	void pollExpressAggregatorLoop();
 		
 private:
 	typedef std::map<std::string, Configuration*> SubsystemConfiguration;
 	
 	SubsystemConfiguration subsystems;
 	std::vector<IpfixAggregator*> aggregators;
+	std::vector<IpfixExpressAggregator*> exp_aggregators;
 
 	xmlDocPtr document;
 	xmlNodePtr current;

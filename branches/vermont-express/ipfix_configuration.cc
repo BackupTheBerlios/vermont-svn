@@ -4,6 +4,7 @@
 #include "collector_configuration.h"
 #include "exporter_configuration.h"
 #include "flowmetering_configuration.h"
+#include "expressflowmetering_configuration.h"
 #include "vermontmain_configuration.h"
 #include "dbwriter_configuration.h"
 #include "dbreader_configuration.h"
@@ -174,9 +175,13 @@ void IpfixConfiguration::connectSubsystems()
 			MeteringConfiguration* m = dynamic_cast<MeteringConfiguration*>(c);
 			if (m) {
 				FlowMeteringConfiguration* fm = m->getFlowMeteringConfiguration();
+				ExpressFlowMeteringConfiguration* efm = m->getExpressFlowMeteringConfiguration();
 				if (fm) 
 					aggregators.push_back(fm->getIpfixAggregator());
+				if (efm) 
+					exp_aggregators.push_back(efm->getIpfixExpressAggregator());
 			}
+
 
 			const std::vector<std::string>& nextVector = c->getNextVector();
 			for (unsigned j = 0; j != nextVector.size(); ++j) {
@@ -224,6 +229,32 @@ void IpfixConfiguration::pollAggregatorLoop()
 			nanosleep(&req, &rem);
 			for (unsigned i = 0; i != aggregators.size(); ++i) {
 				::pollAggregator(aggregators[i]);
+			}
+		}
+	}
+}
+
+void IpfixConfiguration::pollExpressAggregatorLoop()
+{
+	unsigned poll_interval = 500;
+	if (subsystems.find(configTypes::main) != subsystems.end()) {
+		VermontMainConfiguration* m = dynamic_cast<VermontMainConfiguration*>(subsystems[configTypes::main]);
+		poll_interval = m->getPollInterval();
+	}
+
+	timespec req, rem;
+        /* break millisecond polltime into seconds and nanoseconds */
+        req.tv_sec=(poll_interval * 1000000) / 1000000000;
+        req.tv_nsec=(poll_interval * 1000000) % 1000000000;
+
+	if (poll_interval == 0 || exp_aggregators.empty()) {
+		pause();
+	} else {
+	        msg(MSG_INFO, "Polling aggregator each %u msec", poll_interval);
+		while (!stop) {
+			nanosleep(&req, &rem);
+			for (unsigned i = 0; i != exp_aggregators.size(); ++i) {
+				::pollExpressAggregator(exp_aggregators[i]);
 			}
 		}
 	}
