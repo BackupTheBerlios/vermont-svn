@@ -1,0 +1,455 @@
+/*
+ * PSAMP Reference Implementation
+ *
+ * Packet.h
+ *
+ * Encapsulates a captured packet with simple, thread-aware
+ * reference-(usage-) counting.
+ *
+ * Author: Michael Drueing <michael@drueing.de>
+ *         Gerhard Muenz <gerhard.muenz@gmx.de>
+ *
+ */
+
+/*
+ changed by: Ronny T. Lampert, 2005, for VERMONT
+ */
+
+#ifndef PACKET_H
+#define PACKET_H
+
+#include <cstdlib>
+#include <cstdio>
+#include <ctime>
+#include <cstring>
+#include <stdint.h>
+#include <netinet/in.h>
+#include <sys/time.h>
+
+#include "msg.h"
+
+#include "Lock.h"
+
+// the various header types (actually, HEAD_PAYLOAD is not neccessarily a header but it works like one for
+// our purposes)
+#define HEAD_RAW                  1
+#define HEAD_NETWORK              2  // for fields that lie inside the network header
+#define HEAD_NETWORK_AND_BEYOND   3  // for fields that might go beyond the network header border
+#define HEAD_TRANSPORT            4  // for fields that lie inside the transport header
+#define HEAD_TRANSPORT_AND_BEYOND 5  // for fields that might go beyond the transport header border
+#define HEAD_PAYLOAD              6
+
+
+// Packet classifications
+//
+// This bitmask defines various classifications for the packet. Which protocol headers it contains for example
+// Bits:
+//   3                   2                   1  
+// 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+// |               |~~~~~~~~~~~~~~~~~~~~~| |~~~~~~~~~~~~~~~~~~~~~|
+// |               |                     | +---------------------+----- Network headers
+// |               +---------------------+----------------------------- Transport headers
+// +------------------------------------------------------------------- Payload available
+
+// Network header classifications
+#define PCLASS_NET_IP4             (1UL <<  0)
+#define PCLASS_NET_IP6             (1UL <<  1)
+
+#define PCLASS_NETMASK             0x00000fff
+
+// Transport header classifications
+#define PCLASS_TRN_TCP             (1UL << 12)
+#define PCLASS_TRN_UDP             (1UL << 13)
+#define PCLASS_TRN_ICMP            (1UL << 14)
+#define PCLASS_TRN_IGMP            (1UL << 15)
+
+#define PCLASS_TRNMASK             0x00fff000
+// .... etc. etc. etc. 
+
+// Payload classification (here, payload refers to data beyond transport header)
+#define PCLASS_PAYLOAD             (1UL << 31)
+
+class Packet
+{
+public:
+	// The number of total packets received, will be incremented by each constructor call
+	// implemented as public-variable for speed reasons (or lazyness reasons? ;-)
+	static unsigned long totalPacketsReceived;
+
+	/*
+	 data: the raw packet data from the wire, including physical header
+	 ipHeader: start of the IP header: data + (physical dependent) IP header offset
+	 transportHeader: start of the transport layer header (TCP/UDP): ip_header + variable IP header length
+	 */
+	unsigned char *data;
+	unsigned char *netHeader;
+	unsigned char *transportHeader;
+	unsigned char *payload;
+
+	// The offsets of the different headers with respect to *data 
+	unsigned int netHeaderOffset;
+	unsigned int transportHeaderOffset;
+	unsigned int payloadOffset;
+
+	// the packet classification, i.e. what headers are present?
+	unsigned long classification;
+
+	// The number of captured bytes
+	unsigned int data_length;
+
+	// when was the packet received?
+	struct timeval timestamp;
+
+	// buffer for length of variable length fields
+	uint8_t varlength[12];
+	uint8_t varlength_index;
+	
+	// construct a new Packet for a specified number of 'users'
+	Packet(void *packetData, unsigned int len, int numUsers = 1) : users(numUsers), refCountLock()
+	{
+		data = (unsigned char *)packetData;
+		netHeader = data + IPHeaderOffset;
+		netHeaderOffset = IPHeaderOffset;
+		//transportHeader = (unsigned char *)netHeader + netTransportHeaderOffset(netHeader);
+		transportHeader = NULL;
+		transportHeaderOffset = 0;
+		payload = NULL;
+		payloadOffset = 0;
+		
+		classification = 0;
+
+		varlength_index = 0;
+		
+		data_length = len;
+
+		totalPacketsReceived++;
+
+		classify();
+		/*
+		 DO NOT SET TIMESTAMP HERE
+		 IS SET IN OBSERVER!
+		 */
+	};
+
+	// Delete the packet and free all data associated with it. Should only be called
+	// if users==0 !
+	~Packet()
+	{
+		if(users > 0) {
+			DPRINTF("Packet: WARNING: freeing in-use packet!\n");
+		}
+
+		free(data);
+	}
+
+	// call this function after processing the packet, NOT delete()!
+	void release()
+	{
+		int newUsers;
+
+		refCountLock.lock();
+		--users;
+		newUsers = users;
+		refCountLock.unlock();
+
+		if(newUsers == 0) {
+			delete this;
+		} else if(newUsers < 0) {
+			DPRINTF("Packet: WARNING: trying to free already freed packet!\n");
+		}
+	};
+
+	// the supplied classification is _either_ PCLASS_NET_xxx or PCLASS_TRN_xxx (or PCLASS_PAYLOAD)
+	// we check whether at least one of the Packet's classification-bits is also set in the supplied
+	// parameter. If yes, then out packet matches the supplied class and can be safely processed.
+	// otherwise, the Exporter should send a NULL value
+	inline bool matches(unsigned long checkClassification) const
+	{
+		return (classification & checkClassification) != 0;
+	}
+
+	// classify the packet headers
+	void classify()
+	{
+		unsigned char protocol = 0;
+		unsigned char tcpDataOffset;
+		
+		// first check for IPv4 header which needs to be at least 20 bytes long
+		if ( (netHeader + 20 <= data + data_length) && ((*netHeader >> 4) == 4) )
+		{
+			protocol = *(netHeader + 9);
+			classification |= PCLASS_NET_IP4;
+			transportHeaderOffset = netHeaderOffset + (( *netHeader & 0x0f ) << 2);
+
+			// check if there is data for the transport header
+			if(transportHeaderOffset < data_length)
+			    transportHeader = data + transportHeaderOffset;
+			else
+			    transportHeaderOffset = 0;
+		}
+		// TODO: Add checks for IPv6 or similar here
+
+		// if we found a transport header, continue classifying
+		if (transportHeader && protocol)
+		{
+			switch (protocol)
+			{
+			case 1:		// ICMP
+				// ICMP header is 4 bytes fixed-length
+				payloadOffset = transportHeaderOffset + 4;
+				
+				// check if the packet is big enough to actually be ICMP
+				if (payloadOffset <= data_length)
+				    classification |= PCLASS_TRN_ICMP;
+				else
+				    // there is no complete transport heaader => treat data it as payload
+				    payloadOffset = transportHeaderOffset;
+				
+				break;
+			case 2:		// IGMP
+				// header is 8-bytes fixed size
+				payloadOffset = transportHeaderOffset + 8;
+				
+				// check if the packet is big enough to actually be IGMP
+				if (payloadOffset <= data_length)
+				    classification |= PCLASS_TRN_IGMP;
+				else
+				    // there is no complete transport heaader => treat data it as payload
+				    payloadOffset = transportHeaderOffset;
+
+				break;
+			case 6:         // TCP
+				// we need at least 12 more bytes in the packet to extract the "Data Offset"
+				if (transportHeaderOffset + 12 <= data_length)
+				{
+					// extract "Data Offset" field at TCP header offset 12 (upper 4 bits)
+					tcpDataOffset = *(transportHeader + 12) >> 4;
+				
+					// calculate payload offset
+					payloadOffset = transportHeaderOffset + (tcpDataOffset << 2);
+				
+					// check if the complete TCP header is inside the received packet data
+					if (payloadOffset <= data_length)
+					    classification |= PCLASS_TRN_TCP;
+					else
+					    // there is no complete transport heaader => treat data it as payload
+					    payloadOffset = transportHeaderOffset;
+				}
+				else
+				    // there is no complete transport heaader => treat data it as payload
+				    payloadOffset = transportHeaderOffset;
+				
+				break;
+			case 17:        // UDP
+				// UDP has a fixed header size of 8 bytes
+				payloadOffset = transportHeaderOffset + 8;
+				
+				// check if the packet is big enough to actually be UDP
+				if (payloadOffset <= data_length)
+				    classification |= PCLASS_TRN_UDP;
+				else
+				    // there is no complete transport heaader => treat data it as payload
+				    payloadOffset = transportHeaderOffset;
+				
+				break;
+			default:	// unknown transport protocol or insufficient data length
+				// omit transport header and classify it as payload
+				payloadOffset = transportHeaderOffset;
+				break;
+			}
+
+			// check if we actually _have_ payload
+			if ((payloadOffset > 0) && (payloadOffset < data_length))
+			{
+			    classification |= PCLASS_PAYLOAD;
+			    payload = data + payloadOffset;
+			}
+			else
+			    // there is no payload
+			    payloadOffset = 0;
+
+			//fprintf(stderr, "class %08lx, proto %d, data %p, net %p, trn %p, payload %p\n", classification, protocol, data, netHeader, transportHeader, payload);
+		}
+	}
+
+	// read data from the IP header
+	void copyPacketData(void *dest, int offset, int size) const
+	{
+		memcpy(dest, (char *)netHeader + offset, size);
+	}
+
+
+	// return a pointer into the packet to IP header offset given
+	//
+	// ATTENTION: If the returned pointer actually points to data of size fieldLength is only
+	// checked for HEAD_RAW, HEAD_NETWORK_AND_BEYOND, HEAD_TRANSPORT_AND_BEYOND, and HEAD_PAYLOAD.
+	// For fields within the network or transport header (HEAD_NETWORK, HEAD_TRANSPORT), we assume 
+	// that it was verified before that the packet is of the correct packet class and that its buffer 
+	// holds enough data.
+	// You can check the packet class for a single field using match(). If you want to check
+	// against all fields in a template, you should use checkPacketConformity() of the Template class.
+	// If enough data for the network/transport header has been captured, is checked by classify().
+	void * getPacketData(unsigned short offset, unsigned short header, unsigned short fieldLength) const
+	{
+	    DPRINTF("offset: %d header: %d fieldlen: %d available: %d\n", offset, header, fieldLength, data_length);
+	    switch(header)
+	    {
+		
+		// for the following types, we omit the length check
+		case HEAD_NETWORK:
+		    return netHeader + offset;
+		case HEAD_TRANSPORT:
+		    return transportHeader + offset;
+
+		// the following types may be variable length
+		// if not, we have to check that the length is not too long
+		case HEAD_RAW:
+		    return ((unsigned int)offset + fieldLength <= data_length) ? data + offset : NULL;
+		case HEAD_NETWORK_AND_BEYOND:
+		    return (netHeaderOffset + offset + fieldLength <= data_length) ? netHeader + offset : NULL;
+		case HEAD_TRANSPORT_AND_BEYOND:
+		    return (transportHeaderOffset + offset + fieldLength <= data_length) ? transportHeader + offset : NULL;
+		case HEAD_PAYLOAD:
+		    return (payloadOffset + offset + fieldLength <= data_length) ? payload + offset : NULL;
+
+		// this should never be reached...
+		default:
+		    return NULL;
+	    }
+	}
+
+	// returns the pointer packetdata within the packet at position (header, offset)
+        // determines the encoded available data length and the length of the encoded length value in octets 
+	// (=1 if length < 255, =3 if 255 <= length <= 65535)
+	// cf. IPFIX protocol draft
+	void * getVariableLengthPacketData(unsigned short *length, uint8_t **enc_value, unsigned short *enc_len, int offset, int header)
+	{
+	    int len;
+	    void *packetdata = NULL;
+	    
+	    // check if we have enough space to buffer at least one octet
+	    if(!(varlength_index < sizeof(varlength)))
+	    {
+		msg(MSG_ERROR, "getVariableLengthPacketData: varlength[] is too small");
+		return NULL;
+	    }
+	    
+	    switch(header)
+	    {
+		case HEAD_RAW:
+		    len = data_length - offset;
+		    packetdata = data + offset;
+		    break;
+		    
+		case HEAD_NETWORK:
+		    // return only data inside netwrk header
+		    if(transportHeader == NULL)
+			len = data_length - netHeaderOffset - offset;
+		    else 
+			len = transportHeaderOffset - netHeaderOffset - offset;
+		    packetdata = netHeader + offset;
+		    break;
+		    
+		case HEAD_TRANSPORT:
+		    // return only data inside transport header
+		    if(payload == NULL)
+			len = data_length - transportHeaderOffset - offset;
+		    else
+			len = payloadOffset - transportHeaderOffset - offset;
+		    packetdata = transportHeader + offset;
+		    break;
+
+		case HEAD_NETWORK_AND_BEYOND:
+		    len = data_length - netHeaderOffset - offset;
+		    packetdata = netHeader + offset;
+		    break;
+		    
+		case HEAD_TRANSPORT_AND_BEYOND:
+		    len = data_length - transportHeaderOffset - offset;
+		    packetdata = transportHeader + offset;
+		    break;
+
+		case HEAD_PAYLOAD:
+		    len = data_length - payloadOffset - offset;
+		    packetdata = payload + offset;
+		    break;
+
+		// this should never be reached...
+		default:
+		    return NULL;
+	    }
+
+	    // if len is negative, the offset points outside the available data
+	    if(len <= 0)
+		return NULL;
+
+	    *length = (unsigned short) len;
+
+	    // encode length
+	    if(*length < 255)
+	    {
+		// encode in 1 octet
+		varlength[varlength_index] = (uint8_t)(*length);
+		*enc_value = &(varlength[varlength_index]);
+		*enc_len = 1;
+		varlength_index++;
+	    }
+	    // check if we have 3 octets available
+	    else if ((uint8_t)(varlength_index + 3) <= sizeof(varlength))
+	    {
+		// encode in 2 octets with preceeding 255
+		varlength[varlength_index] = 255;
+		//varlength[varlength_index + 1] = (uint8_t) (*length);
+		//varlength[varlength_index + 2] = (uint8_t) ((*length) >> 8);
+		*(uint16_t*)(varlength + varlength_index + 1) = htons((uint16_t) (*length));
+		*enc_value = &(varlength[varlength_index]);
+		*enc_len = 3;
+		varlength_index = varlength_index + 3;
+	    }
+	    else
+	    {
+		msg(MSG_ERROR, "getVariableLengthPacketData: varlength[] is too small");
+		return NULL;
+	    }
+
+	    //msg(MSG_INFO, "offset: %d header: %d fieldlen: %d available: %d, encoded: %d-%d-%d, %d", offset, header, len, data_length, (uint8_t)(**enc_value), (uint8_t)(*(*enc_value+1)), (uint8_t)(*(*enc_value+2)), *enc_len);
+
+	    return packetdata;
+	}
+
+
+
+private:
+	/*
+	 the raw offset at which the IP header starts in the packet
+	 for Ethernet, this is 14 bytes (MAC header size).
+	 This constant is set via the configure script. It defaults to 14
+	 */
+	static const int IPHeaderOffset=IP_HEADER_OFFSET;
+
+	/*
+	 Number of concurrent users of this packet. Decremented each time
+	 release() is called. After it reaches zero, the packet is deleted.
+         */
+	int users;
+
+	Lock refCountLock;
+
+	/*
+	 return the offset the transport header lies
+	 IP knows about variable length options field
+         */
+	static inline unsigned int netTransportHeaderOffset(void *ipPacket)
+	{
+		/*
+		 the header length (incl. options field) is:
+		 last 4 bits in the first byte * 4bytes
+		 */
+		unsigned char len = *((unsigned char *)ipPacket) & 0x0f;
+
+		return len << 2;
+	}
+
+};
+
+#endif
