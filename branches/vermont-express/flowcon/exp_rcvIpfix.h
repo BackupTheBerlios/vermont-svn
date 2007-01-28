@@ -12,10 +12,20 @@ extern "C" {
 
 /***** Constants ************************************************************/
 
+#define MAX_ADDRESS_LEN 16
 
 /***** Data Types ***********************************************************/
 
-typedef uint32_t Exp_SourceID;
+typedef struct {
+	char ip[MAX_ADDRESS_LEN];
+	uint8_t len;
+} ExpressExporterAddress;
+
+typedef struct {
+	uint32_t observationDomainId;
+	ExpressExporterAddress exporterAddress;
+} Exp_SourceID;
+
 typedef uint16_t TemplateID;
 typedef uint16_t TypeId;
 typedef uint16_t FieldLength;
@@ -88,7 +98,7 @@ typedef struct {
  * @param templateInfo Pointer to a structure defining this Template
  * @return 0 if packet handled successfully
  */
-typedef int(ExpressTemplateCallbackFunction)(void* handle, Exp_SourceID sourceID, ExpressTemplateInfo* templateInfo);
+typedef int(ExpressTemplateCallbackFunction)(void* handle, Exp_SourceID* sourceID, ExpressTemplateInfo* templateInfo);
 
 /**
  * Callback function invoked when a new OptionsTemplate arrives.
@@ -97,7 +107,7 @@ typedef int(ExpressTemplateCallbackFunction)(void* handle, Exp_SourceID sourceID
  * @param optionsTemplateInfo Pointer to a structure defining this OptionsTemplate
  * @return 0 if packet handled successfully
  */
-typedef int(ExpressOptionsTemplateCallbackFunction)(void* handle, Exp_SourceID sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo);
+typedef int(ExpressOptionsTemplateCallbackFunction)(void* handle, Exp_SourceID* sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo);
 
 /**
  * Callback function invoked when a new DataTemplate arrives.
@@ -105,7 +115,7 @@ typedef int(ExpressOptionsTemplateCallbackFunction)(void* handle, Exp_SourceID s
  * @param sourceId SourceID of the exporter that sent this DataTemplate
  * @return 0 if packet handled successfully
  */
-typedef int(ExpressDataTemplateCallbackFunction)(void* handle, Exp_SourceID sourceID, ExpressDataTemplateInfo* dataTemplateInfo);
+typedef int(ExpressDataTemplateCallbackFunction)(void* handle, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo);
 
 /*** Template Destruction Callbacks ***/
          
@@ -117,7 +127,7 @@ typedef int(ExpressDataTemplateCallbackFunction)(void* handle, Exp_SourceID sour
  * @param templateInfo Pointer to a structure defining this Template
  * @return 0 if packet handled successfully
  */
-typedef int(ExpressTemplateDestructionCallbackFunction)(void* handle, Exp_SourceID sourceID, ExpressTemplateInfo* templateInfo);
+typedef int(ExpressTemplateDestructionCallbackFunction)(void* handle, Exp_SourceID* sourceID, ExpressTemplateInfo* templateInfo);
 
 /**
  * Callback function invoked when a OptionsTemplate is being destroyed.
@@ -127,7 +137,7 @@ typedef int(ExpressTemplateDestructionCallbackFunction)(void* handle, Exp_Source
  * @param optionsTemplateInfo Pointer to a structure defining this OptionsTemplate
  * @return 0 if packet handled successfully
  */
-typedef int(ExpressOptionsTemplateDestructionCallbackFunction)(void* handle, Exp_SourceID sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo);
+typedef int(ExpressOptionsTemplateDestructionCallbackFunction)(void* handle, Exp_SourceID* sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo);
 
 /**
  * Callback function invoked when a DataTemplate is being destroyed.
@@ -136,7 +146,7 @@ typedef int(ExpressOptionsTemplateDestructionCallbackFunction)(void* handle, Exp
  * @param sourceId SourceID of the exporter that sent this DataTemplate
  * @return 0 if packet handled successfully
  */
-typedef int(ExpressDataTemplateDestructionCallbackFunction)(void* handle, Exp_SourceID sourceID, ExpressDataTemplateInfo* dataTemplateInfo);
+typedef int(ExpressDataTemplateDestructionCallbackFunction)(void* handle, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo);
 
 /*** Data Callbacks ***/
 
@@ -149,7 +159,7 @@ typedef int(ExpressDataTemplateDestructionCallbackFunction)(void* handle, Exp_So
  * @param data Pointer to a data block containing all fields
  * @return 0 if packet handled successfully
  */
-typedef int(ExpressDataRecordCallbackFunction)(void* handle, Exp_SourceID sourceID, ExpressTemplateInfo* templateInfo, uint16_t length, FieldData* data);
+typedef int(ExpressDataRecordCallbackFunction)(void* handle, Exp_SourceID* sourceID, ExpressTemplateInfo* templateInfo, uint16_t length, FieldData* data);
 
 /**
  * Callback function invoked when a new Options Record arrives.
@@ -160,7 +170,7 @@ typedef int(ExpressDataRecordCallbackFunction)(void* handle, Exp_SourceID source
  * @param data Pointer to a data block containing all fields
  * @return 0 if packet handled successfully
  */
-typedef int(ExpressOptionsRecordCallbackFunction)(void* handle, Exp_SourceID sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data);
+typedef int(ExpressOptionsRecordCallbackFunction)(void* handle, Exp_SourceID* sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data);
 
 /**
  * Callback function invoked when a new Data Record with associated Fixed Values arrives.
@@ -171,7 +181,7 @@ typedef int(ExpressOptionsRecordCallbackFunction)(void* handle, Exp_SourceID sou
  * @param data Pointer to a data block containing all variable fields
  * @return 0 if packet handled successfully
  */
-typedef int(ExpressDataDataRecordCallbackFunction)(void* handle, Exp_SourceID sourceID, ExpressDataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+typedef int(ExpressDataDataRecordCallbackFunction)(void* handle, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
 /**
  * Collection of callback functions used for passing Templates and Data Records between modules.
@@ -211,7 +221,7 @@ typedef struct {
  * @param message Raw message data
  * @param len Length of message
  */
-typedef int(ExpressProcessPacketCallbackFunction)(ExpressIpfixParser* ipfixParser, byte* message, uint16_t len);
+typedef int(ExpressProcessPacketCallbackFunction)(ExpressIpfixParser* ipfixParser, byte* message, uint16_t len, Exp_SourceID* exporter);
 
 /**
  * Controls parsing of incoming packets.

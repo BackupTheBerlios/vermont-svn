@@ -317,8 +317,7 @@ static int createUdpIpv4Receiver(IpfixReceiver* ipfixReceiver, int port) {
         serverAddress.sin_family = AF_INET;
         serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
         serverAddress.sin_port = htons(port);
-        if(bind(ipfixReceiver->listen_socket, (struct sockaddr*)&serverAddress, 
-		sizeof(struct sockaddr_in)) < 0) {
+        if(bind(ipfixReceiver->listen_socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr_in)) < 0) {
                 perror("Could not bind socket");
                 return -1;
         }
@@ -349,15 +348,12 @@ static void udpListener(IpfixReceiver* ipfixReceiver) {
         
         while(!ipfixReceiver->exit) {
                 clientAddressLen = sizeof(struct sockaddr_in);
-                n = recvfrom(ipfixReceiver->listen_socket, data, MAX_MSG_LEN,
-			     0, (struct sockaddr*)&clientAddress, &clientAddressLen);
+                n = recvfrom(ipfixReceiver->listen_socket, data, MAX_MSG_LEN, 0, (struct sockaddr*)&clientAddress, &clientAddressLen);
                 if (n < 0) {
                         msg(MSG_DEBUG, "recvfrom returned without data, terminating listener thread");
                         break;
                 }
-                
-                if (isHostAuthorized(ipfixReceiver, &clientAddress.sin_addr, 
-				     sizeof(clientAddress.sin_addr))) {
+                if (isHostAuthorized(ipfixReceiver, &clientAddress.sin_addr, sizeof(clientAddress.sin_addr))) {
 
                         uint32_t ip = ntohl(clientAddress.sin_addr.s_addr);
 			memcpy(sourceID->exporterAddress.ip, &ip, 4);

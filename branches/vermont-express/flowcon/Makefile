@@ -51,7 +51,8 @@ am_libconcentratorexpress_a_OBJECTS = exp_aggregator.$(OBJEXT) \
 	exp_ipfixReceiver.$(OBJEXT) exp_printIpfix.$(OBJEXT) \
 	exp_rcvIpfix.$(OBJEXT) exp_rules.$(OBJEXT) \
 	exp_sampler_hook_entry.$(OBJEXT) exp_sndIpfix.$(OBJEXT) \
-	exp_templateBuffer.$(OBJEXT)
+	exp_templateBuffer.$(OBJEXT) exp_IpfixDbReader.$(OBJEXT) \
+	exp_IpfixDbWriter.$(OBJEXT)
 libconcentratorexpress_a_OBJECTS =  \
 	$(am_libconcentratorexpress_a_OBJECTS)
 DEFAULT_INCLUDES = -I.
@@ -66,37 +67,44 @@ DIST_SOURCES = $(libconcentratorexpress_a_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /home/basti/Thesis/vermont-express/missing --run aclocal-1.10
-AMTAR = ${SHELL} /home/basti/Thesis/vermont-express/missing --run tar
-AUTOCONF = ${SHELL} /home/basti/Thesis/vermont-express/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/basti/Thesis/vermont-express/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/basti/Thesis/vermont-express/missing --run automake-1.10
+ACLOCAL = ${SHELL} /home/basti/Thesis/vermont-express_2/missing --run aclocal-1.10
+AMTAR = ${SHELL} /home/basti/Thesis/vermont-express_2/missing --run tar
+AUTOCONF = ${SHELL} /home/basti/Thesis/vermont-express_2/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/basti/Thesis/vermont-express_2/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/basti/Thesis/vermont-express_2/missing --run automake-1.10
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2
+CPP = gcc -E
 CPPFLAGS = 
 CXX = g++
 CXXDEPMODE = depmode=gcc3
 CXXFLAGS = -g -O2
 CYGPATH_W = echo
-DEFS = -DPACKAGE_NAME=\"\" -DPACKAGE_TARNAME=\"\" -DPACKAGE_VERSION=\"\" -DPACKAGE_STRING=\"\" -DPACKAGE_BUGREPORT=\"\" -DPACKAGE=\"vermont\" -DVERSION=\"0.8\" -DHAVE_PTHREAD=1
+DEFS = -DPACKAGE_NAME=\"\" -DPACKAGE_TARNAME=\"\" -DPACKAGE_VERSION=\"\" -DPACKAGE_STRING=\"\" -DPACKAGE_BUGREPORT=\"\" -DPACKAGE=\"vermont\" -DVERSION=\"0.9\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DHAVE_STDIO_H=1 -DHAVE_UNISTD_H=1 -DHAVE_SIGNAL_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STDINT_H=1 -DHAVE_STRING_H=1 -DHAVE_TIME_H=1 -DHAVE_ASSERT_H=1 -DHAVE_STDINT_H=1 -DHAVE_ERRNO_H=1 -DHAVE_NETINET_IN_H=1 -DHAVE_ARPA_INET_H=1 -DHAVE_SYS_SOCKET_H=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_UIO_H=1 -DHAVE_SYS_TIME_H=1 -DHAVE_NETDB_H=1 -DHAVE_SEMAPHORE_H=1 -DIP_HEADER_OFFSET=14 -DSUPPORT_NETFLOWV9=1 -DHAVE_PTHREAD=1 -DHAVE_MYSQL=1
 DEPDIR = .deps
 ECHO_C = 
 ECHO_N = -n
 ECHO_T = 
+EGREP = /bin/grep -E
 EXEEXT = 
+GREP = /bin/grep
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
-LDFLAGS = 
+LDFLAGS =  -lpcap
 LIBOBJS = 
 LIBS = 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/basti/Thesis/vermont-express/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/basti/Thesis/vermont-express_2/missing --run makeinfo
 MKDIR_P = /usr/bin/mkdir -p
+MYSQL_CFLAGS = -I/usr/include/mysql -DHAVE_ERRNO_AS_DEFINE=1
+MYSQL_CONFIG = /usr/bin/mysql_config
+MYSQL_LDFLAGS = -L/usr/lib/mysql -lmysqlclient -lz -lcrypt -lnsl -lm -L/usr/lib -lssl -lcrypto
+MYSQL_VERSION = 5.0.26
 OBJEXT = o
 PACKAGE = vermont
 PACKAGE_BUGREPORT = 
@@ -112,14 +120,14 @@ RANLIB = ranlib
 SET_MAKE = 
 SHELL = /bin/sh
 STRIP = 
-VERSION = 0.8
+VERSION = 0.9
 XML2_CONFIG = /usr/bin/xml2-config
 XML_CPPFLAGS = -I/usr/include/libxml2
 XML_LIBS = -L/usr/lib -lxml2 -lz -lm
-abs_builddir = /home/basti/Thesis/vermont-express/flowcon
-abs_srcdir = /home/basti/Thesis/vermont-express/flowcon
-abs_top_builddir = /home/basti/Thesis/vermont-express
-abs_top_srcdir = /home/basti/Thesis/vermont-express
+abs_builddir = /home/basti/Thesis/vermont-express_2/flowcon
+abs_srcdir = /home/basti/Thesis/vermont-express_2/flowcon
+abs_top_builddir = /home/basti/Thesis/vermont-express_2
+abs_top_srcdir = /home/basti/Thesis/vermont-express_2
 ac_ct_CC = gcc
 ac_ct_CXX = g++
 acx_pthread_config = 
@@ -148,7 +156,7 @@ host_vendor = pc
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = $(SHELL) /home/basti/Thesis/vermont-express/install-sh
+install_sh = $(SHELL) /home/basti/Thesis/vermont-express_2/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -170,7 +178,8 @@ top_srcdir = ..
 noinst_LIBRARIES = libconcentratorexpress.a
 libconcentratorexpress_a_SOURCES = exp_aggregator.c exp_aggregator.h exp_crc16.c exp_crc16.h exp_hashing.c exp_hashing.h exp_ipfix.c exp_ipfix.h \
 exp_ipfixReceiver.c exp_ipfixReceiver.h exp_printIpfix.c exp_printIpfix.h exp_rcvIpfix.c exp_rcvIpfix.h exp_rules.c exp_rules.h \
-exp_sampler_hook_entry.c exp_sampler_hook_entry.h exp_sndIpfix.c exp_sndIpfix.h exp_templateBuffer.c exp_templateBuffer.h
+exp_sampler_hook_entry.c exp_sampler_hook_entry.h exp_sndIpfix.c exp_sndIpfix.h exp_templateBuffer.c exp_templateBuffer.h \
+exp_IpfixDbReader.h exp_IpfixDbReader.c exp_IpfixDbWriter.h exp_IpfixDbWriter.c
 
 AM_CFLAGS = -I$(top_srcdir) -Wall
 all: all-am
@@ -220,6 +229,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+include ./$(DEPDIR)/exp_IpfixDbReader.Po
+include ./$(DEPDIR)/exp_IpfixDbWriter.Po
 include ./$(DEPDIR)/exp_aggregator.Po
 include ./$(DEPDIR)/exp_crc16.Po
 include ./$(DEPDIR)/exp_hashing.Po

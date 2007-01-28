@@ -74,7 +74,7 @@ void ExpressstopIpfixPrinter(ExpressIpfixPrinter* ipfixPrinter) {
  * @param sourceID Exp_SourceID of the exporting process
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int ExpressprintTemplate(void* ipfixPrinter, Exp_SourceID sourceID, ExpressTemplateInfo* templateInfo) {
+int ExpressprintTemplate(void* ipfixPrinter, Exp_SourceID* sourceID, ExpressTemplateInfo* templateInfo) {
 	printf("\n-+--- Template\n");
 	printf(" `---\n\n");
 
@@ -87,7 +87,7 @@ int ExpressprintTemplate(void* ipfixPrinter, Exp_SourceID sourceID, ExpressTempl
  * @param sourceID Exp_SourceID of the exporting process
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int ExpressprintTemplateDestruction(void* ipfixPrinter, Exp_SourceID sourceID, ExpressTemplateInfo* templateInfo) {
+int ExpressprintTemplateDestruction(void* ipfixPrinter, Exp_SourceID* sourceID, ExpressTemplateInfo* templateInfo) {
 	printf("Destroyed a Template\n");
 
 	return 0;
@@ -101,7 +101,7 @@ int ExpressprintTemplateDestruction(void* ipfixPrinter, Exp_SourceID sourceID, E
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int ExpressprintDataRecord(void* ipfixPrinter, Exp_SourceID sourceID, ExpressTemplateInfo* templateInfo, uint16_t length, FieldData* data) {
+int ExpressprintDataRecord(void* ipfixPrinter, Exp_SourceID* sourceID, ExpressTemplateInfo* templateInfo, uint16_t length, FieldData* data) {
 	int i;
 
 	printf("\n-+--- DataRecord\n");
@@ -122,7 +122,7 @@ int ExpressprintDataRecord(void* ipfixPrinter, Exp_SourceID sourceID, ExpressTem
  * @param sourceID Exp_SourceID of the exporting process
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int ExpressprintOptionsTemplate(void* ipfixPrinter, Exp_SourceID sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo) {
+int ExpressprintOptionsTemplate(void* ipfixPrinter, Exp_SourceID* sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo) {
 
 	printf("\n-+--- OptionsTemplate\n");
 	printf(" `---\n\n");
@@ -136,7 +136,7 @@ int ExpressprintOptionsTemplate(void* ipfixPrinter, Exp_SourceID sourceID, Expre
  * @param sourceID Exp_SourceID of the exporting process
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int ExpressprintOptionsTemplateDestruction(void* ipfixPrinter_, Exp_SourceID sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo) {
+int ExpressprintOptionsTemplateDestruction(void* ipfixPrinter_, Exp_SourceID* sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo) {
 	printf("Destroyed an OptionsTemplate\n");
 
 	return 0;
@@ -150,7 +150,7 @@ int ExpressprintOptionsTemplateDestruction(void* ipfixPrinter_, Exp_SourceID sou
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int ExpressprintOptionsRecord(void* ipfixPrinter, Exp_SourceID sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data) {
+int ExpressprintOptionsRecord(void* ipfixPrinter, Exp_SourceID* sourceID, ExpressOptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data) {
 
 	printf("\n-+--- OptionsDataRecord\n");
 	printf(" `---\n\n");
@@ -164,7 +164,7 @@ int ExpressprintOptionsRecord(void* ipfixPrinter, Exp_SourceID sourceID, Express
  * @param sourceID Exp_SourceID of the exporting process
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int ExpressprintDataTemplate(void* ipfixPrinter, Exp_SourceID sourceID, ExpressDataTemplateInfo* dataTemplateInfo) {
+int ExpressprintDataTemplate(void* ipfixPrinter, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo) {
 	int i;
 
 	printf("\n-+--- DataTemplate\n");
@@ -185,7 +185,7 @@ int ExpressprintDataTemplate(void* ipfixPrinter, Exp_SourceID sourceID, ExpressD
  * @param sourceID Exp_SourceID of the exporting process
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int ExpressprintDataTemplateDestruction(void* ipfixPrinter_, Exp_SourceID sourceID, ExpressDataTemplateInfo* dataTemplateInfo) {
+int ExpressprintDataTemplateDestruction(void* ipfixPrinter_, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo) {
 	printf("Destroyed a DataTemplate\n");
 
 	return 0;
@@ -199,7 +199,7 @@ int ExpressprintDataTemplateDestruction(void* ipfixPrinter_, Exp_SourceID source
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int ExpressprintDataDataRecord(void* ipfixPrinter, Exp_SourceID sourceID, ExpressDataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
+int ExpressprintDataDataRecord(void* ipfixPrinter, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
 	int i;
 
 	printf("\n-+--- DataDataRecord\n");

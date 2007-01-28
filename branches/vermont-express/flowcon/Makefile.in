@@ -51,7 +51,8 @@ am_libconcentratorexpress_a_OBJECTS = exp_aggregator.$(OBJEXT) \
 	exp_ipfixReceiver.$(OBJEXT) exp_printIpfix.$(OBJEXT) \
 	exp_rcvIpfix.$(OBJEXT) exp_rules.$(OBJEXT) \
 	exp_sampler_hook_entry.$(OBJEXT) exp_sndIpfix.$(OBJEXT) \
-	exp_templateBuffer.$(OBJEXT)
+	exp_templateBuffer.$(OBJEXT) exp_IpfixDbReader.$(OBJEXT) \
+	exp_IpfixDbWriter.$(OBJEXT)
 libconcentratorexpress_a_OBJECTS =  \
 	$(am_libconcentratorexpress_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
@@ -75,6 +76,7 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CXX = @CXX@
 CXXDEPMODE = @CXXDEPMODE@
@@ -85,7 +87,9 @@ DEPDIR = @DEPDIR@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
+EGREP = @EGREP@
 EXEEXT = @EXEEXT@
+GREP = @GREP@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -97,6 +101,10 @@ LIBS = @LIBS@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
+MYSQL_CFLAGS = @MYSQL_CFLAGS@
+MYSQL_CONFIG = @MYSQL_CONFIG@
+MYSQL_LDFLAGS = @MYSQL_LDFLAGS@
+MYSQL_VERSION = @MYSQL_VERSION@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
@@ -170,7 +178,8 @@ top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libconcentratorexpress.a
 libconcentratorexpress_a_SOURCES = exp_aggregator.c exp_aggregator.h exp_crc16.c exp_crc16.h exp_hashing.c exp_hashing.h exp_ipfix.c exp_ipfix.h \
 exp_ipfixReceiver.c exp_ipfixReceiver.h exp_printIpfix.c exp_printIpfix.h exp_rcvIpfix.c exp_rcvIpfix.h exp_rules.c exp_rules.h \
-exp_sampler_hook_entry.c exp_sampler_hook_entry.h exp_sndIpfix.c exp_sndIpfix.h exp_templateBuffer.c exp_templateBuffer.h
+exp_sampler_hook_entry.c exp_sampler_hook_entry.h exp_sndIpfix.c exp_sndIpfix.h exp_templateBuffer.c exp_templateBuffer.h \
+exp_IpfixDbReader.h exp_IpfixDbReader.c exp_IpfixDbWriter.h exp_IpfixDbWriter.c
 
 AM_CFLAGS = -I$(top_srcdir) -Wall
 all: all-am
@@ -220,6 +229,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/exp_IpfixDbReader.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/exp_IpfixDbWriter.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/exp_aggregator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/exp_crc16.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/exp_hashing.Po@am__quote@

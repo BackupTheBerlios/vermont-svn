@@ -11,7 +11,7 @@ extern "C" {
 
 /***** Constants ************************************************************/
 
-#define TEMPLATE_EXPIRE_SECS  60
+#define TEMPLATE_EXPIRE_SECS  70
 
 /***** Data Types ************************************************************/
 
@@ -30,13 +30,13 @@ typedef struct {
 		ExpressDataTemplateInfo* dataTemplateInfo;
 	};
 	void*	next;             /**< Pointer to next buffered Template */
-} BufferedTemplate;
+} ExpressBufferedTemplate;
 
 /**
  * Represents a Template Buffer
  */
 typedef struct {
-	BufferedTemplate* head; /**< Start of BufferedTemplate chain */
+	ExpressBufferedTemplate* head; /**< Start of BufferedTemplate chain */
 	ExpressIpfixParser* ipfixParser; /**< Pointer to the ipfixReceiver which instantiated this TemplateBuffer */
 } TemplateBuffer;
 
@@ -45,9 +45,9 @@ typedef struct {
 
 TemplateBuffer* createTemplateBuffer(ExpressIpfixParser* parentIpfixParser);
 void destroyTemplateBuffer(TemplateBuffer* templateBuffer);
-BufferedTemplate* getBufferedTemplate(TemplateBuffer* templateBuffer, Exp_SourceID sourceId, TemplateID templateId);
-void destroyBufferedTemplate(TemplateBuffer* templateBuffer, Exp_SourceID sourceId, TemplateID id);
-void bufferTemplate(TemplateBuffer* templateBuffer, BufferedTemplate* bt);
+ExpressBufferedTemplate* getBufferedTemplate(TemplateBuffer* templateBuffer, Exp_SourceID* sourceId, TemplateID templateId);
+void destroyBufferedTemplate(TemplateBuffer* templateBuffer, Exp_SourceID* sourceId, TemplateID id);
+void bufferTemplate(TemplateBuffer* templateBuffer, ExpressBufferedTemplate* bt);
 
 
 #ifdef __cplusplus

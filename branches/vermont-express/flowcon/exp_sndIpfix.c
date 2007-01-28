@@ -33,7 +33,7 @@ static uint8_t conversionRingbuffer[1 << (8 * sizeof(ringbufferPos))]; /**< Ring
  * To be called on application startup
  * @return 0 on success
  */
-int initializeIpfixSenders() {
+int ExpressinitializeIpfixSenders() {
 	return 0;
 }
 
@@ -42,7 +42,7 @@ int initializeIpfixSenders() {
  * To be called on application shutdown
  * @return 0 on success
  */
-int deinitializeIpfixSenders() {
+int ExpressdeinitializeIpfixSenders() {
 	return 0;
 }
 
@@ -53,7 +53,7 @@ int deinitializeIpfixSenders() {
  * @param port destination collector's port
  * @return handle to use when calling @c destroyIpfixSender()
  */
-ExpressIpfixSender* createIpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port) {
+ExpressIpfixSender* ExpresscreateIpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port) {
 	ExpressIpfixSender* ipfixSender = (ExpressIpfixSender*)malloc(sizeof(ExpressIpfixSender));
 	ipfix_exporter** exporterP = &ipfixSender->ipfixExporter;
 	strcpy(ipfixSender->ip, ip);
@@ -66,7 +66,7 @@ ExpressIpfixSender* createIpfixSender(uint16_t observationDomainId, const char* 
 		goto out;
 	}
 
-	if(ipfixSenderAddCollector(ipfixSender, ipfixSender->ip, ipfixSender->port) != 0) {
+	if(ExpressipfixSenderAddCollector(ipfixSender, ipfixSender->ip, ipfixSender->port) != 0) {
 		goto out1;
 	}
 	
@@ -107,7 +107,7 @@ void ExpressstartIpfixSender(ExpressIpfixSender* ipfixSender) {
  * Temporarily pauses sending messages
  * @param ipfixSender handle to the Exporter
  */
-void stopIpfixSender(ExpressIpfixSender* ipfixSender) {
+void ExpressstopIpfixSender(ExpressIpfixSender* ipfixSender) {
 	/* unimplemented, we can't be paused - TODO: or should we? */
 }
 
@@ -120,7 +120,7 @@ void stopIpfixSender(ExpressIpfixSender* ipfixSender) {
  * @param port port number
  * FIXME: support for other than UDP
  */
-int ipfixSenderAddCollector(ExpressIpfixSender *ips, const char *ip, uint16_t port)
+int ExpressipfixSenderAddCollector(ExpressIpfixSender *ips, const char *ip, uint16_t port)
 {
 	ipfix_exporter *ex = (ipfix_exporter *)ips->ipfixExporter;
 
@@ -140,7 +140,7 @@ int ipfixSenderAddCollector(ExpressIpfixSender *ips, const char *ip, uint16_t po
  * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int sndNewDataTemplate(void* ipfixSender_, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo) {
+int ExpresssndNewDataTemplate(void* ipfixSender_, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo) {
 	uint16_t my_template_id;
 	uint16_t my_preceding;
 	ExpressIpfixSender* ipfixSender = ipfixSender_;
@@ -277,7 +277,7 @@ int sndNewDataTemplate(void* ipfixSender_, Exp_SourceID* sourceID, ExpressDataTe
  * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int sndDestroyDataTemplate(void* ipfixSender_, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo) 
+int ExpresssndDestroyDataTemplate(void* ipfixSender_, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo) 
 {
 	ExpressIpfixSender* ipfixSender = ipfixSender_;
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
@@ -312,7 +312,7 @@ int sndDestroyDataTemplate(void* ipfixSender_, Exp_SourceID* sourceID, ExpressDa
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int sndDataDataRecord(void* ipfixSender_, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
+int ExpresssndDataDataRecord(void* ipfixSender_, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
 	ExpressIpfixSender* ipfixSender = ipfixSender_;
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
 
@@ -380,7 +380,7 @@ ExpressCallbackInfo ExpressgetIpfixSenderCallbackInfo(ExpressIpfixSender* ipfixS
 /**
  * Called by the logger timer thread. Dumps info using msg_stat
  */
-void statsIpfixSender(void* ipfixSender_)
+void ExpressstatsIpfixSender(void* ipfixSender_)
 {
 	ExpressIpfixSender* ipfixSender = (ExpressIpfixSender*)ipfixSender_;
 

@@ -57,6 +57,6 @@ AC_CHECK_LIB([pcap], [pcap_open_live],
               AC_SUBST(LDFLAGS)],
              [AC_MSG_ERROR([*** could not find libpcap. Please install it.])])
 
-AC_CONFIG_FILES([Makefile concentrator/Makefile sampler/Makefile ipfixlolib/Makefile tools/Makefile])
+AC_CONFIG_FILES([Makefile concentrator/Makefile sampler/Makefile ipfixlolib/Makefile tools/Makefile flowcon/Makefile])
 
 AC_OUTPUT

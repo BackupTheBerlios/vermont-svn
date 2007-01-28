@@ -34,7 +34,7 @@ void ExpressdestroyIpfixSender(ExpressIpfixSender* ipfixSender);
 void ExpressstartIpfixSender(ExpressIpfixSender* ipfixSender);
 void ExpressstopIpfixSender(ExpressIpfixSender* ipfixSender);
 
-int ipfixSenderAddCollector(ExpressIpfixSender *ips, const char *ip, uint16_t port);
+int ExpressipfixSenderAddCollector(ExpressIpfixSender *ips, const char *ip, uint16_t port);
 
 int ExpresssndNewDataTemplate(void* ipfixSender, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo);
 int ExpresssndDestroyDataTemplate(void* ipfixSender, Exp_SourceID* sourceID, ExpressDataTemplateInfo* dataTemplateInfo);

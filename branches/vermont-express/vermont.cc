@@ -82,9 +82,9 @@ int main(int ac, char **dc)
 	
 
 	//missing query which concentrator is running
-//	ipfixConfig->pollAggregatorLoop();
+	ipfixConfig->pollAggregatorLoop();
 
-	ipfixConfig->pollExpressAggregatorLoop();
+	//ipfixConfig->pollExpressAggregatorLoop();
 	
 	delete ipfixConfig;
 	

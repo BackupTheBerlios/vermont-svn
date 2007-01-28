@@ -57,7 +57,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "msg.h"
 /***** Defines ************************************************************/
 
-#define SUPPORT_NETFLOWV9
 
 /***** Constants ************************************************************/
 
@@ -77,7 +76,7 @@ typedef struct {
 	uint16_t length; 
 	uint32_t exportTime;
 	uint32_t sequenceNo;
-	uint32_t sourceId;
+	uint32_t observationDomainId;
 	byte   data;
 } ExpressIpfixHeader;
 
@@ -91,7 +90,7 @@ typedef struct {
 	uint32_t uptime;
 	uint32_t exportTime;
 	uint32_t sequenceNo;
-	uint32_t sourceId;
+	uint32_t observationDomainId;
 	byte   data;
 } ExpressNetflowV9Header;
 
@@ -143,16 +142,16 @@ typedef struct {
 
 /***** Internal Functions ****************************************************/
 
-static void ExpressprocessDataSet(ExpressIpfixParser* ipfixParser, Exp_SourceID sourceID, ExpressIpfixSetHeader* set);
-static void ExpressprocessTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID sourceID, ExpressIpfixSetHeader* set);
-static void ExpressprocessDataTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID sourceID, ExpressIpfixSetHeader* set);
-static void ExpressprocessOptionsTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID sourceId, ExpressIpfixSetHeader* set);
+static void ExpressprocessDataSet(ExpressIpfixParser* ipfixParser, Exp_SourceID* sourceID, ExpressIpfixSetHeader* set);
+static void ExpressprocessTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID* sourceID, ExpressIpfixSetHeader* set);
+static void ExpressprocessDataTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID* sourceID, ExpressIpfixSetHeader* set);
+static void ExpressprocessOptionsTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID* sourceId, ExpressIpfixSetHeader* set);
 
 /**
  * Processes an IPFIX template set.
  * Called by processMessage
  */
-static void ExpressprocessTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID sourceId, ExpressIpfixSetHeader* set) {
+static void ExpressprocessTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID* sourceId, ExpressIpfixSetHeader* set) {
 	byte* endOfSet = (byte*)set + ntohs(set->length);
 	byte* record = (byte*)&set->data;
 
@@ -165,9 +164,9 @@ static void ExpressprocessTemplateSet(ExpressIpfixParser* ipfixParser, Exp_Sourc
 			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
 			continue;
 		}
-		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
+		ExpressBufferedTemplate* bt = (ExpressBufferedTemplate*)malloc(sizeof(ExpressBufferedTemplate));
 		ExpressTemplateInfo* ti = (ExpressTemplateInfo*)malloc(sizeof(ExpressTemplateInfo));
-		bt->sourceID = sourceId;
+		memcpy(&bt->sourceID, sourceId, sizeof(Exp_SourceID));
 		bt->templateID = ntohs(th->templateId);
 		bt->recordLength = 0;
 		bt->setID = ntohs(set->id);
@@ -202,8 +201,7 @@ static void ExpressprocessTemplateSet(ExpressIpfixParser* ipfixParser, Exp_Sourc
 		}
         
 		bufferTemplate(ipfixParser->templateBuffer, bt); 
-		// FIXME: Template expiration disabled for debugging
-		// bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
+		bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
 		int n;          
 		for (n = 0; n < ipfixParser->callbackCount; n++) {
@@ -219,7 +217,7 @@ static void ExpressprocessTemplateSet(ExpressIpfixParser* ipfixParser, Exp_Sourc
  * Processes an IPFIX Options Template Set.
  * Called by processMessage
  */
-static void ExpressprocessOptionsTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID sourceId, ExpressIpfixSetHeader* set) {
+static void ExpressprocessOptionsTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID* sourceId, ExpressIpfixSetHeader* set) {
 	byte* endOfSet = (byte*)set + ntohs(set->length);
 	byte* record = (byte*)&set->data;
 
@@ -232,9 +230,9 @@ static void ExpressprocessOptionsTemplateSet(ExpressIpfixParser* ipfixParser, Ex
 			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
 			continue;
 		}
-		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
+		ExpressBufferedTemplate* bt = (ExpressBufferedTemplate*)malloc(sizeof(ExpressBufferedTemplate));
 		ExpressOptionsTemplateInfo* ti = (ExpressOptionsTemplateInfo*)malloc(sizeof(ExpressOptionsTemplateInfo));
-		bt->sourceID = sourceId;
+		memcpy(&bt->sourceID, sourceId, sizeof(Exp_SourceID));
 		bt->templateID = ntohs(th->templateId);
 		bt->recordLength = 0;
 		bt->setID = ntohs(set->id);
@@ -290,8 +288,7 @@ static void ExpressprocessOptionsTemplateSet(ExpressIpfixParser* ipfixParser, Ex
 			}
 		}
 		bufferTemplate(ipfixParser->templateBuffer, bt); 
-		// FIXME: Template expiration disabled for debugging
-		// bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
+		bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
 
 		int n;
@@ -308,7 +305,7 @@ static void ExpressprocessOptionsTemplateSet(ExpressIpfixParser* ipfixParser, Ex
  * Processes an IPFIX DataTemplate set.
  * Called by processMessage
  */
-static void ExpressprocessDataTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID sourceId, ExpressIpfixSetHeader* set) {
+static void ExpressprocessDataTemplateSet(ExpressIpfixParser* ipfixParser, Exp_SourceID* sourceId, ExpressIpfixSetHeader* set) {
 	byte* endOfSet = (byte*)set + ntohs(set->length);
 	byte* record = (byte*)&set->data;
 
@@ -321,9 +318,9 @@ static void ExpressprocessDataTemplateSet(ExpressIpfixParser* ipfixParser, Exp_S
 			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
 			continue;
 		}
-		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
+		ExpressBufferedTemplate* bt = (ExpressBufferedTemplate*)malloc(sizeof(ExpressBufferedTemplate));
 		ExpressDataTemplateInfo* ti = (ExpressDataTemplateInfo*)malloc(sizeof(ExpressDataTemplateInfo));
-		bt->sourceID = sourceId;
+		memcpy(&bt->sourceID, sourceId, sizeof(Exp_SourceID));
 		bt->templateID = ntohs(th->templateId);
 		bt->recordLength = 0;
 		bt->setID = ntohs(set->id);
@@ -399,8 +396,7 @@ static void ExpressprocessDataTemplateSet(ExpressIpfixParser* ipfixParser, Exp_S
 		record += dataLength;
 
 		bufferTemplate(ipfixParser->templateBuffer, bt); 
-		// FIXME: Template expiration disabled for debugging
-		// bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
+		bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
 		int n;
 		for (n = 0; n < ipfixParser->callbackCount; n++) {
@@ -416,8 +412,8 @@ static void ExpressprocessDataTemplateSet(ExpressIpfixParser* ipfixParser, Exp_S
  * Processes an IPFIX data set.
  * Called by processMessage
  */
-static void ExpressprocessDataSet(ExpressIpfixParser* ipfixParser, Exp_SourceID sourceId, ExpressIpfixSetHeader* set) {
-	BufferedTemplate* bt = getBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(set->id));
+static void ExpressprocessDataSet(ExpressIpfixParser* ipfixParser, Exp_SourceID* sourceId, ExpressIpfixSetHeader* set) {
+	ExpressBufferedTemplate* bt = getBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(set->id));
 
 	if (bt == 0) {
 		/* this error may come in rapid succession; I hope I don't regret it */
@@ -621,19 +617,23 @@ static void ExpressprocessDataSet(ExpressIpfixParser* ipfixParser, Exp_SourceID 
  * Process a NetflowV9 Packet
  * @return 0 on success
  */     
-static int ExpressprocessNetflowV9Packet(ExpressIpfixParser* ipfixParser, byte* message, uint16_t length) {
+static int ExpressprocessNetflowV9Packet(ExpressIpfixParser* ipfixParser, byte* message, uint16_t length, Exp_SourceID* sourceId) 
+{
 	ExpressNetflowV9Header* header = (ExpressNetflowV9Header*)message;
 
 	/* pointer to first set */
 	ExpressIpfixSetHeader* set = (ExpressIpfixSetHeader*)&header->data;
 
 	int i;
+        
+	sourceId->observationDomainId = ntohl(header->observationDomainId);
+
 	for (i = 0; i < ntohs(header->setCount); i++) {
 		if (ntohs(set->id) == NetflowV9_SetId_Template) {
-			ExpressprocessTemplateSet(ipfixParser, ntohl(header->sourceId), set);
+			ExpressprocessTemplateSet(ipfixParser, sourceId, set);
 		} else
 			if (ntohs(set->id) >= IPFIX_SetId_Data_Start) {
-				ExpressprocessDataSet(ipfixParser, ntohl(header->sourceId), set);
+				ExpressprocessDataSet(ipfixParser, sourceId, set);
 			} else {
 				msg(MSG_ERROR, "Unsupported Set ID - expected 0/256+, got %d", ntohs(set->id));
 			}
@@ -647,8 +647,10 @@ static int ExpressprocessNetflowV9Packet(ExpressIpfixParser* ipfixParser, byte* 
  * Process an IPFIX Packet
  * @return 0 on success
  */     
-static int ExpressprocessIpfixPacket(ExpressIpfixParser* ipfixParser, byte* message, uint16_t length) {
+static int ExpressprocessIpfixPacket(ExpressIpfixParser* ipfixParser, byte* message, uint16_t length, Exp_SourceID* sourceId) 
+{
 	ExpressIpfixHeader* header = (ExpressIpfixHeader*)message;
+	sourceId->observationDomainId = ntohl(header->observationDomainId);
 
 	if (ntohs(header->length) != length) {
 		DPRINTF("Bad message length - expected %#06x, got %#06x\n", length, ntohs(header->length));
@@ -662,24 +664,22 @@ static int ExpressprocessIpfixPacket(ExpressIpfixParser* ipfixParser, byte* mess
 	ExpressIpfixSetHeader* setX = (ExpressIpfixSetHeader*)((char*)message + length); 
 
 	uint16_t tmpid;
-	Exp_SourceID tmpsid;
 	while(set < setX) {
 		tmpid=ntohs(set->id);
-		tmpsid=ntohl(header->sourceId);
 
 		switch(tmpid) {
 		case IPFIX_SetId_DataTemplate:
-			ExpressprocessDataTemplateSet(ipfixParser, tmpsid, set);
+			ExpressprocessDataTemplateSet(ipfixParser, sourceId, set);
 			break;
 		case IPFIX_SetId_Template:
-			ExpressprocessTemplateSet(ipfixParser, tmpsid, set);
+			ExpressprocessTemplateSet(ipfixParser, sourceId, set);
 			break;
 		case IPFIX_SetId_OptionsTemplate:
-			ExpressprocessOptionsTemplateSet(ipfixParser, tmpsid, set);
+			ExpressprocessOptionsTemplateSet(ipfixParser, sourceId, set);
 			break;
 		default:
 			if(tmpid >= IPFIX_SetId_Data_Start) {
-				ExpressprocessDataSet(ipfixParser, tmpsid, set);
+				ExpressprocessDataSet(ipfixParser, sourceId, set);
 			} else {
 				msg(MSG_ERROR, "processIpfixPacket: Unsupported Set ID - expected 2/3/4/256+, got %d", tmpid);
 			}
@@ -694,14 +694,15 @@ static int ExpressprocessIpfixPacket(ExpressIpfixParser* ipfixParser, byte* mess
  * Process new Message
  * @return 0 on success
  */     
-static int ExpressprocessMessage(ExpressIpfixParser* ipfixParser, byte* message, uint16_t length) {
+static int ExpressprocessMessage(ExpressIpfixParser* ipfixParser, byte* message, uint16_t length, Exp_SourceID* sourceID) 
+{
 	ExpressIpfixHeader* header = (ExpressIpfixHeader*)message;
 	if (ntohs(header->version) == 0x000a) {
-		return ExpressprocessIpfixPacket(ipfixParser, message, length);
+		return ExpressprocessIpfixPacket(ipfixParser, message, length, sourceID);
 	}
 #ifdef SUPPORT_NETFLOWV9
 	if (ntohs(header->version) == 0x0009) {
-		return ExpressprocessNetflowV9Packet(ipfixParser, message, length);
+		return ExpressprocessNetflowV9Packet(ipfixParser, message, length, sourceID);
 	}
 	DPRINTF("Bad message version - expected 0x009 or 0x000a, got %#06x\n", ntohs(header->version));
 	return -1;

@@ -141,7 +141,7 @@ void stopExpressAggregator(IpfixExpressAggregator* ipfixExpressAggregator)
  * @param data raw data block containing the Record
  * @return 0 on success, non-zero on error
  */
-int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID sourceID, ExpressTemplateInfo* ti, uint16_t length, FieldData* data)
+int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourceID, ExpressTemplateInfo* ti, uint16_t length, FieldData* data)
 {
 	ExpressRules* rules = ((IpfixExpressAggregator*)ipfixExpressAggregator)->rules;
 
@@ -174,7 +174,7 @@ int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID source
  * @param data raw data block containing the Record
  * @return 0 on success, non-zero on error
  */
-int ExpressaggregateDataDataRecord(void* ipfixExpressAggregator, Exp_SourceID sourceID, ExpressDataTemplateInfo* ti, uint16_t length, FieldData* data)
+int ExpressaggregateDataDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourceID, ExpressDataTemplateInfo* ti, uint16_t length, FieldData* data)
 {
 	ExpressRules* rules = ((IpfixExpressAggregator*)ipfixExpressAggregator)->rules;
 

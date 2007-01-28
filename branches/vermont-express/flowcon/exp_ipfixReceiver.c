@@ -23,7 +23,7 @@
 #include <netdb.h>
 
 
-#define MAX_MSG_LEN     65536
+
 
 /******************************************* Forward declaration *********************************/
 
@@ -345,6 +345,7 @@ static void ExpressudpListener(ExpressIpfixReceiver* ipfixReceiver) {
         struct sockaddr_in clientAddress;
         socklen_t clientAddressLen;
         byte* data = (byte*)malloc(sizeof(byte)*MAX_MSG_LEN);
+	Exp_SourceID *sourceID = (Exp_SourceID*)malloc(sizeof(Exp_SourceID));
         int n, i;
         
         while(!ipfixReceiver->exit) {
@@ -354,13 +355,16 @@ static void ExpressudpListener(ExpressIpfixReceiver* ipfixReceiver) {
                         msg(MSG_DEBUG, "recvfrom returned without data, terminating listener thread");
                         break;
                 }
-                
                 if (ExpressisHostAuthorized(ipfixReceiver, &clientAddress.sin_addr, sizeof(clientAddress.sin_addr))) {
+
+                        uint32_t ip = ntohl(clientAddress.sin_addr.s_addr);
+			memcpy(sourceID->exporterAddress.ip, &ip, 4);
+			sourceID->exporterAddress.len = 4;
                         pthread_mutex_lock(&ipfixReceiver->mutex);
                         ExpressIpfixPacketProcessor* pp = (ExpressIpfixPacketProcessor*)(ipfixReceiver->packetProcessor);
                         for (i = 0; i != ipfixReceiver->processorCount; ++i) { 
                          	pthread_mutex_lock(&pp[i].mutex);
-				pp[i].processPacketCallbackFunction(pp[i].ipfixParser, data, n);
+				pp[i].processPacketCallbackFunction(pp[i].ipfixParser, data, n, sourceID);
                         	pthread_mutex_unlock(&pp[i].mutex);
 			}
                         pthread_mutex_unlock(&ipfixReceiver->mutex);

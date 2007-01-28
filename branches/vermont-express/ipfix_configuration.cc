@@ -216,14 +216,24 @@ void IpfixConfiguration::pollAggregatorLoop()
 		poll_interval = m->getPollInterval();
 	}
 
+	//You cannot run two aggregators at one time with this configuration
+
 	timespec req, rem;
         /* break millisecond polltime into seconds and nanoseconds */
         req.tv_sec=(poll_interval * 1000000) / 1000000000;
         req.tv_nsec=(poll_interval * 1000000) % 1000000000;
 
-	if (poll_interval == 0 || aggregators.empty()) {
-		pause();
-	} else {
+	if (!exp_aggregators.empty()) {
+	        msg(MSG_INFO, "Polling Expressaggregator each %u msec", poll_interval);
+		while (!stop) {
+			nanosleep(&req, &rem);
+			for (unsigned i = 0; i != exp_aggregators.size(); ++i) {
+				::pollExpressAggregator(exp_aggregators[i]);
+			}
+		}
+	}
+
+	if (!aggregators.empty()) {
 	        msg(MSG_INFO, "Polling aggregator each %u msec", poll_interval);
 		while (!stop) {
 			nanosleep(&req, &rem);
@@ -232,8 +242,16 @@ void IpfixConfiguration::pollAggregatorLoop()
 			}
 		}
 	}
-}
 
+	if (poll_interval == 0 || aggregators.empty()) {
+	        msg(MSG_INFO, "Not polling aggregator");
+		pause();
+	}
+	
+
+
+}
+/*
 void IpfixConfiguration::pollExpressAggregatorLoop()
 {
 	unsigned poll_interval = 500;
@@ -243,7 +261,6 @@ void IpfixConfiguration::pollExpressAggregatorLoop()
 	}
 
 	timespec req, rem;
-        /* break millisecond polltime into seconds and nanoseconds */
         req.tv_sec=(poll_interval * 1000000) / 1000000000;
         req.tv_nsec=(poll_interval * 1000000) % 1000000000;
 
@@ -259,4 +276,4 @@ void IpfixConfiguration::pollExpressAggregatorLoop()
 		}
 	}
 }
-
+*/
