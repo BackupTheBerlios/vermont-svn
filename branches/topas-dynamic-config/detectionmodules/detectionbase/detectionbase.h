@@ -339,7 +339,9 @@ class DetectionBase
 					std::string ret = dbase->commObjs[i]->getUpdateMessage();
 					if (ret != "") {
 						XMLConfObj* confObj = new XMLConfObj(ret, XMLConfObj::XML_STRING);
-						dbase->update(confObj);
+						if (NULL != confObj) {
+							dbase->update(confObj);
+						}
 					}
  				}				
 #endif
@@ -354,7 +356,9 @@ class DetectionBase
 					std::string ret = dbase->commObjs[i]->getUpdateMessage();
 					if (ret != "") {
 						XMLConfObj* confObj = new XMLConfObj(ret, XMLConfObj::XML_STRING);
-						dbase->update(confObj);
+						if (NULL != confObj) {
+							dbase->update(confObj);
+						}
 					}
  				}				
 #endif
@@ -378,7 +382,6 @@ class DetectionBase
 	
 #ifdef IDMEF_SUPPORT_ENABLED
 	
-	
 	/** 
          * Register function. This function should be called 
 	 * in the init() function of each detection module.
@@ -395,6 +398,16 @@ class DetectionBase
 			commObjs[i]->subscribe(analyzerName + "-" + analyzerId, XmlBlasterCommObject::MESSAGE);
 		}
 	}
+
+	/**
+	 * Restarts the module.
+	 */
+	void restart();
+
+	/**
+	 * Stops the module.
+	 */
+	void stop();
 
 	/** 
          * Update function. This function will be called, whenever a message

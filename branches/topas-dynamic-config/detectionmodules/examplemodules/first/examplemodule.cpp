@@ -64,8 +64,16 @@ ExampleModule::~ExampleModule()
 #ifdef IDMEF_SUPPORT_ENABLED
 void ExampleModule::update(XMLConfObj* xmlObj)
 {
-	std::cout << "Update received!" << std::endl
-		  << xmlObj->toString() << std::endl;
+	std::cout << "Update received!" << std::endl;
+	if (xmlObj->nodeExists("stop")) {
+		std::cout << "-> stoping module..." << std::endl;
+	} else if (xmlObj->nodeExists("restart")) {
+		std::cout << "-> restarting module..." << std::endl;
+	} else if (xmlObj->nodeExists("config")) {
+		std::cout << "-> updating module configuration..." << std::endl;
+	} else { // add your commands here
+		std::cout << "-> unknown operation" << std::endl;
+	}
 	delete xmlObj;
 }
 #endif
