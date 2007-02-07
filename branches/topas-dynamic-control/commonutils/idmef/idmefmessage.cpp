@@ -35,8 +35,10 @@ IdmefMessage::IdmefMessage(const std::string& analyzerName, const std::string& a
 	this->analyzerId = analyzerId;
         this->classification = classification;
 	if (type == ALERT) {
+		this->messageType = "Alert";
 		createAlertBody();
 	} else if (type == HEARTBEAT) {
+		this->messageType = "Heartbeat";
 		createHeartbeatBody();
 	} else {
 		throw exceptions::XMLException("Unknown message type " + type);
@@ -121,7 +123,7 @@ void IdmefMessage::setMessageId(int id)
         std::ostringstream oss;
         oss << id; 
         std::string messageId = analyzerName + "-" + oss.str();
-        setIdmefNodeAttr("IDMEF-Message", "Alert", "messageid", messageId);
+        setIdmefNodeAttr("IDMEF-Message", messageType, "messageid", messageId);
 }
 
 void IdmefMessage::createAnalyzerNode(const std::string& category, const std::string& address,
@@ -166,10 +168,10 @@ void IdmefMessage::createAnalyzerNode(const std::string& name, const std::string
 void IdmefMessage::setAnalyzerAttr(const std::string& analyzerClass, const std::string& manufacturer,
                                    const std::string& model, const std::string& version)
 {
-        setIdmefNodeAttr("Alert", "Analyzer", "class", analyzerClass);
-        setIdmefNodeAttr("Alert", "Analyzer", "manufacturer", manufacturer);
-        setIdmefNodeAttr("Alert", "Analyzer", "model", model);
-        setIdmefNodeAttr("Alert", "Analyzer", "version", version); 
+        setIdmefNodeAttr(messageType, "Analyzer", "class", analyzerClass);
+        setIdmefNodeAttr(messageType, "Analyzer", "manufacturer", manufacturer);
+        setIdmefNodeAttr(messageType, "Analyzer", "model", model);
+        setIdmefNodeAttr(messageType, "Analyzer", "version", version); 
 }
 
 void IdmefMessage::createCreateTimeNode()

@@ -85,12 +85,13 @@ class DetectionBase
                         throw std::runtime_error("Could not install signal handler for SIGALARM");
                 }
 		confObj = new XMLConfObj(configFile, XMLConfObj::XML_FILE);
+
 #ifdef IDMEF_SUPPORT_ENABLED
                 /* parse confiuration file to get all xmlBlasters and their properties */
-                if (confObj->nodeExists("xmlBlasters")) {
-			confObj->enterNode("xmlBlasters");
-			if (confObj->nodeExists("xmlBlaster")) {
-				confObj->setNode("xmlBlaster");
+                if (confObj->nodeExists(config_space::XMLBLASTERS)) {
+			confObj->enterNode(config_space::XMLBLASTERS);
+			if (confObj->nodeExists(config_space::XMLBLASTER)) {
+				confObj->setNode(config_space::XMLBLASTER);
 				unsigned int count = 0;
 				while (confObj->nextNodeExists()) {
 					confObj->enterNextNode();
@@ -98,13 +99,14 @@ class DetectionBase
 					Property::MapType propMap;
 					std::vector<std::string> props;
 					/* get all properties */
-					if (confObj->nodeExists("prop")) {
-						props.push_back(confObj->getValue("prop"));
+					if (confObj->nodeExists(config_space::XMLBLASTER_PROP)) {
+						props.push_back(confObj->getValue(config_space::XMLBLASTER_PROP));
 						while (confObj->nextNodeExists()) {
 							props.push_back(confObj->getNextValue());
 						}
 					} else {
-						std::cerr << "No <prop> statement in config file, using default values"
+						std::cerr << "No <" << config_space::XMLBLASTER_PROP 
+							  << "> statement in config file, using default values"
 							  << std::endl;
 					}
 					for (unsigned i = 0; i != props.size(); ++i) {
@@ -125,14 +127,14 @@ class DetectionBase
  					confObj->leaveNode();
 				}
 			} else {
-				std::cerr << "No <xmlBlaster> statement in config file" << std::endl;
+				std::cerr << "No <" << config_space::XMLBLASTER << "> statement in config file" << std::endl;
 			}
-
+			
                 } else {
-                        std::cerr << "No <xmlBlasters> statement in config file" << std::endl;
+                        std::cerr << "No <" << config_space::XMLBLASTERS << "> statement in config file" << std::endl;
                 }
                 
-                /* connect to all xmlBlaster sites */
+                /* connect to all xmlBlaster servers */
                 for (unsigned i = 0; i != xmlBlasters.size(); ++i) {
 			try {
 				XmlBlasterCommObject* comm = new XmlBlasterCommObject(*xmlBlasters[i].getElement());
@@ -329,6 +331,7 @@ class DetectionBase
         {
                 delete currentMessage;
                 currentMessage = new IdmefMessage(analyzerName, analyzerId, classification, IdmefMessage::ALERT);
+		currentMessage->setAnalyzerAttr("", topasID, "", "");
                 return *currentMessage;
         
         }
@@ -385,15 +388,20 @@ protected:
          */
 	void registerModule(const std::string& analyzerName)
 	{
-		/* send <Heartbeat> message to all xmlBlaster sites and subscribe for update messages */
+		/* send <Heartbeat> message to all xmlBlaster servers and subscribe for update messages */
 		currentMessage = new IdmefMessage(analyzerName, analyzerId, classification, IdmefMessage::HEARTBEAT);
-		/* need to get TOPAS ID somehow */
-		sendIdmefMessage(topasID, *currentMessage);
+		currentMessage->setAnalyzerAttr("", topasID, "", "");
 		for (unsigned i = 0; i != commObjs.size(); ++i) {
+			std::string managerID = (*xmlBlasters[i].getElement()).getProperty().getProperty(config_space::MANAGER_ID);
+			if (managerID == "") {
+				msg(MSG_INFO, ("Using default " + config_space::MANAGER_ID + " \"" 
+					       + config_space::DEFAULT_MANAGER_ID + "\"").c_str());
+				managerID = config_space::DEFAULT_MANAGER_ID;
+			}
+			currentMessage->publish(*commObjs[i], managerID);
 			commObjs[i]->subscribe(analyzerName + "-" + analyzerId, XmlBlasterCommObject::MESSAGE);
 		}
 	}
-
 	/** 
          * Update function. This function will be called, whenever a message
          * for subscribed key is received from xmlBlaster.
