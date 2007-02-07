@@ -418,7 +418,7 @@ static int createSctpIpv4Receiver(IpfixReceiver* ipfixReceiver, int port) {
                 perror("Could not bind SCTP socket");
                 return -1;
         }
-	//TODO: @param 2 is number of MAX connections 
+	//TODO: do we need to change this? @param 2 is number of MAX allowed connections 
 	if(listen(ipfixReceiver->listen_socket, 5) < 0 ) {
 		msg(MSG_ERROR , "IPFIX RECEIVER: Error listening on SCTP socket %i", 
 		    ipfixReceiver->listen_socket);
@@ -446,11 +446,17 @@ static void sctpListener(IpfixReceiver* ipfixReceiver) {
         socklen_t clientAddressLen;
         byte* data = (byte*)malloc(sizeof(byte)*MAX_MSG_LEN);
 	SourceID *sourceID = (SourceID*)malloc(sizeof(SourceID));
-        int n, i;
+        int n, i, new_fd;
+        clientAddressLen = sizeof(struct sockaddr_in);	
         
+        //wait for and accept incoming connection request from an Exporter
+	if( (new_fd = accept(ipfixReceiver->listen_socket, (struct sockaddr*)&clientAddress, &clientAddressLen)) < 0){
+		msg(MSG_DEBUG, "accept() in ipfixReceiver failed, unable to receive massages");
+	}
+	//receive packeges
         while(!ipfixReceiver->exit) {
-                clientAddressLen = sizeof(struct sockaddr_in);
-                n = recvfrom(ipfixReceiver->listen_socket, data, MAX_MSG_LEN,
+        
+	        n = recvfrom(new_fd, data, MAX_MSG_LEN,
 			     0, (struct sockaddr*)&clientAddress, &clientAddressLen);
                 if (n < 0) {
                         msg(MSG_DEBUG, "recvfrom returned without data, terminating listener thread");
@@ -466,7 +472,7 @@ static void sctpListener(IpfixReceiver* ipfixReceiver) {
 
                         pthread_mutex_lock(&ipfixReceiver->mutex);
                         IpfixPacketProcessor* pp = (IpfixPacketProcessor*)(ipfixReceiver->packetProcessor);
-                        for (i = 0; i != ipfixReceiver->processorCount; ++i) { 
+                        for (i = 0; i != ipfixReceiver->processorCount; ++i) {
                          	pthread_mutex_lock(&pp[i].mutex);
 				pp[i].processPacketCallbackFunction(pp[i].ipfixParser, data, n, sourceID);
                         	pthread_mutex_unlock(&pp[i].mutex);

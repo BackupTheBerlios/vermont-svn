@@ -933,6 +933,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
  */
 int ipfix_send(ipfix_exporter *exporter)
 {
+
         int ret_templates, ret_data;
         int ret = 0;
 

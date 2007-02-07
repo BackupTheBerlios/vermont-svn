@@ -37,7 +37,7 @@ typedef void (*LOGFUNCTION)(void *);
 #define MSG_ERROR 2
 #define MSG_DIALOG 1
 #define MSG_FATAL 0
-#define MSG_DEFAULT MSG_ERROR
+#define MSG_DEFAULT MSG_DEBUG
 
 void msg(int, char *, ...);
 void msg_setlevel(int);
