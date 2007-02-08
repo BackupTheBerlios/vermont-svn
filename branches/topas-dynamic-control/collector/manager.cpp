@@ -143,7 +143,7 @@ void manager::sigChild(int sig)
         if (shutdown)
                 return;
 
-        msg(MSG_ERROR, "Manager: A detection module died.");
+        msg(MSG_ERROR, "Manager: A detection module exited.");
         int status;
         pid_t pid = wait(&status);
         if (pid == -1)
@@ -153,7 +153,7 @@ void manager::sigChild(int sig)
         if (WIFEXITED(status)) {
                 if (WEXITSTATUS(status) == 0) {
                         msg(MSG_ERROR, "Manager: Detection module with pid %i"
-			    "terminated normally. Not restarting module", pid);
+			    "terminated with exist state 0. Not restarting module", pid);
 			detectionModules.setState(pid, DetectMod::NotRunning);
 			return;
                 }else {
