@@ -202,14 +202,18 @@ class DetectionBase
         int exec() 
         {
                 state = RUN;
-                createTestThread();
-                while (state == RUN) {
-                        inputPolicy.wait();
-                        inputPolicy.importToStorage();
-                        inputPolicy.notify();
-                }
+                pthread_create(&testThread, NULL,
+			       DetectionBase<DataStorage, InputPolicy>::testThreadFunc, this);
+		pthread_create(&workingThread, NULL,
+			       DetectionBase<DataStorage, InputPolicy>::workThreadFunc, this);
+
+		while (state == RUN) {
+			usleep(500);
+		}
+
 
 		pthread_cancel(testThread);
+		pthread_cancel(workingThread);
 
                 if (state == RESTART)
                         return -1;
@@ -220,23 +224,18 @@ class DetectionBase
                 throw new std::runtime_error("DetectionBase: unkown state!!!!!!!!!");
         }
 
+	static void* workThreadFunc(void* detectionbase_) {
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
-        /**
-         * Sets the new interval, after which a new test should be performed. Changes to the alarmtime
-	 * will take effect after the currently running alarm is triggered.
-         * @param sec Seconds till next test run
-         */
-        void setAlarmTime(unsigned  sec) 
-        {
-                alarmTime = sec;
-        }
+                DetectionBase<DataStorage, InputPolicy>* dbase = static_cast<DetectionBase<DataStorage, InputPolicy>*>(detectionbase_);
 
-
-        /**
-         * Returns time, after which the test should be started.
-         * @return Time in seconds, after which the test should be started.
-         */
-        unsigned getAlarmTime() { return alarmTime; }
+                while (state == RUN) {
+                        inputPolicy.wait();
+                        inputPolicy.importToStorage();
+                        inputPolicy.notify();
+                }
+	}
 
         /**
          * Test-Thread function. This function will run the tests implemented by derived classes.
@@ -302,6 +301,26 @@ class DetectionBase
          *           You have to delete the memory allocated for the object.
          */
         virtual void test(DataStorage* ds) {};
+
+
+        /**
+         * Sets the new interval, after which a new test should be performed. Changes to the alarmtime
+	 * will take effect after the currently running alarm is triggered.
+         * @param sec Seconds till next test run
+         */
+        void setAlarmTime(unsigned  sec) 
+        {
+                alarmTime = sec;
+        }
+
+
+        /**
+         * Returns time, after which the test should be started.
+         * @return Time in seconds, after which the test should be started.
+         */
+        unsigned getAlarmTime() { return alarmTime; }
+
+
 
 
 #ifdef IDMEF_SUPPORT_ENABLED
@@ -442,6 +461,7 @@ protected:
         static InputPolicy inputPolicy;
 
         pthread_t testThread;
+	pthread_t workingThread;
         static volatile State state;
 
         /**
@@ -453,17 +473,6 @@ protected:
 
 
         unsigned alarmTime;
-
-
-        /**
-         * Create an thread wich will be responsible to start the test
-         * after the configured interval. 
-         */
-        void createTestThread() 
-        {
-                pthread_create(&testThread, NULL, DetectionBase<DataStorage, InputPolicy>::testThreadFunc, this);
-        }
-
         
         /**
          * Signal handler for SIGALRM. This signal is emmited, evry time
