@@ -141,7 +141,7 @@ void stopExpressAggregator(IpfixExpressAggregator* ipfixExpressAggregator)
  * @param data raw data block containing the Record
  * @return 0 on success, non-zero on error
  */
-int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourceID, ExpressTemplateInfo* ti, uint16_t length, FieldData* data)
+int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourceID, uint16_t length, FieldData* data, int transport_offset)
 {
 	ExpressRules* rules = ((IpfixExpressAggregator*)ipfixExpressAggregator)->rules;
 
@@ -155,9 +155,9 @@ int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourc
 
 	pthread_mutex_lock(&((IpfixExpressAggregator*)ipfixExpressAggregator)->mutex);
 	for (i = 0; i < rules->count; i++) {
-		if (ExpresstemplateDataMatchesRule(ti, data, rules->rule[i])) {
+		if (ExpresstemplateDataMatchesRule(data, rules->rule[i], transport_offset)) {
 			DPRINTF("rule %d matches\n", i);
-			ExpressaggregateTemplateData(rules->rule[i]->hashtable, ti, data);
+			ExpressaggregateTemplateData(rules->rule[i]->hashtable, data, transport_offset);
 		}
 	}
 	pthread_mutex_unlock(&((IpfixExpressAggregator*)ipfixExpressAggregator)->mutex);

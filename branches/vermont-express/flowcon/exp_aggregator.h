@@ -35,7 +35,7 @@ void destroyExpressAggregator(IpfixExpressAggregator* ipfixAggregator);
 void startExpressAggregator(IpfixExpressAggregator* ipfixExpressAggregator);
 void stopExpressAggregator(IpfixExpressAggregator* ipfixExpressAggregator);
 
-int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourceID, ExpressTemplateInfo* ti, uint16_t length, FieldData* data);
+int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourceID, uint16_t length, FieldData* data, int transport_offset);
 int ExpressaggregateDataDataRecord(void* ipfixAggregator, Exp_SourceID* sourceID, ExpressDataTemplateInfo* ti, uint16_t length, FieldData* data);
 
 void pollExpressAggregator(IpfixExpressAggregator* ipfixExpressAggregator);

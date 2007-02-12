@@ -211,10 +211,15 @@ void IpfixConfiguration::startSubsystems()
 void IpfixConfiguration::pollAggregatorLoop()
 {
 	unsigned poll_interval = 500;
+	int have_Express=0;
+	int have_Standard=0;
 	if (subsystems.find(configTypes::main) != subsystems.end()) {
 		VermontMainConfiguration* m = dynamic_cast<VermontMainConfiguration*>(subsystems[configTypes::main]);
 		poll_interval = m->getPollInterval();
 	}
+
+	if (!exp_aggregators.empty()) have_Express=1;
+	if (!aggregators.empty()) have_Standard=1;
 
 	//You cannot run two aggregators at one time with this configuration
 
@@ -223,16 +228,25 @@ void IpfixConfiguration::pollAggregatorLoop()
         req.tv_sec=(poll_interval * 1000000) / 1000000000;
         req.tv_nsec=(poll_interval * 1000000) % 1000000000;
 
-	if (!exp_aggregators.empty()) {
-	        msg(MSG_INFO, "Polling Expressaggregator each %u msec", poll_interval);
+	if ((!exp_aggregators.empty()) || (!aggregators.empty())) {
+
+		if(have_Express == 1) msg(MSG_INFO, "Polling Expressaggregator each %u msec", poll_interval);
+		if(have_Standard == 1) msg(MSG_INFO, "Polling Standardaggregator each %u msec", poll_interval);
 		while (!stop) {
 			nanosleep(&req, &rem);
-			for (unsigned i = 0; i != exp_aggregators.size(); ++i) {
-				::pollExpressAggregator(exp_aggregators[i]);
+			if(have_Express == 1) {
+				for (unsigned i = 0; i != exp_aggregators.size(); ++i) {
+					::pollExpressAggregator(exp_aggregators[i]);
+				}
+			}
+			if(have_Standard == 1) {
+				for (unsigned i = 0; i != aggregators.size(); ++i) {
+					::pollAggregator(aggregators[i]);
+				}
 			}
 		}
 	}
-
+/*
 	if (!aggregators.empty()) {
 	        msg(MSG_INFO, "Polling aggregator each %u msec", poll_interval);
 		while (!stop) {
@@ -242,8 +256,8 @@ void IpfixConfiguration::pollAggregatorLoop()
 			}
 		}
 	}
-
-	if (poll_interval == 0 || aggregators.empty()) {
+*/
+	if (poll_interval == 0 || (aggregators.empty() && exp_aggregators.empty())) {
 	        msg(MSG_INFO, "Not polling aggregator");
 		pause();
 	}

@@ -58,7 +58,7 @@ void ExpressdestroyHashtable(ExpressHashtable* ht);
 
 void ExpresshashingAddCallbacks(ExpressHashtable* ht, ExpressCallbackInfo handles);
 
-void ExpressaggregateTemplateData(ExpressHashtable* ht, ExpressTemplateInfo* ti, FieldData* data);
+void ExpressaggregateTemplateData(ExpressHashtable* ht, FieldData* data, int transport_offset);
 void ExpressaggregateDataTemplateData(ExpressHashtable* ht, ExpressDataTemplateInfo* ti, FieldData* data);
 
 void ExpressdestroyHashtable(ExpressHashtable* ht);

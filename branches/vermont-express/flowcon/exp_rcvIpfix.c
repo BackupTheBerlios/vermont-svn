@@ -861,14 +861,114 @@ void ExpressprintFieldData(ExpressFieldType type, FieldData* pattern) {
 ExpressFieldInfo* ExpressgetTemplateFieldInfo(ExpressTemplateInfo* ti, ExpressFieldType* type) {
 	int i;
 
+
 	for (i = 0; i < ti->fieldCount; i++) {
 		if ((ti->fieldInfo[i].type.id == type->id) && (ti->fieldInfo[i].type.eid == type->eid)) {
+			printf("-%i-", ti->fieldInfo[i].type.id);
 			return &ti->fieldInfo[i];
 		}
 	}
 
 	return NULL;
 }
+/** 
+ * Gets FieldInfo by field id
+ * @param type Field id to look for
+ * @return NULL if not found
+ */
+
+ExpressFieldInfo* ExpressgetFieldInfo(ExpressFieldType type, int offset) {
+
+	ExpressFieldInfo* ExpressFields;
+	ExpressFields=(ExpressFieldInfo*)malloc(4 * sizeof(ExpressFieldInfo));
+	ExpressFields->type.eid = 0;
+
+	switch (type.id) {
+	case IPFIX_TYPEID_packetDeltaCount:
+		ExpressFields->offset = 10;
+		ExpressFields->type.id = 2;
+		ExpressFields->type.length = 1;
+		return ExpressFields;
+		break;
+
+	case IPFIX_TYPEID_flowStartSeconds:
+		ExpressFields->offset = 4;
+		ExpressFields->type.id = 150;
+		ExpressFields->type.length = 4;
+		return ExpressFields;
+		break;
+
+	case IPFIX_TYPEID_flowEndSeconds:
+		ExpressFields->offset = 4;
+		ExpressFields->type.id = 151;
+		ExpressFields->type.length = 4;
+		return ExpressFields;
+		break;
+
+	case IPFIX_TYPEID_octetDeltaCount:
+		ExpressFields->offset = 2;
+		ExpressFields->type.id = 1;
+		ExpressFields->type.length = 2;
+		return ExpressFields;
+		break;
+
+	case IPFIX_TYPEID_protocolIdentifier:
+		ExpressFields->offset = 9;
+		ExpressFields->type.id = 4;
+		ExpressFields->type.length = 1;
+		return ExpressFields;
+		break;
+
+	case IPFIX_TYPEID_sourceIPv4Address:
+		ExpressFields->offset = 12;
+		ExpressFields->type.id = 8;
+		ExpressFields->type.length = 4;
+		return ExpressFields;
+		break;
+
+	case IPFIX_TYPEID_destinationIPv4Address:
+		ExpressFields->offset = 16;
+		ExpressFields->type.id = 12;
+		ExpressFields->type.length = 4;
+		return ExpressFields;
+		break;
+
+	case IPFIX_TYPEID_icmpTypeCode:
+		ExpressFields->offset = 0 + offset;
+		ExpressFields->type.id = 32;
+		ExpressFields->type.length = 2;
+		return ExpressFields;
+		break;
+
+	case IPFIX_TYPEID_sourceTransportPort:
+		ExpressFields->offset = 0 + offset;
+		ExpressFields->type.id = 7;
+		ExpressFields->type.length = 2;
+		return ExpressFields;
+		break;
+
+	case IPFIX_TYPEID_destinationTransportPort:
+		ExpressFields->offset = 2 + offset;
+		ExpressFields->type.id = 11;
+		ExpressFields->type.length = 2;
+		return ExpressFields;
+		break;
+
+	case IPFIX_TYPEID_tcpControlBits:
+		ExpressFields->offset = 13 + offset;
+		ExpressFields->type.id = 6;
+		ExpressFields->type.length = 1;
+		return ExpressFields;
+		break;
+
+	default:
+		return NULL;
+		break;
+	}
+
+	return NULL;
+}
+
 
 /**
  * Gets a DataTemplate's FieldInfo by field id.
@@ -880,6 +980,7 @@ ExpressFieldInfo* ExpressgetDataTemplateFieldInfo(ExpressDataTemplateInfo* ti, E
 	int i;
 
 	for (i = 0; i < ti->fieldCount; i++) {
+		printf("hier");
 		if ((ti->fieldInfo[i].type.id == type->id) && (ti->fieldInfo[i].type.eid == type->eid)) {
 			return &ti->fieldInfo[i];
 		}

@@ -629,7 +629,7 @@ static void ExpresscopyData(ExpressFieldType* dstType, FieldData* dstData, Expre
 /**
  * Buffer passed flow in Hashtable @c ht
  */
-void ExpressaggregateTemplateData(ExpressHashtable* ht, ExpressTemplateInfo* ti, FieldData* data)
+	void ExpressaggregateTemplateData(ExpressHashtable* ht, FieldData* data, int transport_offset)
 {
 	int i;
 
@@ -638,7 +638,8 @@ void ExpressaggregateTemplateData(ExpressHashtable* ht, ExpressTemplateInfo* ti,
 
 	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
 		ExpressFieldInfo* hfi = &ht->dataTemplate->fieldInfo[i];
-		ExpressFieldInfo* tfi = ExpressgetTemplateFieldInfo(ti, &hfi->type);
+		/*ExpressFieldInfo* tfi = ExpressgetTemplateFieldInfo(ti, &hfi->type);*/
+		ExpressFieldInfo* tfi = ExpressgetFieldInfo(hfi->type, transport_offset);
 
 		if(!tfi) {
 			DPRINTF("Flow to be buffered did not contain %s field\n", Expresstypeid2string(hfi->type.id));
@@ -650,7 +651,7 @@ void ExpressaggregateTemplateData(ExpressHashtable* ht, ExpressTemplateInfo* ti,
 		/* copy associated mask, should there be one */
 		switch (hfi->type.id) {
 		case IPFIX_TYPEID_sourceIPv4Address:
-			tfi = ExpressgetTemplateFieldInfo(ti, &(ExpressFieldType){.id = IPFIX_TYPEID_sourceIPv4Mask, .eid = 0});
+/*			tfi = ExpressgetTemplateFieldInfo(ti, &(ExpressFieldType){.id = IPFIX_TYPEID_sourceIPv4Mask, .eid = 0 });
 
 			if(tfi) {
 				if(hfi->type.length != 5) {
@@ -662,11 +663,11 @@ void ExpressaggregateTemplateData(ExpressHashtable* ht, ExpressTemplateInfo* ti,
 						DPRINTF("Cannot process associated mask with invalid length %d\n", tfi->type.length);
 					}
 				}
-			}
+			}*/
 			break;
 
 		case IPFIX_TYPEID_destinationIPv4Address:
-			tfi = ExpressgetTemplateFieldInfo(ti, &(ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Mask, .eid = 0});
+/*			tfi = ExpressgetTemplateFieldInfo(ti, &(ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Mask, .eid = 0});
 
 			if(tfi) {
 				if(hfi->type.length != 5) {
@@ -678,7 +679,7 @@ void ExpressaggregateTemplateData(ExpressHashtable* ht, ExpressTemplateInfo* ti,
 						DPRINTF("Cannot process associated mask with invalid length %d\n", tfi->type.length);
 					}
 				}
-			}
+			}*/
 			break;
 
 		default:

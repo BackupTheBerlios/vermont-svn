@@ -26,80 +26,6 @@
 extern "C" {
 #endif
 
-static ExpressFieldInfo ip_traffic_fi[] = {
-	/* { { ID, len, enterprise}, offset} */
-	{ {IPFIX_TYPEID_packetDeltaCount,         1, 0}, 10},
-	{ {IPFIX_TYPEID_flowStartSeconds,         4, 0}, 4},
-	{ {IPFIX_TYPEID_flowEndSeconds,           4, 0}, 4},
-	{ {IPFIX_TYPEID_octetDeltaCount,          2, 0}, 2},
-	{ {IPFIX_TYPEID_protocolIdentifier,       1, 0}, 9},
-	{ {IPFIX_TYPEID_sourceIPv4Address,        4, 0}, 12},
-	{ {IPFIX_TYPEID_destinationIPv4Address,   4, 0}, 16}
-};
-
-static ExpressFieldInfo icmp_traffic_fi[] = {
-	/* { { ID, len, enterprise}, offset} */
-	{ {IPFIX_TYPEID_icmpTypeCode,             2, 0}, 0},
-	{ {IPFIX_TYPEID_packetDeltaCount,         1, 0}, 10},
-	{ {IPFIX_TYPEID_flowStartSeconds,         4, 0}, 4},
-	{ {IPFIX_TYPEID_flowEndSeconds,           4, 0}, 4},
-	{ {IPFIX_TYPEID_octetDeltaCount,          2, 0}, 2},
-	{ {IPFIX_TYPEID_protocolIdentifier,       1, 0}, 9},
-	{ {IPFIX_TYPEID_sourceIPv4Address,        4, 0}, 12},
-	{ {IPFIX_TYPEID_destinationIPv4Address,   4, 0}, 16}
-};
-
-static ExpressFieldInfo udp_traffic_fi[] = {
-	/* { { ID, len, enterprise}, offset} */
-	{ {IPFIX_TYPEID_sourceTransportPort,      2, 0}, 0},
-	{ {IPFIX_TYPEID_destinationTransportPort, 2, 0}, 2},
-	{ {IPFIX_TYPEID_packetDeltaCount,         1, 0}, 10},
-	{ {IPFIX_TYPEID_flowStartSeconds,         4, 0}, 4},
-	{ {IPFIX_TYPEID_flowEndSeconds,           4, 0}, 4},
-	{ {IPFIX_TYPEID_octetDeltaCount,          2, 0}, 2},
-	{ {IPFIX_TYPEID_protocolIdentifier,       1, 0}, 9},
-	{ {IPFIX_TYPEID_sourceIPv4Address,        4, 0}, 12},
-	{ {IPFIX_TYPEID_destinationIPv4Address,   4, 0}, 16}
-};
-
-static ExpressFieldInfo tcp_traffic_fi[] = {
-	/* { { ID, len, enterprise}, offset} */
-	{ {IPFIX_TYPEID_tcpControlBits,           1, 0}, 13},
-	{ {IPFIX_TYPEID_sourceTransportPort,      2, 0}, 0},
-	{ {IPFIX_TYPEID_destinationTransportPort, 2, 0}, 2},
-	{ {IPFIX_TYPEID_packetDeltaCount,         1, 0}, 10},
-	{ {IPFIX_TYPEID_flowStartSeconds,         4, 0}, 4},
-	{ {IPFIX_TYPEID_flowEndSeconds,           4, 0}, 4},
-	{ {IPFIX_TYPEID_octetDeltaCount,          2, 0}, 2},
-	{ {IPFIX_TYPEID_protocolIdentifier,       1, 0}, 9},
-	{ {IPFIX_TYPEID_sourceIPv4Address,        4, 0}, 12},
-	{ {IPFIX_TYPEID_destinationIPv4Address,   4, 0}, 16}
-};
-
-static ExpressTemplateInfo ip_traffic_template = {
-	.fieldCount = 7,
-	.fieldInfo  = ip_traffic_fi,
-	.userData   = NULL
-};
-
-static ExpressTemplateInfo icmp_traffic_template = {
-	.fieldCount = 8,
-	.fieldInfo  = icmp_traffic_fi,
-	.userData   = NULL
-};
-
-static ExpressTemplateInfo udp_traffic_template = {
-	.fieldCount = 9,
-	.fieldInfo  = udp_traffic_fi,
-	.userData   = NULL
-};
-
-static ExpressTemplateInfo tcp_traffic_template = {
-	.fieldCount = 10,
-	.fieldInfo  = tcp_traffic_fi,
-	.userData   = NULL
-};
-
 /*
  this is the function called by sampler::HookingFilter
  the entrypoint into the concentrator
@@ -125,60 +51,12 @@ void Express_sampler_hook_entry(void *ctx, void *data)
 
 	// Check if transport header is available
 	if(ph->transport_header == NULL) {
-	    ExpressaggregateDataRecord(aggregator, NULL, &ip_traffic_template, ph->length, fdata);
+	    ExpressaggregateDataRecord(aggregator, NULL, ph->length, fdata, 0);
 	}
 	else
 	{
-	    // Choose template according to transport header type
-	    switch(((char *)ph->ip_header)[9]) {
-		case IPFIX_protocolIdentifier_ICMP:
-		    /*
-		       because of IP options we need to re-calculate the offsets to srcport and dstport every time
-		       now we do need some serious pointer arithmetic:
-		       - calculate the offset of transport header to ip header
-		       - use this offset and add to src/dst_port offset
-		     */
-		    transport_offset=abs(ph->transport_header - ph->ip_header);
-		    icmp_traffic_template.fieldInfo[0].offset += transport_offset;
-		    ExpressaggregateDataRecord(aggregator, NULL, &icmp_traffic_template, ph->length, fdata);
-		    /* reset offset for typecode to starting value */
-		    icmp_traffic_template.fieldInfo[0].offset = 0;
-		    break;
-		case IPFIX_protocolIdentifier_UDP:
-		    /*
-		       because of IP options we need to re-calculate the offsets to srcport and dstport every time
-		       now we do need some serious pointer arithmetic:
-		       - calculate the offset of transport header to ip header
-		       - use this offset and add to src/dst_port offset
-		     */
-		    transport_offset=abs(ph->transport_header - ph->ip_header);
-		    udp_traffic_template.fieldInfo[0].offset += transport_offset;
-		    udp_traffic_template.fieldInfo[1].offset += transport_offset;
-		    ExpressaggregateDataRecord(aggregator, NULL, &udp_traffic_template, ph->length, fdata);
-		    /* reset offsets for srcport/dstport to starting values */
-		    udp_traffic_template.fieldInfo[0].offset = 0;
-		    udp_traffic_template.fieldInfo[1].offset = 2;
-		    break;
-		case IPFIX_protocolIdentifier_TCP:
-		    /*
-		       because of IP options we need to re-calculate the offsets to srcport and dstport every time
-		       now we do need some serious pointer arithmetic:
-		       - calculate the offset of transport header to ip header
-		       - use this offset and add to src/dst_port offset
-		     */
-		    transport_offset=abs(ph->transport_header - ph->ip_header);
-		    tcp_traffic_template.fieldInfo[0].offset += transport_offset;
-		    tcp_traffic_template.fieldInfo[1].offset += transport_offset;
-		    tcp_traffic_template.fieldInfo[2].offset += transport_offset;
-		    ExpressaggregateDataRecord(aggregator, NULL, &tcp_traffic_template, ph->length, fdata);
-		    /* reset offsets for srcport/dstport to starting values */
-		    tcp_traffic_template.fieldInfo[0].offset = 13;
-		    tcp_traffic_template.fieldInfo[1].offset = 0;
-		    tcp_traffic_template.fieldInfo[2].offset = 2;
-		    break;
-		default:
-		    ExpressaggregateDataRecord(aggregator, NULL, &ip_traffic_template, ph->length, fdata);
-	    }
+	    transport_offset=abs(ph->transport_header - ph->ip_header);
+	    ExpressaggregateDataRecord(aggregator, NULL, ph->length, fdata, transport_offset);
 	}
 
 	/* restore IP header */

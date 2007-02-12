@@ -66,7 +66,7 @@ int ExpressparseProtoPattern(char* s, FieldData** fdata, FieldLength* length);
 
 void ExpressdestroyRules(ExpressRules* rules);
 void ExpressprintRule(ExpressRule* rule);
-int ExpresstemplateDataMatchesRule(ExpressTemplateInfo* info, FieldData* data, ExpressRule* rule);
+int ExpresstemplateDataMatchesRule(FieldData* data, ExpressRule* rule, int transport_offset);
 int ExpressdataTemplateDataMatchesRule(ExpressDataTemplateInfo* info, FieldData* data, ExpressRule* rule);
 
 
