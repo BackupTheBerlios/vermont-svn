@@ -617,7 +617,8 @@ void IdmefMessage::toString()
         xmlKeepBlanksDefault(0);
         xmlBufferPtr xmlBufPtr = xmlBufferCreate();
         xmlNodeDump (xmlBufPtr, idmefTree, xmlDocGetRootElement(idmefTree), 0, 1);
-        std::cout << (char *)xmlBufPtr->content << std::endl;
+        std::cout << std::string((char *)xmlBufPtr->content, (char *)xmlBufPtr->content + xmlBufPtr->use) 
+		  << std::endl;
         xmlBufferFree(xmlBufPtr);
         xmlCleanupParser();
 }

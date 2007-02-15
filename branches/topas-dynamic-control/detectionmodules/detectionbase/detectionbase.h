@@ -211,7 +211,6 @@ class DetectionBase
 			usleep(500);
 		}
 
-
 		pthread_cancel(testThread);
 		pthread_cancel(workingThread);
 
@@ -388,6 +387,17 @@ class DetectionBase
 		}
 	}
 
+	void sendControlMessage(const std::string& message)
+	{
+		for (unsigned i = 0; i != commObjs.size(); ++i) {
+			std::string managerID = (*xmlBlasters[i].getElement()).getProperty().getProperty(config_space::MANAGER_ID);
+			if (managerID == "") {
+				managerID = config_space::DEFAULT_MANAGER_ID;
+			}
+			commObjs[i]->publish(message, managerID);
+		}
+	}
+
         /**
          * Sends current IDMEF-Message
          * @param topic Publish the IDMEF-Message under given topic..
@@ -437,14 +447,14 @@ protected:
 	/**
 	 * Restarts the module.
 	 */
-	void restart() {
+	static void restart() {
 		state = RESTART;
 	}
 
 	/**
 	 * Stops the module.
 	 */
-	void stop() {
+	static void stop() {
 		state = EXIT;
 	}
 

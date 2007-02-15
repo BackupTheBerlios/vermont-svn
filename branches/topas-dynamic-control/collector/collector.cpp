@@ -384,6 +384,8 @@ void collector::run()
 			while (!terminateCollector) {
 				pause();
 			}
+			msg(MSG_INFO, "Shutdown arrived, waiting 2 seconds before exit...");
+			sleep(2);
 		}
 		else {
 			pause();
