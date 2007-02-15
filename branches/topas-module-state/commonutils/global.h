@@ -51,6 +51,8 @@ namespace config_space
 	static const std::string DETECTIONMODULES="modules";
 	static const std::string DETECTIONMODULE="module";
 	static const std::string FILENAME="filename";
+	static const std::string CONFIG_FILE="configFile";
+	static const std::string RUN="run";
 	static const std::string ARG="arg";
         static const std::string COLLECTOR_STRING="collector";
         static const std::string LISTEN_PORT="listenPort";
