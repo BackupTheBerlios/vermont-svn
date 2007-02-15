@@ -35,6 +35,7 @@ class manager;
 class CollectorConfObj;
 class RecorderBase;
 class DetectModExporter;
+class XMLConfObj;
 
 
 /**
@@ -88,7 +89,6 @@ public:
  private:
         static manager* man;
         static bool terminateCollector;
-        CollectorConfObj* config;
 	static RecorderBase* recorder;
 
         static DetectModExporter* exporter;
@@ -96,6 +96,47 @@ public:
         static bool replaying;
 
 	std::string packetDir;
+	
+	/**
+	 * Read working dir from configuration file.
+	 * @param confObj Configuration object
+	 */
+	void readWorkingDir(XMLConfObj* config);
+
+	/**
+	 * Read list of detection modules from configuration file.
+	 * @param confObj Configuration object
+	 */
+	void readDetectionModules(XMLConfObj* config);
+
+	/**
+	 * Read miscellaneous items from the configuration file.
+	 * @param confObj Configuration object
+	 */
+	void readMisc(XMLConfObj* config);
+
+	/**
+	 * Read all information necessary to exchange IPFIX packets
+	 * between collector and detection modules.
+	 * 
+	 * There are currently two possible exchange methods:
+	 * 1.) Via a file system (stable and good tested, but slow)
+	 * 2.) Via a shared memory block (unstable and not so well tested, but very fast)
+	 * @param confObj Configuration object
+	 */
+	void readExchangeProtocol(XMLConfObj* config);
+
+	/**
+	 * Read all information that is needed for recording or replaying traffic.
+	 * @param confObj Configuration object
+	 */
+	void readRecording(XMLConfObj* config);
+
+	/**
+	 * Read IDMEF specific stuff if IDMEF-Support is enabled.
+	 * @param confObj Configuration object
+	 */
+	void readIDMEF(XMLConfObj* config);
 
  protected:
         /**

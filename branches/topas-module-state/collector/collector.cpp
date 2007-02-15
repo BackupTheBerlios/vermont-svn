@@ -87,7 +87,6 @@ void cleanPacketDir(const std::string& dirName)
 }
 
 collector::collector() 
-        : config(NULL)
 {
         exporter = new DetectModExporter();
         man = new manager(exporter);
@@ -102,8 +101,6 @@ collector::~collector()
 	msg(MSG_DEBUG, "Entering collector::~collector()");
 	msg(MSG_DEBUG, "Deleting manager");
 	delete man; man = 0;
-	msg(MSG_DEBUG, "Deleting XMLConfObj");
-	delete config; config = 0;
 	msg(MSG_DEBUG, "Deleting exporter");
 	delete exporter; exporter = 0;
 	msg(MSG_DEBUG, "Deleting recorder");
@@ -115,217 +112,257 @@ collector::~collector()
 
 void collector::readConfig(const std::string& configFile) 
 {
-        config = new CollectorConfObj(configFile);
-	std::string tmp;
+        CollectorConfObj* config = new CollectorConfObj(configFile);
 
 	try {
 		/* get and set working directory */
 		config->enterNode(config_space::COLLECTOR_STRING);
-		if (config->nodeExists(config_space::WORKING_DIR)) {
-			tmp = config->getValue(config_space::WORKING_DIR);
-			if (-1 == chdir(tmp.c_str())) {
-				msg(MSG_FATAL, "Failed to set working directory to %s: %s", tmp.c_str(), strerror(errno));
-				throw exceptions::ConfigError(std::string("Failed to set working directory to ") +
-							      tmp.c_str() + ": " + strerror(errno));
-			} else {
-				msg(MSG_INFO, "Successfully changed working direcory to: %s", tmp.c_str());
-			}
-		} else {
-			msg(MSG_INFO, "No working directory specified");
-		}
 
-		/* get the names of the detection modules */
-		if (config->nodeExists(config_space::DETECTIONMODULES)) {
-			config->enterNode(config_space::DETECTIONMODULES);
-			if (config->nodeExists(config_space::DETECTIONMODULE)) {
-				config->setNode(config_space::DETECTIONMODULE);
-				while (config->nextNodeExists()) {
-					config->enterNextNode();
-					std::string filename = config->getValue(config_space::FILENAME);
-					std::vector<std::string> args;
-					if (config->nodeExists(config_space::ARG)) {
-						args.push_back(config->getValue(config_space::ARG));
-						while(config->nextNodeExists()) {
-							args.push_back(config->getNextValue());
-						}
-					}
-					man->addDetectionModule(filename, args);
-					config->leaveNode();
-				}
-			}
-			config->leaveNode();
-			msg(MSG_INFO, "Extracted all detection modules from config file.");
-		} else {
-			msg(MSG_INFO, "No detection modules to start.");
-		}
-
-		/* port to listen on */
-		if (config->nodeExists(config_space::LISTEN_PORT)) {
-			tmp = config->getValue(config_space::LISTEN_PORT);
-			std::stringstream sstream(tmp);
-			sstream >> listenPort;
-			msg(MSG_INFO, "Listening on port %i", listenPort);
-		} else {
-			listenPort = config_space::DEFAULT_LISTEN_PORT;
-			msg(MSG_INFO, "No port specified, taking default port %i", listenPort);
-		}
-
-		/* killtime */
-		if (config->nodeExists(config_space::KILL_TIME)) {
-			tmp = config->getValue(config_space::KILL_TIME);
-			std::stringstream sstream(tmp);
-			sstream >> man->killTime;
-			msg(MSG_INFO, "Detection module kill time: %i seconds", man->killTime);
-		} else {
-			man->killTime = config_space::DEFAULT_KILL_TIME;
-			msg(MSG_INFO, "No timeout specified. Taking default time span: %i seconds", man->killTime);
-		}
-
-		/* restart crashed modules */
-		if (config->nodeExists(config_space::RESTART_ON_CRASH)) {
-			if (config->nodeExists(config_space::RESTART_ON_CRASH)) {
-				tmp = config->getValue(config_space::RESTART_ON_CRASH);
-				if (tmp == "yes") {
-					man->restartOnCrash = true;
-				} else if (tmp == "no") {
-					man->restartOnCrash = false;
-				} else {
-					throw exceptions::ConfigError("Bad value for configuration item \"" +
-								      config_space::RESTART_ON_CRASH +
-								      "\n Posibilities are yes or no");
-				}
-			} else {
-				
-			}
-		} else {
-			man->restartOnCrash = false;
-		}
-		
-		if (man->restartOnCrash) {
-			msg(MSG_INFO, "Restarting detection modules turned on");
-		} else {
-			msg(MSG_INFO, "Restarting detection modules turned off");
-		}
-		
-		/* configure the exchange protocol */
-		if (config->nodeExists(config_space::EXCHANGE_PROTOCOL)) {
-			std::string type = config->getAttribute(config_space::EXCHANGE_PROTOCOL,
-								config_space::EP_TYPE);
-			if (type == config_space::EP_FILES) {
-				config->enterNode(config_space::EXCHANGE_PROTOCOL);
-				exporter->setExportingStyle(DetectModExporter::USE_FILES);
-				/* packetdir for storing IPFIX-Files */
-				if (config->nodeExists(config_space::PACKET_DIRECTORY)) {
-					packetDir = config->getValue(config_space::PACKET_DIRECTORY);
-					::cleanPacketDir(packetDir);
-					exporter->setPacketDir(packetDir);
-				} else {
-					throw exceptions::ConfigError("No tmp directory for IPFIX-files specified");
-				}
-				config->leaveNode();
-			} else if (type == config_space::EP_SHM) {
-				config->enterNode(config_space::EXCHANGE_PROTOCOL);
-				/* get shared memory size */
-				exporter->setExportingStyle(DetectModExporter::USE_SHARED_MEMORY);
-				if (config->nodeExists(config_space::SHMSIZE)) {
-					unsigned shmSize;
-					shmSize = atoi(config->getValue(config_space::SHMSIZE).c_str());
-					exporter->setSharedMemorySize(shmSize);
-				} else {
-					throw exceptions::ConfigError("No shm size for IPFIX-storage specified");
-				}
-				config->leaveNode();
-			}
-		} else {
-			throw exceptions::ConfigError("No exchange protocol defined!");
-		}
-
-		/* turn recording on/off. turned off by default */
-		if (config->nodeExists(config_space::PLAYER)) {
-			config->enterNode(config_space::PLAYER);
-			std::string type = config->getValue(config_space::ACTION);
-			if (type != config_space::OFF) {
-				tmp = config->getValue(config_space::TRAFFIC_DIR);
-				if (type == config_space::RECORD) {
-					if (recorder)
-						delete recorder;
-					recorder = new FileRecorder(tmp, FileRecorder::PrepareRecording);
-					replaying = false;
-					msg(MSG_INFO, "Turned on recorder. IPFIX packets will be stored in %s", tmp.c_str());
-				} else if (type == config_space::REPLAY) {
-					if (recorder)
-						delete recorder;
-					recorder = new FileRecorder(tmp, FileRecorder::PrepareReplaying);
-					recorder->setPacketCallback(collector::messageCallBackFunction);
-					replaying = true;
-					msg(MSG_INFO, "Collector now starts in replay mode");
-				} else {
-					throw exceptions::ConfigError("Only \"" + config_space::REPLAY + "\", \""
-								      + config_space::RECORD + "\" or \"" 
-								      + config_space::OFF + "\" are allowed for "
-								      + config_space::ACTION);
-				}
-			} else {
-				replaying = false;
-			}
-		}
-
-#ifdef IDMEF_SUPPORT_ENABLED
-		config->leaveNode();
-		/* configure xmlBlaster connection properties */
-		if (config->nodeExists(config_space::XMLBLASTERS)) {
-			config->enterNode(config_space::XMLBLASTERS);
-			if (config->nodeExists(config_space::XMLBLASTER)) {
-				config->setNode(config_space::XMLBLASTER);
-				unsigned int count = 0;
-				while (config->nextNodeExists()) {
-					config->enterNextNode();
-				 	/* Property does handle properties in the java-way */
-					Property::MapType propMap;
-					std::vector<std::string> props;
-					/* get all properties */
-					if (config->nodeExists(config_space::XMLBLASTER_PROP)) {
-						props.push_back(config->getValue(config_space::XMLBLASTER_PROP));
-						while (config->nextNodeExists()) {
-							props.push_back(config->getNextValue());
-						}
-					} else {
-						msg(MSG_INFO, ("No <" + config_space::XMLBLASTER_PROP + 
-							       "> statement in config file, using default values").c_str());
-					}
-					for (unsigned i = 0; i != props.size(); ++i) {
-						unsigned seperatorPos;
-						if (std::string::npos != (seperatorPos = props[i].find(' '))) {
-							std::string key = std::string(props[i].begin(), props[i].begin() + seperatorPos);
-							std::string value  = std::string(props[i].begin() + seperatorPos + 1, props[i].end());
-							propMap[key] = value;
-						}
-					}
- 					/* global configuration for each xmlBlaster connection */
-					std::string instanceName = "connection-" + ++count;
-					GlobalRef globalRef =  Global::getInstance().createInstance(instanceName, &propMap);
-					/* get topas id here */
-					std::string str = globalRef.getElement()->getInstanceId();
-					man->topasID = std::string(str.begin() + str.find_last_of("/") + 1, str.end());
-					man->xmlBlasters.push_back(globalRef);
- 					config->leaveNode();
-				}
-			} else {
-				throw exceptions::ConfigError("No <" + config_space::XMLBLASTER  + "> statement in config file");
-			}
-			config->leaveNode();
-                } else {
-                        throw exceptions::ConfigError("No <" + config_space::XMLBLASTERS  + "> statement in config file");
-                }
-#endif
+		readWorkingDir(config);
+		readDetectionModules(config);
+		readMisc(config);
+		readExchangeProtocol(config);
+		readRecording(config);
+		readIDMEF(config);
 
 		config->leaveNode();
+
+		delete config;
 		
 		Metering::setDirectoryName("metering/");
 	} catch(exceptions::XMLException& e) {
 		msg(MSG_FATAL, "Error configuring collector: %s", e.what());
+		delete config;
 		throw e;
 	}
+}
+
+void collector::readWorkingDir(XMLConfObj* config)
+{
+	std::string tmp;
+	if (config->nodeExists(config_space::WORKING_DIR)) {
+		tmp = config->getValue(config_space::WORKING_DIR);
+		if (-1 == chdir(tmp.c_str())) {
+			msg(MSG_FATAL, "Failed to set working directory to %s: %s",
+			    tmp.c_str(), strerror(errno));
+			throw exceptions::ConfigError(std::string("Failed to set "
+								  "working directory to ") +
+						      tmp.c_str() + ": " 
+						      + strerror(errno));
+		} else {
+			msg(MSG_INFO, "Successfully changed working direcory "
+			    "to: %s", tmp.c_str());
+		}
+	} else {
+		msg(MSG_INFO, "No working directory specified. "
+		    "Assuming current directory");
+	}
+}
+
+void collector::readDetectionModules(XMLConfObj* config)
+{
+	std::string tmp;	
+	/* get the names of the detection modules */
+	if (config->nodeExists(config_space::DETECTIONMODULES)) {
+		config->enterNode(config_space::DETECTIONMODULES);
+		if (config->nodeExists(config_space::DETECTIONMODULE)) {
+			config->setNode(config_space::DETECTIONMODULE);
+			while (config->nextNodeExists()) {
+				config->enterNextNode();
+				std::string filename = config->getValue(config_space::FILENAME);
+				std::vector<std::string> args;
+				if (config->nodeExists(config_space::ARG)) {
+					args.push_back(config->getValue(config_space::ARG));
+					while(config->nextNodeExists()) {
+						args.push_back(config->getNextValue());
+					}
+				}
+				man->addDetectionModule(filename, args);
+				config->leaveNode();
+			}
+		}
+		config->leaveNode();
+		msg(MSG_INFO, "Extracted all detection modules from config file.");
+	} else {
+		msg(MSG_INFO, "No detection modules to start.");
+	}
+}
+
+void collector::readMisc(XMLConfObj* config)
+{
+	std::string tmp;
+	/* port to listen on */
+	if (config->nodeExists(config_space::LISTEN_PORT)) {
+		tmp = config->getValue(config_space::LISTEN_PORT);
+		std::stringstream sstream(tmp);
+		sstream >> listenPort;
+		msg(MSG_INFO, "Listening on port %i", listenPort);
+	} else {
+		listenPort = config_space::DEFAULT_LISTEN_PORT;
+		msg(MSG_INFO, "No port specified, taking default port %i", listenPort);
+	}
+
+	/* killtime */
+	if (config->nodeExists(config_space::KILL_TIME)) {
+		tmp = config->getValue(config_space::KILL_TIME);
+		std::stringstream sstream(tmp);
+		sstream >> man->killTime;
+		msg(MSG_INFO, "Detection module kill time: %i seconds", man->killTime);
+	} else {
+		man->killTime = config_space::DEFAULT_KILL_TIME;
+		msg(MSG_INFO, "No timeout specified. Taking default time span: %i seconds", man->killTime);
+	}
+
+	/* restart crashed modules */
+	if (config->nodeExists(config_space::RESTART_ON_CRASH)) {
+		if (config->nodeExists(config_space::RESTART_ON_CRASH)) {
+			tmp = config->getValue(config_space::RESTART_ON_CRASH);
+			if (tmp == "yes") {
+				man->restartOnCrash = true;
+			} else if (tmp == "no") {
+				man->restartOnCrash = false;
+			} else {
+				throw exceptions::ConfigError("Bad value for configuration item \"" +
+							      config_space::RESTART_ON_CRASH +
+							      "\n Posibilities are yes or no");
+			}
+		} else {
+				
+		}
+	} else {
+		man->restartOnCrash = false;
+	}
+		
+	if (man->restartOnCrash) {
+		msg(MSG_INFO, "Restarting detection modules turned on");
+	} else {
+		msg(MSG_INFO, "Restarting detection modules turned off");
+	}
+
+}
+
+void collector::readExchangeProtocol(XMLConfObj* config)
+{
+	std::string tmp;
+	/* configure the exchange protocol */
+	if (config->nodeExists(config_space::EXCHANGE_PROTOCOL)) {
+		std::string type = config->getAttribute(config_space::EXCHANGE_PROTOCOL,
+							config_space::EP_TYPE);
+		if (type == config_space::EP_FILES) {
+			config->enterNode(config_space::EXCHANGE_PROTOCOL);
+			exporter->setExportingStyle(DetectModExporter::USE_FILES);
+			/* packetdir for storing IPFIX-Files */
+			if (config->nodeExists(config_space::PACKET_DIRECTORY)) {
+				packetDir = config->getValue(config_space::PACKET_DIRECTORY);
+				::cleanPacketDir(packetDir);
+				exporter->setPacketDir(packetDir);
+			} else {
+				throw exceptions::ConfigError("No tmp directory for IPFIX-files specified");
+			}
+			config->leaveNode();
+		} else if (type == config_space::EP_SHM) {
+			config->enterNode(config_space::EXCHANGE_PROTOCOL);
+			/* get shared memory size */
+			exporter->setExportingStyle(DetectModExporter::USE_SHARED_MEMORY);
+			if (config->nodeExists(config_space::SHMSIZE)) {
+				unsigned shmSize;
+				shmSize = atoi(config->getValue(config_space::SHMSIZE).c_str());
+				exporter->setSharedMemorySize(shmSize);
+			} else {
+				throw exceptions::ConfigError("No shm size for IPFIX-storage specified");
+			}
+			config->leaveNode();
+		}
+	} else {
+		throw exceptions::ConfigError("No exchange protocol defined!");
+	}
+}
+
+void collector::readRecording(XMLConfObj* config)
+{
+	std::string tmp;
+	/* turn recording on/off. turned off by default */
+	if (config->nodeExists(config_space::PLAYER)) {
+		config->enterNode(config_space::PLAYER);
+		std::string type = config->getValue(config_space::ACTION);
+		if (type != config_space::OFF) {
+			tmp = config->getValue(config_space::TRAFFIC_DIR);
+			if (type == config_space::RECORD) {
+				if (recorder)
+					delete recorder;
+				recorder = new FileRecorder(tmp, FileRecorder::PrepareRecording);
+				replaying = false;
+				msg(MSG_INFO, "Turned on recorder. IPFIX packets will be stored in %s", tmp.c_str());
+			} else if (type == config_space::REPLAY) {
+				if (recorder)
+					delete recorder;
+				recorder = new FileRecorder(tmp, FileRecorder::PrepareReplaying);
+				recorder->setPacketCallback(collector::messageCallBackFunction);
+				replaying = true;
+				msg(MSG_INFO, "Collector now starts in replay mode");
+			} else {
+				throw exceptions::ConfigError("Only \"" + config_space::REPLAY + "\", \""
+							      + config_space::RECORD + "\" or \"" 
+							      + config_space::OFF + "\" are allowed for "
+							      + config_space::ACTION);
+			}
+		} else {
+			replaying = false;
+		}
+	}
+}
+
+void collector::readIDMEF(XMLConfObj* config)
+{
+#ifdef IDMEF_SUPPORT_ENABLED
+	std::string tmp;
+	config->leaveNode();
+	/* configure xmlBlaster connection properties */
+	if (config->nodeExists(config_space::XMLBLASTERS)) {
+		config->enterNode(config_space::XMLBLASTERS);
+		if (config->nodeExists(config_space::XMLBLASTER)) {
+			config->setNode(config_space::XMLBLASTER);
+			unsigned int count = 0;
+			while (config->nextNodeExists()) {
+				config->enterNextNode();
+				/* Property does handle properties in the java-way */
+				Property::MapType propMap;
+				std::vector<std::string> props;
+				/* get all properties */
+				if (config->nodeExists(config_space::XMLBLASTER_PROP)) {
+					props.push_back(config->getValue(config_space::XMLBLASTER_PROP));
+					while (config->nextNodeExists()) {
+						props.push_back(config->getNextValue());
+					}
+				} else {
+					msg(MSG_INFO, ("No <" + config_space::XMLBLASTER_PROP + 
+						       "> statement in config file, using default values").c_str());
+				}
+				for (unsigned i = 0; i != props.size(); ++i) {
+					unsigned seperatorPos;
+					if (std::string::npos != (seperatorPos = props[i].find(' '))) {
+						std::string key = std::string(props[i].begin(), props[i].begin() + seperatorPos);
+						std::string value  = std::string(props[i].begin() + seperatorPos + 1, props[i].end());
+						propMap[key] = value;
+					}
+				}
+				/* global configuration for each xmlBlaster connection */
+				std::string instanceName = "connection-" + ++count;
+				GlobalRef globalRef =  Global::getInstance().createInstance(instanceName, &propMap);
+				/* get topas id here */
+				std::string str = globalRef.getElement()->getInstanceId();
+				man->topasID = std::string(str.begin() + str.find_last_of("/") + 1, str.end());
+				man->xmlBlasters.push_back(globalRef);
+				config->leaveNode();
+			}
+		} else {
+			throw exceptions::ConfigError("No <" + config_space::XMLBLASTER  + "> statement in config file");
+		}
+		config->leaveNode();
+	} else {
+		throw exceptions::ConfigError("No <" + config_space::XMLBLASTERS  + "> statement in config file");
+	}
+#endif
 }
 
 void collector::startModules() 
