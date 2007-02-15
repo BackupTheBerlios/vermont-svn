@@ -51,12 +51,12 @@
 
 /******* Static variables ***************************/
 
-manager* collector::man = 0;
-bool collector::terminateCollector = false;
-DetectModExporter* collector::exporter = NULL;
-RecorderBase* collector::recorder = NULL;
-bool collector::replaying = false;
-Metering* collector::metering = 0;
+Manager* Collector::man = 0;
+bool Collector::terminateCollector = false;
+DetectModExporter* Collector::exporter = NULL;
+RecorderBase* Collector::recorder = NULL;
+bool Collector::replaying = false;
+Metering* Collector::metering = 0;
 
 /****** Implementation ******************************/
 
@@ -86,19 +86,19 @@ void cleanPacketDir(const std::string& dirName)
 	closedir(dir);
 }
 
-collector::collector() 
+Collector::Collector() 
 {
         exporter = new DetectModExporter();
-        man = new manager(exporter);
+        man = new Manager(exporter);
         listenPort = config_space::DEFAULT_LISTEN_PORT;
         receiverType = config_space::DEFAULT_TRANSPORT_PROTO;
 	recorder = new RecorderOff();
 }
 
 
-collector::~collector() 
+Collector::~Collector() 
 {
-	msg(MSG_DEBUG, "Entering collector::~collector()");
+	msg(MSG_DEBUG, "Entering Collector::~Collector()");
 	msg(MSG_DEBUG, "Deleting manager");
 	delete man; man = 0;
 	msg(MSG_DEBUG, "Deleting exporter");
@@ -107,10 +107,10 @@ collector::~collector()
 	delete recorder; recorder = 0;
 	msg(MSG_DEBUG, "Cleaning packet directory");
 	::cleanPacketDir(packetDir);
-	msg(MSG_DEBUG, "Leaving collector::~collector()");
+	msg(MSG_DEBUG, "Leaving Collector::~Collector()");
 }
 
-void collector::readConfig(const std::string& configFile) 
+void Collector::readConfig(const std::string& configFile) 
 {
         CollectorConfObj* config = new CollectorConfObj(configFile);
 
@@ -137,7 +137,7 @@ void collector::readConfig(const std::string& configFile)
 	}
 }
 
-void collector::readWorkingDir(XMLConfObj* config)
+void Collector::readWorkingDir(XMLConfObj* config)
 {
 	std::string tmp;
 	if (config->nodeExists(config_space::WORKING_DIR)) {
@@ -159,7 +159,7 @@ void collector::readWorkingDir(XMLConfObj* config)
 	}
 }
 
-void collector::readDetectionModules(XMLConfObj* config)
+void Collector::readDetectionModules(XMLConfObj* config)
 {
 	std::string tmp;	
 	/* get the names of the detection modules */
@@ -188,7 +188,7 @@ void collector::readDetectionModules(XMLConfObj* config)
 	}
 }
 
-void collector::readMisc(XMLConfObj* config)
+void Collector::readMisc(XMLConfObj* config)
 {
 	std::string tmp;
 	/* port to listen on */
@@ -241,7 +241,7 @@ void collector::readMisc(XMLConfObj* config)
 
 }
 
-void collector::readExchangeProtocol(XMLConfObj* config)
+void Collector::readExchangeProtocol(XMLConfObj* config)
 {
 	std::string tmp;
 	/* configure the exchange protocol */
@@ -278,7 +278,7 @@ void collector::readExchangeProtocol(XMLConfObj* config)
 	}
 }
 
-void collector::readRecording(XMLConfObj* config)
+void Collector::readRecording(XMLConfObj* config)
 {
 	std::string tmp;
 	/* turn recording on/off. turned off by default */
@@ -297,7 +297,7 @@ void collector::readRecording(XMLConfObj* config)
 				if (recorder)
 					delete recorder;
 				recorder = new FileRecorder(tmp, FileRecorder::PrepareReplaying);
-				recorder->setPacketCallback(collector::messageCallBackFunction);
+				recorder->setPacketCallback(Collector::messageCallBackFunction);
 				replaying = true;
 				msg(MSG_INFO, "Collector now starts in replay mode");
 			} else {
@@ -312,7 +312,7 @@ void collector::readRecording(XMLConfObj* config)
 	}
 }
 
-void collector::readIDMEF(XMLConfObj* config)
+void Collector::readIDMEF(XMLConfObj* config)
 {
 #ifdef IDMEF_SUPPORT_ENABLED
 	std::string tmp;
@@ -365,18 +365,18 @@ void collector::readIDMEF(XMLConfObj* config)
 #endif
 }
 
-void collector::startModules() 
+void Collector::startModules() 
 {
 	metering = new Metering("collector.stat");
         man->startModules();
 }
 
-void collector::run()
+void Collector::run()
 {
 	/* start manager thread */
 	pthread_t managerThreadId;
 	int ret_val;
-	if ((ret_val = pthread_create(&managerThreadId, NULL, manager::run, man)) != 0) {
+	if ((ret_val = pthread_create(&managerThreadId, NULL, Manager::run, man)) != 0) {
 		msg(MSG_FATAL, "Collector: Couldn't create manager thread: %s", strerror(ret_val));
 		throw std::runtime_error("Collector isn't able to run without a mangager");
 	}
@@ -411,7 +411,7 @@ void collector::run()
 
 		msg(MSG_INFO, "Initializing PacketProcessor");
 		IpfixPacketProcessor* packetProcessor = createIpfixPacketProcessor();
-		packetProcessor->processPacketCallbackFunction = collector::messageCallBackFunction;
+		packetProcessor->processPacketCallbackFunction = Collector::messageCallBackFunction;
 		
 		addIpfixPacketProcessor(ipfixCollector, packetProcessor);
 		msg(MSG_INFO, "Starting IpfixCollector");
@@ -454,7 +454,7 @@ void collector::run()
 	msg(MSG_INFO, "Manager was successfully shut down");
 }
 
-int collector::messageCallBackFunction(IpfixParser* ipfixParser, byte* data, uint16_t len) 
+int Collector::messageCallBackFunction(IpfixParser* ipfixParser, byte* data, uint16_t len) 
 {
 	metering->addValue();
         static int ret;
@@ -464,7 +464,7 @@ int collector::messageCallBackFunction(IpfixParser* ipfixParser, byte* data, uin
         return ret;
 }
 
-void collector::sigInt(int /*sig*/) 
+void Collector::sigInt(int /*sig*/) 
 {
         man->prepareShutdown();
 	recorder->abort();
@@ -472,12 +472,12 @@ void collector::sigInt(int /*sig*/)
 }
 
 
-void collector::setListenPort(int port) 
+void Collector::setListenPort(int port) 
 {
         listenPort = port;
 }
 
-void collector::setReceiverType(Receiver_Type r_t) 
+void Collector::setReceiverType(Receiver_Type r_t) 
 {
         receiverType = r_t;
 }

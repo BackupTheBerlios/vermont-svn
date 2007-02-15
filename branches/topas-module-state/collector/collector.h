@@ -31,7 +31,7 @@
 #include <string>
 
 
-class manager;
+class Manager;
 class CollectorConfObj;
 class RecorderBase;
 class DetectModExporter;
@@ -43,18 +43,18 @@ class XMLConfObj;
  * a detectionmodule exporter object.
  * The detection module manager is started and controlled by this class 
  */
-class collector
+class Collector
 {
 public:
         /**
          * Constructor. Constructs the main collector object.
          */
-        collector();
+        Collector();
 
         /**
          * Destructor. Deinitializes the mail collector object.
          */
-        ~collector();
+        ~Collector();
         
         /**
          * Parses the configuration file.
@@ -87,7 +87,7 @@ public:
         void setReceiverType(Receiver_Type r_t);
 
  private:
-        static manager* man;
+        static Manager* man;
         static bool terminateCollector;
 	static RecorderBase* recorder;
 

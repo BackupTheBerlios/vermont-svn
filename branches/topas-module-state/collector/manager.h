@@ -36,7 +36,7 @@
 #include <string>
 #include <vector>
 
-class collector;
+class Collector;
 class DetectModExporter;
 
 
@@ -44,17 +44,17 @@ class DetectModExporter;
  * The manager maintains a list of detection modules, informs them about incoming IPFIX packets and deletes the new packets
  * after they were parsed by the modules. The class is also responsible for starting and controlling the detection modules.
  */
-class manager{
+class Manager{
 public:
         /**
          * Default constructor
          */
-        manager(DetectModExporter* exporter);
+        Manager(DetectModExporter* exporter);
 
         /**
          * Destructor
          */
-        ~manager();
+        ~Manager();
     
         /**
          * Adds a detection module to the list maintained by the manager. The detection module will be started
@@ -136,7 +136,7 @@ protected:
         static void* run(void*);
         
         /** @c collector */
-        friend class collector;
+        friend class Collector;
 
 #ifdef IDMEF_SUPPORT_ENABLED
         /** TOPAS id for XMLBlaster */

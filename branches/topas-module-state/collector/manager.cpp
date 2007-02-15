@@ -34,13 +34,13 @@
 
 
 /* static variables */
-ModuleContainer manager::detectionModules;
-DetectModExporter* manager::exporter = 0;
-bool manager::restartOnCrash = false;
-bool manager::shutdown = false;
+ModuleContainer Manager::detectionModules;
+DetectModExporter* Manager::exporter = 0;
+bool Manager::restartOnCrash = false;
+bool Manager::shutdown = false;
 
 
-manager::manager(DetectModExporter* exporter)
+Manager::Manager(DetectModExporter* exporter)
         : killTime(config_space::DEFAULT_KILL_TIME)
 {       
         this->exporter = exporter;
@@ -54,15 +54,11 @@ manager::manager(DetectModExporter* exporter)
 		    "Crashing detection modules won't be detected");
         }
 
-#ifdef IDMEF_SUPPORT_ENABLED
-        // TODO: remove this after Raimondas merged his topas-dynamic-control into trunk/topas
-        topasID = "this_is_a_dummy_id_please_remove_me";
-#endif
 	mutex.lock();
 }
 
 
-manager::~manager()
+Manager::~Manager()
 {
 #ifdef IDMEF_SUPPORT_ENABLED
         msg(MSG_DEBUG, "Disconnecting from xmlBlaster servers");
@@ -73,7 +69,7 @@ manager::~manager()
 #endif
 }
 
-void manager::addDetectionModule(const std::string& modulePath, const std::vector<std::string>& arguments) 
+void Manager::addDetectionModule(const std::string& modulePath, const std::vector<std::string>& arguments) 
 {
         if (modulePath.size() == 0) {
                 msg(MSG_ERROR, "Manager: Got empty path to detection module");
@@ -89,7 +85,7 @@ void manager::addDetectionModule(const std::string& modulePath, const std::vecto
 	detectionModules.createModule(modulePath, arguments);
 }
 
-void manager::startModules()
+void Manager::startModules()
 {
 #ifdef IDMEF_SUPPORT_ENABLED
         if (topasID.empty()) {
@@ -128,7 +124,7 @@ void manager::startModules()
 }
 
 
-void manager::sigAlarm(int) 
+void Manager::sigAlarm(int) 
 {
         /* do nothing if collector announced system shutdown */
         if (shutdown)
@@ -138,7 +134,7 @@ void manager::sigAlarm(int)
         /* TODO: implement some error handling */
 }
 
-void manager::sigChild(int sig) 
+void Manager::sigChild(int sig) 
 {
         if (shutdown)
                 return;
@@ -178,9 +174,9 @@ void manager::sigChild(int sig)
         }
 }
 
-void* manager::run(void* data) 
+void* Manager::run(void* data) 
 {
-        manager* man = (manager*)data;
+        Manager* man = (Manager*)data;
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
         
@@ -207,33 +203,33 @@ void* manager::run(void* data)
         return NULL;
 }
 
-void manager::newPacket() 
+void Manager::newPacket() 
 {
         unlockMutex();
 }
 
-void manager::lockMutex() 
+void Manager::lockMutex() 
 {
 	mutex.lock();
 }
 
-void manager::unlockMutex() 
+void Manager::unlockMutex() 
 {
 	mutex.unlock();
 }
 
-void manager::prepareShutdown()
+void Manager::prepareShutdown()
 {
         shutdown = true;
 }
 
-void manager::killModules()
+void Manager::killModules()
 {
 	detectionModules.killDetectionModules();
 }
 
 #ifdef IDMEF_SUPPORT_ENABLED
-void manager::update(XMLConfObj* xmlObj)
+void Manager::update(XMLConfObj* xmlObj)
 {
 	std::cout << "Update for topas received!" << std::endl;
         if (xmlObj->nodeExists("start")) {
