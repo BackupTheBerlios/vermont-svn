@@ -34,7 +34,7 @@
 
 
 /* static variables */
-ModuleContainer Manager::detectionModules;
+ModuleContainer Manager::runningModules;
 DetectModExporter* Manager::exporter = 0;
 bool Manager::restartOnCrash = false;
 bool Manager::shutdown = false;
@@ -69,7 +69,10 @@ Manager::~Manager()
 #endif
 }
 
-void Manager::addDetectionModule(const std::string& modulePath, const std::vector<std::string>& arguments) 
+void Manager::addDetectionModule(const std::string& modulePath,
+				 const std::string& configFile,
+				 std::vector<std::string>& arguments,
+				 ModuleState s)
 {
         if (modulePath.size() == 0) {
                 msg(MSG_ERROR, "Manager: Got empty path to detection module");
@@ -82,7 +85,12 @@ void Manager::addDetectionModule(const std::string& modulePath, const std::vecto
                 return;
         }
 
-	detectionModules.createModule(modulePath, arguments);
+	arguments.insert(arguments.begin(), 1, configFile);
+	availableModules[modulePath] = arguments;
+
+	if (s == start) {
+		runningModules.createModule(modulePath, arguments);
+	}
 }
 
 void Manager::startModules()
@@ -120,7 +128,7 @@ void Manager::startModules()
         delete currentMessage;
 #endif
 
-        detectionModules.startModules(exporter);
+        runningModules.startModules(exporter);
 }
 
 
@@ -150,27 +158,27 @@ void Manager::sigChild(int sig)
                 if (WEXITSTATUS(status) == 0) {
                         msg(MSG_ERROR, "Manager: Detection module with pid %i"
 			    "terminated with exist state 0. Not restarting module", pid);
-			detectionModules.setState(pid, DetectMod::NotRunning);
+			runningModules.setState(pid, DetectMod::NotRunning);
 			return;
                 }else {
                         msg(MSG_ERROR, "Manager: Detection module with pid %i "
 			    "terminated abnormally. Return value was: %i", pid, status);
-			detectionModules.setState(pid, DetectMod::Crashed);
+			runningModules.setState(pid, DetectMod::Crashed);
                 }
         } else {
                 if (WIFSIGNALED(status)) {
                         msg(MSG_ERROR, "Manager: Detection module with pid %i was "
 			    "terminated by signal %i", pid, WTERMSIG(status));
-			detectionModules.setState(pid, DetectMod::Crashed);
+			runningModules.setState(pid, DetectMod::Crashed);
                 }
         }
         
         if (restartOnCrash) {
                 msg(MSG_INFO, "Manager: Restarting crashed module");
-                detectionModules.restartCrashedModule(pid, exporter);
+                runningModules.restartCrashedModule(pid, exporter);
         } else {
                 msg(MSG_INFO, "Manager: Not restarting crashed module");
-                detectionModules.deleteModule(pid);
+                runningModules.deleteModule(pid);
         }
 }
 
@@ -184,7 +192,7 @@ void* Manager::run(void* data)
 		man->lockMutex();
 		
 		alarm(man->killTime);
-		detectionModules.notifyAll(exporter);
+		runningModules.notifyAll(exporter);
 		exporter->clearSink();
 		alarm(0);
  
@@ -196,6 +204,7 @@ void* Manager::run(void* data)
                                 if (NULL != confObj) {
                                         man->update(confObj);
                                 }
+				delete confObj;
                         }
                 }
 #endif               
@@ -225,7 +234,7 @@ void Manager::prepareShutdown()
 
 void Manager::killModules()
 {
-	detectionModules.killDetectionModules();
+	runningModules.killDetectionModules();
 }
 
 #ifdef IDMEF_SUPPORT_ENABLED
@@ -239,6 +248,5 @@ void Manager::update(XMLConfObj* xmlObj)
         } else { // add your commands here
 		std::cout << "-> unknown operation" << std::endl;
         }
-        delete xmlObj;
 }
 #endif

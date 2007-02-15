@@ -118,13 +118,39 @@ void Collector::readConfig(const std::string& configFile)
 		/* get and set working directory */
 		config->enterNode(config_space::COLLECTOR_STRING);
 
-		readWorkingDir(config);
-		readDetectionModules(config);
-		readMisc(config);
-		readExchangeProtocol(config);
-		readRecording(config);
-		readIDMEF(config);
+		if (config->nodeExists(config_space::WORKING_DIR)) {
+			readWorkingDir(config);
+		} else {
+			msg(MSG_INFO, "No working directory specified. "
+			    "Assuming current directory");
+		}
 
+		if (config->nodeExists(config_space::DETECTIONMODULES)) {
+			readDetectionModules(config);
+		} else {
+			msg(MSG_INFO, "No detection modules to start.");
+		}
+		
+		readMisc(config);
+
+		if (config->nodeExists(config_space::EXCHANGE_PROTOCOL)) {
+			readExchangeProtocol(config);
+		} else {
+			throw exceptions::ConfigError("No exchange protocol defined!");
+		}
+
+		if (config->nodeExists(config_space::PLAYER)) {
+			readRecording(config);
+		}
+
+#ifdef IDMEF_SUPPORT_ENABLED
+		if (config->nodeExists(config_space::XMLBLASTERS)) {
+			readIDMEF(config);
+		} else {
+			throw exceptions::ConfigError("No <" + config_space::XMLBLASTERS
+						      + "> statement in config file");
+		}
+#endif
 		config->leaveNode();
 
 		delete config;
@@ -140,22 +166,17 @@ void Collector::readConfig(const std::string& configFile)
 void Collector::readWorkingDir(XMLConfObj* config)
 {
 	std::string tmp;
-	if (config->nodeExists(config_space::WORKING_DIR)) {
-		tmp = config->getValue(config_space::WORKING_DIR);
-		if (-1 == chdir(tmp.c_str())) {
-			msg(MSG_FATAL, "Failed to set working directory to %s: %s",
-			    tmp.c_str(), strerror(errno));
-			throw exceptions::ConfigError(std::string("Failed to set "
-								  "working directory to ") +
-						      tmp.c_str() + ": " 
-						      + strerror(errno));
-		} else {
-			msg(MSG_INFO, "Successfully changed working direcory "
-			    "to: %s", tmp.c_str());
-		}
+	tmp = config->getValue(config_space::WORKING_DIR);
+	if (-1 == chdir(tmp.c_str())) {
+		msg(MSG_FATAL, "Failed to set working directory to %s: %s",
+		    tmp.c_str(), strerror(errno));
+		throw exceptions::ConfigError(std::string("Failed to set "
+							  "working directory to ") +
+					      tmp.c_str() + ": " 
+					      + strerror(errno));
 	} else {
-		msg(MSG_INFO, "No working directory specified. "
-		    "Assuming current directory");
+		msg(MSG_INFO, "Successfully changed working direcory "
+		    "to: %s", tmp.c_str());
 	}
 }
 
@@ -163,29 +184,34 @@ void Collector::readDetectionModules(XMLConfObj* config)
 {
 	std::string tmp;	
 	/* get the names of the detection modules */
-	if (config->nodeExists(config_space::DETECTIONMODULES)) {
-		config->enterNode(config_space::DETECTIONMODULES);
-		if (config->nodeExists(config_space::DETECTIONMODULE)) {
-			config->setNode(config_space::DETECTIONMODULE);
-			while (config->nextNodeExists()) {
-				config->enterNextNode();
-				std::string filename = config->getValue(config_space::FILENAME);
-				std::vector<std::string> args;
-				if (config->nodeExists(config_space::ARG)) {
-					args.push_back(config->getValue(config_space::ARG));
-					while(config->nextNodeExists()) {
-						args.push_back(config->getNextValue());
-					}
+	config->enterNode(config_space::DETECTIONMODULES);
+	if (config->nodeExists(config_space::DETECTIONMODULE)) {
+		config->setNode(config_space::DETECTIONMODULE);
+		while (config->nextNodeExists()) {
+			config->enterNextNode();
+			std::string filename = config->getValue(config_space::FILENAME);
+			std::string configFile = config->getValue(config_space::CONFIG_FILE);
+			std::string run = config->getValue(config_space::RUN);
+			std::vector<std::string> args;
+			if (config->nodeExists(config_space::ARG)) {
+				args.push_back(config->getValue(config_space::ARG));
+				while(config->nextNodeExists()) {
+					args.push_back(config->getNextValue());
 				}
-				man->addDetectionModule(filename, args);
-				config->leaveNode();
 			}
+			if (run == "yes") {
+				man->addDetectionModule(filename, configFile, args, Manager::start);
+			} else if (run == "no") {
+				man->addDetectionModule(filename, configFile, args, Manager::dontStart);
+			} else {
+				throw exceptions::ConfigError("Bad value for <" + config_space::RUN
+							      + ">. Expecting \"yes\" or \"no\"");
+			}
+			config->leaveNode();
 		}
-		config->leaveNode();
-		msg(MSG_INFO, "Extracted all detection modules from config file.");
-	} else {
-		msg(MSG_INFO, "No detection modules to start.");
 	}
+	config->leaveNode();
+	msg(MSG_INFO, "Extracted all detection modules from config file.");
 }
 
 void Collector::readMisc(XMLConfObj* config)
@@ -210,7 +236,8 @@ void Collector::readMisc(XMLConfObj* config)
 		msg(MSG_INFO, "Detection module kill time: %i seconds", man->killTime);
 	} else {
 		man->killTime = config_space::DEFAULT_KILL_TIME;
-		msg(MSG_INFO, "No timeout specified. Taking default time span: %i seconds", man->killTime);
+		msg(MSG_INFO, "No timeout specified. Taking default time span: %i seconds",
+		    man->killTime);
 	}
 
 	/* restart crashed modules */
@@ -245,36 +272,32 @@ void Collector::readExchangeProtocol(XMLConfObj* config)
 {
 	std::string tmp;
 	/* configure the exchange protocol */
-	if (config->nodeExists(config_space::EXCHANGE_PROTOCOL)) {
-		std::string type = config->getAttribute(config_space::EXCHANGE_PROTOCOL,
-							config_space::EP_TYPE);
-		if (type == config_space::EP_FILES) {
-			config->enterNode(config_space::EXCHANGE_PROTOCOL);
-			exporter->setExportingStyle(DetectModExporter::USE_FILES);
-			/* packetdir for storing IPFIX-Files */
-			if (config->nodeExists(config_space::PACKET_DIRECTORY)) {
-				packetDir = config->getValue(config_space::PACKET_DIRECTORY);
-				::cleanPacketDir(packetDir);
-				exporter->setPacketDir(packetDir);
-			} else {
-				throw exceptions::ConfigError("No tmp directory for IPFIX-files specified");
-			}
-			config->leaveNode();
-		} else if (type == config_space::EP_SHM) {
-			config->enterNode(config_space::EXCHANGE_PROTOCOL);
-			/* get shared memory size */
-			exporter->setExportingStyle(DetectModExporter::USE_SHARED_MEMORY);
-			if (config->nodeExists(config_space::SHMSIZE)) {
-				unsigned shmSize;
-				shmSize = atoi(config->getValue(config_space::SHMSIZE).c_str());
-				exporter->setSharedMemorySize(shmSize);
-			} else {
-				throw exceptions::ConfigError("No shm size for IPFIX-storage specified");
-			}
-			config->leaveNode();
+	std::string type = config->getAttribute(config_space::EXCHANGE_PROTOCOL,
+						config_space::EP_TYPE);
+	if (type == config_space::EP_FILES) {
+		config->enterNode(config_space::EXCHANGE_PROTOCOL);
+		exporter->setExportingStyle(DetectModExporter::USE_FILES);
+		/* packetdir for storing IPFIX-Files */
+		if (config->nodeExists(config_space::PACKET_DIRECTORY)) {
+			packetDir = config->getValue(config_space::PACKET_DIRECTORY);
+			::cleanPacketDir(packetDir);
+			exporter->setPacketDir(packetDir);
+		} else {
+			throw exceptions::ConfigError("No tmp directory for IPFIX-files specified");
 		}
-	} else {
-		throw exceptions::ConfigError("No exchange protocol defined!");
+		config->leaveNode();
+	} else if (type == config_space::EP_SHM) {
+		config->enterNode(config_space::EXCHANGE_PROTOCOL);
+		/* get shared memory size */
+		exporter->setExportingStyle(DetectModExporter::USE_SHARED_MEMORY);
+		if (config->nodeExists(config_space::SHMSIZE)) {
+			unsigned shmSize;
+			shmSize = atoi(config->getValue(config_space::SHMSIZE).c_str());
+			exporter->setSharedMemorySize(shmSize);
+		} else {
+			throw exceptions::ConfigError("No shm size for IPFIX-storage specified");
+		}
+		config->leaveNode();
 	}
 }
 
@@ -282,33 +305,32 @@ void Collector::readRecording(XMLConfObj* config)
 {
 	std::string tmp;
 	/* turn recording on/off. turned off by default */
-	if (config->nodeExists(config_space::PLAYER)) {
-		config->enterNode(config_space::PLAYER);
-		std::string type = config->getValue(config_space::ACTION);
-		if (type != config_space::OFF) {
-			tmp = config->getValue(config_space::TRAFFIC_DIR);
-			if (type == config_space::RECORD) {
-				if (recorder)
-					delete recorder;
-				recorder = new FileRecorder(tmp, FileRecorder::PrepareRecording);
-				replaying = false;
-				msg(MSG_INFO, "Turned on recorder. IPFIX packets will be stored in %s", tmp.c_str());
-			} else if (type == config_space::REPLAY) {
-				if (recorder)
-					delete recorder;
-				recorder = new FileRecorder(tmp, FileRecorder::PrepareReplaying);
-				recorder->setPacketCallback(Collector::messageCallBackFunction);
-				replaying = true;
-				msg(MSG_INFO, "Collector now starts in replay mode");
-			} else {
-				throw exceptions::ConfigError("Only \"" + config_space::REPLAY + "\", \""
-							      + config_space::RECORD + "\" or \"" 
-							      + config_space::OFF + "\" are allowed for "
-							      + config_space::ACTION);
-			}
-		} else {
+	config->enterNode(config_space::PLAYER);
+	std::string type = config->getValue(config_space::ACTION);
+	if (type != config_space::OFF) {
+		tmp = config->getValue(config_space::TRAFFIC_DIR);
+		if (type == config_space::RECORD) {
+			if (recorder)
+				delete recorder;
+			recorder = new FileRecorder(tmp, FileRecorder::PrepareRecording);
 			replaying = false;
+			msg(MSG_INFO, "Turned on recorder. IPFIX packets will be stored in %s",
+			    tmp.c_str());
+		} else if (type == config_space::REPLAY) {
+			if (recorder)
+				delete recorder;
+			recorder = new FileRecorder(tmp, FileRecorder::PrepareReplaying);
+			recorder->setPacketCallback(Collector::messageCallBackFunction);
+			replaying = true;
+			msg(MSG_INFO, "Collector now starts in replay mode");
+		} else {
+			throw exceptions::ConfigError("Only \"" + config_space::REPLAY + "\", \""
+						      + config_space::RECORD + "\" or \"" 
+						      + config_space::OFF + "\" are allowed for "
+						      + config_space::ACTION);
 		}
+	} else {
+		replaying = false;
 	}
 }
 
@@ -318,50 +340,47 @@ void Collector::readIDMEF(XMLConfObj* config)
 	std::string tmp;
 	config->leaveNode();
 	/* configure xmlBlaster connection properties */
-	if (config->nodeExists(config_space::XMLBLASTERS)) {
-		config->enterNode(config_space::XMLBLASTERS);
-		if (config->nodeExists(config_space::XMLBLASTER)) {
-			config->setNode(config_space::XMLBLASTER);
-			unsigned int count = 0;
+	config->enterNode(config_space::XMLBLASTERS);
+	if (config->nodeExists(config_space::XMLBLASTER)) {
+		throw exceptions::ConfigError("No <" + config_space::XMLBLASTER
+					      + "> statement in config file");
+	}
+
+	config->setNode(config_space::XMLBLASTER);
+	unsigned int count = 0;
+	while (config->nextNodeExists()) {
+		config->enterNextNode();
+		/* Property does handle properties in the java-way */
+		Property::MapType propMap;
+		std::vector<std::string> props;
+		/* get all properties */
+		if (config->nodeExists(config_space::XMLBLASTER_PROP)) {
+			props.push_back(config->getValue(config_space::XMLBLASTER_PROP));
 			while (config->nextNodeExists()) {
-				config->enterNextNode();
-				/* Property does handle properties in the java-way */
-				Property::MapType propMap;
-				std::vector<std::string> props;
-				/* get all properties */
-				if (config->nodeExists(config_space::XMLBLASTER_PROP)) {
-					props.push_back(config->getValue(config_space::XMLBLASTER_PROP));
-					while (config->nextNodeExists()) {
-						props.push_back(config->getNextValue());
-					}
-				} else {
-					msg(MSG_INFO, ("No <" + config_space::XMLBLASTER_PROP + 
-						       "> statement in config file, using default values").c_str());
-				}
-				for (unsigned i = 0; i != props.size(); ++i) {
-					unsigned seperatorPos;
-					if (std::string::npos != (seperatorPos = props[i].find(' '))) {
-						std::string key = std::string(props[i].begin(), props[i].begin() + seperatorPos);
-						std::string value  = std::string(props[i].begin() + seperatorPos + 1, props[i].end());
-						propMap[key] = value;
-					}
-				}
-				/* global configuration for each xmlBlaster connection */
-				std::string instanceName = "connection-" + ++count;
-				GlobalRef globalRef =  Global::getInstance().createInstance(instanceName, &propMap);
-				/* get topas id here */
-				std::string str = globalRef.getElement()->getInstanceId();
-				man->topasID = std::string(str.begin() + str.find_last_of("/") + 1, str.end());
-				man->xmlBlasters.push_back(globalRef);
-				config->leaveNode();
+				props.push_back(config->getNextValue());
 			}
 		} else {
-			throw exceptions::ConfigError("No <" + config_space::XMLBLASTER  + "> statement in config file");
+			msg(MSG_INFO, ("No <" + config_space::XMLBLASTER_PROP + 
+				       "> statement in config file, using default values").c_str());
 		}
+		for (unsigned i = 0; i != props.size(); ++i) {
+			unsigned seperatorPos;
+			if (std::string::npos != (seperatorPos = props[i].find(' '))) {
+				std::string key = std::string(props[i].begin(), props[i].begin() + seperatorPos);
+				std::string value  = std::string(props[i].begin() + seperatorPos + 1, props[i].end());
+				propMap[key] = value;
+			}
+		}
+		/* global configuration for each xmlBlaster connection */
+		std::string instanceName = "connection-" + ++count;
+		GlobalRef globalRef =  Global::getInstance().createInstance(instanceName, &propMap);
+		/* get topas id here */
+		std::string str = globalRef.getElement()->getInstanceId();
+		man->topasID = std::string(str.begin() + str.find_last_of("/") + 1, str.end());
+		man->xmlBlasters.push_back(globalRef);
 		config->leaveNode();
-	} else {
-		throw exceptions::ConfigError("No <" + config_space::XMLBLASTERS  + "> statement in config file");
 	}
+	config->leaveNode();
 #endif
 }
 
@@ -381,18 +400,15 @@ void Collector::run()
 		throw std::runtime_error("Collector isn't able to run without a mangager");
 	}
 
-	/* If the signal handler couldn't be installed, the collector will be shut down after the first signal
-                   arrived. If the signal handler could be installed successful the collector will only be shut down,
-                   if SIGINT arrives
-	*/
-	bool inst_sig_handler = true;
 	if (SIG_ERR == signal(SIGINT, sigInt)) {
-		msg(MSG_ERROR, "Collector: Can't install signal handler for SIGINT: %s", strerror(errno));
-		inst_sig_handler = false;
+		msg(MSG_ERROR, "Collector: Can't install signal handler for SIGINT: %s",
+		    strerror(errno));
+		return;
 	}
 	if (SIG_ERR == signal(SIGTERM, sigInt)) {
-		msg(MSG_ERROR, "Collector: Can't install signal handler for SIGTERM: %s", strerror(errno));
-		inst_sig_handler = false;
+		msg(MSG_ERROR, "Collector: Can't install signal handler for SIGTERM: %s",
+		    strerror(errno));
+		return;
 	}
 
 	if (replaying) {
@@ -416,17 +432,12 @@ void Collector::run()
 		addIpfixPacketProcessor(ipfixCollector, packetProcessor);
 		msg(MSG_INFO, "Starting IpfixCollector");
 		startIpfixCollector(ipfixCollector);
-		
-		if (inst_sig_handler) {
-			while (!terminateCollector) {
-				pause();
-			}
-			msg(MSG_INFO, "Shutdown arrived, waiting 2 seconds before exit...");
-			sleep(2);
-		}
-		else {
+
+		while (!terminateCollector) {
 			pause();
 		}
+		msg(MSG_INFO, "Shutdown arrived, waiting 2 seconds before exit...");
+		sleep(2);
 		
 		msg(MSG_INFO, "Shutting down IpfixCollector");
 		
