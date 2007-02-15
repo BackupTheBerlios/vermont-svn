@@ -152,7 +152,7 @@ void manager::sigChild(int sig)
 
         if (WIFEXITED(status)) {
                 if (WEXITSTATUS(status) == 0) {
-                        msg(MSG_ERROR, "Manager: Detection module with pid %i"
+                        msg(MSG_ERROR, "Manager: Detection module with pid %i "
 			    "terminated with exist state 0. Not restarting module", pid);
 			detectionModules.setState(pid, DetectMod::NotRunning);
 			return;

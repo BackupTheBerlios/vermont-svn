@@ -4,14 +4,14 @@
 		<workingDir>../working_dir/</workingDir>
 		<modules>
 			<module>
-			        <filename>../detectionmodules/examplemodules/third/examplemodule</filename>
-				<arg>test.xml</arg>
+			        <filename>../detectionmodules/statmodules/wkp-module/wkp-module</filename>
+				<arg>wkp-module.xml</arg>
 			</module>
 		</modules>
 		<transport_proto>UDP</transport_proto>
 		<listenPort>1500</listenPort>
 		<detectmod_killtime>0</detectmod_killtime>
-		<restartOnCrash>yes</restartOnCrash>
+		<restartOnCrash>no</restartOnCrash>
 		<exchangeProtocol type="files">
 			<packetDir>packet_dir/</packetDir>
 		</exchangeProtocol>
