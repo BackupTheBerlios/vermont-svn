@@ -26,6 +26,7 @@
 #include "PacketProcessor.h"
 #include "SystematicSampler.h"
 #include "RandomSampler.h"
+#include "stringFilter.h"
 
 class Filter : public PacketReceiver
 {

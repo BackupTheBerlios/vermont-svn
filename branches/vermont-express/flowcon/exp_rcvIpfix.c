@@ -877,97 +877,145 @@ ExpressFieldInfo* ExpressgetTemplateFieldInfo(ExpressTemplateInfo* ti, ExpressFi
  * @return NULL if not found
  */
 
-ExpressFieldInfo* ExpressgetFieldInfo(ExpressFieldType type, int offset) {
+int ExpressgetFieldInfo(ExpressFieldType type, int offset) {
 
-	ExpressFieldInfo* ExpressFields;
-	ExpressFields=(ExpressFieldInfo*)malloc(4 * sizeof(ExpressFieldInfo));
-	ExpressFields->type.eid = 0;
+	int type_offset;
 
 	switch (type.id) {
 	case IPFIX_TYPEID_packetDeltaCount:
-		ExpressFields->offset = 10;
-		ExpressFields->type.id = 2;
-		ExpressFields->type.length = 1;
-		return ExpressFields;
+		type_offset = 10;
+		return type_offset;
 		break;
 
 	case IPFIX_TYPEID_flowStartSeconds:
-		ExpressFields->offset = 4;
-		ExpressFields->type.id = 150;
-		ExpressFields->type.length = 4;
-		return ExpressFields;
+		type_offset = 4;
+		return type_offset;
 		break;
 
 	case IPFIX_TYPEID_flowEndSeconds:
-		ExpressFields->offset = 4;
-		ExpressFields->type.id = 151;
-		ExpressFields->type.length = 4;
-		return ExpressFields;
+		type_offset = 4;
+		return type_offset;
 		break;
 
 	case IPFIX_TYPEID_octetDeltaCount:
-		ExpressFields->offset = 2;
-		ExpressFields->type.id = 1;
-		ExpressFields->type.length = 2;
-		return ExpressFields;
+		type_offset = 2;
+		return type_offset;
 		break;
 
 	case IPFIX_TYPEID_protocolIdentifier:
-		ExpressFields->offset = 9;
-		ExpressFields->type.id = 4;
-		ExpressFields->type.length = 1;
-		return ExpressFields;
+		type_offset = 9;
+		return type_offset;
 		break;
 
 	case IPFIX_TYPEID_sourceIPv4Address:
-		ExpressFields->offset = 12;
-		ExpressFields->type.id = 8;
-		ExpressFields->type.length = 4;
-		return ExpressFields;
+		type_offset = 12;
+		return type_offset;
 		break;
 
 	case IPFIX_TYPEID_destinationIPv4Address:
-		ExpressFields->offset = 16;
-		ExpressFields->type.id = 12;
-		ExpressFields->type.length = 4;
-		return ExpressFields;
+		type_offset = 16;
+		return type_offset;
 		break;
 
 	case IPFIX_TYPEID_icmpTypeCode:
-		ExpressFields->offset = 0 + offset;
-		ExpressFields->type.id = 32;
-		ExpressFields->type.length = 2;
-		return ExpressFields;
+		type_offset = 0 + offset;
+		return type_offset;
 		break;
 
 	case IPFIX_TYPEID_sourceTransportPort:
-		ExpressFields->offset = 0 + offset;
-		ExpressFields->type.id = 7;
-		ExpressFields->type.length = 2;
-		return ExpressFields;
+		type_offset = 0 + offset;
+		return type_offset;
 		break;
 
 	case IPFIX_TYPEID_destinationTransportPort:
-		ExpressFields->offset = 2 + offset;
-		ExpressFields->type.id = 11;
-		ExpressFields->type.length = 2;
-		return ExpressFields;
+		type_offset = 2 + offset;
+		return type_offset;
 		break;
 
 	case IPFIX_TYPEID_tcpControlBits:
-		ExpressFields->offset = 13 + offset;
-		ExpressFields->type.id = 6;
-		ExpressFields->type.length = 1;
-		return ExpressFields;
+		type_offset = 13 + offset;
+		return type_offset;
 		break;
 
 	default:
-		return NULL;
+		return 999;
 		break;
 	}
 
-	return NULL;
+	return 999;
 }
+
+/**
+ * gets a types length
+ **/
+int ExpressgetFieldLength(ExpressFieldType type) {
+
+	int type_length;
+
+	switch (type.id) {
+	case IPFIX_TYPEID_packetDeltaCount:
+		type_length = 1;
+		return type_length;
+		break;
+
+	case IPFIX_TYPEID_flowStartSeconds:
+		type_length = 4;
+		return type_length;
+		break;
+
+	case IPFIX_TYPEID_flowEndSeconds:
+		type_length = 4;
+		return type_length;
+		break;
+
+	case IPFIX_TYPEID_octetDeltaCount:
+		type_length = 2;
+		return type_length;
+		break;
+
+	case IPFIX_TYPEID_protocolIdentifier:
+		type_length = 1;
+		return type_length;
+		break;
+
+	case IPFIX_TYPEID_sourceIPv4Address:
+		type_length = 4;
+		return type_length;
+		break;
+
+	case IPFIX_TYPEID_destinationIPv4Address:
+		type_length = 4;
+		return type_length;
+		break;
+
+	case IPFIX_TYPEID_icmpTypeCode:
+		type_length = 4;
+		return type_length;
+		break;
+
+	case IPFIX_TYPEID_sourceTransportPort:
+		type_length = 2;
+		return type_length;
+		break;
+
+	case IPFIX_TYPEID_destinationTransportPort:
+		type_length = 2;
+		return type_length;
+		break;
+
+	case IPFIX_TYPEID_tcpControlBits:
+		type_length = 1;
+		return type_length;
+		break;
+
+	default:
+		return 999;
+		break;
+	}
+
+	return 999;
+}
+
 
 
 /**

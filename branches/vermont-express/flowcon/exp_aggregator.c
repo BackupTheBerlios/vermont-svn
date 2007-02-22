@@ -228,7 +228,7 @@ void addExpressAggregatorCallbacks(IpfixExpressAggregator* ipfixExpressAggregato
 		ExpresshashingAddCallbacks(rules->rule[i]->hashtable, handles);
 	}
 }
-
+/*
 ExpressCallbackInfo getExpressAggregatorCallbackInfo(IpfixExpressAggregator* ipfixExpressAggregator)
 {
 	ExpressCallbackInfo ci;
@@ -240,7 +240,7 @@ ExpressCallbackInfo getExpressAggregatorCallbackInfo(IpfixExpressAggregator* ipf
 
 	return ci;
 }
-
+*/
 /**
  * Called by the logger timer thread. Dumps info using msg_stat
  */

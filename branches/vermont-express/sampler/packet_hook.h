@@ -17,6 +17,9 @@ struct packet_hook {
 
         /* length of packet in bytes, including link layer header */
 	int length;
+
+	/* classification of the packet. can be PCLASS_NET_XX or PCLASS_TRN_XXX. See Packet.h*/
+	int classification;
 };
 
 

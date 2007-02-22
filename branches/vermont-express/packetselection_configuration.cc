@@ -12,6 +12,8 @@
 #include <sampler/PacketProcessor.h>
 #include <sampler/HookingFilter.h>
 #include <sampler/PacketSink.h>
+#include <sampler/stringFilter.h>
+#include <sampler/regExFilter.h>
 
 
 PacketSelectionConfiguration::PacketSelectionConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
@@ -87,8 +89,47 @@ void PacketSelectionConfiguration::configure()
 				j = j->next;
 			}
 			filter->addProcessor(new RandomSampler(n, N));
+		} else if (tagMatches(i, "stringFilter")) {
+
+			stringFilter* sfilter = new stringFilter();
+			xmlNodePtr j = i->xmlChildrenNode;
+			while (NULL != j) {
+				if (tagMatches(j, "matchString")) {
+					xmlNodePtr k = j->xmlChildrenNode;
+						while (NULL != k) {
+							if (tagMatches(k, "is")) {
+								char *tmp = new char[getContent(k).length() + 1];;
+								strcpy(tmp, getContent(k).c_str());
+								sfilter->addandFilter(tmp);
+							} else if (tagMatches(k, "isnot")) {
+								char *tmp = new char[getContent(k).length() + 1];;
+								strcpy(tmp, getContent(k).c_str());
+								sfilter->addnotFilter(tmp);
+							}
+							k = k->next;
+						}
+				}
+
+				j = j->next;
+			}
+			msg(MSG_INFO, "stringFilter: string to filter: %s %i", toMatch.c_str(), matchtype);
+			filter->addProcessor(sfilter);
 		} else if (tagMatches(i, "uniProb")) {
 			msg(MSG_ERROR, "packetSelection: uniProb not yet implemented!");
+		} else if (tagMatches(i, "regexFilter")) {
+			regExFilter* rfilter = new regExFilter();
+			msg(MSG_ERROR, "packetSelection: regexFilter configuring!");
+			xmlNodePtr j = i->xmlChildrenNode;
+			while (NULL != j) {
+				if (tagMatches(j, "matchPattern")) {
+					strcpy(rfilter->match, getContent(j).c_str());
+				}
+				j = j->next;
+			}
+
+
+			filter->addProcessor(rfilter);
+
 		} else if (tagMatches(i, "nonUniProb")) {
 			msg(MSG_ERROR, "packetSelection: nonUniProb not yet implemented");
 		} else if (tagMatches(i, "flowState")) {

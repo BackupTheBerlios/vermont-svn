@@ -271,7 +271,8 @@ void ExpressdestroyIpfixParser(ExpressIpfixParser* ipfixParser);
 
 void ExpressprintFieldData(ExpressFieldType type, FieldData* pattern);
 
-ExpressFieldInfo* ExpressgetFieldInfo(ExpressFieldType type, int);
+int ExpressgetFieldInfo(ExpressFieldType type, int);
+int ExpressgetFieldLength(ExpressFieldType type);
 
 ExpressFieldInfo* ExpressgetTemplateFieldInfo(ExpressTemplateInfo* ti, ExpressFieldType* type);
 ExpressFieldInfo* ExpressgetDataTemplateFieldInfo(ExpressDataTemplateInfo* ti, ExpressFieldType* type);

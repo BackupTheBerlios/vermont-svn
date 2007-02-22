@@ -18,6 +18,8 @@ bool HookingFilter::processPacket(const Packet *p)
 	ph.timestamp=&(p->timestamp);
 	ph.length=p->data_length;
 
+	ph.classification=p->classification;
+
         /* call hooking function */
 	f(ctx, (void *)&ph);
 

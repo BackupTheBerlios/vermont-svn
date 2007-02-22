@@ -626,6 +626,96 @@ static void ExpresscopyData(ExpressFieldType* dstType, FieldData* dstData, Expre
 	}
 }
 
+
+/**
+ * Copies \c srcData to \c dstData applying \c modifier.
+ * Takes care to pad \c srcData with zero-bytes in case it is shorter than \c dstData.
+ * modified version for flowcon
+ */
+static void ExpresscopyDatalight(ExpressFieldType* dstType, FieldData* dstData, ExpressFieldType* srcType, FieldData* srcData, ExpressFieldModifier modifier)
+{
+	if((dstType->id != srcType->id)) {
+		DPRINTF("copyData: Tried to copy field to destination of different type\n");
+		return;
+	}
+
+	/* Copy data, care for length differences */
+	if(dstType->length == srcType->length) {
+		memcpy(dstData, srcData, srcType->length);
+
+	} else if(dstType->length > srcType->length) {
+
+		/* TODO: We simply pad with zeroes - will this always be correct? */
+		if((dstType->id == IPFIX_TYPEID_sourceIPv4Address) || (dstType->id == IPFIX_TYPEID_destinationIPv4Address)) {
+			/* Fields of type IPv4Address-type are padded on the right */
+			bzero(dstData, dstType->length);
+			memcpy(dstData, srcData, srcType->length);
+		} else {
+			/* TODO: all other types are padded on the left, i.e. the "big" end */
+			bzero(dstData, dstType->length);
+			memcpy(dstData + dstType->length - srcType->length, srcData, srcType->length);
+		}
+
+	} else {
+		DPRINTF("Target buffer too small. Buffer expected %s of length %d, got one with length %d\n", Expresstypeid2string(dstType->id), dstType->length, srcType->length);
+		return;
+	}
+
+	/* Apply modifier */
+	if(modifier == FIELD_MODIFIER_DISCARD) {
+		DPRINTF("Tried to copy data w/ having field modifier set to discard\n");
+		return;
+	} else if((modifier == FIELD_MODIFIER_KEEP) || (modifier == FIELD_MODIFIER_AGGREGATE)) {
+
+	} else if((modifier >= FIELD_MODIFIER_MASK_START) && (modifier <= FIELD_MODIFIER_MASK_END)) {
+
+		if((dstType->id != IPFIX_TYPEID_sourceIPv4Address) && (dstType->id != IPFIX_TYPEID_destinationIPv4Address)) {
+			DPRINTF("Tried to apply mask to %s field\n", Expresstypeid2string(dstType->id));
+			return;
+		}
+
+		if (dstType->length != 5) {
+			DPRINTF("Destination data to short - no room to store mask\n");
+			return;
+		}
+
+		uint8_t imask = 32 - (modifier - FIELD_MODIFIER_MASK_START);
+		dstData[4] = imask; /* store the inverse network mask */
+
+		if (imask > 0) {
+			if (imask == 8) {
+				dstData[3] = 0x00;
+			} else if (imask == 16) {
+				dstData[2] = 0x00;
+				dstData[3] = 0x00;
+			} else if (imask == 24) {
+				dstData[1] = 0x00;
+				dstData[2] = 0x00;
+				dstData[3] = 0x00;
+			} else if (imask == 32) {
+				dstData[0] = 0x00;
+				dstData[1] = 0x00;
+				dstData[2] = 0x00;
+				dstData[3] = 0x00;
+			} else {
+				int pattern = 0;
+				int i;
+				for(i = 0; i < imask; i++) {
+					pattern |= (1 << i);
+				}
+
+				*(uint32_t*)dstData = htonl(ntohl(*(uint32_t*)(dstData)) & ~pattern);
+			}
+		}
+
+	} else {
+		DPRINTF("Unhandled field modifier: %d\n", modifier);
+		return;
+	}
+}
+
+
+
 /**
  * Buffer passed flow in Hashtable @c ht
  */
@@ -638,53 +728,16 @@ static void ExpresscopyData(ExpressFieldType* dstType, FieldData* dstData, Expre
 
 	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
 		ExpressFieldInfo* hfi = &ht->dataTemplate->fieldInfo[i];
-		/*ExpressFieldInfo* tfi = ExpressgetTemplateFieldInfo(ti, &hfi->type);*/
-		ExpressFieldInfo* tfi = ExpressgetFieldInfo(hfi->type, transport_offset);
+		int tfi = ExpressgetFieldInfo(hfi->type, transport_offset);
+		int tfil = ExpressgetFieldLength(hfi->type);
 
-		if(!tfi) {
+		if(tfi == 999) {
 			DPRINTF("Flow to be buffered did not contain %s field\n", Expresstypeid2string(hfi->type.id));
 			continue;
 		}
 
-		ExpresscopyData(&hfi->type, htdata + hfi->offset, &tfi->type, data + tfi->offset, ht->fieldModifier[i]);
+		ExpresscopyDatalight(&hfi->type, htdata + hfi->offset, &(ExpressFieldType){.id = hfi->type.id, .length=tfil} , data + tfi, ht->fieldModifier[i]);
 
-		/* copy associated mask, should there be one */
-		switch (hfi->type.id) {
-		case IPFIX_TYPEID_sourceIPv4Address:
-/*			tfi = ExpressgetTemplateFieldInfo(ti, &(ExpressFieldType){.id = IPFIX_TYPEID_sourceIPv4Mask, .eid = 0 });
-
-			if(tfi) {
-				if(hfi->type.length != 5) {
-					DPRINTF("Tried to set mask of length %d IP address\n", hfi->type.length);
-				} else {
-					if(tfi->type.length == 1) {
-						*(uint8_t*)(htdata + hfi->offset + 4) = *(uint8_t*)(data + tfi->offset);
-					} else {
-						DPRINTF("Cannot process associated mask with invalid length %d\n", tfi->type.length);
-					}
-				}
-			}*/
-			break;
-
-		case IPFIX_TYPEID_destinationIPv4Address:
-/*			tfi = ExpressgetTemplateFieldInfo(ti, &(ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Mask, .eid = 0});
-
-			if(tfi) {
-				if(hfi->type.length != 5) {
-					DPRINTF("Tried to set mask of length %d IP address\n", hfi->type.length);
-				} else {
-					if(tfi->type.length == 1) {
-						*(uint8_t*)(htdata + hfi->offset + 4) = *(uint8_t*)(data + tfi->offset);
-					} else {
-						DPRINTF("Cannot process associated mask with invalid length %d\n", tfi->type.length);
-					}
-				}
-			}*/
-			break;
-
-		default:
-			break;
-		}
 	}
 
 	/* ...then buffer it */

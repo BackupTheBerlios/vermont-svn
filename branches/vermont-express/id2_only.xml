@@ -32,6 +32,7 @@
 		</flowKey>
 		<flowKey>
 		    <ieName>destinationTransportPort</ieName>
+		    <match>80</match>
 		</flowKey>
 		<nonFlowKey>
 		    <ieName>flowStartSeconds</ieName>

@@ -618,10 +618,9 @@ static int ExpressmatchesPattern(ExpressFieldType* dataType, FieldData* data, Ex
  * If a flow's IP matched a ruleField's IP address + mask,
  * we will also have to check if the flow's mask is no broader than the ruleField's
  * @return 0 if the field had an associated mask that did not match
- */
+ *//*
 static int ExpresscheckAssociatedMask(FieldData* data, ExpressRuleField* ruleField) {
 	if ((ruleField->type.id == IPFIX_TYPEID_sourceIPv4Address) && (ruleField->pattern) && (ruleField->type.length == 5)) {
-		/*ExpressFieldInfo* maskInfo = ExpressgetTemplateFieldInfo(info, &(ExpressFieldType){.id = IPFIX_TYPEID_sourceIPv4Mask, .eid = 0});*/
 		ExpressFieldInfo* maskInfo = ExpressgetFieldInfo((ExpressFieldType){.id = IPFIX_TYPEID_sourceIPv4Mask, .eid = 0}, 0);
 		if (!maskInfo) return 1;
 
@@ -630,7 +629,6 @@ static int ExpresscheckAssociatedMask(FieldData* data, ExpressRuleField* ruleFie
 		return (dmask >= pmask);
 	}
 	if ((ruleField->type.id == IPFIX_TYPEID_destinationIPv4Address) && (ruleField->pattern) && (ruleField->type.length == 5)) {
-		/*ExpressFieldInfo* maskInfo = ExpressgetTemplateFieldInfo(info, &(ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Mask, .eid = 0});*/
 		ExpressFieldInfo* maskInfo = ExpressgetFieldInfo((ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Mask, .eid = 0}, 0);
 		if (!maskInfo) return 1;
 
@@ -639,7 +637,7 @@ static int ExpresscheckAssociatedMask(FieldData* data, ExpressRuleField* ruleFie
 		return (dmask >= pmask);
 	}
 	return 1;
-}
+}*/
 
 /**
  * templateDataMatchesRule helper.
@@ -699,19 +697,46 @@ static int ExpresscheckAssociatedMask3(ExpressDataTemplateInfo* info, FieldData*
  */
 int ExpresstemplateDataMatchesRule(FieldData* data, ExpressRule* rule, int transport_offset) {
 	int i;
-	ExpressFieldInfo* fieldInfo;
+	int field_offset;
 
 	for (i = 0; i < rule->fieldCount; i++) {
 		ExpressRuleField* ruleField = rule->field[i];
 
 		/* for all patterns of this rule, check if they are matched */
 		if (rule->field[i]->pattern) {
-/*			fieldInfo = ExpressgetTemplateFieldInfo(info, &ruleField->type);*/
-			fieldInfo = ExpressgetFieldInfo(ruleField->type, transport_offset);
-			if (fieldInfo) {
-				/* corresponding data field found, check if it matches. If it doesn't the whole rule cannot be matched */
-				if (!ExpressmatchesPattern(&fieldInfo->type, (data + fieldInfo->offset), &ruleField->type, ruleField->pattern)) return 0;
-				if (!ExpresscheckAssociatedMask(data, ruleField)) return 0;
+			field_offset = ExpressgetFieldInfo(ruleField->type, transport_offset);
+			if (field_offset != 999) {
+				if (ruleField->pattern == NULL) return 1;
+				switch (ruleField->type.id) {
+					case IPFIX_TYPEID_sourceIPv4Address:
+					case IPFIX_TYPEID_destinationIPv4Address: {
+						int dmaski = ExpressgetIPv4IMask( &(ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Address, .length=4} , (data + field_offset));
+						int pmaski = ExpressgetIPv4IMask(&ruleField->type, ruleField->pattern);
+
+						if (dmaski > pmaski) return 0;
+
+						uint32_t daddr = ExpressgetIPv4Address( &(ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Address, .length=4}, (data + field_offset));
+						uint32_t paddr = ExpressgetIPv4Address(&ruleField->type, ruleField->pattern);
+
+						return ((daddr >> pmaski) == (paddr >> pmaski));
+						break;
+					}
+					case IPFIX_TYPEID_sourceTransportPort:
+						return ExpressmatchesPortPattern( &(ExpressFieldType){.id = IPFIX_TYPEID_sourceTransportPort, .length=2}, (data + field_offset), &ruleField->type, ruleField->pattern);
+						break;
+					case IPFIX_TYPEID_destinationTransportPort:
+						
+						return ExpressmatchesPortPattern( &(ExpressFieldType){.id = IPFIX_TYPEID_destinationTransportPort, .length=2}, (data + field_offset), &ruleField->type, ruleField->pattern);
+						break;
+					default:
+						
+						return ExpressmatchesRawPattern(&ruleField->type, (data + field_offset), &ruleField->type, ruleField->pattern);
+					break;
+					}
+
+				//if (!ExpressmatchesPattern(&ruleField->type, (data + field_offset), &ruleField->type, ruleField->pattern)) return 0;
+				//static int ExpressmatchesPattern(ExpressFieldType* dataType, FieldData* data, ExpressFieldType* patternType, FieldData* pattern) {
+
 				continue;
 			}
 
@@ -722,8 +747,8 @@ int ExpresstemplateDataMatchesRule(FieldData* data, ExpressRule* rule, int trans
 		/* if a non-discarding rule field specifies no pattern, check at least if the data field exists */
 		else if (rule->field[i]->modifier != FIELD_MODIFIER_DISCARD) {
 			/*fieldInfo = ExpressgetTemplateFieldInfo(info, &ruleField->type);*/
-			fieldInfo = ExpressgetFieldInfo(ruleField->type, transport_offset);
-			if (fieldInfo) continue;
+			field_offset = ExpressgetFieldInfo(ruleField->type, transport_offset);
+			if (field_offset != 999) continue;
 			msg(MSG_DEBUG, "No corresponding DataRecord field for RuleField of type %s", Expresstypeid2string(ruleField->type.id));
 			return 0;
 		}

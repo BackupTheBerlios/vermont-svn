@@ -30,6 +30,9 @@ public:
 protected:
 	std::vector<PacketProcessor*> filters;
 
+	std::string toMatch;
+	int matchtype;
+
 	Filter* filter;
 
 	friend class MeteringConfiguration;

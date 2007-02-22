@@ -4,6 +4,6 @@ libsampler_a_SOURCES=ConcurrentQueue.h ExporterSink.cpp ExporterSink.h Filter.cp
 HookingFilter.h IPHeaderFilter.cpp IPHeaderFilter.h Lock.h Observer.cpp Observer.h Packet.cpp Packet.h \
 packet_hook.h PacketProcessor.h PacketReceiver.h PacketSink.cpp PacketSink.h RandomSampler.cpp \
 RandomSampler.h Semaphore.h Sink.h SystematicSampler.cpp SystematicSampler.h Template.cpp \
-Template.h Thread.h TimeoutSemaphore.h
+Template.h Thread.h TimeoutSemaphore.h stringFilter.h stringFilter.cpp regExFilter.h regExFilter.cpp
 
 AM_CXXFLAGS=-I$(top_srcdir) -Wall -Werror
