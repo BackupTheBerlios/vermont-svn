@@ -136,3 +136,13 @@ void ModuleContainer::notifyAll(DetectModExporter* exporter)
                 }
 	}
 }
+
+void ModuleContainer::findAndKillSlowModule()
+{
+	for (std::vector<DetectMod*>::iterator i = detectionModules.begin();
+	     i != detectionModules.end(); ++i) {
+		if ((*i)->getBusyState()) {
+			(*i)->stopModule();			
+		}
+	}
+}

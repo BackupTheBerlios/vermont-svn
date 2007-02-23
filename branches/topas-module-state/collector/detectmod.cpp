@@ -32,6 +32,7 @@
 
 
 DetectMod::DetectMod(const std::string& filename)
+	: busy(false)
 {
         this->filename = filename;
         /* Initial semahore key. We will try to find an unsed semaphore >= the initial value. */
@@ -114,6 +115,7 @@ void DetectMod::run()
 
 void DetectMod::stopModule() 
 {
+	state = DetectMod::Crashed;
         kill(pid, SIGTERM);
         if (-1 == semctl(semId,0,IPC_RMID,NULL)) {
                 msg(MSG_ERROR, "DetectMod: Error deleting semaphore to %s: %s", filename.c_str(), strerror(errno));

@@ -139,7 +139,7 @@ void Manager::sigAlarm(int)
                 return;
 
         msg(MSG_ERROR, "Manager: One or more detection modules seem to parse their files to slowly.");
-        /* TODO: implement some error handling */
+	runningModules.findAndKillSlowModule();
 }
 
 void Manager::sigChild(int sig) 
