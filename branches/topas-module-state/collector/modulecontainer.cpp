@@ -77,6 +77,9 @@ void ModuleContainer::deleteModule(pid_t pid)
 void ModuleContainer::startModules(DetectModExporter* exporter) 
 {
         for (unsigned i = 0; i != detectionModules.size(); ++i) {
+		// do not start already running modules
+		if (detectionModules[i]->getState() == DetectMod::Running)
+			break;
                 msg(MSG_INFO, "Starting module number %d: %s", i+1, 
 		    detectionModules[i]->getFileName().c_str());
                 exporter->installNotification(*detectionModules[i]);

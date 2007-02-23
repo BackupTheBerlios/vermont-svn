@@ -241,12 +241,34 @@ void Manager::killModules()
 void Manager::update(XMLConfObj* xmlObj)
 {
 	std::cout << "Update for topas received!" << std::endl;
+
+	/*
+ 	 * For Raimondas:
+ 	 * start module: 
+ 	 * 	- extract filename from message
+ 	 *	- runningModules.createModule(filename, availableModules[filename]);
+ 	 *	- runningModules.startModules();
+ 	 * get default config:
+ 	 * 	- extract filename from message
+ 	 * 	- availableModules[filename][0] holds path to config file
+ 	 * 	- open and read the availableModules[filename][0] and create
+ 	 * 	  your idmef message
+ 	 * 	- send idmef message
+ 	 * stop module:
+ 	 * 	- will be done via sending idmef-message to the module itself
+ 	 *
+ 	 * did i miss something?
+ 	 */
+
+	/*
         if (xmlObj->nodeExists("start")) {
-		std::cout << "-> starting module..." << std::endl;
+		//  std::cout << "-> starting module..." << std::endl;
+		// 
         } else if (xmlObj->nodeExists("stop")) {
 		std::cout << "-> stoping module..." << std::endl;
         } else { // add your commands here
 		std::cout << "-> unknown operation" << std::endl;
         }
+	*/
 }
 #endif

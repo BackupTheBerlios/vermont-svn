@@ -48,7 +48,6 @@ DetectMod::~DetectMod()
 
 void DetectMod::run() 
 {
-	state = DetectMod::Running;
         /* try to get an unused semaphore key */
         while ((-1 == (semId = semget(semKey, 1, S_IRWXU | IPC_CREAT | IPC_EXCL))) && errno == EEXIST) {
                 ++semKey;
@@ -111,6 +110,8 @@ void DetectMod::run()
         if (-1 == close(tmpFd[1])) {
                 throw exceptions::DetectionModuleError(filename, "Could not close temporary pipe descriptor", strerror(errno));
         }
+
+	state = DetectMod::Running;
 }
 
 void DetectMod::stopModule() 
