@@ -352,7 +352,7 @@ void Manager::update(XMLConfObj* xmlObj)
 						+ config_space::CONFIG_FILE + "=\"" + configFile + "\"/>";
 				}
 			}
-			if (message != 0) {
+			if (message != "") {
 				sendControlMessage("<result>\n" + message + "\n</result>");
 			} else {
 				sendControlMessage("<result>No running modules available</result>");
