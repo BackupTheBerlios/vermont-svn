@@ -148,6 +148,11 @@ private:
          *               You have to delete the memory allocated for the object.
          */
         void update(XMLConfObj* xmlObj);
+
+	/**
+	 * Sends control messages to module manager
+	 */
+	void sendControlMessage(const std::string& message);
 #endif
 
 protected:

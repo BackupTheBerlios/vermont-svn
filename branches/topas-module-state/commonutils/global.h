@@ -76,9 +76,12 @@ namespace config_space
 	static const std::string XMLBLASTER_PROP="prop";
 	static const std::string MANAGER_ID="managerID";
 	static const std::string DEFAULT_MANAGER_ID="topas-manager";
+	static const std::string START="start";
 	static const std::string STOP="stop";
 	static const std::string RESTART="restart";
-
+	static const std::string GET_MODULE_CONFIG="getModuleConfig";
+	static const std::string UPDATE_MODULE_CONFIG="updateModuleConfig";
+	static const std::string MODULE_FILENAME="fileName";
 
         static const int MAX_IPFIX_PACKET_LENGTH=65536;
         static const unsigned DEFAULT_KILL_TIME = 30;

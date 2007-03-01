@@ -332,20 +332,19 @@ void Collector::readRecording(XMLConfObj* config)
 	} else {
 		replaying = false;
 	}
+	config->leaveNode();
 }
 
 void Collector::readIDMEF(XMLConfObj* config)
 {
 #ifdef IDMEF_SUPPORT_ENABLED
 	std::string tmp;
-	config->leaveNode();
 	/* configure xmlBlaster connection properties */
 	config->enterNode(config_space::XMLBLASTERS);
-	if (config->nodeExists(config_space::XMLBLASTER)) {
+	if (!config->nodeExists(config_space::XMLBLASTER)) {
 		throw exceptions::ConfigError("No <" + config_space::XMLBLASTER
 					      + "> statement in config file");
 	}
-
 	config->setNode(config_space::XMLBLASTER);
 	unsigned int count = 0;
 	while (config->nextNodeExists()) {

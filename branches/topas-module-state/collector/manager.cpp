@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <pthread.h>
 
+#include <fstream>
 
 /* static variables */
 ModuleContainer Manager::runningModules;
@@ -78,7 +79,7 @@ void Manager::addDetectionModule(const std::string& modulePath,
                 msg(MSG_ERROR, "Manager: Got empty path to detection module");
         }
         
-        /* cancle action when file doesn't exist */
+        /* cancel action when file doesn't exist */
         struct stat buffer;
         if (-1 == lstat(modulePath.c_str(), &buffer)) {
                 msg(MSG_ERROR, "Can't stat %s: %s", modulePath.c_str(), strerror(errno));
@@ -99,7 +100,7 @@ void Manager::startModules()
         if (topasID.empty()) {
                 throw std::runtime_error("TOPAS id is empty. Cannot start modules!");
         }
-        detectionModules.topasID = config_space::TOPAS + "-" + topasID;
+        runningModules.topasID = config_space::TOPAS + "-" + topasID;
 
         /* connect to all xmlBlaster servers */
         msg(MSG_INFO, "Connecting to xmlBlaster servers");
@@ -240,35 +241,99 @@ void Manager::killModules()
 #ifdef IDMEF_SUPPORT_ENABLED
 void Manager::update(XMLConfObj* xmlObj)
 {
-	std::cout << "Update for topas received!" << std::endl;
+	msg(MSG_INFO, "Update for topas received!");
 
-	/*
- 	 * For Raimondas:
- 	 * start module: 
- 	 * 	- extract filename from message
- 	 *	- runningModules.createModule(filename, availableModules[filename]);
- 	 *	- runningModules.startModules();
- 	 * get default config:
- 	 * 	- extract filename from message
- 	 * 	- availableModules[filename][0] holds path to config file
- 	 * 	- open and read the availableModules[filename][0] and create
- 	 * 	  your idmef message
- 	 * 	- send idmef message
- 	 * stop module:
- 	 * 	- will be done via sending idmef-message to the module itself
- 	 *
- 	 * did i miss something?
- 	 */
-
-	/*
-        if (xmlObj->nodeExists("start")) {
-		//  std::cout << "-> starting module..." << std::endl;
-		// 
-        } else if (xmlObj->nodeExists("stop")) {
-		std::cout << "-> stoping module..." << std::endl;
+	/* start a module */
+        if (xmlObj->nodeExists(config_space::START)) {
+		try {
+			std::string filename = xmlObj->getAttribute(config_space::START, config_space::MODULE_FILENAME);
+			std::string config_file = xmlObj->getAttribute(config_space::START, config_space::CONFIG_FILE);
+			if (availableModules.find(filename) != availableModules.end()) {
+				msg(MSG_INFO, "Manager: starting module...");
+				availableModules[filename][0] = config_file;
+				runningModules.createModule(filename, availableModules[filename]);
+				runningModules.startModules(exporter);
+				sendControlMessage("<result>Manager: module \"" + filename + "\" started</result>");
+			} else {
+				msg(MSG_ERROR, ("Manager: module \"" + filename + "\" is not available").c_str());
+				sendControlMessage("<result>Manager: module \"" + filename + "\" is not available</result>");
+			}
+		} catch (const exceptions::XMLException &e) {
+			msg(MSG_ERROR, e.what());
+			sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
+		}
+	/* get module configuration file */
+	} else if (xmlObj->nodeExists(config_space::GET_MODULE_CONFIG)) {
+		try {
+			std::string filename = xmlObj->getAttribute(config_space::GET_MODULE_CONFIG, config_space::MODULE_FILENAME);
+			if (availableModules.find(filename) != availableModules.end()) {
+				msg(MSG_INFO, "Manager: retrieving module configuration file...");
+				std::string config_file = availableModules[filename][0];
+				std::ifstream inputStream;
+				char* line = NULL;
+				inputStream.open(config_file.c_str(), std::ios::in);
+				if (!inputStream) {
+					msg(MSG_ERROR, ("Manager: Can't open \"" + config_file + "\"").c_str());
+					sendControlMessage("<result>Manager: Can't open \"" + config_file + "\"</result>");
+				} else {
+					std::string message;
+					std::string line;
+					while (std::getline(inputStream, line)) {
+						message += line + "\n";
+					}
+					sendControlMessage("<result>" + message + "</result>");
+					inputStream.close();
+				}
+			} else {
+				msg(MSG_ERROR, ("Manager: module \"" + filename + "\" is not available").c_str());
+				sendControlMessage("<result>Manager: module \"" + filename + "\" is not available</result>");
+			}
+		} catch (const exceptions::XMLException &e) {
+			msg(MSG_ERROR, e.what());
+			sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
+		}
+	/* update module configuration file */
+	} else if (xmlObj->nodeExists(config_space::UPDATE_MODULE_CONFIG)) {
+		try {
+			std::string filename = xmlObj->getAttribute(config_space::UPDATE_MODULE_CONFIG, config_space::MODULE_FILENAME);
+			if (availableModules.find(filename) != availableModules.end()) {
+				msg(MSG_INFO, "Manager: updating module configuration file...");
+				std::string config_file = availableModules[filename][0];
+				std::ofstream outputStream;
+				outputStream.open(config_file.c_str(), std::ios::trunc);
+				if (!outputStream) {
+					msg(MSG_ERROR, ("Manager: Can't open \"" + config_file + "\"").c_str());
+					sendControlMessage("<result>Manager: Can't open \"" + config_file + "\" for writing</result>");
+				} else {
+					xmlObj->enterNode(config_space::UPDATE_MODULE_CONFIG);
+					xmlObj->enterNode(config_space::CONFIGURATION);
+					std::string message = xmlObj->toString();
+					outputStream.write(message.c_str(), message.size());
+					sendControlMessage("<result>Update succesful</result>");
+					outputStream.close();
+				}
+			} else {
+				msg(MSG_ERROR, ("Manager: module \"" + filename + "\" is not available").c_str());
+				sendControlMessage("<result>Manager: module \"" + filename + "\" is not available</result>");
+			}
+		} catch (const exceptions::XMLException &e) {
+			msg(MSG_ERROR, e.what());
+			sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
+		}
         } else { // add your commands here
-		std::cout << "-> unknown operation" << std::endl;
+		msg(MSG_INFO, "Manager: unknown operation");
         }
-	*/
 }
+
+void Manager::sendControlMessage(const std::string& message)
+{
+	for (unsigned i = 0; i != commObjs.size(); ++i) {
+		std::string managerID = (*xmlBlasters[i].getElement()).getProperty().getProperty(config_space::MANAGER_ID);
+		if (managerID == "") {
+			managerID = config_space::DEFAULT_MANAGER_ID;
+		}
+		commObjs[i]->publish(message, managerID);
+	}
+}
+
 #endif
