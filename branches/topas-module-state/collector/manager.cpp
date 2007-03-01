@@ -201,12 +201,15 @@ void* Manager::run(void* data)
                 for (unsigned i = 0; i != man->commObjs.size(); ++i) {
 			std::string ret = man->commObjs[i]->getUpdateMessage();
                         if (ret != "") {
-                                XMLConfObj* confObj = new XMLConfObj(ret, XMLConfObj::XML_STRING);
-                                if (NULL != confObj) {
-                                        man->update(confObj);
-                                }
-				delete confObj;
-                        }
+				try {
+					XMLConfObj* confObj = new XMLConfObj(ret, XMLConfObj::XML_STRING);
+					man->update(confObj);
+					delete confObj;
+				} catch (const exceptions::XMLException &e) {
+					msg(MSG_ERROR, e.what());
+					man->sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
+				}
+			}
                 }
 #endif               
 	}
@@ -281,7 +284,7 @@ void Manager::update(XMLConfObj* xmlObj)
 					while (std::getline(inputStream, line)) {
 						message += line + "\n";
 					}
-					sendControlMessage("<result>" + message + "</result>");
+					sendControlMessage("<result>\n" + message + "\n</result>");
 					inputStream.close();
 				}
 			} else {
@@ -320,7 +323,47 @@ void Manager::update(XMLConfObj* xmlObj)
 			msg(MSG_ERROR, e.what());
 			sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
 		}
-        } else { // add your commands here
+        }
+	/* get available modules */
+	else if (xmlObj->nodeExists(config_space::GET_AVAILABLE_MODULES)) {
+		std::map<std::string,std::vector<std::string> >::const_iterator iter; 
+		std::string message = "";
+		for (iter = availableModules.begin(); iter != availableModules.end(); iter++) {
+			message += "<module " + config_space::MODULE_FILENAME + "=\"" + iter->first + "\" " 
+				+ config_space::CONFIG_FILE + "=\"" + iter->second[0] + "\"/>";
+		}
+		if (message != "") {
+			sendControlMessage("<result>\n" + message + "\n</result>");
+		} else {
+			sendControlMessage("<result>No modules available</result>");
+		}
+        }
+	/* get running modules */
+	else if (xmlObj->nodeExists(config_space::GET_RUNNING_MODULES)) {
+		try {
+			std::string message = "";
+			std::vector<std::string> modules = runningModules.getRunningModules();
+			for (unsigned i = 0; i != modules.size(); ++i) {
+				unsigned seperatorPos;
+				if (std::string::npos != (seperatorPos = modules[i].find(' '))) {
+					std::string fileName = std::string(modules[i].begin(), modules[i].begin() + seperatorPos);
+					std::string configFile  = std::string(modules[i].begin() + seperatorPos + 1, modules[i].end());
+					message += "<module " + config_space::MODULE_FILENAME + "=\"" + fileName + "\" " 
+						+ config_space::CONFIG_FILE + "=\"" + configFile + "\"/>";
+				}
+			}
+			if (message != 0) {
+				sendControlMessage("<result>\n" + message + "\n</result>");
+			} else {
+				sendControlMessage("<result>No running modules available</result>");
+			}
+		} catch (const exceptions::XMLException &e) {
+			msg(MSG_ERROR, e.what());
+			sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
+		}
+        }
+	/* add commands here */
+	else { 
 		msg(MSG_INFO, "Manager: unknown operation");
         }
 }

@@ -149,3 +149,17 @@ void ModuleContainer::findAndKillSlowModule()
 		}
 	}
 }
+
+#ifdef IDMEF_SUPPORT_ENABLED
+std::vector<std::string> ModuleContainer::getRunningModules()
+{
+	std::vector<std::string> ret;
+	for (unsigned i = 0; i != detectionModules.size(); ++i) {
+		if (detectionModules[i]->getState() == DetectMod::Running) {
+			ret.push_back(detectionModules[i]->getFileName() + " " 
+				      + detectionModules[i]->getArgs()[0]);
+		}
+	}
+	return ret;
+}
+#endif

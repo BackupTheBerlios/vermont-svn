@@ -80,6 +80,8 @@ namespace config_space
 	static const std::string STOP="stop";
 	static const std::string RESTART="restart";
 	static const std::string GET_MODULE_CONFIG="getModuleConfig";
+	static const std::string GET_AVAILABLE_MODULES="getAvailableModules";
+	static const std::string GET_RUNNING_MODULES="getRunningModules";
 	static const std::string UPDATE_MODULE_CONFIG="updateModuleConfig";
 	static const std::string MODULE_FILENAME="fileName";
 

@@ -105,6 +105,12 @@ public:
 	void findAndKillSlowModule();
 
 #ifdef IDMEF_SUPPORT_ENABLED
+	/**
+	 * Get running modules.
+	 * @return Vector containing strings (fileName configFile).
+	 */
+	std::vector<std::string> getRunningModules();
+
         std::string topasID;
 #endif
 
