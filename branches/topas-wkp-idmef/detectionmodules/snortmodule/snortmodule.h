@@ -118,8 +118,8 @@ private:
        
 
 	/**
-	* Signal handlers for SIGCHLD
-	*/
+	 * Signal handlers for SIGCHLD
+	 */
 	
 	static void sigChild(int);
 	static void sigTerm(int);

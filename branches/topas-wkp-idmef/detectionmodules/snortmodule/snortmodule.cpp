@@ -198,7 +198,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 	msg(MSG_INFO, "Update received!");
 	/* stop module */
 	if (xmlObj->nodeExists(config_space::STOP)) {
-		msg(MSG_INFO, "-> stoping snortmodule...");
+		msg(MSG_INFO, "-> stopping snortmodule...");
 		stop();
 	} 
 	/* restart module */
@@ -235,7 +235,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 			sendControlMessage("<result>Snortmodule: Can't open \"" + 
 					   config_file + "\" for writing</result>");
 		} else {
-			std::string message = xmlObj->getValue("updateSnortConfig");
+			std::string message = xmlObj->getValue(UPDATE_SNORT_CONFIG);
 			outputStream.write(message.c_str(), message.size());
 			message = "<result>Update succesful</result>";
 			sendControlMessage(message);
@@ -271,7 +271,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 			sendControlMessage("<result>Snortmodule: Can't open \"" + 
 					   rule_file + "\" for writing</result>");
 		} else {
-			std::string message = xmlObj->getValue("updateSnortRuleFile");
+			std::string message = xmlObj->getValue(UPDATE_SNORT_RULE_FILE);
 			outputStream.write(message.c_str(), message.size());
 			message = "<result>Update successful</result>";
 			sendControlMessage(message);
@@ -287,7 +287,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 			sendControlMessage("<result>Snortmodule: Can't open \"" + 
 					   rule_file + "\" for writing</result>");
 		} else {
-			std::string message = xmlObj->getValue("appendSnortRuleFile");
+			std::string message = xmlObj->getValue(APPEND_SNORT_RULE_FILE);
 			outputStream.write(message.c_str(), message.size());
 			message = "<result>Update successful</result>";
 			sendControlMessage(message);
@@ -373,8 +373,10 @@ void Snortmodule::readConfig(const std::string& filename)
 		}
 		if (IDEnd == 0) {
 			IDEnd = res;
-			temp = std::string(config.begin(), config.begin() + res);
-			accept_source_ids.push_back(atoi(temp.c_str()));
+			if (IDEnd > 0) {
+				temp = std::string(config.begin(), config.begin() + res);
+				accept_source_ids.push_back(atoi(temp.c_str()));
+			}
 		} else {
 			temp = std::string(config.begin() + last, config.begin() + res);
 			if (!temp.empty()) {accept_source_ids.push_back(atoi(temp.c_str())); }

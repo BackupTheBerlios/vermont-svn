@@ -54,10 +54,6 @@ manager::manager(DetectModExporter* exporter)
 		    "Crashing detection modules won't be detected");
         }
 
-#ifdef IDMEF_SUPPORT_ENABLED
-        // TODO: remove this after Raimondas merged his topas-dynamic-control into trunk/topas
-        topasID = "this_is_a_dummy_id_please_remove_me";
-#endif
 	mutex.lock();
 }
 
@@ -67,6 +63,14 @@ manager::~manager()
 #ifdef IDMEF_SUPPORT_ENABLED
         msg(MSG_DEBUG, "Disconnecting from xmlBlaster servers");
         for (unsigned i = 0; i != commObjs.size(); ++i) {
+		std::string managerID = (*xmlBlasters[i].getElement()).getProperty().getProperty(config_space::MANAGER_ID);
+		if (managerID == "") {
+			msg(MSG_INFO, ("Using default " + config_space::MANAGER_ID + " \""
+				       + config_space::DEFAULT_MANAGER_ID + "\"").c_str());
+			managerID = config_space::DEFAULT_MANAGER_ID;
+		}
+		commObjs[i]->erase(config_space::TOPAS + "-" + topasID);
+		commObjs[i]->publish("<exit oid='" + config_space::TOPAS + "-" + topasID + "'/>", managerID);
                 commObjs[i]->disconnect();
                 delete commObjs[i];
         }

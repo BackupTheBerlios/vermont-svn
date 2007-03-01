@@ -1,8 +1,11 @@
-- Collector muss Module stopen und starten können
-- Collector: - statusabfrage der laufenden Module
-             - Abfrage der List der vorhandenen Module
-             - Auslesen der default Module-Konfiguration
 - Collector: wann soll man msg verwenden und wann std:cerr etc?
 - Manager: Update-Messages werden nur dann abgearbeitet, wenn records ankommen 
-- confobj: bei nicht XML-Eingaben sollte es nicht abstuerzen
-- snort.conf etnhaelt nicht XML-Konforme Zeichenketten, parsen schlaegt fehl
+- snortmodule:  - init-Funktion ueberarbeiten 
+	        - snort.conf etnhaelt nicht XML-konforme Zeichenketten, parsen schlaegt fehl
+		- analyzerid fuer IDMEF-Nachrichten steht hartkodiert in snort.conf
+- topas: accept_source_ids bei Modulen ueberarbeiten
+- wkp-module: IDMEF-Support
+- topas: automatisches Senden von Heartbeat-Nachrichten (collector und Module)
+- xmlBlaster-Server: max sessions beim xmlBlaster Server erhoehen (zur Zeit: 10)
+- topas: Nachrichten-Format fuer topas -> manager ueberarbeiten
+- Modulecontainer: getRunningModules() ueberarbeiten
