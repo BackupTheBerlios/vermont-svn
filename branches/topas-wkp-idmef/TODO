@@ -2,10 +2,9 @@
 - Manager: Update-Messages werden nur dann abgearbeitet, wenn records ankommen 
 - snortmodule:  - init-Funktion ueberarbeiten 
 	        - snort.conf etnhaelt nicht XML-konforme Zeichenketten, parsen schlaegt fehl
-		- analyzerid fuer IDMEF-Nachrichten steht hartkodiert in snort.conf
 - topas: accept_source_ids bei Modulen ueberarbeiten
-- wkp-module: IDMEF-Support
 - topas: automatisches Senden von Heartbeat-Nachrichten (collector und Module)
 - xmlBlaster-Server: max sessions beim xmlBlaster Server erhoehen (zur Zeit: 10)
 - topas: Nachrichten-Format fuer topas -> manager ueberarbeiten
 - Modulecontainer: getRunningModules() ueberarbeiten
+- Detectionmodule: Topic von Angriffsmeldungen in der Konfig-Datei festlegen

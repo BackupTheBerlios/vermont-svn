@@ -449,6 +449,22 @@ protected:
 		delete heartbeatMessage;
 	}
 
+	/**
+	 * Returns topasID.
+	 */
+	std::string getTopasId()
+	{
+		return topasID;
+	}
+	
+	/**
+	 * Returns moduleID.
+	 */
+	std::string getModuleId()
+	{
+		return analyzerName + "-" + analyzerId;
+	}
+
 	/** 
          * Update function. This function will be called, whenever a message
          * for subscribed key is received from xmlBlaster.

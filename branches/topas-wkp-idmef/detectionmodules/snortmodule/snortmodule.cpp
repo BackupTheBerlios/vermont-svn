@@ -172,6 +172,9 @@ void Snortmodule::init(){
 #ifdef IDMEF_SUPPORT_ENABLED
 	/* register module */
 	registerModule("snortmodule");
+	/* set analyzerid and manufacturer */
+	wrapperConfig.analyzerid = getModuleId();
+	wrapperConfig.manufacturer = getTopasId();
 #endif
 
 }
@@ -484,6 +487,23 @@ void * Snortmodule::xmlWrapperEntry(void *args)
 	    while ((read = getline(&line, &len, fp)) != -1) {
                  if ( (std::string)line == "</IDMEF-Message>\n"){
 			 message+=line;
+			 // change analyzerid and manufacturer attributes
+			 unsigned analyzeridPos, manufacturerPos;
+			 if (std::string::npos != (analyzeridPos = message.find(ANALYZERID)) 
+			     && std::string::npos != (manufacturerPos = message.find(MANUFACTURER))) {
+				 unsigned beginPos, endPos;
+				 // replace analyzerid
+				 beginPos = analyzeridPos + ANALYZERID.size() + 1;
+				 endPos = message.find('"', beginPos);
+				 message.replace(message.begin() + beginPos, message.begin() + endPos, wrapperConfig.analyzerid);
+				 // replace manufacturer
+				 manufacturerPos = message.find(MANUFACTURER);
+				 beginPos = manufacturerPos + MANUFACTURER.size() + 1;
+				 endPos = message.find('"', beginPos);
+				 message.replace(message.begin() + beginPos, message.begin() + endPos, wrapperConfig.manufacturer);
+			 } else {
+				 msg(MSG_ERROR, "Snortmodule: analyzerid or manufacturer attribute is missing");
+			 }
 			 object->sendIdmefMessage(config->topic,message);
 			 message="";
 		 }else {

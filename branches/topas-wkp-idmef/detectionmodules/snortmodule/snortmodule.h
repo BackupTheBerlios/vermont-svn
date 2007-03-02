@@ -105,6 +105,8 @@ private:
 		pthread_t Id;
 		void * module;
 		std::string topic;
+		std::string analyzerid;
+		std::string manufacturer;
 	};
 
 	static wrapperConfig_t wrapperConfig;
