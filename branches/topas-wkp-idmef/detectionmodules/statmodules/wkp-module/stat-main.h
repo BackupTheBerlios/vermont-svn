@@ -199,8 +199,10 @@ class Stat : public DetectionBase<StatStore> {
   // source id's to accept
   std::vector<int> accept_source_ids;	
 
+#ifdef IDMEF_SUPPORT_ENABLED
   // IDMEF-Message
   IdmefMessage idmefMessage;
+#endif
 
   // user's preferences (defined in the XML config file):
   std::ofstream outfile;
