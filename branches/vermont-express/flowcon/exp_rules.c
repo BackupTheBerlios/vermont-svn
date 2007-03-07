@@ -695,42 +695,55 @@ static int ExpresscheckAssociatedMask3(ExpressDataTemplateInfo* info, FieldData*
  * Checks if a given flow matches a rule
  * @return 1 if rule is matched, 0 otherwise
  */
-int ExpresstemplateDataMatchesRule(FieldData* data, ExpressRule* rule, int transport_offset) {
+int ExpresstemplateDataMatchesRule(FieldData* data, ExpressRule* rule, struct packet_hook *pdata) {
 	int i;
-	int field_offset;
+	FieldData *field_data;
 
 	for (i = 0; i < rule->fieldCount; i++) {
 		ExpressRuleField* ruleField = rule->field[i];
 
 		/* for all patterns of this rule, check if they are matched */
 		if (rule->field[i]->pattern) {
-			field_offset = ExpressgetFieldInfo(ruleField->type, transport_offset);
-			if (field_offset != 999) {
+/*			field_offset = ExpressgetFieldInfo(ruleField->type, transport_offset);*/
+			field_data = ExpressgetFieldPointer(ruleField->type, pdata);
+			if (field_data) {
 				if (ruleField->pattern == NULL) return 1;
 				switch (ruleField->type.id) {
-					case IPFIX_TYPEID_sourceIPv4Address:
+					case IPFIX_TYPEID_sourceIPv4Address: {
+						int dmaski = ExpressgetIPv4IMask( &(ExpressFieldType){.id = IPFIX_TYPEID_sourceIPv4Address, .length=4} , field_data);
+						int pmaski = ExpressgetIPv4IMask(&ruleField->type, ruleField->pattern);
+
+
+						if (dmaski > pmaski) return 0;
+
+						uint32_t daddr = ExpressgetIPv4Address( &(ExpressFieldType){.id = IPFIX_TYPEID_sourceIPv4Address, .length=4}, field_data);
+						uint32_t paddr = ExpressgetIPv4Address(&ruleField->type, ruleField->pattern);
+
+						return ((daddr >> pmaski) == (paddr >> pmaski));
+						break;
+					}
 					case IPFIX_TYPEID_destinationIPv4Address: {
-						int dmaski = ExpressgetIPv4IMask( &(ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Address, .length=4} , (data + field_offset));
+						int dmaski = ExpressgetIPv4IMask( &(ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Address, .length=4} , field_data);
 						int pmaski = ExpressgetIPv4IMask(&ruleField->type, ruleField->pattern);
 
 						if (dmaski > pmaski) return 0;
 
-						uint32_t daddr = ExpressgetIPv4Address( &(ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Address, .length=4}, (data + field_offset));
+						uint32_t daddr = ExpressgetIPv4Address( &(ExpressFieldType){.id = IPFIX_TYPEID_destinationIPv4Address, .length=4}, field_data);
 						uint32_t paddr = ExpressgetIPv4Address(&ruleField->type, ruleField->pattern);
 
 						return ((daddr >> pmaski) == (paddr >> pmaski));
 						break;
 					}
 					case IPFIX_TYPEID_sourceTransportPort:
-						return ExpressmatchesPortPattern( &(ExpressFieldType){.id = IPFIX_TYPEID_sourceTransportPort, .length=2}, (data + field_offset), &ruleField->type, ruleField->pattern);
+						return ExpressmatchesPortPattern( &(ExpressFieldType){.id = IPFIX_TYPEID_sourceTransportPort, .length=2}, field_data, &ruleField->type, ruleField->pattern);
 						break;
 					case IPFIX_TYPEID_destinationTransportPort:
 						
-						return ExpressmatchesPortPattern( &(ExpressFieldType){.id = IPFIX_TYPEID_destinationTransportPort, .length=2}, (data + field_offset), &ruleField->type, ruleField->pattern);
+						return ExpressmatchesPortPattern( &(ExpressFieldType){.id = IPFIX_TYPEID_destinationTransportPort, .length=2}, field_data, &ruleField->type, ruleField->pattern);
 						break;
 					default:
 						
-						return ExpressmatchesRawPattern(&ruleField->type, (data + field_offset), &ruleField->type, ruleField->pattern);
+						return ExpressmatchesRawPattern(&ruleField->type, field_data, &ruleField->type, ruleField->pattern);
 					break;
 					}
 
@@ -747,8 +760,8 @@ int ExpresstemplateDataMatchesRule(FieldData* data, ExpressRule* rule, int trans
 		/* if a non-discarding rule field specifies no pattern, check at least if the data field exists */
 		else if (rule->field[i]->modifier != FIELD_MODIFIER_DISCARD) {
 			/*fieldInfo = ExpressgetTemplateFieldInfo(info, &ruleField->type);*/
-			field_offset = ExpressgetFieldInfo(ruleField->type, transport_offset);
-			if (field_offset != 999) continue;
+			field_data = ExpressgetFieldPointer(ruleField->type, pdata);
+			if (field_data) continue;
 			msg(MSG_DEBUG, "No corresponding DataRecord field for RuleField of type %s", Expresstypeid2string(ruleField->type.id));
 			return 0;
 		}

@@ -5,6 +5,7 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include "sampler/packet_hook.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -273,6 +274,8 @@ void ExpressprintFieldData(ExpressFieldType type, FieldData* pattern);
 
 int ExpressgetFieldInfo(ExpressFieldType type, int);
 int ExpressgetFieldLength(ExpressFieldType type);
+
+FieldData *ExpressgetFieldPointer(ExpressFieldType type, struct packet_hook *pdata);
 
 ExpressFieldInfo* ExpressgetTemplateFieldInfo(ExpressTemplateInfo* ti, ExpressFieldType* type);
 ExpressFieldInfo* ExpressgetDataTemplateFieldInfo(ExpressDataTemplateInfo* ti, ExpressFieldType* type);

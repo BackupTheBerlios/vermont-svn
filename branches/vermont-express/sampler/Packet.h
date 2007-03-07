@@ -1,4 +1,4 @@
-/*
+/** @file
  * PSAMP Reference Implementation
  *
  * Packet.h
@@ -159,16 +159,22 @@ public:
 		}
 	};
 
-	// the supplied classification is _either_ PCLASS_NET_xxx or PCLASS_TRN_xxx (or PCLASS_PAYLOAD)
-	// we check whether at least one of the Packet's classification-bits is also set in the supplied
-	// parameter. If yes, then out packet matches the supplied class and can be safely processed.
-	// otherwise, the Exporter should send a NULL value
+	/**
+	 * the supplied classification is _either_ PCLASS_NET_xxx or PCLASS_TRN_xxx (or PCLASS_PAYLOAD)
+	 * we check whether at least one of the Packet's classification-bits is also set in the supplied
+	 * parameter. If yes, then out packet matches the supplied class and can be safely processed.
+	 * otherwise, the Exporter should send a NULL value
+	 * @param checkClassification either PCLASS_NET_xxx or PCLASS_TRN_xxx
+	 * @return true if Packet matches the checkClassification, NULL otherwise
+	 */
 	inline bool matches(unsigned long checkClassification) const
 	{
 		return (classification & checkClassification) != 0;
 	}
 
-	// classify the packet headers
+	/**
+	 * classify the packet headers
+	 */
 	void classify()
 	{
 		unsigned char protocol = 0;
@@ -272,23 +278,26 @@ public:
 		}
 	}
 
-	// read data from the IP header
+	/*
+	 * read data from the IP header
+	 */
 	void copyPacketData(void *dest, int offset, int size) const
 	{
 		memcpy(dest, (char *)netHeader + offset, size);
 	}
 
 
-	// return a pointer into the packet to IP header offset given
-	//
-	// ATTENTION: If the returned pointer actually points to data of size fieldLength is only
-	// checked for HEAD_RAW, HEAD_NETWORK_AND_BEYOND, HEAD_TRANSPORT_AND_BEYOND, and HEAD_PAYLOAD.
-	// For fields within the network or transport header (HEAD_NETWORK, HEAD_TRANSPORT), we assume 
-	// that it was verified before that the packet is of the correct packet class and that its buffer 
-	// holds enough data.
-	// You can check the packet class for a single field using match(). If you want to check
-	// against all fields in a template, you should use checkPacketConformity() of the Template class.
-	// If enough data for the network/transport header has been captured, is checked by classify().
+	/**
+	 * return a pointer into the packet to IP header offset given
+	 * ATTENTION: If the returned pointer actually points to data of size fieldLength is only
+         * checked for HEAD_RAW, HEAD_NETWORK_AND_BEYOND, HEAD_TRANSPORT_AND_BEYOND, and HEAD_PAYLOAD.
+	 * For fields within the network or transport header (HEAD_NETWORK, HEAD_TRANSPORT), we assume 
+	 * that it was verified before that the packet is of the correct packet class and that its buffer 
+	 * holds enough data.
+	 * You can check the packet class for a single field using match(). If you want to check
+	 * against all fields in a template, you should use checkPacketConformity() of the Template class.
+	 * If enough data for the network/transport header has been captured, is checked by classify().
+	 */
 	void * getPacketData(unsigned short offset, unsigned short header, unsigned short fieldLength) const
 	{
 	    DPRINTF("offset: %d header: %d fieldlen: %d available: %d\n", offset, header, fieldLength, data_length);
@@ -318,10 +327,12 @@ public:
 	    }
 	}
 
-	// returns the pointer packetdata within the packet at position (header, offset)
-        // determines the encoded available data length and the length of the encoded length value in octets 
-	// (=1 if length < 255, =3 if 255 <= length <= 65535)
-	// cf. IPFIX protocol draft
+	/**
+	 * returns the pointer packetdata within the packet at position (header, offset)
+         * determines the encoded available data length and the length of the encoded length value in octets 
+	 * (=1 if length < 255, =3 if 255 <= length <= 65535)
+	 * cf. IPFIX protocol draft
+	 */
 	void * getVariableLengthPacketData(unsigned short *length, uint8_t **enc_value, unsigned short *enc_len, int offset, int header)
 	{
 	    int len;
@@ -420,24 +431,24 @@ public:
 
 
 private:
-	/*
-	 the raw offset at which the IP header starts in the packet
-	 for Ethernet, this is 14 bytes (MAC header size).
-	 This constant is set via the configure script. It defaults to 14
+	/**
+	 * the raw offset at which the IP header starts in the packet
+	 * for Ethernet, this is 14 bytes (MAC header size).
+	 * This constant is set via the configure script. It defaults to 14
 	 */
 	static const int IPHeaderOffset=IP_HEADER_OFFSET;
 
-	/*
-	 Number of concurrent users of this packet. Decremented each time
-	 release() is called. After it reaches zero, the packet is deleted.
+	/**
+	 * Number of concurrent users of this packet. Decremented each time
+	 * release() is called. After it reaches zero, the packet is deleted.
          */
 	int users;
 
 	Lock refCountLock;
 
-	/*
-	 return the offset the transport header lies
-	 IP knows about variable length options field
+	/**
+	 * return the offset the transport header lies
+	 * IP knows about variable length options field
          */
 	static inline unsigned int netTransportHeaderOffset(void *ipPacket)
 	{

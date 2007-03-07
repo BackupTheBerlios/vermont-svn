@@ -118,11 +118,12 @@ void PacketSelectionConfiguration::configure()
 			msg(MSG_ERROR, "packetSelection: uniProb not yet implemented!");
 		} else if (tagMatches(i, "regexFilter")) {
 			regExFilter* rfilter = new regExFilter();
-			msg(MSG_ERROR, "packetSelection: regexFilter configuring!");
+			msg(MSG_INFO, "packetSelection: regexFilter configuring!");
 			xmlNodePtr j = i->xmlChildrenNode;
 			while (NULL != j) {
 				if (tagMatches(j, "matchPattern")) {
-					strcpy(rfilter->match, getContent(j).c_str());
+					rfilter->match = getContent(j);
+//					strcpy(rfilter->match, getContent(j).c_str());
 				}
 				j = j->next;
 			}

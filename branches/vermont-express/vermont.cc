@@ -1,10 +1,10 @@
-/*
- this is vermont.
- released under GPL v2
-
- (C) by Ronny T. Lampert
- (C) by Lothar Braun <mail@lobraun.de>
-
+/** @file
+ * this is vermont.
+ * released under GPL v2
+ * 
+ * (C) by Ronny T. Lampert
+ * (C) by Lothar Braun <mail@lobraun.de>
+ *
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -112,7 +112,9 @@ static int setup_signal(int signal, void (*handler)(int))
 }
 
 
-/* just shallow right now */
+/**
+ * just shallow right now 
+ **/
 static void sig_handler(int x)
 {
     static bool shutdownInitiated = false;

@@ -34,13 +34,12 @@ extern "C" {
 
 void Express_sampler_hook_entry(void *ctx, void *data)
 {
-	int transport_offset;
 	struct packet_hook *ph=(struct packet_hook *)data;
         void *aggregator=ctx;
 	FieldData *fdata=(FieldData *)ph->ip_header;
 	uint32_t pad1;
 	uint8_t pad2;
-	
+
 	//DPRINTF("hook_entry: length is %d\n", ph->length);
 
 	/* save IP header */
@@ -51,12 +50,11 @@ void Express_sampler_hook_entry(void *ctx, void *data)
 
 	// Check if transport header is available
 	if(ph->transport_header == NULL) {
-	    ExpressaggregateDataRecord(aggregator, NULL, ph->length, fdata, 0);
+	   // ExpressaggregateDataRecord(aggregator, NULL, ph->length, fdata, data);
 	}
 	else
 	{
-	    transport_offset=abs(ph->transport_header - ph->ip_header);
-	    ExpressaggregateDataRecord(aggregator, NULL, ph->length, fdata, transport_offset);
+	    ExpressaggregateDataRecord(aggregator, NULL, ph->length, fdata, ph);
 	}
 
 	/* restore IP header */

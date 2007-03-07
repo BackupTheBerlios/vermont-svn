@@ -28,7 +28,7 @@ exp_rules.o exp_rules.o: exp_rules.c /usr/include/stdio.h \
   /usr/include/bits/posix2_lim.h /usr/include/bits/sockaddr.h \
   /usr/include/asm/socket.h /usr/include/asm/sockios.h \
   /usr/include/bits/in.h /usr/include/bits/byteswap.h \
-  /usr/include/arpa/inet.h exp_ipfix.h ../msg.h
+  /usr/include/arpa/inet.h ../sampler/packet_hook.h exp_ipfix.h ../msg.h
 
 /usr/include/stdio.h:
 
@@ -151,6 +151,8 @@ exp_ipfixReceiver.h:
 /usr/include/bits/byteswap.h:
 
 /usr/include/arpa/inet.h:
+
+../sampler/packet_hook.h:
 
 exp_ipfix.h:
 

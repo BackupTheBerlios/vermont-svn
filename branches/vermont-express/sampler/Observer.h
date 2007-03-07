@@ -1,11 +1,11 @@
-/*
- PSAMP Reference Implementation
- Observer.cpp
- Declarations for observing process
- Author: Michael Drueing <michael@drueing.de>
-
- changed by: Ronny T. Lampert
- changed by: Lothar Braun
+/** @file
+ * PSAMP Reference Implementation
+ * Observer.cpp
+ * Declarations for observing process
+ * Author: Michael Drueing <michael@drueing.de>
+ *
+ * changed by: Ronny T. Lampert
+ * changed by: Lothar Braun
  */
 
 #ifndef OBSERVER_H
@@ -117,12 +117,12 @@ public:
                 return pcap_timeout;
         }
 
-        /*
-         get some capturing statistics
-         struct pcap_stat is defined in pcap.h and has at least 3 u_int variables:
-         ps_recv, ps_drop, ps_ifdrop
-
-         should return: -1 on failure, 0 on OK
+        /**
+         * get some capturing statistics
+         * struct pcap_stat is defined in pcap.h and has at least 3 u_int variables:
+         * ps_recv, ps_drop, ps_ifdrop
+	 *
+         * should return: -1 on failure, 0 on OK
          */
         int getPcapStats(struct pcap_stat *out)
         {

@@ -1,4 +1,4 @@
-/*
+/** @file
  * PSAMP Reference Implementation
  *
  * IPHeaderFilter.h
@@ -7,17 +7,15 @@
  *
  * Author: Michael Drueing <michael@drueing.de>
  *
- */
-
-/* this is a multi-purpose filter which filters 32-bit values from packets
- example usage:
- a) filter all packets with IP Protocol = 23
- offset=9 (it's located at offset 9)
- size=1 (it's 1 byte)
- comparison=CMP_EQ
- targetvalue=23
-
- ... you should get the idea
+ * this is a multi-purpose filter which filters 32-bit values from packets
+ * example usage:
+ * a) filter all packets with IP Protocol = 23
+ * offset=9 (it's located at offset 9)
+ * size=1 (it's 1 byte)
+ * comparison=CMP_EQ
+ * targetvalue=23
+ *
+ *... you should get the idea
  */
 
 #ifndef IP_HEADER_FILTER_H

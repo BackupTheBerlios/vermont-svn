@@ -27,14 +27,14 @@ exp_hashing.o exp_hashing.o: exp_hashing.c /usr/include/string.h \
   /usr/include/bits/stdio.h /usr/include/assert.h /usr/include/alloca.h \
   exp_rcvIpfix.h exp_ipfixReceiver.h /usr/include/pthread.h \
   /usr/include/sched.h /usr/include/bits/sched.h /usr/include/signal.h \
-  /usr/include/bits/setjmp.h /usr/include/arpa/inet.h exp_rules.h \
-  exp_crc16.h exp_ipfix.h ../ipfixlolib/ipfixlolib.h \
-  /usr/include/unistd.h /usr/include/bits/posix_opt.h \
-  /usr/include/bits/confname.h /usr/include/getopt.h /usr/include/errno.h \
-  /usr/include/bits/errno.h /usr/include/linux/errno.h \
-  /usr/include/asm/errno.h /usr/include/asm-generic/errno.h \
-  /usr/include/asm-generic/errno-base.h ../ipfixlolib/encoding.h \
-  ../ipfixlolib/ipfix_names.h ../msg.h ../msg.h
+  /usr/include/bits/setjmp.h /usr/include/arpa/inet.h \
+  ../sampler/packet_hook.h exp_rules.h exp_crc16.h exp_ipfix.h \
+  ../ipfixlolib/ipfixlolib.h /usr/include/unistd.h \
+  /usr/include/bits/posix_opt.h /usr/include/bits/confname.h \
+  /usr/include/getopt.h /usr/include/errno.h /usr/include/bits/errno.h \
+  /usr/include/linux/errno.h /usr/include/asm/errno.h \
+  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+  ../ipfixlolib/encoding.h ../ipfixlolib/ipfix_names.h ../msg.h ../msg.h
 
 /usr/include/string.h:
 
@@ -157,6 +157,8 @@ exp_ipfixReceiver.h:
 /usr/include/bits/setjmp.h:
 
 /usr/include/arpa/inet.h:
+
+../sampler/packet_hook.h:
 
 exp_rules.h:
 

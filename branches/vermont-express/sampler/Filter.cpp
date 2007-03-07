@@ -1,4 +1,4 @@
-/*
+/** @file
  * PSAMP Reference Implementation
  *
  * Filter.cpp
@@ -17,10 +17,10 @@
 
 using namespace std;
 
-/*
- this is the main filter process, running within a thread
- each packet is run thru a series of PacketProcessors and then pushed
- to the next system in line (represented thru a ConcurrentQueue)
+/**
+ * this is the main filter process, running within a thread
+ * each packet is run thru a series of PacketProcessors and then pushed
+ * to the next system in line (represented thru a ConcurrentQueue)
  */
 void *Filter::filterProcess(void *arg)
 {

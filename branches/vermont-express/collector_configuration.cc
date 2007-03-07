@@ -1,7 +1,7 @@
-/*
- released under GPL v2
- (C) by Lothar Braun <mail@lobraun.de>
-*/
+/**
+ *released under GPL v2
+ *(C) by Lothar Braun <mail@lobraun.de>
+ **/
 
 
 #include "collector_configuration.h"

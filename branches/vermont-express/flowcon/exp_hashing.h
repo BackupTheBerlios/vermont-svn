@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include "exp_rcvIpfix.h"
 #include "exp_rules.h"
+#include "sampler/packet_hook.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,7 +59,7 @@ void ExpressdestroyHashtable(ExpressHashtable* ht);
 
 void ExpresshashingAddCallbacks(ExpressHashtable* ht, ExpressCallbackInfo handles);
 
-void ExpressaggregateTemplateData(ExpressHashtable* ht, FieldData* data, int transport_offset);
+void ExpressaggregateTemplateData(ExpressHashtable* ht, FieldData* data, struct packet_hook *pdata);
 void ExpressaggregateDataTemplateData(ExpressHashtable* ht, ExpressDataTemplateInfo* ti, FieldData* data);
 
 void ExpressdestroyHashtable(ExpressHashtable* ht);

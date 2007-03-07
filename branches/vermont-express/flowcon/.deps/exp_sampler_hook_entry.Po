@@ -22,15 +22,16 @@ exp_sampler_hook_entry.o exp_sampler_hook_entry.o:  \
   /usr/include/bits/in.h /usr/include/bits/byteswap.h exp_aggregator.h \
   exp_rcvIpfix.h exp_ipfixReceiver.h /usr/include/pthread.h \
   /usr/include/sched.h /usr/include/bits/sched.h /usr/include/signal.h \
-  /usr/include/bits/setjmp.h /usr/include/arpa/inet.h exp_rules.h \
-  /usr/include/stdio.h /usr/include/libio.h /usr/include/_G_config.h \
-  /usr/include/wchar.h /usr/include/gconv.h \
+  /usr/include/bits/setjmp.h /usr/include/arpa/inet.h \
+  ../sampler/packet_hook.h exp_rules.h /usr/include/stdio.h \
+  /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h \
+  /usr/include/gconv.h \
   /usr/lib/gcc/i386-pc-linux-gnu/3.4.4/include/stdarg.h \
   /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
   /usr/include/bits/stdio.h /usr/include/string.h \
   /usr/include/bits/string.h /usr/include/bits/string2.h \
-  /usr/include/assert.h exp_hashing.h ../sampler/packet_hook.h \
-  exp_sampler_hook_entry.h exp_ipfix.h exp_printIpfix.h ../msg.h
+  /usr/include/assert.h exp_hashing.h exp_sampler_hook_entry.h \
+  exp_ipfix.h exp_printIpfix.h ../msg.h
 
 /usr/include/stdlib.h:
 
@@ -128,6 +129,8 @@ exp_ipfixReceiver.h:
 
 /usr/include/arpa/inet.h:
 
+../sampler/packet_hook.h:
+
 exp_rules.h:
 
 /usr/include/stdio.h:
@@ -157,8 +160,6 @@ exp_rules.h:
 /usr/include/assert.h:
 
 exp_hashing.h:
-
-../sampler/packet_hook.h:
 
 exp_sampler_hook_entry.h:
 

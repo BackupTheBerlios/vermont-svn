@@ -13,6 +13,7 @@
 #include "exp_aggregator.h"
 #include "exp_rcvIpfix.h"
 #include "exp_sndIpfix.h"
+#include "sampler/packet_hook.h"
 
 #include "msg.h"
 
@@ -141,7 +142,7 @@ void stopExpressAggregator(IpfixExpressAggregator* ipfixExpressAggregator)
  * @param data raw data block containing the Record
  * @return 0 on success, non-zero on error
  */
-int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourceID, uint16_t length, FieldData* data, int transport_offset)
+int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourceID, uint16_t length, FieldData* data, struct packet_hook *pdata)
 {
 	ExpressRules* rules = ((IpfixExpressAggregator*)ipfixExpressAggregator)->rules;
 
@@ -155,9 +156,9 @@ int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourc
 
 	pthread_mutex_lock(&((IpfixExpressAggregator*)ipfixExpressAggregator)->mutex);
 	for (i = 0; i < rules->count; i++) {
-		if (ExpresstemplateDataMatchesRule(data, rules->rule[i], transport_offset)) {
+		if (ExpresstemplateDataMatchesRule(data, rules->rule[i], pdata)) {
 			DPRINTF("rule %d matches\n", i);
-			ExpressaggregateTemplateData(rules->rule[i]->hashtable, data, transport_offset);
+			ExpressaggregateTemplateData(rules->rule[i]->hashtable, data, pdata);
 		}
 	}
 	pthread_mutex_unlock(&((IpfixExpressAggregator*)ipfixExpressAggregator)->mutex);

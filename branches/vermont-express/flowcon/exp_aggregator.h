@@ -5,6 +5,7 @@
 #include "exp_rules.h"
 #include "exp_hashing.h"
 #include <pthread.h>
+#include "sampler/packet_hook.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +36,7 @@ void destroyExpressAggregator(IpfixExpressAggregator* ipfixAggregator);
 void startExpressAggregator(IpfixExpressAggregator* ipfixExpressAggregator);
 void stopExpressAggregator(IpfixExpressAggregator* ipfixExpressAggregator);
 
-int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourceID, uint16_t length, FieldData* data, int transport_offset);
+int ExpressaggregateDataRecord(void* ipfixExpressAggregator, Exp_SourceID* sourceID, uint16_t length, FieldData* data, struct packet_hook *pdata);
 int ExpressaggregateDataDataRecord(void* ipfixAggregator, Exp_SourceID* sourceID, ExpressDataTemplateInfo* ti, uint16_t length, FieldData* data);
 
 void pollExpressAggregator(IpfixExpressAggregator* ipfixExpressAggregator);

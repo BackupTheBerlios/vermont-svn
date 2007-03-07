@@ -1,4 +1,4 @@
-/*
+/** @file
  * PSAMP Reference Implementation
  *
  * Filter.h
@@ -65,7 +65,9 @@ public:
                 processors.push_back(p);
         };
 
-        /* in case we have to do some things with 'em */
+        /**
+	 * in case we have to do some things with 'em 
+	 */
         std::vector<PacketProcessor *> getProcessors()
         {
                 return processors;

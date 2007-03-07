@@ -1,11 +1,11 @@
-/*
- PSAMP Reference Implementation
- Observer.cpp
- Implementation of the packet capturing thread
- Author: Michael Drueing <michael@drueing.de>
-
- changed by: Ronny T. Lampert
-             Gerhard Münz
+/** @file
+ * PSAMP Reference Implementation
+ * Observer.cpp
+ * Implementation of the packet capturing thread
+ * Author: Michael Drueing <michael@drueing.de>
+ *
+ *  changed by: Ronny T. Lampert
+ *            Gerhard Münz
  */
 
 #include <pcap.h>
@@ -53,9 +53,9 @@ Observer::~Observer()
     delete filter_exp;
     msg(MSG_DEBUG, "Observer: successful shutdown");
 }
-/*
- This is the main observer loop. It graps packets from libpcap and
- dispatches them to the registered receivers.
+/**
+ * This is the main observer loop. It graps packets from libpcap and
+ * dispatches them to the registered receivers.
  */
 void *Observer::observerThread(void *arg)
 {
@@ -138,10 +138,12 @@ void *Observer::observerThread(void *arg)
 }
 
 
-/*
- call after an Observer has been created
- error checking on pcap here, because it can't be done in the constructor
- and it may be too late, if done in the thread
+/**
+ * call after an Observer has been created
+ * error checking on pcap here, because it can't be done in the constructor
+ * and it may be too late, if done in the thread
+ * @param filter filter expression
+ * @return true if pcap without errors, false otherwise
  */
 bool Observer::prepare(const std::string& filter)
 {
@@ -243,9 +245,9 @@ out:
 }
 
 
-/*
- this function is called by the logger timer thread and should dump
- some nice info using msg_stat
+/**
+ * this function is called by the logger timer thread and should dump
+ * some nice info using msg_stat
  */
 void Observer::doLogging(void *arg)
 {

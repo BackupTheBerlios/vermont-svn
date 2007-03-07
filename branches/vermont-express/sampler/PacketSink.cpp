@@ -1,4 +1,4 @@
-/*
+/** @file
  * PSAMP Reference Implementation
  *
  * PacketSink.cpp

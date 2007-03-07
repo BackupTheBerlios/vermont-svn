@@ -1,4 +1,4 @@
-/**
+/** @file
  * Filter a packet by checking if it is containing a predefined string
  */
 

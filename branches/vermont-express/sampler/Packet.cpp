@@ -1,4 +1,4 @@
-/*
+/** @file
  * PSAMP Reference Implementation
  *
  * Packet.cpp
@@ -16,10 +16,10 @@
 
 #include "Packet.h"
 
-/*
- this is the DEFAULT value (Ethernet specific)
- it is now a static const int defined in the header file, because this makes more sense
- const int Packet::IPHeaderOffset = 14;
+/**
+ * this is the DEFAULT value (Ethernet specific)
+ * it is now a static const int defined in the header file, because this makes more sense
+ * const int Packet::IPHeaderOffset = 14;
  */
 
 // keeps track on how many packets we received until now

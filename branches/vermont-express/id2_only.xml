@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>eth1</interface>
+		<interface>eth0</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
@@ -33,33 +33,6 @@
 		<flowKey>
 		    <ieName>destinationTransportPort</ieName>
 		    <match>80</match>
-		</flowKey>
-		<nonFlowKey>
-		    <ieName>flowStartSeconds</ieName>
-		</nonFlowKey>
-		<nonFlowKey>
-		    <ieName>flowEndSeconds</ieName>
-		</nonFlowKey>
-		<nonFlowKey>
-		    <ieName>octetDeltaCount</ieName>
-		</nonFlowKey>
-		<nonFlowKey>
-		    <ieName>packetDeltaCount</ieName>
-		</nonFlowKey>
-	    </rule>
-	    <rule>
-		<templateId>999</templateId>
-		<flowKey>
-		    <ieName>sourceIPv4Address</ieName>
-		</flowKey>
-		<flowKey>
-		    <ieName>destinationIPv4Address</ieName>
-		</flowKey>
-		<flowKey>
-		    <ieName>protocolIdentifier</ieName>
-		</flowKey>
-		<flowKey>
-		    <ieName>icmptypecodeipv4</ieName>
 		</flowKey>
 		<nonFlowKey>
 		    <ieName>flowStartSeconds</ieName>

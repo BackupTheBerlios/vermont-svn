@@ -22,9 +22,9 @@ exp_ipfixReceiver.o exp_ipfixReceiver.o: exp_ipfixReceiver.c \
   /usr/include/bits/posix2_lim.h /usr/include/bits/sockaddr.h \
   /usr/include/asm/socket.h /usr/include/asm/sockios.h \
   /usr/include/bits/in.h /usr/include/bits/byteswap.h \
-  /usr/include/arpa/inet.h exp_rcvIpfix.h exp_ipfix.h ../msg.h \
-  /usr/include/stdio.h /usr/include/libio.h /usr/include/_G_config.h \
-  /usr/include/wchar.h /usr/include/gconv.h \
+  /usr/include/arpa/inet.h exp_rcvIpfix.h ../sampler/packet_hook.h \
+  exp_ipfix.h ../msg.h /usr/include/stdio.h /usr/include/libio.h \
+  /usr/include/_G_config.h /usr/include/wchar.h /usr/include/gconv.h \
   /usr/lib/gcc/i386-pc-linux-gnu/3.4.4/include/stdarg.h \
   /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
   /usr/include/bits/stdio.h /usr/include/stdlib.h /usr/include/alloca.h \
@@ -123,6 +123,8 @@ exp_ipfixReceiver.h:
 /usr/include/arpa/inet.h:
 
 exp_rcvIpfix.h:
+
+../sampler/packet_hook.h:
 
 exp_ipfix.h:
 

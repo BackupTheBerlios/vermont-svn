@@ -1,4 +1,4 @@
-/*
+/** @file
  * PSAMP Reference Implementation
  *
  * ExporterSink.h
@@ -184,7 +184,9 @@ public:
 		return ret;
         }
 
-        // send out the IPFIX packet stream and reset
+	/**
+	 * send out the IPFIX packet stream and reset
+	 */
         void flushPacketStream()
         {
                 // end the packet stream and send the IPFIX packet out through the wire
@@ -205,7 +207,9 @@ public:
         }
 
 
-        /* max records per IPFIX packet */
+        /**
+	 * max records per IPFIX packet 
+	 */
         bool setMaxRecords(int x)
         {
                 ipfix_maxrecords=x;

@@ -1,4 +1,4 @@
-/*
+/** @file
  * PSAMP Reference Implementation
  *
  * Template.h
@@ -74,7 +74,9 @@ public:
                 return fieldCount;
         };
 
-        // Add a template field that takes data from within the packet
+        /**
+	 * Add a template field that takes data from within the packet
+	 */
         void addFieldWithOffset(unsigned short type, unsigned short length, unsigned short offset, unsigned short header, unsigned long validPacketClasses)
         {
                 DPRINTF("Adding field type %d, length %d, offset %d\n", type, length, offset);
@@ -86,8 +88,10 @@ public:
                 fieldCount++;
         };
 
-	// Add a template "meta-"field which gets its data not from the packet itself
-	// "length" parameter must still be correct! (i.e. 4 bytes for FT_NUMPACKETS etc.)
+	/**
+	 * Add a template "meta-"field which gets its data not from the packet itself
+	 * "length" parameter must still be correct! (i.e. 4 bytes for FT_NUMPACKETS etc.)
+	 */
 	void addFieldWithoutOffset(unsigned short type, unsigned short length)
 	{
 		fieldType[fieldCount] = type;
@@ -106,8 +110,10 @@ public:
 		*header = fieldPacketHeader[num];
         }
 
-	// This function returns a temporary buffer with the value of the
-	// "meta-" field stored. This buffer must be free()d after use by the user!
+	/**
+	 * This function returns a temporary buffer with the value of the
+	 *"meta-" field stored. This buffer must be free()d after use by the user!
+	 */
 	void *getMetaFieldData(int num)
 	{
 		void *temp;
@@ -142,8 +148,10 @@ public:
         bool addField(uint16_t id, uint16_t len);
 
 	
-	// the supplied packet_classification is check against the requirements of all fields
-	// we check whether at least one of the Packet's classification-bits is also set in fieldValidPacketClasses
+	/**
+	 * the supplied packet_classification is check against the requirements of all fields
+	 * we check whether at least one of the Packet's classification-bits is also set in fieldValidPacketClasses
+	 */
 	bool checkPacketConformity(unsigned long packet_classification)
 	{
 	    unsigned i;

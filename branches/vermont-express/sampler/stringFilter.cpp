@@ -1,7 +1,18 @@
+/** \file
+ * This is the String Filter
+ */
+
 
 #include "stringFilter.h"
 
 
+/**
+ * compare given String to packet data and check for a match
+ * @param pdata Packet payload
+ * @param toMatch the String to be matched against the packet
+ * @param plength The packetlength
+ * @return true on match false otherwise
+ */
 inline bool stringFilter::compare(unsigned char *pdata, char* toMatch, unsigned int plength)
 {
 
@@ -30,6 +41,12 @@ inline bool stringFilter::compare(unsigned char *pdata, char* toMatch, unsigned 
 
 };
 
+/**
+ * prepare the Packet for comparefucntion
+ * set Pointer to Payload
+ * @param p Packet data
+ * @return true if packet contains string false otherwise
+ */
 bool stringFilter::processPacket(const Packet *p)
 {
         unsigned char* pdata;
@@ -51,8 +68,6 @@ bool stringFilter::processPacket(const Packet *p)
 	for(iti = notFilters.begin(); iti != notFilters.end(); ++iti) {
 		if(compare(pdata, *iti, plength)) notCounter++;
 	}
-
-//	printf("and: %i %i, not: %i %i\n", andCounter, andFilters.size(), notCounter, notFilters.size());
 
 	if((notCounter == 0) && (andCounter == andFilters.size())) {
 		return true;

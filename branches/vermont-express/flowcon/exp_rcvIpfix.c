@@ -49,6 +49,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 /* for ntohll et al */
 #include "ipfixlolib/ipfixlolib.h"
+#include "sampler/packet_hook.h"
 
 #include "exp_rcvIpfix.h"
 #include "exp_templateBuffer.h"
@@ -66,6 +67,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 
 /***** Data Types ************************************************************/
+
+// Network header classifications
+#define PCLASS_NET_IP4             (1UL <<  0)
+#define PCLASS_NET_IP6             (1UL <<  1)
+
+#define PCLASS_NETMASK             0x00000fff
+
+// Transport header classifications
+#define PCLASS_TRN_TCP             (1UL << 12)
+#define PCLASS_TRN_UDP             (1UL << 13)
+#define PCLASS_TRN_ICMP            (1UL << 14)
+#define PCLASS_TRN_IGMP            (1UL << 15)
+
+
 
 /**
  * IPFIX header helper.
@@ -874,8 +889,89 @@ ExpressFieldInfo* ExpressgetTemplateFieldInfo(ExpressTemplateInfo* ti, ExpressFi
 /** 
  * Gets FieldInfo by field id
  * @param type Field id to look for
+ * @param pdata packet_hook struct
  * @return NULL if not found
  */
+
+FieldData *ExpressgetFieldPointer(ExpressFieldType type, struct packet_hook *pdata) {
+
+
+	FieldData *idata=(FieldData *)pdata->ip_header;
+
+
+	switch (type.id) {
+	case IPFIX_TYPEID_packetDeltaCount:
+		return idata + 10;
+		break;
+
+	case IPFIX_TYPEID_flowStartSeconds:
+		return idata + 4;
+		break;
+
+	case IPFIX_TYPEID_flowEndSeconds:
+		return idata + 4;
+		break;
+
+	case IPFIX_TYPEID_octetDeltaCount:
+		return idata + 2;
+		break;
+
+	case IPFIX_TYPEID_protocolIdentifier:
+		return idata + 9;
+		break;
+
+	case IPFIX_TYPEID_sourceIPv4Address:
+		return idata + 12;
+		break;
+
+	case IPFIX_TYPEID_destinationIPv4Address:
+		return idata + 16;
+		break;
+
+	case IPFIX_TYPEID_icmpTypeCode:
+		if((pdata->classification & PCLASS_TRN_ICMP) == 0) {
+			FieldData *tdata=(FieldData *)pdata->transport_header;
+			return tdata + 0;
+		} else {
+			return NULL;
+		}
+		break;
+
+	case IPFIX_TYPEID_sourceTransportPort:
+		if((pdata->classification & PCLASS_TRN_TCP) == 0 || (pdata->classification & PCLASS_TRN_UDP) == 0) {
+			FieldData *tdata=(FieldData *)pdata->transport_header;
+			return tdata + 0;
+		} else {
+			return NULL;
+		}
+		break;
+
+	case IPFIX_TYPEID_destinationTransportPort:
+		if((pdata->classification & PCLASS_TRN_TCP) == 0  || (pdata->classification & PCLASS_TRN_UDP) == 0) {
+			FieldData *tdata=(FieldData *)pdata->transport_header;
+			return tdata + 2;
+		} else {
+			return NULL;
+		}
+		break;
+
+	case IPFIX_TYPEID_tcpControlBits:
+		if((pdata->classification & PCLASS_TRN_TCP) == 0) {
+			FieldData *tdata=(FieldData *)pdata->transport_header;
+			return tdata + 13;
+		} else {
+			return NULL;
+		}
+		break;
+
+	default:
+		return NULL;
+		break;
+	}
+
+	return NULL;
+
+}
 
 int ExpressgetFieldInfo(ExpressFieldType type, int offset) {
 

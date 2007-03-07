@@ -719,7 +719,7 @@ static void ExpresscopyDatalight(ExpressFieldType* dstType, FieldData* dstData, 
 /**
  * Buffer passed flow in Hashtable @c ht
  */
-	void ExpressaggregateTemplateData(ExpressHashtable* ht, FieldData* data, int transport_offset)
+	void ExpressaggregateTemplateData(ExpressHashtable* ht, FieldData* data, struct packet_hook *pdata)
 {
 	int i;
 
@@ -728,15 +728,15 @@ static void ExpresscopyDatalight(ExpressFieldType* dstType, FieldData* dstData, 
 
 	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
 		ExpressFieldInfo* hfi = &ht->dataTemplate->fieldInfo[i];
-		int tfi = ExpressgetFieldInfo(hfi->type, transport_offset);
+		FieldData* tfi = ExpressgetFieldPointer(hfi->type, pdata);
 		int tfil = ExpressgetFieldLength(hfi->type);
 
-		if(tfi == 999) {
+		if(!tfi) {
 			DPRINTF("Flow to be buffered did not contain %s field\n", Expresstypeid2string(hfi->type.id));
 			continue;
 		}
 
-		ExpresscopyDatalight(&hfi->type, htdata + hfi->offset, &(ExpressFieldType){.id = hfi->type.id, .length=tfil} , data + tfi, ht->fieldModifier[i]);
+		ExpresscopyDatalight(&hfi->type, htdata + hfi->offset, &(ExpressFieldType){.id = hfi->type.id, .length=tfil} , tfi, ht->fieldModifier[i]);
 
 	}
 

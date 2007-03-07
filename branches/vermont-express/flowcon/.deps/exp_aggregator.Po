@@ -23,9 +23,10 @@ exp_aggregator.o exp_aggregator.o: exp_aggregator.c \
   /usr/include/bits/confname.h /usr/include/getopt.h exp_aggregator.h \
   exp_rcvIpfix.h exp_ipfixReceiver.h /usr/include/pthread.h \
   /usr/include/sched.h /usr/include/bits/sched.h /usr/include/signal.h \
-  /usr/include/bits/setjmp.h /usr/include/arpa/inet.h exp_rules.h \
-  /usr/include/stdio.h /usr/include/libio.h /usr/include/_G_config.h \
-  /usr/include/wchar.h /usr/include/gconv.h \
+  /usr/include/bits/setjmp.h /usr/include/arpa/inet.h \
+  ../sampler/packet_hook.h exp_rules.h /usr/include/stdio.h \
+  /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h \
+  /usr/include/gconv.h \
   /usr/lib/gcc/i386-pc-linux-gnu/3.4.4/include/stdarg.h \
   /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
   /usr/include/bits/stdio.h /usr/include/string.h \
@@ -136,6 +137,8 @@ exp_ipfixReceiver.h:
 /usr/include/bits/setjmp.h:
 
 /usr/include/arpa/inet.h:
+
+../sampler/packet_hook.h:
 
 exp_rules.h:
 

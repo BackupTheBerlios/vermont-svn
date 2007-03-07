@@ -33,10 +33,10 @@ exp_rcvIpfix.o exp_rcvIpfix.o: exp_rcvIpfix.c /usr/include/netinet/in.h \
   /usr/include/bits/errno.h /usr/include/linux/errno.h \
   /usr/include/asm/errno.h /usr/include/asm-generic/errno.h \
   /usr/include/asm-generic/errno-base.h ../ipfixlolib/encoding.h \
-  ../ipfixlolib/ipfix_names.h ../msg.h exp_rcvIpfix.h exp_ipfixReceiver.h \
-  /usr/include/pthread.h /usr/include/sched.h /usr/include/bits/sched.h \
-  /usr/include/signal.h /usr/include/bits/setjmp.h exp_templateBuffer.h \
-  exp_ipfix.h ../msg.h
+  ../ipfixlolib/ipfix_names.h ../msg.h ../sampler/packet_hook.h \
+  exp_rcvIpfix.h exp_ipfixReceiver.h /usr/include/pthread.h \
+  /usr/include/sched.h /usr/include/bits/sched.h /usr/include/signal.h \
+  /usr/include/bits/setjmp.h exp_templateBuffer.h exp_ipfix.h ../msg.h
 
 /usr/include/netinet/in.h:
 
@@ -175,6 +175,8 @@ exp_rcvIpfix.o exp_rcvIpfix.o: exp_rcvIpfix.c /usr/include/netinet/in.h \
 ../ipfixlolib/ipfix_names.h:
 
 ../msg.h:
+
+../sampler/packet_hook.h:
 
 exp_rcvIpfix.h:
 

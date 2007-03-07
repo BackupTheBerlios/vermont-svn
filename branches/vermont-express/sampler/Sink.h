@@ -1,11 +1,11 @@
-/*
- this is vermont.
- released under GPL v2
-
- (C) by Ronny T. Lampert
-
- pure abstract class for the sink
-
+/** @file
+ * this is vermont.
+ * released under GPL v2
+ *
+ * (C) by Ronny T. Lampert
+ *
+ * pure abstract class for the sink
+ *
  */
 #ifndef SINK_H
 #define SINK_H
@@ -18,9 +18,9 @@ public:
         virtual bool runSink()=0;
         virtual bool terminateSink()=0;
 
-	/*
-	 this function is called by the logger timer thread and should dump
-	 some nice info using msg_stat
+	/**
+	 * this function is called by the logger timer thread and should dump
+	 * some nice info using msg_stat
 	 */
 	static void doLogging(void *arg)
 	{

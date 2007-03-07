@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "exp_rcvIpfix.h"
+#include "sampler/packet_hook.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -66,7 +67,7 @@ int ExpressparseProtoPattern(char* s, FieldData** fdata, FieldLength* length);
 
 void ExpressdestroyRules(ExpressRules* rules);
 void ExpressprintRule(ExpressRule* rule);
-int ExpresstemplateDataMatchesRule(FieldData* data, ExpressRule* rule, int transport_offset);
+int ExpresstemplateDataMatchesRule(FieldData* data, ExpressRule* rule, struct packet_hook *pdata);
 int ExpressdataTemplateDataMatchesRule(ExpressDataTemplateInfo* info, FieldData* data, ExpressRule* rule);
 
 

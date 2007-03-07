@@ -1,11 +1,11 @@
-/*
- Hooking Filter
- (c) by Ronny T. Lampert
-
- This filter calls a given function pointer for every packet it receives.
- Because we assume standard C code that doesn't know about class Packet
- we have to marshall the relevant pointers into a struct first.
-
+/** @file
+ * Hooking Filter
+ * (c) by Ronny T. Lampert
+ *
+ * This filter calls a given function pointer for every packet it receives.
+ * Because we assume standard C code that doesn't know about class Packet
+ * we have to marshall the relevant pointers into a struct first.
+ *
  */
 
 #ifndef HOOKING_FILTER_H
@@ -24,9 +24,9 @@ public:
 	virtual ~HookingFilter() {
 	}
 
-        /*
-         the hook function may need additional context.
-         in our case we need the instance of the aggregator that gets data
+        /**
+         * the hook function may need additional context.
+         * in our case we need the instance of the aggregator that gets data
          */
         void setContext(void *c) {
 		ctx=c;
@@ -40,13 +40,15 @@ public:
 
 protected:
 
-	/*
-	 this is called "f" because our mentor created that name accidently
-	 so it was meant to stay, because everyone knew what it represents
+	/**
+	 * this is called "f" because our mentor created that name accidently
+	 * so it was meant to stay, because everyone knew what it represents
          */
 	void (*f)(void *,void *);
 
-	/* we may need a context */
+	/**
+	 * we may need a context 
+	 */
         void *ctx;
 
 };

@@ -1,4 +1,4 @@
-/*
+/** @file
  * PSAMP Reference Implementation
  *
  * TimeoutSemaphore.h
@@ -40,14 +40,16 @@ public:
 		pthread_mutex_destroy(&mutex);
 	};
 
-	// Acquire the lock if possible, or wait max. timeout_ms milliseconds
-	// for the lock to become available.
-	// if the timeout is reaced, return false
-	// if the semaphore was successfully acquired, return true
-	// a timeout of -1 means infinite wait
-	// ***********************
-	// ** DEPRECATED, use waitabs() instead
-	// ***********************
+	/**
+	 * Acquire the lock if possible, or wait max. timeout_ms milliseconds
+	 * for the lock to become available.
+	 * if the timeout is reaced, return false
+	 * if the semaphore was successfully acquired, return true
+	 * a timeout of -1 means infinite wait
+	 * ***********************
+	 * ** DEPRECATED, use waitabs() instead
+	 * ***********************
+	 */
 	inline bool wait(long timeout_ms = -1)
 	{
 		bool result = true; // this is true unless a timeout happens
@@ -95,8 +97,10 @@ public:
 		return result;
 	}
 
-	// like wait() but with absolute time instead of delta. makes things easier!
-	// Use this instead of the above function
+	/**
+	 * like wait() but with absolute time instead of delta. makes things easier!
+	 * Use this instead of the above function
+	 */
 	inline bool waitAbs(const struct timeval &timeout)
 	{
 		bool result = true;
