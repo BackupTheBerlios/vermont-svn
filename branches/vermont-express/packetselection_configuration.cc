@@ -123,7 +123,7 @@ void PacketSelectionConfiguration::configure()
 			while (NULL != j) {
 				if (tagMatches(j, "matchPattern")) {
 					rfilter->match = getContent(j);
-//					strcpy(rfilter->match, getContent(j).c_str());
+				//	strcpy(rfilter->match, getContent(j).c_str());
 				}
 				j = j->next;
 			}
