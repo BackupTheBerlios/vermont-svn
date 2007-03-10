@@ -4,15 +4,15 @@
 		<workingDir>../working_dir/</workingDir>
 		<modules>
 			<module>
-			        <filename>../detectionmodules/examplemodules/third/examplemodule</filename>
+			        <filename>../detectionmodules/countmodule/countmodule</filename>
                                 <run>yes</run>
-				<configFile>test.xml</configFile>
+				<configFile>countmodule.xml</configFile>
 			</module>
 		</modules>
 		<transport_proto>UDP</transport_proto>
-		<listenPort>1500</listenPort>
+		<listenPort>1501</listenPort>
 		<detectmod_killtime>0</detectmod_killtime>
-		<restartOnCrash>yes</restartOnCrash>
+		<restartOnCrash>no</restartOnCrash>
 		<exchangeProtocol type="files">
 			<packetDir>packet_dir/</packetDir>
 		</exchangeProtocol>
