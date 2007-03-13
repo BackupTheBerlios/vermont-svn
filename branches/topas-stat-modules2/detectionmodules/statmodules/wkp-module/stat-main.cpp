@@ -136,10 +136,10 @@ Stat::Stat(const std::string & configfile)
   // signal handlers
   if (signal(SIGTERM, sigTerm) == SIG_ERR) {
     msg(MSG_ERROR, "wkp-module: Couldn't install signal handler for SIGTERM.\n ");
-  } 
+  }
   if (signal(SIGINT, sigInt) == SIG_ERR) {
     msg(MSG_ERROR, "wkp-module: Couldn't install signal handler for SIGINT.\n ");
-  } 	
+  }
 
   // lock, will be unlocked at the end of init() (cf. StatStore class header):
   StatStore::setBeginMonitoring () = false;
@@ -174,7 +174,7 @@ void Stat::init(const std::string & configfile) {
   init_output_file(config);
 
   // extracting source id's to accept
-  //init_accept_source_ids(config);
+  // init_accept_source_ids(config);
 
   // extracting alarm_time
   // (that means that the test() methode will be called
@@ -281,7 +281,7 @@ void Stat::init_output_file(ConfObj * config) {
   return;
 
 }
-
+/*
 void Stat::init_accept_source_ids(ConfObj * config) {
 	if (NULL != config->getValue("preferences", "accept_source_ids")) {
 		std::string str = config->getValue("preferences", "accept_source_ids");
@@ -306,7 +306,7 @@ void Stat::init_accept_source_ids(ConfObj * config) {
 			}
 			last = res + 1; // one past last space
 		} while (more);
-		StatStore::accept_source_ids = &accept_source_ids; 
+		StatStore::accept_source_ids = &accept_source_ids;
 	}
 	if (accept_source_ids.size() == 0) {
 		std::stringstream Error;
@@ -317,6 +317,7 @@ void Stat::init_accept_source_ids(ConfObj * config) {
 		exit(0);
 	}
 }
+*/
 
 void Stat::init_alarm_time(ConfObj * config) {
 
