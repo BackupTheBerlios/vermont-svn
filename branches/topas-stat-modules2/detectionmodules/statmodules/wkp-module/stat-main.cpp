@@ -174,7 +174,7 @@ void Stat::init(const std::string & configfile) {
   init_output_file(config);
 
   // extracting source id's to accept
-  init_accept_source_ids(config);
+  //init_accept_source_ids(config);
 
   // extracting alarm_time
   // (that means that the test() methode will be called

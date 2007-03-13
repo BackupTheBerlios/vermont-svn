@@ -48,9 +48,9 @@ bool StatStore::recordStart(SourceID sourceId) {
   if (BeginMonitoring != true)
     return false;
 
-  if (find(accept_source_ids->begin(),accept_source_ids->end(),(int)sourceId)==accept_source_ids->end()){
+  /*if (find(accept_source_ids->begin(),accept_source_ids->end(),(int)sourceId)==accept_source_ids->end()){
     return false;
-  }
+  }*/
 
   gotSourceIP = gotDestIP = false;
   gotProtocol = false;
@@ -64,7 +64,7 @@ bool StatStore::recordStart(SourceID sourceId) {
 
 }
 
-std::vector<int>* StatStore::accept_source_ids = NULL;
+//std::vector<int>* StatStore::accept_source_ids = NULL;
 void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, EnterpriseNo eid) {
 
   // we subscribed to (see Stat::init()):
@@ -358,7 +358,7 @@ void StatStore::recordEnd() {
 
     Data[SourceIP].packets_out += packet_nb;
     Data[SourceIP].bytes_out   += byte_nb;
-    // the mere writting of "Data[SourceIP]" creates the entry <SourceIP,Info>
+    // the mere writing of "Data[SourceIP]" creates the entry <SourceIP,Info>
     // in the map Data, with the Info structure filled with default values
     // (0 for integers); hence we are sure that all 4 fields of the Info
     // structure Data[SourceIP] are initialized with suitable values:
@@ -379,7 +379,7 @@ void StatStore::recordEnd() {
 
     Data[DestIP].packets_in += packet_nb;
     Data[DestIP].bytes_in   += byte_nb;
-    // the mere writting of "Data[DestIP]" creates the entry <DestIP,Info>
+    // the mere writing of "Data[DestIP]" creates the entry <DestIP,Info>
     // in the map Data, with the Info structure filled with default values
     // (0 for integers); hence we are sure that all 4 fields of the Info
     // structure Data[DestIP] are initialized with suitable values:

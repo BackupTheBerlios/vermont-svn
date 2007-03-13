@@ -1,1 +1,1 @@
-SUBDIRS(wkp-module print-module)
+SUBDIRS(wkp-module print-module sw-module)
