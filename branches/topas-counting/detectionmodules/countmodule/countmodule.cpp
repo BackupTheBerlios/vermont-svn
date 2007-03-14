@@ -74,11 +74,32 @@ void CountModule::init(const std::string& configfile)
 	bfSize = atoi(config->getValue("counting", "bf_size"));
     if(NULL != config->getValue("counting", "bf_hashfunctions"))
 	bfHF = atoi(config->getValue("counting", "bf_hashfunctions"));
+    //FIXME:
     if(NULL != config->getValue("counting", "key_id"))
 	id = ipfix_name_lookup(config->getValue("counting", "key_id"));
     if(id<0)
 	id = 0;
-    CountStore::init(bfSize, bfHF, id);
+    CountStore::init(bfSize, bfHF);
+    CountStore::countPerSrcIp = true;
+
+    if(NULL != config->getValue("preferences", "accept_source_ids"))
+    {
+	std::string str = config->getValue("preferences", "accept_source_ids");
+	if(str.size()>0)
+	{
+	    unsigned startpos = 0, endpos = 0;
+	    do {
+		endpos = str.find(',', endpos);
+		if (endpos == std::string::npos) {
+		    subscribeSourceId(atoi((str.substr(startpos)).c_str()));
+		    break;
+		}
+		subscribeSourceId(atoi((str.substr(startpos, endpos-startpos)).c_str()));
+		endpos++;
+	    }
+	    while(true);
+	}
+    }
 
     subscribeTypeId(IPFIX_TYPEID_sourceIPv4Address);
     subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
@@ -125,8 +146,9 @@ void CountModule::test(CountStore* store)
 #endif
     std::cout << "Test" << std::endl;
     outfile << "******************** Test started *********************" << std::endl;
-    for (CountStore::CountMap::const_iterator i = store->begin(); i != store->end(); ++i) {
-	if (i->second > threshold) {
+    for (CountStore::IpCountMap::const_iterator i = store->srcIpCounts.begin(); i != store->srcIpCounts.end(); ++i) {
+	if (i->second.flows > threshold) {
+/*
 	    switch(CountStore::getCountKeyId()) {
 		case IPFIX_TYPEID_sourceIPv4Address:
 		    outfile << "SourceIp " << IpAddress(i->first.data) << " had " << i->second << " connection(s)." << std::endl;
@@ -146,6 +168,7 @@ void CountModule::test(CountStore* store)
 		default:
 		    outfile << i->second << " connection(s)." << std::endl;
 	    }
+	    */
 
 #ifdef IDMEF_SUPPORT_ENABLED
 	    idmefMessage.createTargetNode("Don't know what decoy is!!!!!", "ipv4-addr",

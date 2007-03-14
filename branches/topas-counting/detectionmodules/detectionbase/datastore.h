@@ -115,6 +115,8 @@ private:
  */
 class IpAddress {
 public:
+        IpAddress() : address(0,0,0,0) {}
+
         /**
          * Constructor
          * @param a First byte of address

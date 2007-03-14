@@ -76,13 +76,17 @@ template<unsigned size> class GenericKey
 };
 
 
+struct Counters {
+    uint64_t octets, packets, flows;
+};
+
 
 class CountStore : public DataStore 
 {
     public:
 	typedef GenericKey<15> FiveTuple;
-	typedef GenericKey<5> OneTuple;
-	typedef std::map<OneTuple, uint32_t> CountMap;
+	typedef std::map<IpAddress, Counters> IpCountMap;
+	typedef std::map<uint32_t, Counters> PortCountMap;
 
 	CountStore();
 	~CountStore();
@@ -105,47 +109,23 @@ class CountStore : public DataStore
 	 */
 	void addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid = 0);
 
-	/**
-	 * Will NOT be used by DetectionBase
-	 */ 
-	CountMap::const_iterator begin() 
-	{
-	    return data.begin();
-	}
-
-	/**
-	 * Will NOT be used by DetectionBase
-	 */
-	CountMap::const_iterator end() 
-	{
-	    return data.end();
-	}
-
-
-	/*
-	 * Returns size of data vector
-	 * Will NOT be used by DetectionBase
-	 * @return size of data vector
-	 */
-	unsigned size() 
-	{
-	    return data.size();
-	}
-
-	static void init(uint32_t size, unsigned hashfunctions, int id)
+	static void init(uint32_t size, unsigned hashfunctions)
 	{
 	    bfilter.init(size, hashfunctions);
-	    countKeyId = id;
 	}
 
-	static int getCountKeyId() {return countKeyId;}
+	static bool countPerSrcIp, countPerDstIp, countPerSrcPort, countPerDstPort;
 	    
+	IpCountMap srcIpCounts, dstIpCounts;
+	PortCountMap srcPortCounts, dstPortCounts;
+
     private:
 	static BloomFilter bfilter;
-	CountMap data;
+	
+	IpAddress srcIp, dstIp;
+	uint32_t srcPort, dstPort;
+
 	FiveTuple flowKey;
-	OneTuple countKey;
-	static int countKeyId;
 
 	bool recordStarted;
 };

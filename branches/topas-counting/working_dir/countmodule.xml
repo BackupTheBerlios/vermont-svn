@@ -11,10 +11,11 @@
 		</xmlBlaster>
 	</xmlBlasters>
 	<preferences>
-		<alarm_time>300</alarm_time>
+		<accepted_source_ids>1234</accepted_source_ids>
+		<alarm_time>12</alarm_time>
 	</preferences>
 	<counting>
-		<bf_size>1000000</bf_size>
+		<bf_size>1000</bf_size>
 		<bf_hashfunctions>3</bf_hashfunctions>
 		<key_id>destinationtransportport</key_id>
 	</counting>
