@@ -39,7 +39,7 @@ class SWStore : public DataStore {
 
  private:
 
-  static std::vector<EndPoint> MonitoredEndPoints;
+  //static std::vector<EndPoint> MonitoredEndPoints;
 
   static bool BeginMonitoring;
   // Set to "true" by Stat::init() when all the static information about IP,

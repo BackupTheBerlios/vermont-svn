@@ -6,13 +6,13 @@
 std::string EndPoint::toString() const
 {
         std::stringstream sstream;
-        sstream << ipAddr[0] << "." << ipAddr[1] << "." << ipAddr[2] << "." << ipAddr[3] << ":" << port << " | " << (uint16_t) proto;
+        sstream << ipAddr[0] << "." << ipAddr[1] << "." << ipAddr[2] << "." << ipAddr[3] << ":" << portNr << " | " << (uint16_t) protocolID;
         return sstream.str();
 }
 
 std::ostream& operator << (std::ostream& ost, const EndPoint& e)
 {
-        ost << e.ipAddr[0] << "." << e.ipAddr[1] << "." << e.ipAddr[2] << "." << e.ipAddr[3] << ":" << e.port << " | " << (uint16_t) e.proto;
+        ost << e.ipAddr[0] << "." << e.ipAddr[1] << "." << e.ipAddr[2] << "." << e.ipAddr[3] << ":" << e.portNr << " | " << (uint16_t) e.protocolID;
         return ost;
 }
 

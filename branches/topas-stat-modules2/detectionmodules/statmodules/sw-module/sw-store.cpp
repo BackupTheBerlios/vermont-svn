@@ -149,37 +149,43 @@ void SWStore::recordEnd() {
 
 	e1 = EndPoint(SourceIP, SourcePort, protocol);
 	e2 = EndPoint(DestIP, DestPort, protocol);
+	//std::cout << "ENDPOINT (SRC): " << e1 << std::endl;
+	//std::cout << "ENDPOINT (DEST): " << e2 << std::endl;
 
-	// Are the EndPoints already known?
-	// If yes, update their data,
-	// If not, add them to MonitoredEndPoints
-	// and initialize them
-	if(find(MonitoredEndPoints.begin(),MonitoredEndPoints.end(),e1)
-	 !=	MonitoredEndPoints.end()) {
+/*
+	Data[e1].packets_out += packet_nb;
+	Data[e1].bytes_out   += byte_nb;
+	Data[e1].records++;
+
+	Data[e2].packets_in += packet_nb;
+	Data[e2].bytes_in   += byte_nb;
+	Data[e2].records++;
+*/
+
+
+	std::map<EndPoint,Info>::iterator it1 = Data.find(e1);
+	std::map<EndPoint,Info>::iterator it2 = Data.find(e2);
+
+	if (it1 != Data.end()){
 		Data[e1].packets_out += packet_nb;
 		Data[e1].bytes_out   += byte_nb;
-		Data[e1].records++;
+		Data[e1].records 		 += 1;
 		std::cout << "EndPoint already known (updating ...): " << e1 << std::endl;
 	}
 	else {
-		MonitoredEndPoints.push_back(e1);
 		Data[e1].packets_out = packet_nb;
 		Data[e1].bytes_out   = byte_nb;
 		Data[e1].records 		 = 1;
 		std::cout << "EndPoint not known (initializing ...): " << e1 << std::endl;
 	}
 
-
-
-	if(find(MonitoredEndPoints.begin(),MonitoredEndPoints.end(),e2)
-	 !=	MonitoredEndPoints.end()) {
+	if(it2 != Data.end()) {
 		Data[e2].packets_in += packet_nb;
 		Data[e2].bytes_in   += byte_nb;
-		Data[e2].records++;
+		Data[e2].records 		+= 1;
 		std::cout << "EndPoint already known (updating ...): " << e2 << std::endl;
 	}
 	else {
-		MonitoredEndPoints.push_back(e2);
 		Data[e2].packets_in = packet_nb;
 		Data[e2].bytes_in   = byte_nb;
 		Data[e2].records 		= 1;
@@ -196,7 +202,5 @@ void SWStore::recordEnd() {
 // even if the following members will be given their actual values
 // by the Stat::init() function, we have to provide some initial values
 // in the implementation file of the related class;
-
-std::vector<EndPoint> SWStore::MonitoredEndPoints;
 
 bool SWStore::BeginMonitoring = false;
