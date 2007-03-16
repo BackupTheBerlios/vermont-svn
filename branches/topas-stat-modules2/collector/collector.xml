@@ -3,16 +3,23 @@
 	<collector>
 		<workingDir>../working_dir/</workingDir>
 		<modules>
-			<module>
-			        <filename>../detectionmodules/examplemodules/third/examplemodule</filename>
-                                <run>yes</run>
-				<configFile>test.xml</configFile>
-			</module>
+       <!--
+      <module>
+          <filename>../detectionmodules/statmodules/sw-module/sw-module</filename>
+            <run>yes</run>
+            <configFile>sw-module.xml</configFile>
+      </module>
+      -->
+      <module>
+          <filename>../detectionmodules/statmodules/wkp-module/wkp-module</filename>
+            <run>yes</run>
+            <configFile>wkp-module.xml</configFile>
+      </module>
 		</modules>
 		<transport_proto>UDP</transport_proto>
 		<listenPort>1500</listenPort>
 		<detectmod_killtime>0</detectmod_killtime>
-		<restartOnCrash>yes</restartOnCrash>
+		<restartOnCrash>no</restartOnCrash>
 		<exchangeProtocol type="files">
 			<packetDir>packet_dir/</packetDir>
 		</exchangeProtocol>

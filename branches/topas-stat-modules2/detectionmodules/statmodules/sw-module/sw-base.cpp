@@ -71,16 +71,12 @@ void SWBase::init_alarm_time(ConfObj * config) {
 
 void SWBase::test(SWStore * store) {
 
-	std::cout << "############################################" << std::endl;
 	std::cout << "############# begin test()-Run #############" << std::endl;
-	std::cout << "############################################" << std::endl;
 
 // Extracting data from store:
   std::map<EndPoint,int64_t> Data = extract_data (store);
 
-	std::cout << "############################################" << std::endl;
-	std::cout << "############# end test()-Run ###############" << std::endl;
-	std::cout << "############################################" << std::endl;
+  std::cout << "############# end test()-Run ###############" << std::endl;
 
   // Dumping empty records:
   //if (Data.empty()==true)
@@ -103,12 +99,8 @@ std::map<EndPoint,int64_t> SWBase::extract_data (SWStore * store) {
 
 	// TODO: Extract something
 	std::map<EndPoint,Info> Data = store->getData();
-	std::map<EndPoint,Info>::iterator it = Data.begin();
 
-	while (it != Data.end()){
-		std::cout << it->first << " --- packets_in: " << it->second.packets_in << ", packets_out: " << it->second.packets_out << ", bytes_in: " << it->second.bytes_in << ", bytes_out: " << it->second.bytes_out << ", Records: " << it->second.records << std::endl;
-		it++;
-	}
+  //std::cout << Data;
 
   return result;
 

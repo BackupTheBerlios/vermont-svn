@@ -25,13 +25,15 @@
 
 
 StatStore::StatStore()
-  : SourceIP (0,0,0,0), DestIP (0,0,0,0) {
+  : SourceIP (0,0,0,0), DestIP (0,0,0,0), e_source(IpAddress(0,0,0,0),0,0), e_dest(IpAddress(0,0,0,0),0,0) {
 
   gotSourceIP = gotDestIP = false;
   gotProtocol = false;
   gotSourcePort = gotDestPort = false;
 
   packet_nb = byte_nb = 0;
+  SourcePort = DestPort = 0;
+  protocol = 0;
 
   IpListMaxSizeReachedAndNewIpWantedToEnterIt = 0;
 
@@ -48,6 +50,7 @@ bool StatStore::recordStart(SourceID sourceId) {
   if (BeginMonitoring != true)
     return false;
 
+  // IDMEF
   /*if (find(accept_source_ids->begin(),accept_source_ids->end(),(int)sourceId)==accept_source_ids->end()){
     return false;
   }*/
@@ -57,14 +60,19 @@ bool StatStore::recordStart(SourceID sourceId) {
   gotSourcePort = gotDestPort = false;
 
   packet_nb = byte_nb = 0;
+  SourcePort = DestPort = 0;
+  protocol = 0;
 
   SourceIP = DestIP = IpAddress(0,0,0,0);
+  e_source = e_dest = EndPoint(IpAddress(0,0,0,0),0,0);
 
   return true;
 
 }
 
+// IDMEF
 //std::vector<int>* StatStore::accept_source_ids = NULL;
+
 void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, EnterpriseNo eid) {
 
   // we subscribed to (see Stat::init()):
@@ -92,14 +100,16 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
     }
 
     protocol = *fieldData; // useful in recordEnd()
-    
+
     if ( find(MonitoredProtocols.begin(), MonitoredProtocols.end(), *fieldData)
-	 !=
-	 MonitoredProtocols.end() )
-      gotProtocol = true;
-    // *fielData is a protocol number, so is 1 byte (= uint8_t) long
-    // remember to cast it into an uint16_t (= unsigned int)
-    // if you want to print it!
+	        != MonitoredProtocols.end() ) {
+       gotProtocol = true;
+       // *fielData is a protocol number, so is 1 byte (= uint8_t) long
+       // remember to cast it into an uint16_t (= unsigned int)
+       // if you want to print it!
+       e_source.setProtocolID(protocol);
+       e_dest.setProtocolID(protocol);
+    }
     break;
 
 
@@ -115,31 +125,31 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
 
     if (MonitorEveryIp == true) {
       SourceIP.remanent_mask(subnetMask);
-      if(find(MonitoredIpAddresses.begin(),MonitoredIpAddresses.end(),SourceIP)
-	 !=
-	 MonitoredIpAddresses.end()) // i.e. we already saw this IP
-	gotSourceIP = true;
+      e_source.setIpAddress(SourceIP);
+      if(find(MonitoredIpAddresses.begin(),MonitoredIpAddresses.end(),e_source)
+	        != MonitoredIpAddresses.end())
+        // i.e. we already saw this IP
+	      gotSourceIP = true;
       else if (MonitoredIpAddresses.size() < IpListMaxSize) {
-	// i.e. we never saw this IP,
-	// that's a new one, so we add it to our IP-list,
-	// provided there is still place
-	MonitoredIpAddresses.push_back(SourceIP);
-	gotSourceIP = true;
+        // i.e. we never saw this IP,
+        // that's a new one, so we add it to our IP-list,
+        // provided there is still place
+        MonitoredIpAddresses.push_back(e_source);
+        gotSourceIP = true;
       }
       else
-	IpListMaxSizeReachedAndNewIpWantedToEnterIt = 1;
+	      IpListMaxSizeReachedAndNewIpWantedToEnterIt = 1;
         // there isn't still place,
         // so we just set the "max-size" flag to 1
         // (ToDo: replace this flag with an exception)
     }
-
     else {
       SourceIP.remanent_mask(subnetMask);
-      if(find(MonitoredIpAddresses.begin(),MonitoredIpAddresses.end(),SourceIP)
-	 !=
-	 MonitoredIpAddresses.end())
-	// i.e. (masked) SourceIP is one of the IPs in the given IpList
-	gotSourceIP = true;
+      e_source.setIpAddress(SourceIP);
+      if(find(MonitoredIpAddresses.begin(),MonitoredIpAddresses.end(),e_source)
+	        != MonitoredIpAddresses.end())
+          // i.e. (masked) SourceIP is one of the IPs in the given IpList
+	      gotSourceIP = true;
     }
 
     // In the remaining cases (max-size reached, (masked) SourceIP not among
@@ -162,19 +172,20 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
 
     if (MonitorEveryIp == true) {
       DestIP.remanent_mask(subnetMask);
-      if ( find(MonitoredIpAddresses.begin(),MonitoredIpAddresses.end(),DestIP)
-	   !=
-	   MonitoredIpAddresses.end() ) // i.e. we already saw this IP
-	gotDestIP = true;
+      e_dest.setIpAddress(DestIP);
+      if ( find(MonitoredIpAddresses.begin(),MonitoredIpAddresses.end(),e_dest)
+	          != MonitoredIpAddresses.end() )
+            // i.e. we already saw this IP
+	      gotDestIP = true;
       else if ( MonitoredIpAddresses.size() < IpListMaxSize ) {
-	// i.e. we never saw this IP,
-	// that's a new one, so we add it to our IpList,
-	// provided there is still place
-	MonitoredIpAddresses.push_back(DestIP);
-	gotDestIP = true;
+        // i.e. we never saw this IP,
+        // that's a new one, so we add it to our IpList,
+        // provided there is still place
+        MonitoredIpAddresses.push_back(e_dest);
+        gotDestIP = true;
       }
       else
-	IpListMaxSizeReachedAndNewIpWantedToEnterIt = 1;
+	      IpListMaxSizeReachedAndNewIpWantedToEnterIt = 1;
         // there isn't still place,
         // so we just set the "max-size" flag to 1
         // (ToDo: replace this flag with an exception)
@@ -182,11 +193,11 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
 
     else {
       DestIP.remanent_mask(subnetMask);
-      if ( find(MonitoredIpAddresses.begin(),MonitoredIpAddresses.end(),DestIP)
-	   !=
-	   MonitoredIpAddresses.end() )
-	// i.e. (masked) DestIP is one of the IPs in the given IpList
-	gotDestIP = true;
+      e_dest.setIpAddress(DestIP);
+      if ( find(MonitoredIpAddresses.begin(),MonitoredIpAddresses.end(),e_dest)
+	         != MonitoredIpAddresses.end() )
+	        // i.e. (masked) DestIP is one of the IPs in the given IpList
+	      gotDestIP = true;
     }
 
     // In the remaining cases (max-size reached, (masked) DestIP not among
@@ -217,25 +228,26 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
     }
 
     if (fieldDataLength == IPFIX_LENGTH_sourceTransportPort) {
-      if ( MonitorAllPorts = true
-	   ||
-	   MonitoredPorts.end() !=
-	   find (MonitoredPorts.begin(), MonitoredPorts.end(),
-		 ntohs(*(uint16_t*)fieldData)) )
-	gotSourcePort = true;
-      // fieldData must be casted into an uint16_t (= unsigned int)
-      // as it is a port number
-      // (and, also, converted from network order to host order)
+      if ( MonitorAllPorts == true || MonitoredPorts.end() !=
+	        find (MonitoredPorts.begin(), MonitoredPorts.end(),
+		      ntohs(*(uint16_t*)fieldData)) )
+	      gotSourcePort = true;
+        // fieldData must be casted into an uint16_t (= unsigned int)
+        // as it is a port number
+        // (and, also, converted from network order to host order)
+        SourcePort = ntohs(*(uint16_t*)fieldData);
+        e_source.setPortNr(SourcePort);
     }
 
     if (fieldDataLength == IPFIX_LENGTH_sourceTransportPort-1) {
-      if ( MonitorAllPorts = true
-	   || MonitoredPorts.end() !=
-	   find (MonitoredPorts.begin(), MonitoredPorts.end(),
-		 (uint16_t)*fieldData) )
-	gotSourcePort = true;
-      // fieldData must be casted into an uint16_t (= unsigned int)
-      // as it is a port number
+      if ( MonitorAllPorts == true || MonitoredPorts.end() !=
+	         find (MonitoredPorts.begin(), MonitoredPorts.end(),
+		       (uint16_t)*fieldData) )
+	      gotSourcePort = true;
+        // fieldData must be casted into an uint16_t (= unsigned int)
+        // as it is a port number
+        SourcePort = (uint16_t)*fieldData;
+        e_source.setPortNr(SourcePort);
     }
 
     break;
@@ -261,26 +273,26 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
     }
 
     if (fieldDataLength == IPFIX_LENGTH_destinationTransportPort) {
-      if ( MonitorAllPorts = true
-	   ||
-	   MonitoredPorts.end() !=
-	   find (MonitoredPorts.begin(), MonitoredPorts.end(),
-		 ntohs(*(uint16_t*)fieldData)) )
-	gotDestPort = true;
-      // fieldData must be casted into an uint16_t (= unsigned int)
-      // as it is a port number
-      // (and, also, converted from network order to host order)
+      if ( MonitorAllPorts == true || MonitoredPorts.end() !=
+	         find (MonitoredPorts.begin(), MonitoredPorts.end(),
+		       ntohs(*(uint16_t*)fieldData)) )
+	      gotDestPort = true;
+        // fieldData must be casted into an uint16_t (= unsigned int)
+        // as it is a port number
+        // (and, also, converted from network order to host order)
+        DestPort = ntohs(*(uint16_t*)fieldData);
+        e_dest.setPortNr(DestPort);
     }
 
     if (fieldDataLength == IPFIX_LENGTH_destinationTransportPort-1) {
-      if ( MonitorAllPorts = true
-	   ||
-	   MonitoredPorts.end() !=
-	   find (MonitoredPorts.begin(), MonitoredPorts.end(),
-		 (uint16_t)*fieldData) )
-	gotDestPort = true;
-      // fieldData must be casted into an uint16_t (= unsigned int)
-      // as it is a port number
+      if ( MonitorAllPorts == true || MonitoredPorts.end() !=
+	         find (MonitoredPorts.begin(), MonitoredPorts.end(),
+		       (uint16_t)*fieldData) )
+	      gotDestPort = true;
+        // fieldData must be casted into an uint16_t (= unsigned int)
+        // as it is a port number
+        DestPort = (uint16_t)*fieldData;
+        e_dest.setPortNr(DestPort);
     }
 
     break;
@@ -345,40 +357,36 @@ void StatStore::recordEnd() {
   // and we are sure BOTH "if" tests are true and add information to our
   // Data map.
 
-  if ( gotProtocol == true
-       &&
-       gotSourceIP == true
-       &&
-       ( protocol == IPFIX_protocolIdentifier_ICMP
-	 || protocol == IPFIX_protocolIdentifier_RAW
-	 || protocol == IPFIX_protocolIdentifier_TCP && gotSourcePort == true
-	 || protocol == IPFIX_protocolIdentifier_UDP && gotSourcePort == true )
-       // port monitoring only for TCP and UDP
+  if ( gotProtocol == true && gotSourceIP == true
+        && ( protocol == IPFIX_protocolIdentifier_ICMP
+	        || protocol == IPFIX_protocolIdentifier_RAW
+	        || protocol == IPFIX_protocolIdentifier_TCP && gotSourcePort == true
+	        || protocol == IPFIX_protocolIdentifier_UDP && gotSourcePort == true )
+          // port monitoring only for TCP and UDP
        ) {
 
-    Data[SourceIP].packets_out += packet_nb;
-    Data[SourceIP].bytes_out   += byte_nb;
-    // the mere writing of "Data[SourceIP]" creates the entry <SourceIP,Info>
+    Data[e_source].packets_out += packet_nb;
+    Data[e_source].bytes_out   += byte_nb;
+    Data[e_source].records_out++;
+    // the mere writing of "Data[e]" creates the entry <e,Info>
     // in the map Data, with the Info structure filled with default values
     // (0 for integers); hence we are sure that all 4 fields of the Info
-    // structure Data[SourceIP] are initialized with suitable values:
+    // structure Data[e] are initialized with suitable values:
     // at least 0, and more if traffic is noticed
 
   }
 
-  if ( gotProtocol == true
-       &&
-       gotDestIP == true
-       &&
-       ( protocol == IPFIX_protocolIdentifier_ICMP
-	 || protocol == IPFIX_protocolIdentifier_RAW
-	 || protocol == IPFIX_protocolIdentifier_TCP && gotDestPort == true
-	 || protocol == IPFIX_protocolIdentifier_UDP && gotDestPort == true )
-       // port monitoring only for TCP and UDP
+  if ( gotProtocol == true && gotDestIP == true
+        && ( protocol == IPFIX_protocolIdentifier_ICMP
+	        || protocol == IPFIX_protocolIdentifier_RAW
+	        || protocol == IPFIX_protocolIdentifier_TCP && gotDestPort == true
+	        || protocol == IPFIX_protocolIdentifier_UDP && gotDestPort == true )
+          // port monitoring only for TCP and UDP
        ) {
 
-    Data[DestIP].packets_in += packet_nb;
-    Data[DestIP].bytes_in   += byte_nb;
+    Data[e_dest].packets_in += packet_nb;
+    Data[e_dest].bytes_in   += byte_nb;
+    Data[e_dest].records_in++;
     // the mere writing of "Data[DestIP]" creates the entry <DestIP,Info>
     // in the map Data, with the Info structure filled with default values
     // (0 for integers); hence we are sure that all 4 fields of the Info
@@ -394,13 +402,13 @@ void StatStore::recordEnd() {
 
 // ========== INITIALISATIONS OF STATIC MEMBERS OF CLASS StatStore ===========
 
-std::map<IpAddress,Info> StatStore::PreviousData;
+std::map<EndPoint,Info> StatStore::PreviousData;
 
 // even if the following members will be given their actual values
 // by the Stat::init() function, we have to provide some initial values
 // in the implementation file of the related class;
 
-std::vector<IpAddress> StatStore::MonitoredIpAddresses;
+std::vector<EndPoint> StatStore::MonitoredIpAddresses;
 
 byte StatStore::subnetMask[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 

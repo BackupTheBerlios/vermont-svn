@@ -22,73 +22,13 @@
 #define _STAT_MAIN_H_
 
 #include "stat-store.h"
-#include <datastore.h>
+#include "shared.h"
 #include <detectionbase.h>
 #include <fstream>
 #include <sstream>
-#include <iostream>
 #include <map>
-#include <vector>
-#include <list>
 #include <string>
 #include <algorithm> // sort(...), unique(...)
-
-
-// ==================== CLASS DirectedIpAddress ====================
-
-// we use this class as key field in std::map< key, value >
-
-#define OUT -1
-#define IN 1
-#define DEFAULT 0
-
-class DirectedIpAddress : public IpAddress {
-
-private:
-
-  int Direction; // = OUT or IN, more rarely DEFAULT
-
-public:
-
-  DirectedIpAddress (byte, byte, byte, byte, int dir);
-  DirectedIpAddress (const byte tab[4], int dir);
-  DirectedIpAddress (const IpAddress &, int dir);
-  ~DirectedIpAddress () {}
-
-  void setDirectedIpAddress (byte, byte, byte, byte, int dir);
-  void setDirectedIpAddress (const byte tab[4], int dir);
-  void setDirectedIpAddress (const IpAddress &, int dir);
-
-  int getDirection () const {return Direction;}
-
-  // mask functions:
-  // - remanent_mask changes DirectedIpAddress object
-  // - mask is only temporary
-  // warning: netmask is not checked before being applied
-  // use only 0 <= m1,m2,m3,m4 <= 255 (or 0x00 and 0xFF)
-  DirectedIpAddress mask (byte, byte, byte, byte);
-  DirectedIpAddress mask (const byte m[4]);
-  void remanent_mask (byte, byte, byte, byte);
-  void remanent_mask (const byte m[4]);
-
-  // we need an order relation to use DirectedIpAddress
-  // as key field in std::map< key, value >, so:
-  bool operator == (const DirectedIpAddress &) const;
-  bool operator < (const DirectedIpAddress &) const;
-
-};
-
-std::ostream & operator << (std::ostream &, const DirectedIpAddress & DirIP);
-
-
-// ======================== STRUCT Samples ========================
-
-// we use this structure as value field in std::map< key, value >
-
-struct Samples {
-  std::list<int64_t> Old;
-  std::list<int64_t> New;
-};
 
 
 // ========================== CLASS Stat ==========================
@@ -120,16 +60,17 @@ class Stat : public DetectionBase<StatStore> {
    *   IMPORTANT: _YOU_ have to free the object's memory when you don't need
    *   it any longer (use delete-operator to do that). */
   void test(StatStore * store);
-	
-#ifdef IDMEF_SUPPORT_ENABLED
-	/** 
+
+// IDMEF
+//#ifdef IDMEF_SUPPORT_ENABLED
+	/**
          * Update function. This function will be called, whenever a message
          * for subscribed key is received from xmlBlaster.
          * @param xmlObj Pointer to data structure, containing xml data
          *               You have to delete the memory allocated for the object.
          */
-  	void update(XMLConfObj* xmlObj);
-#endif
+//  	void update(XMLConfObj* xmlObj);
+//#endif
 
 
  private:
@@ -196,13 +137,15 @@ class Stat : public DetectionBase<StatStore> {
   // here is the sample container:
   std::map<DirectedIpAddress, Samples> Records;
 
-  // source id's to accept
-  std::vector<int> accept_source_ids;	
+// IDMEF
+/*  // source id's to accept
+  std::vector<int> accept_source_ids;
 
 #ifdef IDMEF_SUPPORT_ENABLED
   // IDMEF-Message
   IdmefMessage idmefMessage;
 #endif
+*/
 
   // user's preferences (defined in the XML config file):
   std::ofstream outfile;

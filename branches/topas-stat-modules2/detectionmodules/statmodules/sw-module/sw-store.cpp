@@ -149,17 +149,24 @@ void SWStore::recordEnd() {
 
 	e1 = EndPoint(SourceIP, SourcePort, protocol);
 	e2 = EndPoint(DestIP, DestPort, protocol);
-	//std::cout << "ENDPOINT (SRC): " << e1 << std::endl;
-	//std::cout << "ENDPOINT (DEST): " << e2 << std::endl;
+
+/*
+  // Testing some stuff
+  EndPoint test = EndPoint(e1);
+  EndPoint test_c = EndPoint(test);
+  test_c.setIpAddress(IpAddress(100, 100, 100, 100));
+  IpAddress ip = test_c.getIpAddress();
+  std::cout << "Test: " << test << std::endl << "Original: " << e1 << std::endl << "Test (changed): " << test_c << std::endl << "IP: " << ip << std::endl << "#############" << std::endl;
+*/
 
 /*
 	Data[e1].packets_out += packet_nb;
 	Data[e1].bytes_out   += byte_nb;
-	Data[e1].records++;
+	Data[e1].records_out++;
 
 	Data[e2].packets_in += packet_nb;
 	Data[e2].bytes_in   += byte_nb;
-	Data[e2].records++;
+	Data[e2].records_in++;
 */
 
 
@@ -167,30 +174,31 @@ void SWStore::recordEnd() {
 	std::map<EndPoint,Info>::iterator it2 = Data.find(e2);
 
 	if (it1 != Data.end()){
-		Data[e1].packets_out += packet_nb;
-		Data[e1].bytes_out   += byte_nb;
-		Data[e1].records 		 += 1;
+		it1->second.packets_out 	+= packet_nb;
+		it1->second.bytes_out			+= byte_nb;
+		it1->second.records_out 	+= 1;
 		std::cout << "EndPoint already known (updating ...): " << e1 << std::endl;
 	}
 	else {
-		Data[e1].packets_out = packet_nb;
-		Data[e1].bytes_out   = byte_nb;
-		Data[e1].records 		 = 1;
+		Data[e1].packets_out = packet_nb; // using Data[key] to create the entry,
+		Data[e1].bytes_out   = byte_nb; // using iterators then for quicker access
+		Data[e1].records_out = 1;
 		std::cout << "EndPoint not known (initializing ...): " << e1 << std::endl;
 	}
 
 	if(it2 != Data.end()) {
-		Data[e2].packets_in += packet_nb;
-		Data[e2].bytes_in   += byte_nb;
-		Data[e2].records 		+= 1;
+		it2->second.packets_in += packet_nb;
+		it2->second.bytes_in   += byte_nb;
+		it2->second.records_in += 1;
 		std::cout << "EndPoint already known (updating ...): " << e2 << std::endl;
 	}
 	else {
 		Data[e2].packets_in = packet_nb;
 		Data[e2].bytes_in   = byte_nb;
-		Data[e2].records 		= 1;
+		Data[e2].records_in = 1;
 		std::cout << "EndPoint not known (initializing ...): " << e2 << std::endl;
 	}
+
 
   return;
 

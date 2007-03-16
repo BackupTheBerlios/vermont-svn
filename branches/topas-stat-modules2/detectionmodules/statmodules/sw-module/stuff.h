@@ -12,7 +12,8 @@ struct Info {
   uint64_t packets_out;
   uint64_t bytes_in;
   uint64_t bytes_out;
-	uint64_t records;
+	uint64_t records_in;
+	uint64_t records_out;
 };
 
 
@@ -37,12 +38,20 @@ class EndPoint {
 
 		}
 
-		EndPoint(const IpAddress & ip, uint16_t port, byte protocol) : ipAddr (ip[0], ip[1], ip[2], ip[3]) {
+    EndPoint(const IpAddress & ip, uint16_t p, byte pid) : ipAddr (ip[0], ip[1], ip[2], ip[3]) {
 
-			portNr = port;
-			protocolID = protocol;
+      portNr = p;
+      protocolID = pid;
 
-		}
+    }
+
+    // copy constructor
+    EndPoint(const EndPoint & e) : ipAddr(e.ipAddr[0], e.ipAddr[1], e.ipAddr[2], e.ipAddr[3]){
+
+      portNr = e.portNr;
+      protocolID = e.protocolID;
+
+    }
 
 		// Destructor
 		~EndPoint() {};
@@ -78,8 +87,25 @@ class EndPoint {
 
 		std::string toString() const;
 
+    // Setters & Getters
+    void setIpAddress(const IpAddress & ip) {
+      ipAddr.setAddress(ip[0], ip[1], ip[2], ip[3]);
+    }
+
+    void setPortNr(const uint16_t & p) {
+      portNr = p;
+    }
+
+    void setProtocolID(const byte & pid) {
+      protocolID = pid;
+    }
+
+    IpAddress getIpAddress() const { return ipAddr; }
+    uint16_t getPortNr() const { return portNr; }
+    byte getProtocolID() const { return protocolID; }
+
 };
 
-//std::ostream & operator << (std::ostream &, const std::map<EndPoint,Info> &);
+std::ostream & operator << (std::ostream &, const std::map<EndPoint,Info> &);
 
 #endif

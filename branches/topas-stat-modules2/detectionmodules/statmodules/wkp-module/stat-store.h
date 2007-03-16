@@ -21,6 +21,7 @@
 #ifndef _STAT_STORE_H_
 #define _STAT_STORE_H_
 
+#include "shared.h"
 #include <datastore.h>
 #include <concentrator/ipfix.h>
 #include <map>
@@ -31,18 +32,6 @@
 
 // ==================== STORAGE CLASS StatStore ====================
 
-// this structure is used to store traffic information
-// about a node (an IP address):
-
-struct Info {
-  uint64_t packets_in;
-  uint64_t packets_out;
-  uint64_t bytes_in;
-  uint64_t bytes_out;
-};
-
-// storage class:
-
 class StatStore : public DataStore {
 
  private:
@@ -50,11 +39,16 @@ class StatStore : public DataStore {
   uint64_t packet_nb;               // data coming
   uint64_t byte_nb;                 // from the
   IpAddress SourceIP, DestIP;       // current record
+  uint16_t SourcePort, DestPort;
+  byte protocol;                    // useful in StatStore::recordEnd()
 
-  std::map<IpAddress,Info> Data;    // data collected from all records received
+  EndPoint e_source;
+  EndPoint e_dest;
+
+  std::map<EndPoint,Info> Data;     // data collected from all records received
                                     // since last call to Stat::test()
 
-  static std::map<IpAddress,Info> PreviousData;
+  static std::map<EndPoint,Info> PreviousData;
    // data collected from all records received before last call to Stat::test()
    // but not before the call before last call to Stat::test()...
    // that means, PreviousData is short-term memory: it's Data as it was before
@@ -72,9 +66,11 @@ class StatStore : public DataStore {
   void addFieldData(int id, byte * fieldData, int fieldDataLength,
 		    EnterpriseNo eid = 0);
 
-  static std::vector<int>* accept_source_ids;
-  std::map<IpAddress,Info> getData() const {return Data;}
-  std::map<IpAddress,Info> getPreviousData() const {return PreviousData;}
+  // IDMEF
+  //static std::vector<int>* accept_source_ids;
+
+  std::map<EndPoint,Info> getData() const {return Data;}
+  std::map<EndPoint,Info> getPreviousData() const {return PreviousData;}
 
   bool gotSourceIP, gotDestIP, gotProtocol, gotSourcePort, gotDestPort;
 
@@ -94,7 +90,7 @@ class StatStore : public DataStore {
 
  private:
 
-  static std::vector<IpAddress> MonitoredIpAddresses;
+  static std::vector<EndPoint> MonitoredIpAddresses;
   // IP addresses to monitor. They are provided in a file by the user;
   // this file is read by Stat::init(), which then initializes
   // MonitoredIpAddresses
@@ -128,8 +124,6 @@ class StatStore : public DataStore {
   // If no ports to monitor are provided, Stat::init() will set MonitorAllPorts
   // to "true" ("false" otherwise)
 
-  byte protocol; // useful in StatStore::recordEnd()
-
   static bool BeginMonitoring;
   // Set to "true" by Stat::init() when all the static information about IP,
   // protocols and ports is ready, else set to "false" by the Stat constructor.
@@ -147,23 +141,23 @@ class StatStore : public DataStore {
 
   // Public "setters" we just spoke about:
 
-  static void AddIpToMonitoredIp (IpAddress IP) {
+  static void AddIpToMonitoredIp (EndPoint IP) {
     MonitoredIpAddresses.push_back(IP);
   }
 
-  static void AddIpToMonitoredIp (const std::vector<IpAddress> & IPvector) {
+  static void AddIpToMonitoredIp (const std::vector<EndPoint> & IPvector) {
     MonitoredIpAddresses.insert(MonitoredIpAddresses.end(),
 				IPvector.begin(), IPvector.end());
   }
 
   static void InitialiseSubnetMask (byte tab[4]) {
-    subnetMask[0] = tab[0]; subnetMask[1] = tab[1]; 
-    subnetMask[2] = tab[2]; subnetMask[3] = tab[3]; 
+    subnetMask[0] = tab[0]; subnetMask[1] = tab[1];
+    subnetMask[2] = tab[2]; subnetMask[3] = tab[3];
   }
 
   static void InitialiseSubnetMask (byte a, byte b, byte c, byte d) {
-    subnetMask[0] = a; subnetMask[1] = b; 
-    subnetMask[2] = c; subnetMask[3] = d; 
+    subnetMask[0] = a; subnetMask[1] = b;
+    subnetMask[2] = c; subnetMask[3] = d;
   }
 
   static bool & setMonitorEveryIp () {

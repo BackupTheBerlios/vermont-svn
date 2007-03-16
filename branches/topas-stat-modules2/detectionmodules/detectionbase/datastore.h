@@ -37,13 +37,13 @@
  * - bool recordStart(SourceID&);
  * - void recordEnd();
  */
-class DataStore 
+class DataStore
 {
  public:
         /**
-         * Constructor 
+         * Constructor
          */
-        DataStore() 
+        DataStore()
 		: valid(false)
 	{
 	}
@@ -55,7 +55,7 @@ class DataStore
 
         /**
          * @brief Method used to insert IPFIX data into the module
-         * 
+         *
          * The method will be called for every field within an Ipfix
          * record.
          * The function will be called quite often.
@@ -84,7 +84,7 @@ class DataStore
          * Will only be called after a call to @c recordStart()
          */
         void recordEnd() {}
-        
+
 
         /**
          * Transforms an IpfixField into an integer
@@ -98,7 +98,7 @@ class DataStore
 	 * be invalid, if it is rejected by recordStart()
 	 */
 	bool isValid() { return valid; }
-	
+
 	/**
 	 * Sets validity of the buffer element
 	 */
@@ -122,18 +122,18 @@ public:
          * @param c Third byte of address
          * @param d Fourth byte of address
          */
-        IpAddress( byte a, byte b, byte c, byte d) 
+        IpAddress( byte a, byte b, byte c, byte d)
         {
-		setAddress(a, b, c, d);
+					setAddress(a, b, c, d);
         }
 
         /**
          * Constructor
-         * @param a 4 byte sized array containing an ip address 
+         * @param a 4 byte sized array containing an ip address
          */
-        IpAddress(const byte a[4]) 
+        IpAddress(const byte a[4])
         {
-		setAddress(a);
+					setAddress(a);
         }
 
         /**
@@ -141,7 +141,7 @@ public:
          */
         ~IpAddress() {};
 
-        /** 
+        /**
          * Returns field within an ip address. The operator is range checked.
          * @param i Byte to return
          * @return i. byte form ip address
@@ -153,13 +153,13 @@ public:
                 return address[i];
         }
 
-        bool operator==(const IpAddress& ip) const 
+        bool operator==(const IpAddress& ip) const
         {
                 return address[0] == ip.address[0] && address[1] == ip.address[1]
                         && address[2] == ip.address[2] && address[3] == ip.address[3];
         }
-        
-        bool operator<(const IpAddress& ip) const 
+
+        bool operator<(const IpAddress& ip) const
         {
                 if (address[0] < ip.address[0])
                         return true;
@@ -173,16 +173,16 @@ public:
                         return true;
                 return false;
         }
-        
+
         /* TODO: turn this member into an operator */
         std::string toString() const;
 
-	void setAddress(const byte a[4]) 
+	void setAddress(const byte a[4])
 	{
 		setAddress(a[0], a[1], a[2], a[3]);
 	}
 
-	void setAddress( byte a, byte b, byte c, byte d) 
+	void setAddress( byte a, byte b, byte c, byte d)
 	{
                 address[0] = a;
                 address[1] = b;

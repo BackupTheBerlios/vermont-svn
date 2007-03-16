@@ -21,111 +21,9 @@
 #include<signal.h>
 
 #include "stat-main.h"
-#include "shared.h"
 #include "wmw-test.h"
 #include "ks-test.h"
 #include "pcs-test.h"
-
-
-
-// ============== CONSTRUCTORS FOR CLASS DirectedIpAddress ================
-
-
-// WARNING! No verification that "dir" is IN or OUT is done by these functions,
-// as we don't want to make the module test more than it already does.
-// Make sure you don't construct DirectedIpAddress with uncommon values
-// for "dir".
-
-DirectedIpAddress::DirectedIpAddress (byte a, byte b, byte c, byte d, int dir)
-  : IpAddress (a, b, c, d) {
-  Direction = dir;
-}
-
-DirectedIpAddress::DirectedIpAddress (const byte tab[4], int dir)
-  : IpAddress (tab) {
-  Direction = dir;
-}
-
-DirectedIpAddress::DirectedIpAddress (const IpAddress & ip, int dir)
-  : IpAddress (ip[0], ip[1], ip[2], ip[3]) {
-  Direction = dir;
-}
-
-void DirectedIpAddress::setDirectedIpAddress (byte a, byte b, byte c, byte d, int dir) {
-  setAddress (a, b, c, d);
-  Direction = dir;
-}
-
-void DirectedIpAddress::setDirectedIpAddress (const byte tab[4], int dir) {
-  setAddress (tab);
-  Direction = dir;
-}
-
-void DirectedIpAddress::setDirectedIpAddress (const IpAddress & ip, int dir) {
-  setAddress (ip[0], ip[1], ip[2], ip[3]);
-  Direction = dir;
-}
-
-
-
-// =============== ORDER RELATION FOR CLASS DirectedIpAddress ================
-
-
-// we need an order relation to use DirectedIpAddress
-// as key field in std::map< key, value >
-
-bool DirectedIpAddress::operator == (const DirectedIpAddress & other) const {
-  return (IpAddress(*this)==IpAddress(other) && Direction==other.Direction);
-}
-
-bool DirectedIpAddress::operator < (const DirectedIpAddress & other) const {
-  if (IpAddress(*this) < IpAddress(other))
-    return true;
-  if (IpAddress(*this) == IpAddress(other) && Direction < other.Direction)
-    return true;
-  return false;
-}
-
-
-
-// ============== OTHER FUNCTIONS FOR CLASS DirectedIpAddress ================
-
-
-std::ostream & operator << (std::ostream & os, const DirectedIpAddress & DirIP) {
-  os << IpAddress(DirIP) << '|';
-  if (DirIP.getDirection() == OUT)
-    os << "-->";
-  else if (DirIP.getDirection() == IN)
-    os << "<--";
-  else
-    os << "---";
-  return os;
-}
-
-// mask functions:
-// - remanent_mask changes DirectedIpAddress object
-// - mask is only temporary
-// warning: netmask is not checked before being applied
-// use only 0 <= m1,m2,m3,m4 <= 255 (or 0x00 and 0xFF)
-
-DirectedIpAddress DirectedIpAddress::mask (byte m1, byte m2, byte m3, byte m4){
-  return DirectedIpAddress( (*this)[0] & m1, (*this)[1] & m2,
-			    (*this)[2] & m3, (*this)[3] & m4, Direction );
-}
-DirectedIpAddress DirectedIpAddress::mask (const byte m[4]) {
-  return DirectedIpAddress( (*this)[0] & m[0], (*this)[1] & m[1],
-			    (*this)[2] & m[2], (*this)[3] & m[3], Direction );
-}
-void DirectedIpAddress::remanent_mask (byte m1, byte m2, byte m3, byte m4) {
-  setAddress( (*this)[0] & m1, (*this)[1] & m2,
-	      (*this)[2] & m3, (*this)[3] & m4 );
-}
-void DirectedIpAddress::remanent_mask (const byte m[4]) {
-  setAddress( (*this)[0] & m[0], (*this)[1] & m[1],
-	      (*this)[2] & m[2], (*this)[3] & m[3] );
-}
-
-
 
 // ==================== CONSTRUCTOR FOR CLASS Stat ====================
 
@@ -161,10 +59,12 @@ void Stat::init(const std::string & configfile) {
   ConfObj * config;
   config = new ConfObj(configfile);
 
-#ifdef IDMEF_SUPPORT_ENABLED
+// IDMEF
+//#ifdef IDMEF_SUPPORT_ENABLED
 	/* register module */
-	registerModule("wkp-module");
-#endif
+//	registerModule("wkp-module");
+//#endif
+
 
   // NB: the order of the following operations is important,
   // as some of these functions use Stat members initialized
@@ -173,6 +73,7 @@ void Stat::init(const std::string & configfile) {
   // extracting output file's name
   init_output_file(config);
 
+// IDMEF
   // extracting source id's to accept
   // init_accept_source_ids(config);
 
@@ -237,6 +138,8 @@ void Stat::init(const std::string & configfile) {
 
 }
 
+// IDMEF
+/*
 #ifdef IDMEF_SUPPORT_ENABLED
 void Stat::update(XMLConfObj* xmlObj)
 {
@@ -254,6 +157,7 @@ void Stat::update(XMLConfObj* xmlObj)
 	}
 }
 #endif
+*/
 
 // ================== FUNCTIONS USED BY init FUNCTION =================
 
@@ -281,6 +185,7 @@ void Stat::init_output_file(ConfObj * config) {
   return;
 
 }
+// IDMEF
 /*
 void Stat::init_accept_source_ids(ConfObj * config) {
 	if (NULL != config->getValue("preferences", "accept_source_ids")) {
@@ -865,20 +770,20 @@ void Stat::init_ip_addresses(ConfObj * config) {
 
     else {
 
-      std::vector<IpAddress> IpVector;
+      std::vector<EndPoint> IpVector;
       unsigned int ip[4];
       char dot;
 
       while (ipstream >> ip[0] >> dot >> ip[1] >> dot >> ip[2] >> dot>>ip[3]) {
 	// save read IPs in a vector; mask them at the same time
-	IpVector.push_back(IpAddress(ip[0],ip[1],ip[2],ip[3]).mask(StatStore::getSubnetMask()));
+	IpVector.push_back(EndPoint(IpAddress(ip[0],ip[1],ip[2],ip[3]).mask(StatStore::getSubnetMask()), 0, 0));
       }
 
       // just in case the user provided a file with multiples IPs,
       // or the mask function made multiples IPs to appear:
       sort(IpVector.begin(),IpVector.end());
-      std::vector<IpAddress>::iterator new_end = unique(IpVector.begin(),IpVector.end());
-      std::vector<IpAddress> IpVectorBis (IpVector.begin(), new_end);
+      std::vector<EndPoint>::iterator new_end = unique(IpVector.begin(),IpVector.end());
+      std::vector<EndPoint> IpVectorBis (IpVector.begin(), new_end);
 
       // finally, add these IPs to monitor to static member
       // StatStore::MonitoredIpAddresses
@@ -1117,10 +1022,12 @@ void Stat::init_significance_level(ConfObj * config) {
 
 void Stat::test(StatStore * store) {
 
+// IDMEF
+/*
 #ifdef IDMEF_SUPPORT_ENABLED
-        idmefMessage = getNewIdmefMessage("wkp-module", "statistical anomaly detection");
+  idmefMessage = getNewIdmefMessage("wkp-module", "statistical anomaly detection");
 #endif
-
+*/
   outfile << "########## Stat::test(...)-call number: " << test_counter
 	  << " ##########" << std::endl;
 
@@ -1182,11 +1089,11 @@ void Stat::test(StatStore * store) {
       Samples S; (S.Old).push_back(Data_it->second);
       Records[Data_it->first] = S;
       if (output_verbosity >= 3) {
-	outfile << "New monitored IP address added" << std::endl;
-	if (output_verbosity >= 4) {
-	  outfile << "  sample_old: " << Data_it->second << "\n";
-	  outfile << "  sample_new: " << std::endl;
-	}
+	      outfile << "New monitored IP address added" << std::endl;
+	      if (output_verbosity >= 4) {
+          outfile << "  sample_old: " << Data_it->second << "\n";
+          outfile << "  sample_new: " << std::endl;
+	      }
       }
 
     }
@@ -1320,14 +1227,14 @@ std::map<DirectedIpAddress,int64_t> Stat::extract_data (StatStore * store) {
 //
 void Stat::extract_data_packets (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
 
-  std::map<IpAddress,Info> Data = store->getData();
-  std::map<IpAddress,Info>::iterator it = Data.begin();
+  std::map<EndPoint,Info> Data = store->getData();
+  std::map<EndPoint,Info>::iterator it = Data.begin();
 
   while (it != Data.end()) {
     if (it->second.packets_out >= noise_threshold_packets)
-      result[DirectedIpAddress(it->first,OUT)] = it->second.packets_out;
+      result[DirectedIpAddress(it->first.getIpAddress(),OUT)] = it->second.packets_out;
     if (it->second.packets_in  >= noise_threshold_packets)
-      result[DirectedIpAddress(it->first,IN)]  = it->second.packets_in;
+      result[DirectedIpAddress(it->first.getIpAddress(),IN)] = it->second.packets_in;
     it++;
   }
 
@@ -1336,14 +1243,14 @@ void Stat::extract_data_packets (StatStore * store, std::map<DirectedIpAddress,i
 
 void Stat::extract_data_octets (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
 
-  std::map<IpAddress,Info> Data = store->getData();
-  std::map<IpAddress,Info>::iterator it = Data.begin();
+  std::map<EndPoint,Info> Data = store->getData();
+  std::map<EndPoint,Info>::iterator it = Data.begin();
 
   while (it != Data.end()) {
     if (it->second.bytes_out >= noise_threshold_bytes)
-      result[DirectedIpAddress(it->first,OUT)] = (it->second).bytes_out;
+      result[DirectedIpAddress(it->first.getIpAddress(),OUT)] = (it->second).bytes_out;
     if (it->second.bytes_in  >= noise_threshold_bytes)
-      result[DirectedIpAddress(it->first,IN)]  = (it->second).bytes_in;
+      result[DirectedIpAddress(it->first.getIpAddress(),IN)]  = (it->second).bytes_in;
     it++;
   }
 
@@ -1355,19 +1262,19 @@ void Stat::extract_data_octets_per_packets (StatStore * store, std::map<Directed
   std::map<DirectedIpAddress,int64_t> packets;
   std::map<DirectedIpAddress,int64_t> bytes;
 
-  std::map<IpAddress,Info> Data = store->getData();
-  std::map<IpAddress,Info>::iterator it = Data.begin();
+  std::map<EndPoint,Info> Data = store->getData();
+  std::map<EndPoint,Info>::iterator it = Data.begin();
 
   while (it != Data.end()) {
     if (it->second.packets_out >= noise_threshold_packets ||
 	it->second.bytes_out   >= noise_threshold_packets ) {
-      packets[DirectedIpAddress(it->first,OUT)] = it->second.packets_out;
-      bytes  [DirectedIpAddress(it->first,OUT)] = it->second.bytes_out;
+      packets[DirectedIpAddress(it->first.getIpAddress(),OUT)] = it->second.packets_out;
+      bytes  [DirectedIpAddress(it->first.getIpAddress(),OUT)] = it->second.bytes_out;
     }
     if (it->second.packets_in >= noise_threshold_packets ||
 	it->second.bytes_in   >= noise_threshold_packets ) {
-      packets[DirectedIpAddress(it->first,IN)]  = it->second.packets_in;
-      bytes  [DirectedIpAddress(it->first,IN)]  = it->second.bytes_in;
+      packets[DirectedIpAddress(it->first.getIpAddress(),IN)]  = it->second.packets_in;
+      bytes  [DirectedIpAddress(it->first.getIpAddress(),IN)]  = it->second.bytes_in;
     }
     it++;
   }
@@ -1399,13 +1306,13 @@ void Stat::extract_data_octets_per_packets (StatStore * store, std::map<Directed
 
 void Stat::extract_data_packets_out_minus_packets_in (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
 
-  std::map<IpAddress,Info> Data = store->getData();
-  std::map<IpAddress,Info>::iterator it = Data.begin();
+  std::map<EndPoint,Info> Data = store->getData();
+  std::map<EndPoint,Info>::iterator it = Data.begin();
 
   while (it != Data.end()) {
     if (it->second.packets_out >= noise_threshold_packets ||
 	it->second.packets_in  >= noise_threshold_packets )
-      result[DirectedIpAddress(it->first,DEFAULT)] =
+      result[DirectedIpAddress(it->first.getIpAddress(),DEFAULT)] =
 	it->second.packets_out - it->second.packets_in;
     it++;
   }
@@ -1415,13 +1322,13 @@ void Stat::extract_data_packets_out_minus_packets_in (StatStore * store, std::ma
 
 void Stat::extract_data_octets_out_minus_octets_in (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
 
-  std::map<IpAddress,Info> Data = store->getData();
-  std::map<IpAddress,Info>::iterator it = Data.begin();
+  std::map<EndPoint,Info> Data = store->getData();
+  std::map<EndPoint,Info>::iterator it = Data.begin();
 
   while (it != Data.end()) {
     if (it->second.bytes_out >= noise_threshold_bytes ||
 	it->second.bytes_in  >= noise_threshold_bytes )
-      result[DirectedIpAddress(it->first,DEFAULT)] =
+      result[DirectedIpAddress(it->first.getIpAddress(),DEFAULT)] =
 	it->second.bytes_out - it->second.bytes_in;
     it++;
   }
@@ -1431,19 +1338,19 @@ void Stat::extract_data_octets_out_minus_octets_in (StatStore * store, std::map<
 
 void Stat::extract_packets_t_minus_packets_t_1 (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
 
-  std::map<IpAddress,Info> Data = store->getData();
-  std::map<IpAddress,Info> PreviousData = store->getPreviousData();
+  std::map<EndPoint,Info> Data = store->getData();
+  std::map<EndPoint,Info> PreviousData = store->getPreviousData();
 
-  std::map<IpAddress,Info>::iterator it = Data.begin();
+  std::map<EndPoint,Info>::iterator it = Data.begin();
 
   while (it != Data.end()) {
     if (it->second.packets_out > noise_threshold_packets ||
 	PreviousData[it->first].packets_out > noise_threshold_packets)
-      result[DirectedIpAddress(it->first,OUT)] =
+      result[DirectedIpAddress(it->first.getIpAddress(),OUT)] =
 	it->second.packets_out - PreviousData[it->first].packets_out;
     if (it->second.packets_in  > noise_threshold_packets ||
 	PreviousData[it->first].packets_in > noise_threshold_packets)
-      result[DirectedIpAddress(it->first,IN)]  =
+      result[DirectedIpAddress(it->first.getIpAddress(),IN)]  =
 	it->second.packets_in  - PreviousData[it->first].packets_in;
     // it doesn't matter much if it->first is an IP that exists only in Data,
     // not in PreviousData: PreviousData[it->first] will automaticaly be
@@ -1456,18 +1363,18 @@ void Stat::extract_packets_t_minus_packets_t_1 (StatStore * store, std::map<Dire
 
 void Stat::extract_octets_t_minus_octets_t_1 (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
 
-  std::map<IpAddress,Info> Data = store->getData();
-  std::map<IpAddress,Info> PreviousData = store->getPreviousData();
+  std::map<EndPoint,Info> Data = store->getData();
+  std::map<EndPoint,Info> PreviousData = store->getPreviousData();
 
-  std::map<IpAddress,Info>::iterator it = Data.begin();
+  std::map<EndPoint,Info>::iterator it = Data.begin();
   while (it != Data.end()) {
     if (it->second.bytes_out > noise_threshold_bytes ||
 	PreviousData[it->first].bytes_out > noise_threshold_bytes)
-      result[DirectedIpAddress(it->first,OUT)] =
+      result[DirectedIpAddress(it->first.getIpAddress(),OUT)] =
 	(it->second).bytes_out - PreviousData[it->first].bytes_out;
     if (it->second.bytes_in > noise_threshold_bytes ||
 	PreviousData[it->first].bytes_in > noise_threshold_bytes)
-      result[DirectedIpAddress(it->first,IN)]  =
+      result[DirectedIpAddress(it->first.getIpAddress(),IN)]  =
 	(it->second).bytes_in  - PreviousData[it->first].bytes_in;
     // it doesn't matter much if it->first is an IP that exists only in Data,
     // not in PreviousData: PreviousData[it->first] will automaticaly be
