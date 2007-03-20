@@ -40,7 +40,25 @@ std::ostream& operator << (std::ostream& ost, const EndPoint& e)
 std::ostream & operator << (std::ostream & os, const std::map<EndPoint,Info> & m) {
   std::map<EndPoint,Info>::const_iterator it = m.begin();
   while (it != m.end()){
-    std::cout << it->first << " --- packets_in: " << it->second.packets_in << ", packets_out: " << it->second.packets_out << ", bytes_in: " << it->second.bytes_in << ", bytes_out: " << it->second.bytes_out << ", records_in: " << it->second.records_in << ", records_out: " << it->second.records_out << std::endl;
+    os << it->first << " --- packets_in: " << it->second.packets_in << ", packets_out: " << it->second.packets_out << ", bytes_in: " << it->second.bytes_in << ", bytes_out: " << it->second.bytes_out << ", records_in: " << it->second.records_in << ", records_out: " << it->second.records_out;
+    it++;
+  }
+  return os;
+}
+
+std::ostream & operator << (std::ostream & os, const std::map<std::string,int64_t> & m){
+  std::map<std::string,int64_t>::const_iterator it = m.begin();
+  while (it != m.end()){
+    os << it->first << "=" << it->second << " ## ";
+    it++;
+  }
+  return os;
+}
+
+std::ostream & operator << (std::ostream & os, const std::map<EndPoint,std::map<std::string,int64_t> > & m){
+  std::map<EndPoint,std::map<std::string,int64_t> >::const_iterator it = m.begin();
+  while (it != m.end()){
+    os << it->first << " --- metrics: " << it->second << std::endl;
     it++;
   }
   return os;

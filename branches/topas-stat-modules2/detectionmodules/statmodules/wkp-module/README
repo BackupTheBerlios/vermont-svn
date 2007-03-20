@@ -10,6 +10,7 @@ To use this module, you have to:
 1) enable it in the IPFIX collector's XML configuration file, through
    <module>
      <filename>path/to/wkp-module</filename>
+     <run>yes</run>
      <arg>path/to/wkp-module-xml-configuration-file</arg>
    </module>
 

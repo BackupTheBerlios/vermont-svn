@@ -76,6 +76,19 @@ void SWBase::test(SWStore * store) {
 // Extracting data from store:
   std::map<EndPoint,int64_t> Data = extract_data (store);
 
+  // Map-Test
+  /*
+  std::map<EndPoint,std::map<std::string,int64_t> > aaa;
+  EndPoint e1 = EndPoint(IpAddress(0,0,0,0),0,0);
+  std::map<std::string,int64_t> bbb;
+  bbb["hallo"] = 500;
+  aaa[e1] = bbb;
+  aaa[e1]["hallo1"] = 501;
+  std::map<EndPoint,std::map<std::string,int64_t> >::iterator it = aaa.begin();
+  std::cout << it->second["hallo"] << std::endl;
+  std::cout << it->second["hallo1"] << std::endl;
+  */
+
   std::cout << "############# end test()-Run ###############" << std::endl;
 
   // Dumping empty records:

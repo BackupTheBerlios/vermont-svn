@@ -18,6 +18,17 @@
 /*                                                                        */
 /**************************************************************************/
 
+/* TODO
+problem1: XMLConfObj-Exceptions
+------------------------------------
+Bisher:
+Wenn in der Konfigurationsdatei ein Node, der initialisiert werden soll, nicht angegeben wird, so wird in der XMLConfObj::getValue-Funktion eine Exception geworfen und das Modul beendet, ergo: Man muss alles angeben.
+Besser:
+Exception ignorieren/unterbinden und das Problem den Modulen überlassen.
+------------------------------------
+*/
+
+
 #include<signal.h>
 
 #include "stat-main.h"
@@ -56,8 +67,8 @@ Stat::Stat(const std::string & configfile)
 //
 void Stat::init(const std::string & configfile) {
 
-  ConfObj * config;
-  config = new ConfObj(configfile);
+  XMLConfObj * config;
+  config = new XMLConfObj(configfile, XMLConfObj::XML_FILE);
 
 // IDMEF
 //#ifdef IDMEF_SUPPORT_ENABLED
@@ -69,6 +80,8 @@ void Stat::init(const std::string & configfile) {
   // NB: the order of the following operations is important,
   // as some of these functions use Stat members initialized
   // by the preceding functions; so beware if you change the order
+
+  config->enterNode("preferences");
 
   // extracting output file's name
   init_output_file(config);
@@ -120,6 +133,10 @@ void Stat::init(const std::string & configfile) {
   // extracting pause_update_when_attack parameter
   init_pause_update_when_attack(config);
 
+  config->leaveNode();
+
+  config->enterNode("test-params");
+
   // extracting type of test
   // (Wilcoxon and/or Kolmogorov and/or Pearson chi-square)
   init_which_test(config);
@@ -132,6 +149,8 @@ void Stat::init(const std::string & configfile) {
 
   // extracting significance level parameter
   init_significance_level(config);
+
+  config->leaveNode();
 
   /* one should not forget to free "config" after use */
   delete config;
@@ -162,20 +181,19 @@ void Stat::update(XMLConfObj* xmlObj)
 // ================== FUNCTIONS USED BY init FUNCTION =================
 
 
-void Stat::init_output_file(ConfObj * config) {
+void Stat::init_output_file(XMLConfObj * config) {
 
   // extracting output file's name
-  if (NULL != config->getValue("preferences", "output_file")) {
-    outfile.open(config->getValue("preferences", "output_file"));
+  if (!(config->getValue("output_file")).empty()) {
+    outfile.open(config->getValue("output_file").c_str());
     if (!outfile) {
       std::cerr << "Error: could not open output file "
-		<< config->getValue("preferences", "output_file") << ". "
+		<< config->getValue("output_file") << ". "
 		<< "Check if you have enough rights to create or write to it. "
 		<< "Exiting.\n";
       exit(0);
     }
   }
-
   else {
     std::cerr <<"Error! No output_file parameter defined in XML config file!\n"
 	      <<"Please give one and restart. Exiting.\n";
@@ -187,9 +205,9 @@ void Stat::init_output_file(ConfObj * config) {
 }
 // IDMEF
 /*
-void Stat::init_accept_source_ids(ConfObj * config) {
-	if (NULL != config->getValue("preferences", "accept_source_ids")) {
-		std::string str = config->getValue("preferences", "accept_source_ids");
+void Stat::init_accept_source_ids(XMLConfObj * config) {
+	if (NULL != config->getValue("accept_source_ids")) {
+		std::string str = config->getValue("accept_source_ids");
 		unsigned res, IDEnd = 0, last = 0;
 		bool more = true;
 		std::string temp;
@@ -224,13 +242,13 @@ void Stat::init_accept_source_ids(ConfObj * config) {
 }
 */
 
-void Stat::init_alarm_time(ConfObj * config) {
+void Stat::init_alarm_time(XMLConfObj * config) {
 
   // extracting alarm_time
   // (that means that the test() methode will be called
   // atoi(alarm_time) seconds after the last test()-run ended)
-  if (NULL != config->getValue("preferences", "alarm_time"))
-    setAlarmTime( atoi(config->getValue("preferences", "alarm_time")) );
+  if (!(config->getValue("alarm_time")).empty())
+    setAlarmTime( atoi(config->getValue("alarm_time").c_str()) );
 
   else {
     std::stringstream Error;
@@ -245,7 +263,7 @@ void Stat::init_alarm_time(ConfObj * config) {
 
 }
 
-void Stat::init_warning_verbosity(ConfObj * config) {
+void Stat::init_warning_verbosity(XMLConfObj * config) {
 
   // extracting warning verbosity
   std::stringstream Warning, Default, Usage;
@@ -257,12 +275,12 @@ void Stat::init_warning_verbosity(ConfObj * config) {
   Usage   << "O: warnings are sent to stderr\n"
 	  << "1: warnings are sent to stderr and output file\n";
 
-  if (NULL != config->getValue("preferences", "warning_verbosity")) {
-    if ( 0 == atoi( config->getValue("preferences", "warning_verbosity") )
+  if (!(config->getValue("warning_verbosity")).empty()) {
+    if ( 0 == atoi( config->getValue("warning_verbosity").c_str() )
 	 ||
-	 1 == atoi( config->getValue("preferences", "warning_verbosity") ) )
+	 1 == atoi( config->getValue("warning_verbosity").c_str() ) )
       warning_verbosity =
-	atoi( config->getValue("preferences", "warning_verbosity") );
+	atoi( config->getValue("warning_verbosity").c_str() );
     else {
       std::cerr << Warning.str() << Usage.str() << "Exiting.\n";
       outfile << Warning.str() << Usage.str() << "Exiting.\n" << std::flush;
@@ -279,7 +297,7 @@ void Stat::init_warning_verbosity(ConfObj * config) {
 
 }
 
-void Stat::init_output_verbosity(ConfObj * config) {
+void Stat::init_output_verbosity(XMLConfObj * config) {
 
   // extracting output verbosity
   std::stringstream Warning, Default, Usage;
@@ -295,12 +313,12 @@ void Stat::init_output_verbosity(ConfObj * config) {
 	  << "4: same as 3, plus sample printing\n"
 	  << "5: same as 4, plus all details from statistical tests\n";
 
-  if (NULL != config->getValue("preferences", "output_verbosity")) {
-    if ( 0 <= atoi( config->getValue("preferences", "output_verbosity") )
+  if (!(config->getValue("output_verbosity")).empty()) {
+    if ( 0 <= atoi( config->getValue("output_verbosity").c_str() )
 	 &&
-	 5 >= atoi( config->getValue("preferences", "output_verbosity") ) )
+	 5 >= atoi( config->getValue("output_verbosity").c_str() ) )
       output_verbosity =
-	atoi( config->getValue("preferences", "output_verbosity") );
+	atoi( config->getValue("output_verbosity").c_str() );
     else {
       std::cerr << Warning.str() << Usage.str() << "Exiting.\n";
       if (warning_verbosity==1)
@@ -320,96 +338,32 @@ void Stat::init_output_verbosity(ConfObj * config) {
 
 }
 
-void Stat::init_monitored_values(ConfObj * config) {
-
-  // extracting monitored values, 1/2
-  // these values are stored in the value field
-  // of our std::map<key, value> Records object
+void Stat::init_monitored_values(XMLConfObj * config) {
+  // extracting monitored values to monitored_values-vector
   std::stringstream Warning1, Warning2, Usage;
   Warning1
-    << "Warning! Unsupported parameter monitored_value in XML config file!\n";
+    << "Warning! No monitored_values parameter in XML config file!\n";
   Warning2
-    << "Warning! No monitored_value parameter defined in XML config file!\n";
+    << "Warning! No value parameter(s) defined for monitored_values in XML config file!\n";
   Usage
     << "Use packets, bytes, bytes/packet, packets_out-packets_in, "
     << "bytes_out-bytes_in,\n"
     << "packets(t)-packets(t-1), or bytes(t)-bytes(t-1).\n";
 
-  if (NULL != config->getValue("preferences", "monitored_value")) {
+  if (!config->nodeExists("monitored_values")) {
+    std::cerr << Warning1.str() << Usage.str() << "Exiting.\n";
+    if (warning_verbosity==1)
+      outfile << Warning1.str() << Usage.str() << "Exiting." << std::endl;
+    exit(0);
+  }
 
-    if ( 0 ==
-	 strcasecmp("packets",
-		    config->getValue("preferences", "monitored_value") )
-	 ) {
-      subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
-      monitored_value = "packets";
-    }
-    else if ( 0 ==
-	      strcasecmp("octets",
-			 config->getValue("preferences", "monitored_value") )
-	      ||
-	      0 ==
-	      strcasecmp("bytes",
-			 config->getValue("preferences", "monitored_value") )
-	      ) {
-      subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
-      monitored_value = "octets";
-    }
-    else if ( 0 ==
-	      strcasecmp("octets/packet",
-			 config->getValue("preferences", "monitored_value") )
-	      ||
-	      0 ==
-	      strcasecmp("bytes/packet",
-			 config->getValue("preferences", "monitored_value") )
-	      ) {
-      subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
-      subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
-      monitored_value = "octets/packet";
-    }
-    else if ( 0 ==
-	      strcasecmp("packets_out-packets_in",
-			 config->getValue("preferences", "monitored_value") )
-	      ) {
-      subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
-      monitored_value = "packets_out-packets_in";
-    }
-    else if ( 0 ==
-	      strcasecmp("octets_out-octets_in",
-			 config->getValue("preferences", "monitored_value") )
-	      ||
-	      0 ==
-	      strcasecmp("bytes_out-bytes_in" ,
-			 config->getValue("preferences", "monitored_value") )
-	      ) {
-      subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
-      monitored_value = "octets_out-octets_in";
-    }
-    else if ( 0 ==
-	      strcasecmp("packets(t)-packets(t-1)",
-			 config->getValue("preferences", "monitored_value") )
-	      ) {
-      subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
-      monitored_value = "packets(t)-packets(t-1)";
-    }
-    else if ( 0 ==
-	      strcasecmp("octets(t)-octets(t-1)",
-			 config->getValue("preferences", "monitored_value") )
-	      ||
-	      0 ==
-	      strcasecmp("bytes(t)-bytes(t-1)",
-			 config->getValue("preferences", "monitored_value") )
-	      ) {
-      subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
-      monitored_value = "octets(t)-octets(t-1)";
-    }
-    else {
-      std::cerr << Warning1.str() << Usage.str() << "Exiting.\n";
-      if (warning_verbosity==1)
-	outfile << Warning1.str() << Usage.str() << "Exiting." << std::endl;
-      exit(0);
-    }
+  config->enterNode("monitored_values");
 
+  /* get all monitored values */
+  if (config->nodeExists("value")) {
+    monitored_values.push_back(config->getValue("value"));
+    while (config->nextNodeExists())
+      monitored_values.push_back(config->getNextValue());
   }
   else {
     std::cerr << Warning2.str() << Usage.str() << "Exiting.\n";
@@ -418,64 +372,98 @@ void Stat::init_monitored_values(ConfObj * config) {
     exit(0);
   }
 
-  // extracting monitored values, 2/2
-  // whatever the above monitored values are, we always monitor IP addresses,
-  // that are stored in the key field of std::map<key, value> Records
+  config->leaveNode();
+
+  // subscribing to all needed IPFIX_TYPEID-fields
+
+  // just in case the user provided multiple same values
+  sort(monitored_values.begin(),monitored_values.end());
+  std::vector<std::string>::iterator new_end = unique(monitored_values.begin(),monitored_values.end());
+  std::vector<std::string> tmp (monitored_values.begin(), new_end);
+  monitored_values.clear();
+  monitored_values = tmp;
+
+  for (int i = 0; i != monitored_values.size(); i++) {
+
+    if ( 0 == strcasecmp("packets", monitored_values.at(i).c_str())
+        || 0 == strcasecmp("packets_out-packets_in", monitored_values.at(i).c_str() )
+        || 0 == strcasecmp("packets(t)-packets(t-1)", monitored_values.at(i).c_str()) )
+      subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
+
+    if ( 0 == strcasecmp("octets", monitored_values.at(i).c_str())
+        || 0 == strcasecmp("bytes", monitored_values.at(i).c_str())
+        || 0 == strcasecmp("octets_out-octets_in", monitored_values.at(i).c_str() )
+        || 0 == strcasecmp("bytes_out-bytes_in" , monitored_values.at(i).c_str() )
+        || 0 == strcasecmp("octets(t)-octets(t-1)", monitored_values.at(i).c_str() )
+        || 0 == strcasecmp("bytes(t)-bytes(t-1)", monitored_values.at(i).c_str()) )
+      subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
+
+    if ( 0 == strcasecmp("octets/packet", monitored_values.at(i).c_str())
+        || 0 == strcasecmp("bytes/packet", monitored_values.at(i).c_str()) ) {
+      subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
+      subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
+    }
+
+  }
+
+  // whatever the above monitored values are, we always monitor IP addresses
+  // TODO: Maybe if we are only interested in Ports, we dont need IPs
   subscribeTypeId(IPFIX_TYPEID_sourceIPv4Address);
   subscribeTypeId(IPFIX_TYPEID_destinationIPv4Address);
 
-  return;
+  /*
+  for (int i = 0; i != monitored_values.size(); i++)
+    std::cout << monitored_values.at(i) << std::endl;
+  */
 
+  return;
 }
 
-void Stat::init_noise_thresholds(ConfObj * config) {
+void Stat::init_noise_thresholds(XMLConfObj * config) {
 
   // extracting noise threshold for packets
+  std::vector<std::string>::iterator it = find(monitored_values.begin(), monitored_values.end(), "packets");
+  if (it != monitored_values.end()) {
+  // irrelevant for other quantities
+  // (or, at least, much more difficult to code)
 
-  if (monitored_value == "packets") {
-    // irrelevant for other quantities
-    // (or, at least, much more difficult to code)
-
-    if (NULL == config->getValue("preferences", "noise_threshold_packets")) {
-
+    if (config->getValue("noise_threshold_packets").empty()) {
       std::stringstream Default1;
       Default1 << "Warning! No noise threshold for packets was provided!\n"
 	       << "There will be no noise reduction for packets.\n";
       std::cerr << Default1.str();
+
       if (warning_verbosity==1)
-	outfile << Default1.str() << std::flush;
+	      outfile << Default1.str() << std::flush;
 
       noise_threshold_packets = 0;
     }
 
     else {
-      noise_threshold_packets =
-	atoi(config->getValue("preferences", "noise_threshold_packets"));
+      noise_threshold_packets = atoi(config->getValue("noise_threshold_packets").c_str());
     }
 
   }
 
   // extracting noise threshold for bytes
+  it = find(monitored_values.begin(), monitored_values.end(), "octets");
+  if (it != monitored_values.end()) {
+  // irrelevant for other quantities
+  // (or, at least, much more difficult to code)
 
-  if (monitored_value == "octets") {
-    // irrelevant for other quantities
-    // (or, at least, much more difficult to code)
-
-    if (NULL == config->getValue("preferences", "noise_threshold_bytes")) {
-
+    if (config->getValue("noise_threshold_bytes").empty()) {
       std::stringstream Default2;
       Default2 << "Warning! No noise threshold for bytes was provided!\n"
 	       << "There will be no noise reduction for bytes.\n";
       std::cerr << Default2.str();
       if (warning_verbosity==1)
-	outfile << Default2.str() << std::flush;
+	      outfile << Default2.str() << std::flush;
 
       noise_threshold_bytes = 0;
     }
 
     else {
-      noise_threshold_bytes =
-	atoi(config->getValue("preferences", "noise_threshold_bytes"));
+      noise_threshold_bytes =	atoi(config->getValue("noise_threshold_bytes").c_str());
     }
 
   }
@@ -484,7 +472,7 @@ void Stat::init_noise_thresholds(ConfObj * config) {
 
 }
 
-void Stat::init_protocols(ConfObj * config) {
+void Stat::init_protocols(XMLConfObj * config) {
 
   port_monitoring = false;
 
@@ -498,11 +486,11 @@ void Stat::init_protocols(ConfObj * config) {
 	<< IPFIX_protocolIdentifier_UDP << " or "
 	<< IPFIX_protocolIdentifier_RAW  << ").\n";
 
-  if (NULL != config->getValue("preferences", "protocols")) {
+  if (!(config->getValue("protocols")).empty()) {
 
     subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
 
-    std::string Proto = config->getValue("preferences", "protocols");
+    std::string Proto = config->getValue("protocols");
     std::istringstream ProtoStream (Proto);
 
     std::string protocol;
@@ -559,7 +547,7 @@ void Stat::init_protocols(ConfObj * config) {
 
 }
 
-void Stat::init_netmask(ConfObj * config) {
+void Stat::init_netmask(XMLConfObj * config) {
 
   std::stringstream Default, Warning, Usage;
   Default << "Warning! No netmask parameter defined in XML config file! "
@@ -567,11 +555,11 @@ void Stat::init_netmask(ConfObj * config) {
   Warning << "Warning! Netmask was provided in an unknown format!\n";
   Usage   << "Use xxx.yyy.zzz.ttt, hexadecimal or an int between 0 and 32.\n";
 
-  char * netmask;
+  const char * netmask;
   unsigned int mask[4];
 
-  if (NULL != config->getValue("preferences", "netmask")) {
-    netmask = config->getValue("preferences", "netmask");
+  if (!(config->getValue("netmask")).empty()) {
+    netmask = config->getValue("netmask").c_str();
   }
 
   else {
@@ -664,33 +652,38 @@ void Stat::init_netmask(ConfObj * config) {
 
 }
 
-void Stat::init_ports(ConfObj * config) {
+void Stat::init_ports(XMLConfObj * config) {
 
   std::stringstream Warning, Default;
   Warning << "Warning! No port number(s) to monitor was (were) provided!\n";
   Default << "Every port will be monitored.\n";
 
   // extracting port numbers to monitor
-  if (NULL != config->getValue("preferences", "ports")) {
+  if (!(config->getValue("ports")).empty()) {
 
     if (port_monitoring == false)
       return;
       // only ICMP and/or RAW are monitored: no need to subscribe to
       // IPFIX port information
 
-    std::string Ports = config->getValue("preferences", "ports");
-    std::istringstream PortsStream (Ports);
+    // needed because of problem1
+    if( config->getValue("ports") == "all" ) {
+      StatStore::setMonitorAllPorts() = true;
+    }
+    else {
+      std::string Ports = config->getValue("ports");
+      std::istringstream PortsStream (Ports);
 
-    unsigned int port;
-    while (PortsStream >> port)
-      StatStore::AddPortToMonitoredPorts(port);
+      unsigned int port;
+      while (PortsStream >> port)
+        StatStore::AddPortToMonitoredPorts(port);
+
+      StatStore::setMonitorAllPorts() = false;
+    }
 
     subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
     subscribeTypeId(IPFIX_TYPEID_destinationTransportPort);
-    StatStore::setMonitorAllPorts() = false;
-
   }
-
   else {
 
     if (port_monitoring == false)
@@ -712,7 +705,7 @@ void Stat::init_ports(ConfObj * config) {
 
 }
 
-void Stat::init_ip_addresses(ConfObj * config) {
+void Stat::init_ip_addresses(XMLConfObj * config) {
 
   std::stringstream Warning, Default;
   Warning
@@ -727,18 +720,16 @@ void Stat::init_ip_addresses(ConfObj * config) {
   // give IP addresses to monitor
   bool gotIpfile = false;
 
-  if (NULL != config->getValue("preferences", "ip_addresses_to_monitor")) {
-    ipfile = config->getValue("preferences", "ip_addresses_to_monitor");
+  if (!(config->getValue("ip_addresses_to_monitor")).empty()) {
+    ipfile = config->getValue("ip_addresses_to_monitor");
     gotIpfile = true;
   }
-
   else {
     std::cerr << Warning.str();
     if (warning_verbosity==1)
       outfile << Warning.str() << std::flush;
-    if (NULL != config->getValue("preferences", "iplist_maxsize")) {
-      iplist_maxsize =
-	atoi( config->getValue("preferences", "iplist_maxsize") );
+    if (!(config->getValue("iplist_maxsize")).empty()) {
+      iplist_maxsize = atoi( config->getValue("iplist_maxsize").c_str() );
     }
     else {
       std::cerr << Default.str();
@@ -754,9 +745,9 @@ void Stat::init_ip_addresses(ConfObj * config) {
 
     std::stringstream Error;
     Error << "Error! I could not open IP-file " << ipfile << "!\n"
-	  << "Please check that the file exists, "
-	  << "and that you have enough rights to read it.\n"
-	  << "Exiting.\n";
+    << "Please check that the file exists, "
+    << "and that you have enough rights to read it.\n"
+    << "Exiting.\n";
 
     std::ifstream ipstream(ipfile.c_str());
       // .c_str() because the constructor only accepts C-style strings
@@ -764,7 +755,7 @@ void Stat::init_ip_addresses(ConfObj * config) {
     if (!ipstream) {
       std::cerr << Error.str();
       if (warning_verbosity==1)
-	outfile << Error.str() << std::flush;
+  outfile << Error.str() << std::flush;
       exit(0);
     }
 
@@ -775,8 +766,8 @@ void Stat::init_ip_addresses(ConfObj * config) {
       char dot;
 
       while (ipstream >> ip[0] >> dot >> ip[1] >> dot >> ip[2] >> dot>>ip[3]) {
-	// save read IPs in a vector; mask them at the same time
-	IpVector.push_back(EndPoint(IpAddress(ip[0],ip[1],ip[2],ip[3]).mask(StatStore::getSubnetMask()), 0, 0));
+  // save read IPs in a vector; mask them at the same time
+  IpVector.push_back(EndPoint(IpAddress(ip[0],ip[1],ip[2],ip[3]).mask(StatStore::getSubnetMask()), 0, 0));
       }
 
       // just in case the user provided a file with multiples IPs,
@@ -792,8 +783,8 @@ void Stat::init_ip_addresses(ConfObj * config) {
       // no need to monitor every IP:
       StatStore::setMonitorEveryIp() = false;
     }
-  }
 
+  }
   else { // gotIpfile == false
     StatStore::setMonitorEveryIp() = true;
     StatStore::setIpListMaxSize() = iplist_maxsize;
@@ -803,12 +794,12 @@ void Stat::init_ip_addresses(ConfObj * config) {
 
 }
 
-void Stat::init_stat_test_freq(ConfObj * config) {
+void Stat::init_stat_test_freq(XMLConfObj * config) {
 
   // extracting statistical test frequency
-  if (NULL != config->getValue("preferences", "stat_test_frequency")) {
+  if (!(config->getValue("stat_test_frequency")).empty()) {
     stat_test_frequency =
-      atoi( config->getValue("preferences", "stat_test_frequency") );
+      atoi( config->getValue("stat_test_frequency").c_str() );
   }
 
   else {
@@ -826,12 +817,12 @@ void Stat::init_stat_test_freq(ConfObj * config) {
 
 }
 
-void Stat::init_report_only_first_attack(ConfObj * config) {
+void Stat::init_report_only_first_attack(XMLConfObj * config) {
 
   // extracting report_only_first_attack preference
-  if (NULL != config->getValue("preferences", "report_only_first_attack")) {
+  if (!(config->getValue("report_only_first_attack")).empty()) {
     report_only_first_attack =
-      ( 0 == strcasecmp("true", config->getValue("preferences", "report_only_first_attack")) ) ? true:false;
+      ( 0 == strcasecmp("true", config->getValue("report_only_first_attack").c_str()) ) ? true:false;
   }
 
   else {
@@ -855,12 +846,12 @@ void Stat::init_report_only_first_attack(ConfObj * config) {
 
 }
 
-void Stat::init_pause_update_when_attack(ConfObj * config) {
+void Stat::init_pause_update_when_attack(XMLConfObj * config) {
 
   // extracting pause_update_when_attack preference
-  if (NULL != config->getValue("preferences", "pause_update_when_attack")) {
+  if (!(config->getValue("pause_update_when_attack")).empty()) {
     pause_update_when_attack =
-      ( 0 == strcasecmp("true", config->getValue("preferences", "pause_update_when_attack")) ) ? true:false;
+      ( 0 == strcasecmp("true", config->getValue("pause_update_when_attack").c_str()) ) ? true:false;
   }
 
   else {
@@ -877,7 +868,7 @@ void Stat::init_pause_update_when_attack(ConfObj * config) {
 
 }
 
-void Stat::init_which_test(ConfObj * config) {
+void Stat::init_which_test(XMLConfObj * config) {
 
   std::stringstream WMWdefault, KSdefault, PCSdefault;
   WMWdefault << "Warning! No wilcoxon_test parameter "
@@ -889,8 +880,8 @@ void Stat::init_which_test(ConfObj * config) {
 
   // extracting type of test
   // (Wilcoxon and/or Kolmogorov and/or Pearson chi-square)
-  if (NULL != config->getValue("test-params", "wilcoxon_test")) {
-    enable_wmw_test = ( 0 == strcasecmp("true", config->getValue("test-params", "wilcoxon_test")) ) ? true:false;
+  if (!(config->getValue("wilcoxon_test")).empty()) {
+    enable_wmw_test = ( 0 == strcasecmp("true", config->getValue("wilcoxon_test").c_str()) ) ? true:false;
   }
   else {
     std::cerr << WMWdefault.str();
@@ -899,8 +890,8 @@ void Stat::init_which_test(ConfObj * config) {
     enable_wmw_test = true;
   }
 
-  if (NULL != config->getValue("test-params", "kolmogorov_test")) {
-    enable_ks_test = ( 0 == strcasecmp("true", config->getValue("test-params", "kolmogorov_test")) ) ? true:false;
+  if (!(config->getValue("kolmogorov_test")).empty()) {
+    enable_ks_test = ( 0 == strcasecmp("true", config->getValue("kolmogorov_test").c_str()) ) ? true:false;
   }
   else {
     std::cerr << KSdefault.str();
@@ -909,8 +900,8 @@ void Stat::init_which_test(ConfObj * config) {
     enable_ks_test = true;
   }
 
-  if (NULL != config->getValue("test-params", "pearson_chi-square_test")) {
-    enable_pcs_test = ( 0 == strcasecmp("true", config->getValue("test-params", "pearson_chi-square_test")) ) ?true:false;
+  if (!(config->getValue("pearson_chi-square_test")).empty()) {
+    enable_pcs_test = ( 0 == strcasecmp("true", config->getValue("pearson_chi-square_test").c_str()) ) ?true:false;
   }
   else {
     std::cerr << PCSdefault.str();
@@ -923,7 +914,7 @@ void Stat::init_which_test(ConfObj * config) {
 
 }
 
-void Stat::init_sample_sizes(ConfObj * config) {
+void Stat::init_sample_sizes(XMLConfObj * config) {
 
   std::stringstream Default_old, Default_new;
   Default_old << "Warning! No sample_old_size defined in XML config file! "
@@ -934,9 +925,9 @@ void Stat::init_sample_sizes(ConfObj * config) {
 	      << DEFAULT_sample_new_size << ".\n";
 
   // extracting size of sample_old
-  if (NULL != config->getValue("test-params", "sample_old_size")) {
+  if (!(config->getValue("sample_old_size")).empty()) {
     sample_old_size =
-      atoi( config->getValue("test-params", "sample_old_size") );
+      atoi( config->getValue("sample_old_size").c_str() );
   }
   else {
     std::cerr << Default_old.str();
@@ -946,9 +937,9 @@ void Stat::init_sample_sizes(ConfObj * config) {
   }
 
   // extracting size of sample_new
-  if (NULL != config->getValue("test-params", "sample_new_size")) {
+  if (!(config->getValue("sample_new_size")).empty()) {
     sample_new_size =
-      atoi( config->getValue("test-params", "sample_new_size") );
+      atoi( config->getValue("sample_new_size").c_str() );
   }
   else {
     std::cerr << Default_new.str();
@@ -961,11 +952,11 @@ void Stat::init_sample_sizes(ConfObj * config) {
 
 }
 
-void Stat::init_two_sided(ConfObj * config) {
+void Stat::init_two_sided(XMLConfObj * config) {
 
   // extracting one/two-sided parameter for the test
-  if (NULL != config->getValue("test-params", "two_sided")) {
-    two_sided = ( 0 == strcasecmp("true", config->getValue("test-params", "two_sided")) ) ? true:false;
+  if (!(config->getValue("two_sided")).empty()) {
+    two_sided = ( 0 == strcasecmp("true", config->getValue("two_sided").c_str()) ) ? true:false;
   }
 
   else if (enable_wmw_test == true) {
@@ -985,15 +976,15 @@ void Stat::init_two_sided(ConfObj * config) {
 
 }
 
-void Stat::init_significance_level(ConfObj * config) {
+void Stat::init_significance_level(XMLConfObj * config) {
 
   // extracting significance level parameter
-  if (NULL != config->getValue("test-params", "significance_level")) {
-    if ( 0 <= atof( config->getValue("test-params", "significance_level") )
+  if (!(config->getValue("significance_level")).empty()) {
+    if ( 0 <= atof( config->getValue("significance_level").c_str() )
 	 &&
-	 1 >= atof( config->getValue("test-params", "significance_level") ) )
+	 1 >= atof( config->getValue("significance_level").c_str() ) )
       significance_level =
-	atof( config->getValue("test-params", "significance_level") );
+	atof( config->getValue("significance_level").c_str() );
     else {
       std::stringstream Warning("Warning! Parameter significance_level should be between 0 and 1! Exiting.\n");
       std::cerr << Warning.str();
@@ -1032,8 +1023,7 @@ void Stat::test(StatStore * store) {
 	  << " ##########" << std::endl;
 
   // Extracting data from store:
-
-  std::map<DirectedIpAddress,int64_t> Data = extract_data (store);
+  std::map<EndPoint,std::map<std::string,int64_t> > Data = extract_data (store);
 
   // Print some warning message if it appears that maximal size of IP list
   // was reached (in the StatStore object "store") and that a new IP
@@ -1048,16 +1038,17 @@ void Stat::test(StatStore * store) {
     }
   }
 
-  // Dumping empty records:
+  std::cout << Data << std::endl;
 
+  // Dumping empty records:
   if (Data.empty()==true) {
-//  std::cerr << "Got empty record; "
-//	      << "dumping it and waiting for another record\n";
     if (output_verbosity>=3 || warning_verbosity==1)
       outfile << "Got empty record; "
 	      << "dumping it and waiting for another record" << std::endl;
     return;
   }
+
+  /*
 
   // 1) LEARN/UPDATE PHASE
 
@@ -1069,11 +1060,13 @@ void Stat::test(StatStore * store) {
 
   outfile << "#### LEARN/UPDATE PHASE" << std::endl;
 
-  std::map<DirectedIpAddress,int64_t>::iterator Data_it = Data.begin();
+  std::map<EndPoint,std::map<std::string,int64_t> >::iterator Data_it = Data.begin();
 
+  // for every monitored_value, do the tests
+  // Problem: Nur ein Records-Container
   while (Data_it != Data.end()) {
 
-    std::map<DirectedIpAddress, Samples>::iterator Records_it =
+    std::map<EndPoint, Samples>::iterator Records_it =
       Records.find(Data_it->first);
 
     outfile << "[[ " << Data_it->first << " ]]" << std::endl;
@@ -1165,6 +1158,8 @@ void Stat::test(StatStore * store) {
 
   }
 
+  */
+
   test_counter++;
 
   /* don't forget to free the store-object! */
@@ -1180,42 +1175,66 @@ void Stat::test(StatStore * store) {
 
 // ------ FUNCTIONS USED TO EXTRACT DATA FROM THE STORAGE CLASS StatStore -----
 
-// extracts interesting data from StatStore according to monitored_value:
+// extracts interesting data from StatStore according to monitored_values:
 //
-std::map<DirectedIpAddress,int64_t> Stat::extract_data (StatStore * store) {
 
-  std::map<DirectedIpAddress,int64_t> result;
+std::map<EndPoint,std::map<std::string,int64_t> > Stat::extract_data (StatStore * store) {
 
-  if (monitored_value=="packets")
+  std::map<EndPoint,std::map<std::string,int64_t> > result;
+  bool gotValue = false; // false means: unknown type of value occurred
+
+  std::vector<std::string>::iterator it = find(monitored_values.begin(), monitored_values.end(), "packets");
+  if (it != monitored_values.end()) {
     extract_data_packets (store, result);
+    gotValue = true;
+  }
 
-  else if (monitored_value=="octets")
+  it = find(monitored_values.begin(), monitored_values.end(), "octets");
+  if (it != monitored_values.end()) {
     extract_data_octets (store, result);
+    gotValue = true;
+  }
 
-  else if (monitored_value=="octets/packet")
+  it = find(monitored_values.begin(), monitored_values.end(), "octets/packet");
+  if (it != monitored_values.end()) {
     extract_data_octets_per_packets (store, result);
+    gotValue = true;
+  }
 
-  else if (monitored_value=="packets_out-packets_in")
+  it = find(monitored_values.begin(), monitored_values.end(), "packets_out-packets_in");
+  if (it != monitored_values.end()) {
     extract_data_packets_out_minus_packets_in (store, result);
+    gotValue = true;
+  }
 
-  else if (monitored_value=="octets_out-octets_in")
+
+  it = find(monitored_values.begin(), monitored_values.end(), "octets_out-octets_in");
+  if (it != monitored_values.end()) {
     extract_data_octets_out_minus_octets_in (store, result);
+    gotValue = true;
+  }
 
-  else if (monitored_value=="packets(t)-packets(t-1)")
+  it = find(monitored_values.begin(), monitored_values.end(), "packets(t)-packets(t-1)");
+  if (it != monitored_values.end()) {
     extract_packets_t_minus_packets_t_1 (store, result);
+    gotValue = true;
+  }
 
-  else if (monitored_value=="octets(t)-octets(t-1)")
+  it = find(monitored_values.begin(), monitored_values.end(), "octets(t)-octets(t-1)");
+  if (it != monitored_values.end()) {
     extract_octets_t_minus_octets_t_1 (store, result);
+    gotValue = true;
+  }
 
-  else {
+  if (gotValue == false) {
     // if none of the above, then:
     std::cerr << "Error! Found unknown type of monitored value "
-	      << "in Stat::test(StatStore * store)!\n"
-	      << "A programmer has probably added a new type "
-	      << "of monitored value to the Stat::init() function\n"
-	      << "but has forgotten to ensure its support "
-	      << "in the Stat::test(StatStore * store) function.\n"
-	      << "I'm sorry. Please correct this error. Exiting...\n";
+        << "in Stat::test(StatStore * store)!\n"
+        << "A programmer has probably added a new type "
+        << "of monitored value to the Stat::init() function\n"
+        << "but has forgotten to ensure its support "
+        << "in the Stat::test(StatStore * store) function.\n"
+        << "I'm sorry. Please correct this error. Exiting...\n";
     exit(0);
   }
 
@@ -1225,42 +1244,46 @@ std::map<DirectedIpAddress,int64_t> Stat::extract_data (StatStore * store) {
 
 // functions called by the extract_data()-function:
 //
-void Stat::extract_data_packets (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
+void Stat::extract_data_packets (StatStore * store, std::map<EndPoint,std::map<std::string,int64_t> > & result) {
 
   std::map<EndPoint,Info> Data = store->getData();
   std::map<EndPoint,Info>::iterator it = Data.begin();
 
   while (it != Data.end()) {
     if (it->second.packets_out >= noise_threshold_packets)
-      result[DirectedIpAddress(it->first.getIpAddress(),OUT)] = it->second.packets_out;
+      result[it->first]["packets_out"] = it->second.packets_out;
     if (it->second.packets_in  >= noise_threshold_packets)
-      result[DirectedIpAddress(it->first.getIpAddress(),IN)] = it->second.packets_in;
+      result[it->first]["packets_in"] = it->second.packets_in;
     it++;
   }
 
   return;
 }
 
-void Stat::extract_data_octets (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
+void Stat::extract_data_octets (StatStore * store, std::map<EndPoint,std::map<std::string,int64_t> > & result) {
 
   std::map<EndPoint,Info> Data = store->getData();
   std::map<EndPoint,Info>::iterator it = Data.begin();
 
   while (it != Data.end()) {
     if (it->second.bytes_out >= noise_threshold_bytes)
-      result[DirectedIpAddress(it->first.getIpAddress(),OUT)] = (it->second).bytes_out;
+      result[it->first]["bytes_out"] = it->second.bytes_out;
     if (it->second.bytes_in  >= noise_threshold_bytes)
-      result[DirectedIpAddress(it->first.getIpAddress(),IN)]  = (it->second).bytes_in;
+      result[it->first]["bytes_in"]  = it->second.bytes_in;
     it++;
   }
 
   return;
 }
 
-void Stat::extract_data_octets_per_packets (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
+void Stat::extract_data_octets_per_packets (StatStore * store, std::map<EndPoint,std::map<std::string,int64_t> > & result) {
 
-  std::map<DirectedIpAddress,int64_t> packets;
-  std::map<DirectedIpAddress,int64_t> bytes;
+  // vector[0] = packets_out
+  // vector[1] = packets_in
+  std::map<EndPoint,std::vector<int64_t> > packets;
+  // vector[0] = bytes_out
+  // vector[1] = bytes_in
+  std::map<EndPoint,std::vector<int64_t> > bytes;
 
   std::map<EndPoint,Info> Data = store->getData();
   std::map<EndPoint,Info>::iterator it = Data.begin();
@@ -1268,30 +1291,34 @@ void Stat::extract_data_octets_per_packets (StatStore * store, std::map<Directed
   while (it != Data.end()) {
     if (it->second.packets_out >= noise_threshold_packets ||
 	it->second.bytes_out   >= noise_threshold_packets ) {
-      packets[DirectedIpAddress(it->first.getIpAddress(),OUT)] = it->second.packets_out;
-      bytes  [DirectedIpAddress(it->first.getIpAddress(),OUT)] = it->second.bytes_out;
+      packets[it->first].push_back(it->second.packets_out);
+      bytes[it->first].push_back(it->second.bytes_out);
     }
     if (it->second.packets_in >= noise_threshold_packets ||
 	it->second.bytes_in   >= noise_threshold_packets ) {
-      packets[DirectedIpAddress(it->first.getIpAddress(),IN)]  = it->second.packets_in;
-      bytes  [DirectedIpAddress(it->first.getIpAddress(),IN)]  = it->second.bytes_in;
+      packets[it->first].push_back(it->second.packets_in);
+      bytes[it->first].push_back(it->second.bytes_in);
     }
     it++;
   }
 
-  std::map<DirectedIpAddress,int64_t>::iterator it1 = packets.begin();
-  std::map<DirectedIpAddress,int64_t>::iterator it2 = bytes.begin();
+  std::map<EndPoint,std::vector<int64_t> >::iterator it1 = packets.begin();
+  std::map<EndPoint,std::vector<int64_t> >::iterator it2 = bytes.begin();
   while (it1 != packets.end()) {
 
-    if (it1->second == 0)
-      result[it1->first] = 0;
-    // i.e. bytes_per_packet[DirIpAddress] = 0
+    if (it1->second.at(0) == 0)
+      result[it1->first]["octets/packet_out"] = 0;
+    // i.e. bytes_per_packet_out[EndPoint] = 0
     else
-      result[it1->first] = (1000 * it2->second) / it1->second;
-    // i.e. bytes_per_packet[DirIpAddress] = (1000 * #bytes) / #packets
+      result[it1->first]["octets/packet_out"] = (1000 * it2->second.at(0)) / it1->second.at(0);
+    // i.e. bytes_per_packet_out[EndPoint] = (1000 * #bytes) / #packets
     // the multiplier 1000 enables us to increase precision and "simulate"
     // a float result, while keeping an integer result: thanks to this trick,
     // we do not have to write new versions of the tests to support floats
+    if (it1->second.at(1) == 0)
+      result[it1->first]["octets/packet_in"] = 0;
+    else
+      result[it1->first]["octets/packet_in"] = (1000 * it2->second.at(1)) / it1->second.at(1);
 
     it1++;
     it2++;
@@ -1304,7 +1331,7 @@ void Stat::extract_data_octets_per_packets (StatStore * store, std::map<Directed
   return;
 }
 
-void Stat::extract_data_packets_out_minus_packets_in (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
+void Stat::extract_data_packets_out_minus_packets_in (StatStore * store, std::map<EndPoint,std::map<std::string,int64_t> > & result) {
 
   std::map<EndPoint,Info> Data = store->getData();
   std::map<EndPoint,Info>::iterator it = Data.begin();
@@ -1312,15 +1339,14 @@ void Stat::extract_data_packets_out_minus_packets_in (StatStore * store, std::ma
   while (it != Data.end()) {
     if (it->second.packets_out >= noise_threshold_packets ||
 	it->second.packets_in  >= noise_threshold_packets )
-      result[DirectedIpAddress(it->first.getIpAddress(),DEFAULT)] =
-	it->second.packets_out - it->second.packets_in;
+      result[it->first]["p_out-p_in"] = it->second.packets_out - it->second.packets_in;
     it++;
   }
 
   return;
 }
 
-void Stat::extract_data_octets_out_minus_octets_in (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
+void Stat::extract_data_octets_out_minus_octets_in (StatStore * store, std::map<EndPoint,std::map<std::string,int64_t> > & result) {
 
   std::map<EndPoint,Info> Data = store->getData();
   std::map<EndPoint,Info>::iterator it = Data.begin();
@@ -1328,30 +1354,34 @@ void Stat::extract_data_octets_out_minus_octets_in (StatStore * store, std::map<
   while (it != Data.end()) {
     if (it->second.bytes_out >= noise_threshold_bytes ||
 	it->second.bytes_in  >= noise_threshold_bytes )
-      result[DirectedIpAddress(it->first.getIpAddress(),DEFAULT)] =
-	it->second.bytes_out - it->second.bytes_in;
+      result[it->first]["b_out-b_in"] = it->second.bytes_out - it->second.bytes_in;
     it++;
   }
 
   return;
 }
 
-void Stat::extract_packets_t_minus_packets_t_1 (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
+void Stat::extract_packets_t_minus_packets_t_1 (StatStore * store, std::map<EndPoint,std::map<std::string,int64_t> > & result) {
 
   std::map<EndPoint,Info> Data = store->getData();
   std::map<EndPoint,Info> PreviousData = store->getPreviousData();
+
+  std::cout << "Data: " << Data << std::endl;
+  std::cout << "PreviousData: " << PreviousData << std::endl;
 
   std::map<EndPoint,Info>::iterator it = Data.begin();
 
   while (it != Data.end()) {
     if (it->second.packets_out > noise_threshold_packets ||
-	PreviousData[it->first].packets_out > noise_threshold_packets)
-      result[DirectedIpAddress(it->first.getIpAddress(),OUT)] =
-	it->second.packets_out - PreviousData[it->first].packets_out;
+	PreviousData[it->first].packets_out > noise_threshold_packets) {
+      result[it->first]["pt-pt1_out"] = it->second.packets_out - PreviousData[it->first].packets_out;
+      std::cout << "TEST1" << std::endl;
+    }
     if (it->second.packets_in  > noise_threshold_packets ||
-	PreviousData[it->first].packets_in > noise_threshold_packets)
-      result[DirectedIpAddress(it->first.getIpAddress(),IN)]  =
-	it->second.packets_in  - PreviousData[it->first].packets_in;
+	PreviousData[it->first].packets_in > noise_threshold_packets) {
+      result[it->first]["pt-pt1_in"] = it->second.packets_in  - PreviousData[it->first].packets_in;
+      std::cout << "TEST2" << std::endl;
+    }
     // it doesn't matter much if it->first is an IP that exists only in Data,
     // not in PreviousData: PreviousData[it->first] will automaticaly be
     // an Info structure with all fields set to 0.
@@ -1361,7 +1391,7 @@ void Stat::extract_packets_t_minus_packets_t_1 (StatStore * store, std::map<Dire
   return;
 }
 
-void Stat::extract_octets_t_minus_octets_t_1 (StatStore * store, std::map<DirectedIpAddress,int64_t> & result) {
+void Stat::extract_octets_t_minus_octets_t_1 (StatStore * store, std::map<EndPoint,std::map<std::string,int64_t> > & result) {
 
   std::map<EndPoint,Info> Data = store->getData();
   std::map<EndPoint,Info> PreviousData = store->getPreviousData();
@@ -1370,14 +1400,12 @@ void Stat::extract_octets_t_minus_octets_t_1 (StatStore * store, std::map<Direct
   while (it != Data.end()) {
     if (it->second.bytes_out > noise_threshold_bytes ||
 	PreviousData[it->first].bytes_out > noise_threshold_bytes)
-      result[DirectedIpAddress(it->first.getIpAddress(),OUT)] =
-	(it->second).bytes_out - PreviousData[it->first].bytes_out;
+      result[it->first]["bt-bt1_out"] = it->second.bytes_out - PreviousData[it->first].bytes_out;
     if (it->second.bytes_in > noise_threshold_bytes ||
 	PreviousData[it->first].bytes_in > noise_threshold_bytes)
-      result[DirectedIpAddress(it->first.getIpAddress(),IN)]  =
-	(it->second).bytes_in  - PreviousData[it->first].bytes_in;
+      result[it->first]["bt-bt1_in"] = it->second.bytes_in  - PreviousData[it->first].bytes_in;
     // it doesn't matter much if it->first is an IP that exists only in Data,
-    // not in PreviousData: PreviousData[it->first] will automaticaly be
+    // not in PreviousData: PreviousData[it->first] will automatically be
     // an Info structure with all fields set to 0.
     it++;
   }
@@ -1385,6 +1413,7 @@ void Stat::extract_octets_t_minus_octets_t_1 (StatStore * store, std::map<Direct
   return;
 }
 
+/*
 
 // -------------------------- LEARN/UPDATE FUNCTION ---------------------------
 
@@ -1673,6 +1702,8 @@ void Stat::stat_test_pcs (std::list<int64_t> & sample_old,
 
   return;
 }
+
+*/
 
 void Stat::sigTerm(int signum)
 {

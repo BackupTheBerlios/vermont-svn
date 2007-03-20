@@ -15,21 +15,26 @@
 		<alarm_time>5</alarm_time>
 		<warning_verbosity>1</warning_verbosity>
 	  <output_verbosity>5</output_verbosity>
-		<monitored_value>packets</monitored_value>
+    <noise_threshold_packets>0</noise_threshold_packets>
+    <noise_threshold_bytes>0</noise_threshold_bytes>
+		<monitored_values>
+      <value>octets/packet</value>
+    </monitored_values>
 		<protocols>TCP</protocols>
+    <ports>all</ports>
 	  <netmask>32</netmask>
 		<stat_test_frequency>1</stat_test_frequency>
 		<report_only_first_attack>true</report_only_first_attack>
     <pause_update_when_attack>true</pause_update_when_attack>
-		<!--<ip_addresses_to_monitor>some_file</ip_addresses_to_monitor>-->
-		<iplist_maxsize>400</iplist_maxsize>
+		<ip_addresses_to_monitor></ip_addresses_to_monitor>
+		<iplist_maxsize>4000</iplist_maxsize>
 	</preferences>
 	<test-params>
 		<wilcoxon_test>true</wilcoxon_test>
 		<kolmogorov_test>true</kolmogorov_test>
 		<pearson_chi-square_test>true</pearson_chi-square_test>
-		<sample_old_size>5</sample_old_size>
-		<sample_new_size>2</sample_new_size>
+		<sample_old_size>100</sample_old_size>
+		<sample_new_size>25</sample_new_size>
 		<two_sided>true</two_sided>
 		<significance_level>0.05</significance_level>
 	</test-params>

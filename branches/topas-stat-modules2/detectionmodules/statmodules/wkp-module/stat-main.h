@@ -85,48 +85,48 @@ class Stat : public DetectionBase<StatStore> {
 
   // as the init function is really huge, we divide it into tasks:
   // those related to the user's preferences regarding the module...
-  void init_output_file(ConfObj *);
-  void init_accept_source_ids(ConfObj *);
-  void init_alarm_time(ConfObj *);
-  void init_warning_verbosity(ConfObj *);
-  void init_output_verbosity(ConfObj *);
-  void init_monitored_values(ConfObj *);
-  void init_noise_thresholds(ConfObj *);
-  void init_protocols(ConfObj *);
-  void init_netmask(ConfObj *);
-  void init_ports(ConfObj *);
-  void init_ip_addresses(ConfObj *);
-  void init_stat_test_freq(ConfObj *);
-  void init_report_only_first_attack(ConfObj *);
-  void init_pause_update_when_attack(ConfObj *);
+  void init_output_file(XMLConfObj *);
+  void init_accept_source_ids(XMLConfObj *);
+  void init_alarm_time(XMLConfObj *);
+  void init_warning_verbosity(XMLConfObj *);
+  void init_output_verbosity(XMLConfObj *);
+  void init_monitored_values(XMLConfObj *);
+  void init_noise_thresholds(XMLConfObj *);
+  void init_protocols(XMLConfObj *);
+  void init_netmask(XMLConfObj *);
+  void init_ports(XMLConfObj *);
+  void init_ip_addresses(XMLConfObj *);
+  void init_stat_test_freq(XMLConfObj *);
+  void init_report_only_first_attack(XMLConfObj *);
+  void init_pause_update_when_attack(XMLConfObj *);
 
   // ... and those related to the statistical tests parameters
-  void init_which_test(ConfObj *);
-  void init_sample_sizes(ConfObj *);
-  void init_two_sided(ConfObj *);
-  void init_significance_level(ConfObj *);
+  void init_which_test(XMLConfObj *);
+  void init_sample_sizes(XMLConfObj *);
+  void init_two_sided(XMLConfObj *);
+  void init_significance_level(XMLConfObj *);
 
 
   // the following functions are called by the test()-function:
-  std::map<DirectedIpAddress,int64_t> extract_data (StatStore *);
+  std::map<EndPoint,std::map<std::string,int64_t> > extract_data (StatStore *);
   void update(std::list<int64_t> &, std::list<int64_t> &, int64_t);
   void stat_test(std::list<int64_t> &, std::list<int64_t> &);
 
   // the following functions are called by the extract_data()-function:
   void extract_data_packets (
-    StatStore *, std::map<DirectedIpAddress,int64_t> &);
+    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
   void extract_data_octets (
-    StatStore *, std::map<DirectedIpAddress,int64_t> &);
+    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
   void extract_data_octets_per_packets (
-    StatStore *, std::map<DirectedIpAddress,int64_t> &);
+    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
   void extract_data_packets_out_minus_packets_in (
-    StatStore *, std::map<DirectedIpAddress,int64_t> &);
+    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
   void extract_data_octets_out_minus_octets_in (
-    StatStore *, std::map<DirectedIpAddress,int64_t> &);
+    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
   void extract_packets_t_minus_packets_t_1 (
-    StatStore *, std::map<DirectedIpAddress,int64_t> &);
+    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
   void extract_octets_t_minus_octets_t_1 (
-    StatStore *, std::map<DirectedIpAddress,int64_t> &);
+    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
 
   // and the following functions are called by the stat_test()-function:
   void stat_test_wmw(std::list<int64_t> &, std::list<int64_t> &);
@@ -135,7 +135,7 @@ class Stat : public DetectionBase<StatStore> {
 
 
   // here is the sample container:
-  std::map<DirectedIpAddress, Samples> Records;
+  std::map<EndPoint, Samples> Records;
 
 // IDMEF
 /*  // source id's to accept
@@ -151,7 +151,10 @@ class Stat : public DetectionBase<StatStore> {
   std::ofstream outfile;
   int warning_verbosity;
   int output_verbosity;
-  std::string monitored_value;
+  /* MV-change */
+  //std::string monitored_value;
+  std::vector<std::string> monitored_values;
+  /* MV-change */
   int noise_threshold_packets;
   int noise_threshold_bytes;
   std::string ipfile;

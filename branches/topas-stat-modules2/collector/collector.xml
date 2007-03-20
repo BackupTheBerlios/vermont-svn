@@ -3,7 +3,7 @@
 	<collector>
 		<workingDir>../working_dir/</workingDir>
 		<modules>
-       <!--
+      <!--
       <module>
           <filename>../detectionmodules/statmodules/sw-module/sw-module</filename>
             <run>yes</run>

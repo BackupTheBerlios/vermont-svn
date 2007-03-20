@@ -189,7 +189,9 @@ struct Samples {
 
 std::ostream & operator << (std::ostream &, const std::list<int64_t> &);
 std::ostream & operator << (std::ostream &, const std::vector<unsigned> &);
+std::ostream & operator << (std::ostream &, const std::map<std::string,int64_t> &);
 std::ostream & operator << (std::ostream &, const DirectedIpAddress & DirIP);
 std::ostream & operator << (std::ostream &, const std::map<EndPoint,Info> &);
+std::ostream & operator << (std::ostream &, const std::map<EndPoint,std::map<std::string,int64_t> > &);
 
 #endif
