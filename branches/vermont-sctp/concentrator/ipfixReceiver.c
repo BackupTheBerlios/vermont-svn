@@ -418,8 +418,8 @@ static int createSctpIpv4Receiver(IpfixReceiver* ipfixReceiver, int port) {
                 perror("Could not bind SCTP socket");
                 return -1;
         }
-	//TODO: do we need to change this? @param 2 is number of MAX allowed connections 
-	if(listen(ipfixReceiver->listen_socket, 5) < 0 ) {
+
+	if(listen(ipfixReceiver->listen_socket, SCTP_MAX_CONNECTIONS) < 0 ) {
 		msg(MSG_ERROR , "IPFIX RECEIVER: Error listening on SCTP socket %i", 
 		    ipfixReceiver->listen_socket);
 		return -1;
@@ -442,31 +442,39 @@ static void destroySctpReceiver(IpfixReceiver* ipfixReceiver) {
  * @param ipfixReceiver handle to an IpfixReceiver, created by @createIpfixReceiver()
  */
 static void sctpListener(IpfixReceiver* ipfixReceiver) {
-        struct sockaddr_in clientAddress;
-        socklen_t clientAddressLen;
+        
+        struct  sctp_rec_params {
+		IpfixReceiver* ipfixR;	
+		int new_fd;		//accepted socket
+		struct sockaddr_in clientAddress;
+		socklen_t clientAddressLen;
+	};
+	struct sctp_rec_params params;
+        
         byte* data = (byte*)malloc(sizeof(byte)*MAX_MSG_LEN);
 	SourceID *sourceID = (SourceID*)malloc(sizeof(SourceID));
-        int n, i, new_fd;
-        clientAddressLen = sizeof(struct sockaddr_in);	
+        int n, i;
+        params.clientAddressLen = sizeof(struct sockaddr_in);	
         
         //wait for and accept incoming connection request from an Exporter
-	if( (new_fd = accept(ipfixReceiver->listen_socket, (struct sockaddr*)&clientAddress, &clientAddressLen)) < 0){
+	if( (params.new_fd = accept(ipfixReceiver->listen_socket, (struct sockaddr*)&params.clientAddress, &params.clientAddressLen)) < 0){
 		msg(MSG_DEBUG, "accept() in ipfixReceiver failed, unable to receive massages");
 	}
+	
 	//receive packeges
         while(!ipfixReceiver->exit) {
         
-	        n = recvfrom(new_fd, data, MAX_MSG_LEN,
-			     0, (struct sockaddr*)&clientAddress, &clientAddressLen);
+	        n = recvfrom(params.new_fd, data, MAX_MSG_LEN,
+			     0, (struct sockaddr*)&params.clientAddress, &params.clientAddressLen);
                 if (n < 0) {
                         msg(MSG_DEBUG, "recvfrom returned without data, terminating listener thread");
                         break;
                 }
                 
-                if (isHostAuthorized(ipfixReceiver, &clientAddress.sin_addr, 
-				     sizeof(clientAddress.sin_addr))) {
+                if (isHostAuthorized(ipfixReceiver, &params.clientAddress.sin_addr, 
+				     sizeof(params.clientAddress.sin_addr))) {
 
-                        uint32_t ip = ntohl(clientAddress.sin_addr.s_addr);
+                        uint32_t ip = ntohl(params.clientAddress.sin_addr.s_addr);
 			memcpy(sourceID->exporterAddress.ip, &ip, 4);
 			sourceID->exporterAddress.len = 4;
 
@@ -480,12 +488,17 @@ static void sctpListener(IpfixReceiver* ipfixReceiver) {
                         pthread_mutex_unlock(&ipfixReceiver->mutex);
                 }
                 else{
-                        msg(MSG_DEBUG, "packet from unauthorized host %s discarded", inet_ntoa(clientAddress.sin_addr));
+                        msg(MSG_DEBUG, "packet from unauthorized host %s discarded", inet_ntoa(params.clientAddress.sin_addr));
                 }
         }
         
         free(data);
 }
+
+// static void* sctpReceiveThread(void* ipfixReceiver_){
+// 
+// }
+
 
 /********************************************************************
 ** END of SCTP Extension Code:

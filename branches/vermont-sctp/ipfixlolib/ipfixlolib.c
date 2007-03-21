@@ -23,7 +23,7 @@
  */
 #include "ipfixlolib.h"
 #include <netinet/in.h>
-
+#include <netinet/sctp.h>
 /* foreign systems */
 #include "msg.h"
 
@@ -147,6 +147,27 @@ static int init_send_sctp_socket(const char *serv_ip4_addr, int serv_port){
                 return -1;
         }
 	msg(MSG_DEBUG, "SCTP Socket created");
+	
+	//seting up SCTP Options	
+
+ 	struct sctp_initmsg init_info;
+ 	uint leng = sizeof(struct sctp_initmsg);
+/* 	if( (getsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &init, &leng)) < 0){
+ 		perror("ERROR GETTING SOCKOPTIONS!!! ");
+ 	}else {printf("SOCKOPTIONS: Number of in/outstreams = %d/%d\n", init.sinit_num_ostreams, init.sinit_max_instreams);}
+*/
+	struct sctp_initmsg m;
+	m.sinit_num_ostreams = 2;
+	m.sinit_max_instreams = 2;
+ 	if( (setsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &m, sizeof(m) )) < 0){
+ 		perror("ERROR SETTING SOCKOPTIONS!!! \n");
+ 	}else {msg(MSG_DEBUG,"SOCKOPTIONS SET!");}
+	//TODO getsockopt() kann gelöshct werden nicht mehr nötig wenn SCTP funktioniert
+	if( (getsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &init_info, &leng)) < 0){
+ 		perror("ERROR GETTING SOCKOPTIONS!!! ");
+ 	}else {msg(MSG_DEBUG,"SOCKOPTIONS: Max number of in/outstreams = %d/%d", init_info.sinit_num_ostreams, init_info.sinit_max_instreams);}
+	//END SCTP options
+
 	// connect to server
 	msg(MSG_DEBUG, "SCTP connecting to %s:%i ...",serv_ip4_addr,serv_port );
 	if(connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr) ) < 0) {
@@ -160,7 +181,7 @@ static int init_send_sctp_socket(const char *serv_ip4_addr, int serv_port){
 }
 
 /********************************************************************
-** END of SCTP Extension Code:
+//END of SCTP Extension Code:
 *********************************************************************/
 
 /*
@@ -902,12 +923,49 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                                 }
                                 DPRINTF("IPFIX: Sendbuffer really contains %u bytes!\n", tested_length );
 #endif
-				
-                                ret=writev( exporter->collector_arr[i].data_socket,
-                                           exporter->data_sendbuffer->entries,
-                                           exporter->data_sendbuffer->committed
-                                          );
-                                // TODO: we should also check, what writev returned. NO ERROR HANDLING IMPLEMENTED YET!
+				struct sockaddr_in addr;
+				memset(&addr, 0, sizeof(addr));
+				const void* buff;
+				buff = exporter->data_sendbuffer->entries[0].iov_base;
+				switch(exporter->collector_arr[i].protocol){ 
+				case UDP:
+					ret=writev( exporter->collector_arr[i].data_socket,
+						exporter->data_sendbuffer->entries,
+						exporter->data_sendbuffer->committed
+						);
+					// TODO: we should also check, what writev returned. NO ERROR HANDLING IMPLEMENTED YET!
+					break;
+
+				case TCP:
+					msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
+					return -1;
+			
+				case SCTP://TODO noch nicht fertig
+					addr.sin_family = AF_INET;
+					addr.sin_port = htons (exporter->collector_arr[i].port_number);
+					addr.sin_addr.s_addr = inet_addr(exporter->collector_arr[i].ipv4address);
+						
+					ret = sctp_sendmsg(exporter->collector_arr[i].data_socket,
+						buff,
+						exporter->data_sendbuffer->entries[0].iov_len,
+						(struct sockaddr*)&addr,
+						sizeof(addr),
+						0,0,
+						1,//Stream Number
+						0,0
+						);
+// 					ret=writev( exporter->collector_arr[i].data_socket,
+// 						exporter->data_sendbuffer->entries,
+// 						exporter->data_sendbuffer->committed
+// 						);
+					// TODO: we should also check, what writev returned. NO ERROR HANDLING IMPLEMENTED YET!
+					break;
+			
+				default:
+					msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
+					return -1;	
+					
+                        	}
                         }
                 } // end exporter loop
                 ret = 1;

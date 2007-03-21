@@ -34,6 +34,10 @@ Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
+//Maximum number of simultanious connections
+#define SCTP_MAX_CONNECTIONS 5
+
+
 /**
  * Defines type of Receiver
  */
@@ -68,7 +72,6 @@ typedef struct {
         
         Receiver_Type receiver_type;
 } IpfixReceiver;
-
 
 int initializeIpfixReceivers();
 int deinitializeIpfixReceivers();
