@@ -175,13 +175,37 @@ public:
 
 };
 
+// ======================== STRUCT Metrics ========================
+
+// this structure is used to extract metric-values to
+
+struct Metrics {
+  int64_t packets_in;
+  int64_t packets_out;
+  int64_t bytes_in;
+  int64_t bytes_out;
+  int64_t records_in;
+  int64_t records_out;
+  int64_t bytes_per_packet_in;   // bytes_in/packets_in
+  int64_t bytes_per_packet_out;  // bytes_out/packets_out
+  int64_t p_out_minus_p_in;
+  int64_t b_out_minus_b_in;
+  int64_t pt_minus_pt1_in;       // packets_in(t)-packets_in(t-1)
+  int64_t pt_minus_pt1_out;      // packets_out(t)-packets_out(t-1)
+  int64_t bt_minus_bt1_in;       // bytes_in(t)-bytes_in(t-1)
+  int64_t bt_minus_bt1_out;      // bytes_out(t)-bytes_out(t-1)
+};
+
 // ======================== STRUCT Samples ========================
 
 // we use this structure as value field in std::map< key, value >
+// it contains a list of the old and the new metrics.
+// Letting Old and New be lists of struct Metrics enables us
+// to store values for multiple monitored values
 
 struct Samples {
-  std::list<int64_t> Old;
-  std::list<int64_t> New;
+  std::list<Metrics> Old;
+  std::list<Metrics> New;
 };
 
 
@@ -189,9 +213,9 @@ struct Samples {
 
 std::ostream & operator << (std::ostream &, const std::list<int64_t> &);
 std::ostream & operator << (std::ostream &, const std::vector<unsigned> &);
-std::ostream & operator << (std::ostream &, const std::map<std::string,int64_t> &);
-std::ostream & operator << (std::ostream &, const DirectedIpAddress & DirIP);
+std::ostream & operator << (std::ostream &, const DirectedIpAddress &);
 std::ostream & operator << (std::ostream &, const std::map<EndPoint,Info> &);
-std::ostream & operator << (std::ostream &, const std::map<EndPoint,std::map<std::string,int64_t> > &);
+std::ostream & operator << (std::ostream &, const Metrics &);
+//std::ostream & operator << (std::ostream &, const std::list<Metrics> &);
 
 #endif

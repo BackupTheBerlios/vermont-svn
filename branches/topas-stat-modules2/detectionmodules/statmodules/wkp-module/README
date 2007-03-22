@@ -74,12 +74,18 @@ If not given, a warning message is issued and default 3 is used; if
 something less than 0 or greater than 5 is given, a warning message is
 issued and the module exits.
 
-<monitored_value>:
+<monitored_values>:
 
-The user should choose which value (s)he prefers to monitor: packets,
-octets, octets/packet, packets_out-packets_in, octets_out-octets_in,
-packets(t)-packets(t-1) and octets(t)-octets(t-1) are supported. The
-input is not case-sensitive, and "bytes" and "octets" are synonymous.
+The user should choose which value (s)he prefers to monitor and add each of them
+per <value></value>-Tag. The possible values are:
+packets, octets, records, octets/packet, packets_out-packets_in, octets_out-octets_in,
+packets(t)-packets(t-1) and octets(t)-octets(t-1).
+Example configuration:
+  <monitored_values>
+    <value>packets</value>
+    <value>octets/packet</value>
+  </monitored_values>
+The input is not case-sensitive, and "bytes" and "octets" are synonymous.
 If nothing or something else is given, the module exits after a
 warning message. Please note that the module does in fact NOT handle
 octets/packet, but rather 1000*octets/packet, the result being an
@@ -242,16 +248,16 @@ stat-store.h/cpp:
 
 Defines and implements the data storage class, StatStore. Information
 received from the monitor is stored into this storage class into a
-C++ "map" container whose key field is an IP address and value field
-is a structure containing the numbers of packets and bytes in both
+C++ "map" container whose key field is an EndPoint and value field
+is a structure containing the numbers of packets, bytes and records in both
 "IN" and "OUT" directions (a map is a kind of table whose keys are
 always sorted):
 
-+-----+     +--------------+--------------+------------+------------+
-| IP1 |-----| #packets <-- | #packets --> | #bytes <-- | #bytes --> |
-+-----+     +--------------+--------------+------------+------------+
-| IP2 |-----| #packets <-- | #packets --> | #bytes <-- | #bytes --> |
-+-----+     +--------------+--------------+------------+------------+
++-----+     +--------------+--------------+------------+------------+--------------+--------------+
+| EP1 |-----| #packets <-- | #packets --> | #bytes <-- | #bytes --> | #records <-- | #records --> |
++-----+     +--------------+--------------+------------+------------+--------------+--------------+
+| EP2 |-----| #packets <-- | #packets --> | #bytes <-- | #bytes --> | #records <-- | #records --> |
++-----+     +--------------+--------------+------------+------------+--------------+--------------+
   ...             ...            ...           ...          ...
 
 This map container is destroyed with the StatStore object when a

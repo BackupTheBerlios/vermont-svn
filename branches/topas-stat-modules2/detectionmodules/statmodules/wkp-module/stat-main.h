@@ -30,7 +30,6 @@
 #include <string>
 #include <algorithm> // sort(...), unique(...)
 
-
 // ========================== CLASS Stat ==========================
 
 #define DEFAULT_warning_verbosity 0
@@ -39,6 +38,61 @@
 #define DEFAULT_sample_old_size 111
 #define DEFAULT_sample_new_size 11
 #define DEFAULT_stat_test_frequency 1
+
+#define PACKETS 0
+#define BYTES 1
+#define RECORDS 2
+#define BYTES_PER_PACKET 3
+#define PACKETS_OUT_MINUS_PACKETS_IN 4
+#define BYTES_OUT_MINUS_BYTES_IN 5
+#define PACKETS_T_MINUS_PACKETS_T_1 6
+#define BYTES_T_MINUS_BYTES_T_1 7
+
+#define METRIC_PACKETS_IN 0
+#define METRIC_PACKETS_OUT 1
+#define METRIC_BYTES_IN 2
+#define METRIC_BYTES_OUT 3
+#define METRIC_RECORDS_IN 4
+#define METRIC_RECORDS_OUT 5
+#define METRIC_BYTES_IN_PER_PACKET_IN 6
+#define METRIC_BYTES_OUT_PER_PACKET_OUT 7
+#define METRIC_PACKETS_OUT_MINUS_PACKETS_IN 8
+#define METRIC_BYTES_OUT_MINUS_BYTES_IN 9
+#define METRIC_PACKETS_T_IN_MINUS_PACKETS_T_1_IN 10
+#define METRIC_PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT 11
+#define METRIC_BYTES_T_IN_MINUS_BYTES_T_1_IN 12
+#define METRIC_BYTES_T_OUT_MINUS_BYTES_T_1_OUT 13
+/*
+// constants for monitored values
+enum {
+  PACKETS,
+  BYTES,
+  RECORDS,
+  BYTES_PER_PACKET,
+  PACKETS_OUT_MINUS_PACKETS_IN,
+  BYTES_OUT_MINUS_BYTES_IN,
+  PACKETS_T_MINUS_PACKETS_T_1,
+  BYTES_T_MINUS_BYTES_T_1
+};
+
+// constants for (splitted) metrics
+enum {
+  METRIC_PACKETS_IN,
+  METRIC_PACKETS_OUT,
+  METRIC_BYTES_IN,
+  METRIC_BYTES_OUT,
+  METRIC_RECORDS_IN,
+  METRIC_RECORDS_OUT,
+  METRIC_BYTES_IN_PER_PACKET_IN,
+  METRIC_BYTES_OUT_PER_PACKET_OUT,
+  METRIC_PACKETS_OUT_MINUS_PACKETS_IN,
+  METRIC_BYTES_OUT_MINUS_BYTES_IN,
+  METRIC_PACKETS_T_IN_MINUS_PACKETS_T_1_IN,
+  METRIC_PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT,
+  METRIC_BYTES_T_IN_MINUS_BYTES_T_1_IN,
+  METRIC_BYTES_T_OUT_MINUS_BYTES_T_1_OUT
+};
+*/
 
 // main class: does tests, stores samples,
 // reads and stores test parameters...
@@ -79,6 +133,9 @@ class Stat : public DetectionBase<StatStore> {
   static void sigTerm(int);
   static void sigInt(int);
 
+  // setting all values of struct Metrics to 0
+  void init_metrics(Metrics &);
+
   // this function is called by the Stat constructor, its job is to extract
   // user's preferences and test parameters from the XML config file:
   void init(const std::string & configfile);
@@ -108,25 +165,24 @@ class Stat : public DetectionBase<StatStore> {
 
 
   // the following functions are called by the test()-function:
-  std::map<EndPoint,std::map<std::string,int64_t> > extract_data (StatStore *);
-  void update(std::list<int64_t> &, std::list<int64_t> &, int64_t);
-  void stat_test(std::list<int64_t> &, std::list<int64_t> &);
+  Metrics extract_data (const Info &);
+  void update(std::list<Metrics> &, std::list<Metrics> &, const Metrics &);
+  void stat_test(std::list<Metrics> &, std::list<Metrics> &);
 
   // the following functions are called by the extract_data()-function:
-  void extract_data_packets (
-    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
-  void extract_data_octets (
-    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
-  void extract_data_octets_per_packets (
-    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
-  void extract_data_packets_out_minus_packets_in (
-    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
-  void extract_data_octets_out_minus_octets_in (
-    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
-  void extract_packets_t_minus_packets_t_1 (
-    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
-  void extract_octets_t_minus_octets_t_1 (
-    StatStore *, std::map<EndPoint,std::map<std::string,int64_t> > &);
+  void extract_data_packets (const Info &, Metrics &);
+  void extract_data_octets (const Info &, Metrics &);
+  void extract_data_records (const Info &, Metrics &);
+  void extract_data_octets_per_packets (const Info &, Metrics &);
+  void extract_data_packets_out_minus_packets_in (const Info &, Metrics &);
+  void extract_data_octets_out_minus_octets_in (const Info &, Metrics &);
+  void extract_packets_t_minus_packets_t_1 (const Info &, Metrics &);
+  void extract_octets_t_minus_octets_t_1 (const Info &, Metrics &);
+
+  // this function is called by stat_test() to extract a single metric to test
+  // from the struct Metrics
+  std::list<int64_t> getSingleMetric(const std::list<Metrics> &, const int &);
+  std::string getMetricName(const int &);
 
   // and the following functions are called by the stat_test()-function:
   void stat_test_wmw(std::list<int64_t> &, std::list<int64_t> &);
@@ -136,6 +192,10 @@ class Stat : public DetectionBase<StatStore> {
 
   // here is the sample container:
   std::map<EndPoint, Samples> Records;
+
+  // Needed for extraction of packets(t)-packets(t-1) and bytes(t)-bytes(t-1)
+  // Holds information about the Info used in the last call to test()
+  Info prev;
 
 // IDMEF
 /*  // source id's to accept
@@ -151,10 +211,9 @@ class Stat : public DetectionBase<StatStore> {
   std::ofstream outfile;
   int warning_verbosity;
   int output_verbosity;
-  /* MV-change */
-  //std::string monitored_value;
-  std::vector<std::string> monitored_values;
-  /* MV-change */
+  // holds the constants defined in enum for the monitored values
+  // so "switching" through them is possible ;)
+  std::vector<int> monitored_values;
   int noise_threshold_packets;
   int noise_threshold_bytes;
   std::string ipfile;

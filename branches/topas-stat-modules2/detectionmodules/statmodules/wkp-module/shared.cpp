@@ -40,25 +40,7 @@ std::ostream& operator << (std::ostream& ost, const EndPoint& e)
 std::ostream & operator << (std::ostream & os, const std::map<EndPoint,Info> & m) {
   std::map<EndPoint,Info>::const_iterator it = m.begin();
   while (it != m.end()){
-    os << it->first << " --- packets_in: " << it->second.packets_in << ", packets_out: " << it->second.packets_out << ", bytes_in: " << it->second.bytes_in << ", bytes_out: " << it->second.bytes_out << ", records_in: " << it->second.records_in << ", records_out: " << it->second.records_out;
-    it++;
-  }
-  return os;
-}
-
-std::ostream & operator << (std::ostream & os, const std::map<std::string,int64_t> & m){
-  std::map<std::string,int64_t>::const_iterator it = m.begin();
-  while (it != m.end()){
-    os << it->first << "=" << it->second << " ## ";
-    it++;
-  }
-  return os;
-}
-
-std::ostream & operator << (std::ostream & os, const std::map<EndPoint,std::map<std::string,int64_t> > & m){
-  std::map<EndPoint,std::map<std::string,int64_t> >::const_iterator it = m.begin();
-  while (it != m.end()){
-    os << it->first << " --- metrics: " << it->second << std::endl;
+    os << it->first << " --- packets_in: " << it->second.packets_in << ", packets_out: " << it->second.packets_out << ", bytes_in: " << it->second.bytes_in << ", bytes_out: " << it->second.bytes_out << ", records_in: " << it->second.records_in << ", records_out: " << it->second.records_out << std::endl;
     it++;
   }
   return os;
@@ -178,3 +160,45 @@ std::ostream & operator << (std::ostream & os, const std::vector<unsigned> & V) 
   }
   return os;
 }
+
+std::ostream & operator << (std::ostream & os, const Metrics & M) {
+  os << "packets_in=" << M.packets_in << "; "
+     << "packets_out=" << M.packets_out << "; "
+     << "bytes_in=" << M.bytes_in << "; "
+     << "bytes_out=" << M.bytes_out << "; "
+     << "records_in=" << M.records_in << "; "
+     << "records_out=" << M.records_out << "; "
+     << "bytes_per_packet_in=" << M.bytes_per_packet_in << "; "
+     << "bytes_per_packet_out=" << M.bytes_per_packet_out << "; "
+     << "p_out_minus_p_in=" << M.p_out_minus_p_in << "; "
+     << "b_out_minus_b_in=" << M.b_out_minus_b_in << "; "
+     << "pt_minus_pt1_in=" << M.pt_minus_pt1_in << "; "
+     << "pt_minus_pt1_out=" << M.pt_minus_pt1_out << "; "
+     << "bt_minus_bt1_in=" << M.bt_minus_bt1_in << "; "
+     << "bt_minus_bt1_out=" << M.bt_minus_bt1_out << "; "
+     << std::endl;
+}
+/*
+std::ostream & operator << (std::ostream & os, const std::list<Metrics> & L) {
+std::list<Metrics>::const_iterator it = L.begin();
+  while (it != L.end()) {
+    os << "packets_in=" << it->packets_in << "; "
+     << "packets_out=" << it->packets_out << "; "
+     << "bytes_in=" << it->bytes_in << "; "
+     << "bytes_out=" << it->bytes_out << "; "
+     << "records_in=" << it->records_in << "; "
+     << "records_out=" << it->records_out << "; "
+     << "bytes_per_packet_in=" << it->bytes_per_packet_in << "; "
+     << "bytes_per_packet_out=" << it->bytes_per_packet_out << "; "
+     << "p_out_minus_p_in=" << it->p_out_minus_p_in << "; "
+     << "b_out_minus_b_in=" << it->b_out_minus_b_in << "; "
+     << "pt_minus_pt1_in=" << it->pt_minus_pt1_in << "; "
+     << "pt_minus_pt1_out=" << it->pt_minus_pt1_out << "; "
+     << "bt_minus_bt1_in=" << it->bt_minus_bt1_in << "; "
+     << "bt_minus_bt1_out=" << it->bt_minus_bt1_out << "; "
+     << std::endl;
+
+     it++;
+  }
+}
+*/

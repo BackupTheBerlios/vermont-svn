@@ -33,8 +33,8 @@
 		<wilcoxon_test>true</wilcoxon_test>
 		<kolmogorov_test>true</kolmogorov_test>
 		<pearson_chi-square_test>true</pearson_chi-square_test>
-		<sample_old_size>100</sample_old_size>
-		<sample_new_size>25</sample_new_size>
+		<sample_old_size>2</sample_old_size>
+		<sample_new_size>1</sample_new_size>
 		<two_sided>true</two_sided>
 		<significance_level>0.05</significance_level>
 	</test-params>
