@@ -66,8 +66,7 @@ class StatStore : public DataStore {
   void addFieldData(int id, byte * fieldData, int fieldDataLength,
 		    EnterpriseNo eid = 0);
 
-  // IDMEF
-  //static std::vector<int>* accept_source_ids;
+  static std::vector<int>* accept_source_ids;
 
   std::map<EndPoint,Info> getData() const {return Data;}
   std::map<EndPoint,Info> getPreviousData() const {return PreviousData;}

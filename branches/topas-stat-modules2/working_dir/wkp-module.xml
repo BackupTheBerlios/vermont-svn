@@ -18,7 +18,7 @@
     <noise_threshold_packets>0</noise_threshold_packets>
     <noise_threshold_bytes>0</noise_threshold_bytes>
 		<monitored_values>
-      <value>octets/packet</value>
+      <value>octets(t)-octets(t-1)</value>
     </monitored_values>
 		<protocols>TCP</protocols>
     <ports>all</ports>

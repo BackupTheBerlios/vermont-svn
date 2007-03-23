@@ -70,9 +70,6 @@ bool StatStore::recordStart(SourceID sourceId) {
 
 }
 
-// IDMEF
-//std::vector<int>* StatStore::accept_source_ids = NULL;
-
 void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, EnterpriseNo eid) {
 
   // we subscribed to (see Stat::init()):
@@ -421,3 +418,5 @@ std::vector<uint16_t> StatStore::MonitoredPorts;
 bool StatStore::MonitorAllPorts = false;
 
 bool StatStore::BeginMonitoring = false;
+
+std::vector<int>* StatStore::accept_source_ids = NULL;

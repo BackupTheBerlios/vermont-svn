@@ -39,32 +39,8 @@
 #define DEFAULT_sample_new_size 11
 #define DEFAULT_stat_test_frequency 1
 
-#define PACKETS 0
-#define BYTES 1
-#define RECORDS 2
-#define BYTES_PER_PACKET 3
-#define PACKETS_OUT_MINUS_PACKETS_IN 4
-#define BYTES_OUT_MINUS_BYTES_IN 5
-#define PACKETS_T_MINUS_PACKETS_T_1 6
-#define BYTES_T_MINUS_BYTES_T_1 7
-
-#define METRIC_PACKETS_IN 0
-#define METRIC_PACKETS_OUT 1
-#define METRIC_BYTES_IN 2
-#define METRIC_BYTES_OUT 3
-#define METRIC_RECORDS_IN 4
-#define METRIC_RECORDS_OUT 5
-#define METRIC_BYTES_IN_PER_PACKET_IN 6
-#define METRIC_BYTES_OUT_PER_PACKET_OUT 7
-#define METRIC_PACKETS_OUT_MINUS_PACKETS_IN 8
-#define METRIC_BYTES_OUT_MINUS_BYTES_IN 9
-#define METRIC_PACKETS_T_IN_MINUS_PACKETS_T_1_IN 10
-#define METRIC_PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT 11
-#define METRIC_BYTES_T_IN_MINUS_BYTES_T_1_IN 12
-#define METRIC_BYTES_T_OUT_MINUS_BYTES_T_1_OUT 13
-/*
 // constants for monitored values
-enum {
+enum MonValue {
   PACKETS,
   BYTES,
   RECORDS,
@@ -75,8 +51,8 @@ enum {
   BYTES_T_MINUS_BYTES_T_1
 };
 
-// constants for (splitted) metrics
-enum {
+// constants for splitted monitored values
+enum MonValueMetric {
   METRIC_PACKETS_IN,
   METRIC_PACKETS_OUT,
   METRIC_BYTES_IN,
@@ -92,16 +68,13 @@ enum {
   METRIC_BYTES_T_IN_MINUS_BYTES_T_1_IN,
   METRIC_BYTES_T_OUT_MINUS_BYTES_T_1_OUT
 };
-*/
 
 // main class: does tests, stores samples,
 // reads and stores test parameters...
 
 class Stat : public DetectionBase<StatStore> {
 
-
  public:
-
 
   Stat(const std::string & configfile);
   ~Stat() {}
@@ -115,16 +88,15 @@ class Stat : public DetectionBase<StatStore> {
    *   it any longer (use delete-operator to do that). */
   void test(StatStore * store);
 
-// IDMEF
-//#ifdef IDMEF_SUPPORT_ENABLED
+#ifdef IDMEF_SUPPORT_ENABLED
 	/**
          * Update function. This function will be called, whenever a message
          * for subscribed key is received from xmlBlaster.
          * @param xmlObj Pointer to data structure, containing xml data
          *               You have to delete the memory allocated for the object.
          */
-//  	void update(XMLConfObj* xmlObj);
-//#endif
+  void update(XMLConfObj* xmlObj);
+#endif
 
 
  private:
@@ -165,7 +137,7 @@ class Stat : public DetectionBase<StatStore> {
 
 
   // the following functions are called by the test()-function:
-  Metrics extract_data (const Info &);
+  Metrics extract_data (const Info &, const Info &);
   void update(std::list<Metrics> &, std::list<Metrics> &, const Metrics &);
   void stat_test(std::list<Metrics> &, std::list<Metrics> &);
 
@@ -176,13 +148,13 @@ class Stat : public DetectionBase<StatStore> {
   void extract_data_octets_per_packets (const Info &, Metrics &);
   void extract_data_packets_out_minus_packets_in (const Info &, Metrics &);
   void extract_data_octets_out_minus_octets_in (const Info &, Metrics &);
-  void extract_packets_t_minus_packets_t_1 (const Info &, Metrics &);
-  void extract_octets_t_minus_octets_t_1 (const Info &, Metrics &);
+  void extract_packets_t_minus_packets_t_1 (const Info &, const Info &, Metrics &);
+  void extract_octets_t_minus_octets_t_1 (const Info &, const Info &, Metrics &);
 
   // this function is called by stat_test() to extract a single metric to test
   // from the struct Metrics
-  std::list<int64_t> getSingleMetric(const std::list<Metrics> &, const int &);
-  std::string getMetricName(const int &);
+  std::list<int64_t> getSingleMetric(const std::list<Metrics> &, const enum MonValueMetric &);
+  std::string getMetricName(const enum MonValue &);
 
   // and the following functions are called by the stat_test()-function:
   void stat_test_wmw(std::list<int64_t> &, std::list<int64_t> &);
@@ -193,27 +165,21 @@ class Stat : public DetectionBase<StatStore> {
   // here is the sample container:
   std::map<EndPoint, Samples> Records;
 
-  // Needed for extraction of packets(t)-packets(t-1) and bytes(t)-bytes(t-1)
-  // Holds information about the Info used in the last call to test()
-  Info prev;
-
-// IDMEF
-/*  // source id's to accept
+  // source id's to accept
   std::vector<int> accept_source_ids;
 
 #ifdef IDMEF_SUPPORT_ENABLED
   // IDMEF-Message
   IdmefMessage idmefMessage;
 #endif
-*/
+
 
   // user's preferences (defined in the XML config file):
   std::ofstream outfile;
   int warning_verbosity;
   int output_verbosity;
-  // holds the constants defined in enum for the monitored values
-  // so "switching" through them is possible ;)
-  std::vector<int> monitored_values;
+  // holds the constants for the monitored values
+  std::vector<MonValue> monitored_values;
   int noise_threshold_packets;
   int noise_threshold_bytes;
   std::string ipfile;

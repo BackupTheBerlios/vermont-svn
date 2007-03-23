@@ -211,6 +211,9 @@ void pcs_categories ( std::list<int64_t> sample1, std::list<int64_t> sample2,
 
   sample1.sort(); outfile << "sorted sample1: " << sample1 << std::endl;
   sample2.sort(); outfile << "sorted sample2: " << sample2 << std::endl;
+  // TODO
+  // An genau dieser Stelle hängt sich das Modul auf,
+  // wenn negative Werte in den Samples vorkommen ...
 
   unsigned lg1 = sample1.size();
   unsigned lg2 = sample2.size();

@@ -70,11 +70,10 @@ void Stat::init(const std::string & configfile) {
   XMLConfObj * config;
   config = new XMLConfObj(configfile, XMLConfObj::XML_FILE);
 
-// IDMEF
-//#ifdef IDMEF_SUPPORT_ENABLED
+#ifdef IDMEF_SUPPORT_ENABLED
 	/* register module */
-//	registerModule("wkp-module");
-//#endif
+	registerModule("wkp-module");
+#endif
 
 
   // NB: the order of the following operations is important,
@@ -86,7 +85,6 @@ void Stat::init(const std::string & configfile) {
   // extracting output file's name
   init_output_file(config);
 
-// IDMEF
   // extracting source id's to accept
   // init_accept_source_ids(config);
 
@@ -157,8 +155,7 @@ void Stat::init(const std::string & configfile) {
 
 }
 
-// IDMEF
-/*
+
 #ifdef IDMEF_SUPPORT_ENABLED
 void Stat::update(XMLConfObj* xmlObj)
 {
@@ -176,7 +173,6 @@ void Stat::update(XMLConfObj* xmlObj)
 	}
 }
 #endif
-*/
 
 // ================== FUNCTIONS USED BY init FUNCTION =================
 
@@ -203,10 +199,9 @@ void Stat::init_output_file(XMLConfObj * config) {
   return;
 
 }
-// IDMEF
-/*
+
 void Stat::init_accept_source_ids(XMLConfObj * config) {
-	if (NULL != config->getValue("accept_source_ids")) {
+	if (!(config->getValue("accept_source_ids")).empty()) {
 		std::string str = config->getValue("accept_source_ids");
 		unsigned res, IDEnd = 0, last = 0;
 		bool more = true;
@@ -240,7 +235,6 @@ void Stat::init_accept_source_ids(XMLConfObj * config) {
 		exit(0);
 	}
 }
-*/
 
 void Stat::init_alarm_time(XMLConfObj * config) {
 
@@ -338,8 +332,9 @@ void Stat::init_output_verbosity(XMLConfObj * config) {
 
 }
 
-// extracting monitored values to monitored_values-vector<int>;
-// the values are stored there as constants defined in enum in stat_main.h
+// extracting monitored values to vector<MonValue>;
+// the values are stored there as constants defined
+// in enum MonValue in stat_main.h
 void Stat::init_monitored_values(XMLConfObj * config) {
 
   std::stringstream Warning1, Warning2, Warning3, Usage;
@@ -448,7 +443,7 @@ if (config->nodeExists("value")) {
   }
 */
 
-  // more circumstantial than the above way ... but so, it works
+  // more circumstantial than the above way ... but it works
   std::vector<std::string> tmp_monitored_data;
 
   /* get all monitored values */
@@ -473,33 +468,59 @@ if (config->nodeExists("value")) {
   tmp_monitored_data.clear();
   tmp_monitored_data = tmp;
 
-  // extract the values from tmp_monitored_data (string) to monitored_values (int)
+  // extract the values from tmp_monitored_data (string)
+  // to monitored_values (enum)
+  enum MonValue m;
   std::vector<std::string>::iterator it = tmp_monitored_data.begin();
   while ( it != tmp_monitored_data.end() ) {
-    if ( 0 == strcasecmp("packets", (*it).c_str()) )
-      monitored_values.push_back(PACKETS);
-    else if ( 0 == strcasecmp("bytes", (*it).c_str()) )
-      monitored_values.push_back(BYTES);
-    else if ( 0 == strcasecmp("octets",(*it).c_str()) )
-      monitored_values.push_back(BYTES);
-    else if ( 0 == strcasecmp("records",(*it).c_str()) )
-      monitored_values.push_back(RECORDS);
-    else if ( 0 == strcasecmp("octets/packet",(*it).c_str()) )
-      monitored_values.push_back(BYTES_PER_PACKET);
-    else if ( 0 == strcasecmp("bytes/packet",(*it).c_str()) )
-      monitored_values.push_back(BYTES_PER_PACKET);
-    else if ( 0 == strcasecmp("packets_out-packets_in",(*it).c_str()) )
-      monitored_values.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
-    else if ( 0 == strcasecmp("octets_out-octets_in",(*it).c_str()) )
-      monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
-    else if ( 0 == strcasecmp("bytes_out-bytes_in",(*it).c_str()) )
-      monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
-    else if ( 0 == strcasecmp("packets(t)-packets(t-1)",(*it).c_str()) )
-      monitored_values.push_back(PACKETS_T_MINUS_PACKETS_T_1);
-    else if ( 0 == strcasecmp("octets(t)-octets(t-1)",(*it).c_str()) )
-      monitored_values.push_back(BYTES_T_MINUS_BYTES_T_1);
-    else if ( 0 == strcasecmp("bytes(t)-bytes(t-1)",(*it).c_str()) )
-      monitored_values.push_back(BYTES_T_MINUS_BYTES_T_1);
+    if ( 0 == strcasecmp("packets", (*it).c_str()) ) {
+      m = PACKETS;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("bytes", (*it).c_str()) ) {
+      m = BYTES;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("octets",(*it).c_str()) ) {
+      m = BYTES;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("records",(*it).c_str()) ) {
+      m = RECORDS;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("octets/packet",(*it).c_str()) ) {
+      m = BYTES_PER_PACKET;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("bytes/packet",(*it).c_str()) ) {
+      m = BYTES_PER_PACKET;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("packets_out-packets_in",(*it).c_str()) ) {
+      m = PACKETS_OUT_MINUS_PACKETS_IN;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("octets_out-octets_in",(*it).c_str()) ) {
+      m = BYTES_OUT_MINUS_BYTES_IN;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("bytes_out-bytes_in",(*it).c_str()) ) {
+      m = BYTES_OUT_MINUS_BYTES_IN;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("packets(t)-packets(t-1)",(*it).c_str()) ) {
+      m = PACKETS_T_MINUS_PACKETS_T_1;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("octets(t)-octets(t-1)",(*it).c_str()) ) {
+      m = BYTES_T_MINUS_BYTES_T_1;
+      monitored_values.push_back(m);
+    }
+    else if ( 0 == strcasecmp("bytes(t)-bytes(t-1)",(*it).c_str()) ) {
+      m = BYTES_T_MINUS_BYTES_T_1;
+      monitored_values.push_back(m);
+    }
     else {
         std::cerr << Warning3.str() << Usage.str() << "Exiting.\n";
         if (warning_verbosity==1)
@@ -1130,16 +1151,15 @@ void Stat::init_significance_level(XMLConfObj * config) {
 
 void Stat::test(StatStore * store) {
 
-// IDMEF
-/*
+
 #ifdef IDMEF_SUPPORT_ENABLED
   idmefMessage = getNewIdmefMessage("wkp-module", "statistical anomaly detection");
 #endif
-*/
+
   outfile << "########## Stat::test(...)-call number: " << test_counter
 	  << " ##########" << std::endl;
 
-  // Getting Data from store
+  // Getting whole Data from store
   std::map<EndPoint,Info> Data = store->getData();
   std::map<EndPoint,Info> PreviousData = store->getPreviousData();
 
@@ -1175,6 +1195,10 @@ void Stat::test(StatStore * store) {
 
   std::map<EndPoint,Info>::iterator Data_it = Data.begin();
 
+  // Needed for extraction of packets(t)-packets(t-1) and bytes(t)-bytes(t-1)
+  // Holds information about the Info used in the last call to test()
+  Info prev;
+
   // for every EndPoint, extract the data
   while (Data_it != Data.end()) {
 
@@ -1199,7 +1223,7 @@ void Stat::test(StatStore * store) {
 
       Samples S;
       // extract_data has struct Metrics as output
-      (S.Old).push_back(extract_data(Data_it->second));
+      (S.Old).push_back(extract_data(Data_it->second, prev));
       Records[Data_it->first] = S;
       if (output_verbosity >= 3) {
 	      outfile << "New monitored EndPoint added" << std::endl;
@@ -1216,7 +1240,7 @@ void Stat::test(StatStore * store) {
       // (Records_it->second).Old and (Records_it->second).New
       // thanks to the recorded new value in Data_it->second:
       update ( (Records_it->second).Old , (Records_it->second).New ,
-	       extract_data(Data_it->second) );
+	       extract_data(Data_it->second, prev) );
 
     }
 
@@ -1295,72 +1319,63 @@ void Stat::test(StatStore * store) {
 // extracts interesting data from StatStore according to monitored_values:
 //
 
-Metrics Stat::extract_data (const Info & info) {
+Metrics Stat::extract_data (const Info & info, const Info & prev) {
 
   Metrics result;
-  init_metrics(result); // uint64_t dont seem to be initialized to 0 by default
+  init_metrics(result); // int64_t doesnt seem to be initialized to 0 by default
   bool gotValue = false; // false means: unknown type of value occurred
 
   //TODO
-  // <value>all</value> --> alle Werte beobachten
+  // <value>all</value> --> all values shall be monitored
+  // possibly managable in init_monitored_values
 
-  std::vector<int>::iterator it = find(monitored_values.begin(), monitored_values.end(), PACKETS);
-  if (it != monitored_values.end()) {
-    extract_data_packets (info, result);
-    gotValue = true;
+  std::vector<MonValue>::iterator it = monitored_values.begin();
+
+  while (it != monitored_values.end() ) {
+
+    switch ( *it ) {
+      case PACKETS:
+        extract_data_packets (info, result);
+        gotValue = true;
+        break;
+      case BYTES:
+        extract_data_octets (info, result);
+        gotValue = true;
+        break;
+      case RECORDS:
+        extract_data_records (info, result);
+        gotValue = true;
+        break;
+      case BYTES_PER_PACKET:
+        extract_data_octets_per_packets (info, result);
+        gotValue = true;
+        break;
+      case PACKETS_OUT_MINUS_PACKETS_IN:
+        extract_data_packets_out_minus_packets_in (info, result);
+        gotValue = true;
+        break;
+      case BYTES_OUT_MINUS_BYTES_IN:
+        extract_data_octets_out_minus_octets_in (info, result);
+        gotValue = true;
+        break;
+      case PACKETS_T_MINUS_PACKETS_T_1:
+        extract_packets_t_minus_packets_t_1 (info, prev, result);
+        gotValue = true;
+        break;
+      case BYTES_T_MINUS_BYTES_T_1:
+        extract_octets_t_minus_octets_t_1 (info, prev, result);
+        gotValue = true;
+        break;
+    }
+
+    it++;
   }
-
-  it = find(monitored_values.begin(), monitored_values.end(), BYTES);
-  if (it != monitored_values.end()) {
-    extract_data_octets (info, result);
-    gotValue = true;
-  }
-
-  it = find(monitored_values.begin(), monitored_values.end(), RECORDS);
-  if (it != monitored_values.end()) {
-    extract_data_records (info, result);
-    gotValue = true;
-  }
-
-  it = find(monitored_values.begin(), monitored_values.end(), BYTES_PER_PACKET);
-  if (it != monitored_values.end()) {
-    extract_data_octets_per_packets (info, result);
-    gotValue = true;
-  }
-
-  it = find(monitored_values.begin(), monitored_values.end(), PACKETS_OUT_MINUS_PACKETS_IN);
-  if (it != monitored_values.end()) {
-    extract_data_packets_out_minus_packets_in (info, result);
-    gotValue = true;
-  }
-
-
-  it = find(monitored_values.begin(), monitored_values.end(), BYTES_OUT_MINUS_BYTES_IN);
-  if (it != monitored_values.end()) {
-    extract_data_octets_out_minus_octets_in (info, result);
-    gotValue = true;
-  }
-
-  it = find(monitored_values.begin(), monitored_values.end(), PACKETS_T_MINUS_PACKETS_T_1);
-  if (it != monitored_values.end()) {
-    extract_packets_t_minus_packets_t_1 (info, result);
-    gotValue = true;
-  }
-
-  it = find(monitored_values.begin(), monitored_values.end(), BYTES_T_MINUS_BYTES_T_1);
-  if (it != monitored_values.end()) {
-    extract_octets_t_minus_octets_t_1 (info, result);
-    gotValue = true;
-  }
-
 
   if (gotValue == false) {
-    // if none of the above, then:
     std::cerr << "Error! monitored_values seems to be empty "
         << "or it holds an unknown type which isnt supported yet."
         << "But this shouldnt happen as the init_monitored_values"
-        << "-function handles that."
-        << "I'm sorry. Please correct this error. Exiting...\n";
+        << "-function handles that.\n";
     exit(0);
   }
 
@@ -1451,31 +1466,31 @@ void Stat::extract_data_octets_out_minus_octets_in (const Info & info, Metrics &
   return;
 }
 
-void Stat::extract_packets_t_minus_packets_t_1 (const Info & info, Metrics & result) {
+void Stat::extract_packets_t_minus_packets_t_1 (const Info & info, const Info & prev, Metrics & result) {
 
-  // prev is a member variable of class Stat which holds the data
-  // for the same EndPoint as Info from the last call to test()
+  // prev holds the data for the same EndPoint as info
+  // from the last call to test()
   // it is updated at the beginning of the while-loop in test()
-  if (info.packets_out > noise_threshold_packets ||
-      prev.packets_out > noise_threshold_packets)
+  if (info.packets_out >= noise_threshold_packets ||
+      prev.packets_out >= noise_threshold_packets)
     result.pt_minus_pt1_out = info.packets_out - prev.packets_out;
-  if (info.packets_in  > noise_threshold_packets ||
-      prev.packets_in  > noise_threshold_packets)
+  if (info.packets_in  >= noise_threshold_packets ||
+      prev.packets_in  >= noise_threshold_packets)
     result.pt_minus_pt1_in = info.packets_in  - prev.packets_in;
 
   return;
 }
 
-void Stat::extract_octets_t_minus_octets_t_1 (const Info & info, Metrics & result) {
+void Stat::extract_octets_t_minus_octets_t_1 (const Info & info, const Info & prev, Metrics & result) {
 
-  // prev is a member variable of class Stat which holds the data
-  // for the same EndPoint as Info from the last call to test()
+  // prev holds the data for the same EndPoint as info
+  // from the last call to test()
   // it is updated at the beginning of the while-loop in test()
-  if (info.bytes_out > noise_threshold_bytes ||
-      prev.bytes_out > noise_threshold_bytes)
+  if (info.bytes_out >= noise_threshold_bytes ||
+      prev.bytes_out >= noise_threshold_bytes)
     result.bt_minus_bt1_out = info.bytes_out - prev.bytes_out;
-  if (info.bytes_in > noise_threshold_bytes ||
-      prev.bytes_in > noise_threshold_bytes)
+  if (info.bytes_in >= noise_threshold_bytes ||
+      prev.bytes_in >= noise_threshold_bytes)
     result.bt_minus_bt1_in = info.bytes_in - prev.bytes_in;
 
   return;
@@ -1587,12 +1602,13 @@ void Stat::stat_test (std::list<Metrics> & sample_old,
   // value holds the monitored_value, the two metrics are for the splitted
   // monitored_values, e. g.
   // packets --> metric1 = packets_in, metric2 = packets_out
-  int value, metric1, metric2;
+  enum MonValue value;
+  enum MonValueMetric metric1, metric2;
   // Containers for single metrics
   std::list<int64_t> sample_old_single_metric;
   std::list<int64_t> sample_new_single_metric;
 
-  std::vector<int>::iterator it = monitored_values.begin();
+  std::vector<MonValue>::iterator it = monitored_values.begin();
 
   // for every value in monitored_values, do the tests;
   // and if a value was splitted into two, do the tests for
@@ -1717,7 +1733,7 @@ void Stat::stat_test (std::list<Metrics> & sample_old,
 }
 
 // functions called by the stat_test()-function
-std::list<int64_t> Stat::getSingleMetric(const std::list<Metrics> & l, const int & m) {
+std::list<int64_t> Stat::getSingleMetric(const std::list<Metrics> & l, const enum MonValueMetric & m) {
 
   std::list<int64_t> result;
   std::list<Metrics>::const_iterator it = l.begin();
@@ -1816,7 +1832,7 @@ std::list<int64_t> Stat::getSingleMetric(const std::list<Metrics> & l, const int
   return result;
 }
 
-std::string Stat::getMetricName(const int & metric) {
+std::string Stat::getMetricName(const enum MonValue & metric) {
   switch(metric) {
     case PACKETS:
       return std::string("packets");

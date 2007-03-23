@@ -31,6 +31,8 @@ std::string EndPoint::toString() const
         return sstream.str();
 }
 
+// ======================== Output Operators ========================
+
 std::ostream& operator << (std::ostream& ost, const EndPoint& e)
 {
         ost << e.ipAddr[0] << "." << e.ipAddr[1] << "." << e.ipAddr[2] << "." << e.ipAddr[3] << ":" << e.portNr << " | " << (uint16_t) e.protocolID;
@@ -44,103 +46,6 @@ std::ostream & operator << (std::ostream & os, const std::map<EndPoint,Info> & m
     it++;
   }
   return os;
-}
-
-// ============== CONSTRUCTORS FOR CLASS DirectedIpAddress ================
-
-
-// WARNING! No verification that "dir" is IN or OUT is done by these functions,
-// as we don't want to make the module test more than it already does.
-// Make sure you don't construct DirectedIpAddress with uncommon values
-// for "dir".
-
-DirectedIpAddress::DirectedIpAddress (byte a, byte b, byte c, byte d, int dir)
-  : IpAddress (a, b, c, d) {
-  Direction = dir;
-}
-
-DirectedIpAddress::DirectedIpAddress (const byte tab[4], int dir)
-  : IpAddress (tab) {
-  Direction = dir;
-}
-
-DirectedIpAddress::DirectedIpAddress (const IpAddress & ip, int dir)
-  : IpAddress (ip[0], ip[1], ip[2], ip[3]) {
-  Direction = dir;
-}
-
-void DirectedIpAddress::setDirectedIpAddress (byte a, byte b, byte c, byte d, int dir) {
-  setAddress (a, b, c, d);
-  Direction = dir;
-}
-
-void DirectedIpAddress::setDirectedIpAddress (const byte tab[4], int dir) {
-  setAddress (tab);
-  Direction = dir;
-}
-
-void DirectedIpAddress::setDirectedIpAddress (const IpAddress & ip, int dir) {
-  setAddress (ip[0], ip[1], ip[2], ip[3]);
-  Direction = dir;
-}
-
-
-
-// =============== ORDER RELATION FOR CLASS DirectedIpAddress ================
-
-
-// we need an order relation to use DirectedIpAddress
-// as key field in std::map< key, value >
-
-bool DirectedIpAddress::operator == (const DirectedIpAddress & other) const {
-  return (IpAddress(*this)==IpAddress(other) && Direction==other.Direction);
-}
-
-bool DirectedIpAddress::operator < (const DirectedIpAddress & other) const {
-  if (IpAddress(*this) < IpAddress(other))
-    return true;
-  if (IpAddress(*this) == IpAddress(other) && Direction < other.Direction)
-    return true;
-  return false;
-}
-
-
-
-// ============== OTHER FUNCTIONS FOR CLASS DirectedIpAddress ================
-
-
-std::ostream & operator << (std::ostream & os, const DirectedIpAddress & DirIP) {
-  os << IpAddress(DirIP) << '|';
-  if (DirIP.getDirection() == OUT)
-    os << "-->";
-  else if (DirIP.getDirection() == IN)
-    os << "<--";
-  else
-    os << "---";
-  return os;
-}
-
-// mask functions:
-// - remanent_mask changes DirectedIpAddress object
-// - mask is only temporary
-// warning: netmask is not checked before being applied
-// use only 0 <= m1,m2,m3,m4 <= 255 (or 0x00 and 0xFF)
-
-DirectedIpAddress DirectedIpAddress::mask (byte m1, byte m2, byte m3, byte m4){
-  return DirectedIpAddress( (*this)[0] & m1, (*this)[1] & m2,
-          (*this)[2] & m3, (*this)[3] & m4, Direction );
-}
-DirectedIpAddress DirectedIpAddress::mask (const byte m[4]) {
-  return DirectedIpAddress( (*this)[0] & m[0], (*this)[1] & m[1],
-          (*this)[2] & m[2], (*this)[3] & m[3], Direction );
-}
-void DirectedIpAddress::remanent_mask (byte m1, byte m2, byte m3, byte m4) {
-  setAddress( (*this)[0] & m1, (*this)[1] & m2,
-        (*this)[2] & m3, (*this)[3] & m4 );
-}
-void DirectedIpAddress::remanent_mask (const byte m[4]) {
-  setAddress( (*this)[0] & m[0], (*this)[1] & m[1],
-        (*this)[2] & m[2], (*this)[3] & m[3] );
 }
 
 std::ostream & operator << (std::ostream & os, const std::list<int64_t> & L) {
