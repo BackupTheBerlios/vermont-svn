@@ -443,13 +443,13 @@ static void destroySctpReceiver(IpfixReceiver* ipfixReceiver) {
  */
 static void sctpListener(IpfixReceiver* ipfixReceiver) {
         
-        struct  sctp_rec_params {
+        struct  sctp_recv_params {
 		IpfixReceiver* ipfixR;	
 		int new_fd;		//accepted socket
 		struct sockaddr_in clientAddress;
 		socklen_t clientAddressLen;
 	};
-	struct sctp_rec_params params;
+	struct sctp_recv_params params;
         
         byte* data = (byte*)malloc(sizeof(byte)*MAX_MSG_LEN);
 	SourceID *sourceID = (SourceID*)malloc(sizeof(SourceID));
@@ -466,6 +466,7 @@ static void sctpListener(IpfixReceiver* ipfixReceiver) {
         
 	        n = recvfrom(params.new_fd, data, MAX_MSG_LEN,
 			     0, (struct sockaddr*)&params.clientAddress, &params.clientAddressLen);
+                printf("%d Bytes received!\n",n);
                 if (n < 0) {
                         msg(MSG_DEBUG, "recvfrom returned without data, terminating listener thread");
                         break;

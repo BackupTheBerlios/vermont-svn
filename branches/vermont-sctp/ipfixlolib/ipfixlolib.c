@@ -180,6 +180,45 @@ static int init_send_sctp_socket(const char *serv_ip4_addr, int serv_port){
 	return s;
 }
 
+int sctp_sendmsgv(int s, struct iovec *vector, int v_len, struct sockaddr *to,
+		socklen_t tolen, uint32_t ppid, uint32_t flags,
+	     	uint16_t stream_no, uint32_t timetolive, uint32_t context){
+
+	struct msghdr outmsg;
+// 	struct iovec iov;
+	char outcmsg[CMSG_SPACE(sizeof(struct sctp_sndrcvinfo))];
+	struct cmsghdr *cmsg;
+	struct sctp_sndrcvinfo *sinfo;
+
+	outmsg.msg_name = to;
+	outmsg.msg_namelen = tolen;
+	outmsg.msg_iov = vector;
+// 	iov.iov_base = (void *)msg;
+// 	iov.iov_len = len;
+	outmsg.msg_iovlen = v_len;
+
+	outmsg.msg_control = outcmsg;
+	outmsg.msg_controllen = sizeof(outcmsg);
+	outmsg.msg_flags = 0;
+
+	cmsg = CMSG_FIRSTHDR(&outmsg);
+	cmsg->cmsg_level = IPPROTO_SCTP;
+	cmsg->cmsg_type = SCTP_SNDRCV;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
+
+	outmsg.msg_controllen = cmsg->cmsg_len;
+	sinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmsg);
+	memset(sinfo, 0, sizeof(struct sctp_sndrcvinfo));
+	sinfo->sinfo_ppid = ppid;
+	sinfo->sinfo_flags = flags;
+	sinfo->sinfo_stream = stream_no;
+	sinfo->sinfo_timetolive = timetolive;
+	sinfo->sinfo_context = context;
+
+	return sendmsg(s, &outmsg, 0);
+}
+
+
 /********************************************************************
 //END of SCTP Extension Code:
 *********************************************************************/
@@ -855,10 +894,41 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
                                         exporter->collector_arr[i].ipv4address,
                                         exporter->collector_arr[i].port_number
                                        );
-                                ret=writev(exporter->collector_arr[i].data_socket, // TODO: change for SCTP
-                                           exporter->template_sendbuffer->entries,
-                                           exporter->template_sendbuffer->current
-                                          );
+                               	struct sockaddr_in addr;
+ 				memset(&addr, 0, sizeof(addr));
+				switch(exporter->collector_arr[i].protocol){ 
+				case UDP:
+					ret=writev(exporter->collector_arr[i].data_socket,//TODO:change for SCTP 
+	// 				(Alex: NOTE: Both streams are on the same socket -> only one socket is needed)
+						exporter->template_sendbuffer->entries,
+						exporter->template_sendbuffer->current
+						);
+					break;
+
+				case TCP:
+					msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
+					return -1;
+			
+				case SCTP:
+					addr.sin_family = AF_INET;
+					addr.sin_port = htons (exporter->collector_arr[i].port_number);
+					addr.sin_addr.s_addr = inet_addr(exporter->collector_arr[i].ipv4address);
+					ret = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
+						exporter->template_sendbuffer->entries,
+						exporter->template_sendbuffer->current,
+						(struct sockaddr*)&addr,
+						sizeof(addr),
+						0,0,
+						0,//Stream Number
+						0,0
+						);
+					break;
+
+				default:
+					msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
+					return -1;	
+				}
+                                printf("Sending %d TMPlate Bytes ...\n",ret);
                                 // TODO: we should also check, what writev returned. NO ERROR HANDLING IMPLEMENTED YET!
 
                         }
@@ -923,10 +993,8 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                                 }
                                 DPRINTF("IPFIX: Sendbuffer really contains %u bytes!\n", tested_length );
 #endif
-				struct sockaddr_in addr;
-				memset(&addr, 0, sizeof(addr));
-				const void* buff;
-				buff = exporter->data_sendbuffer->entries[0].iov_base;
+ 				struct sockaddr_in addr;
+ 				memset(&addr, 0, sizeof(addr));
 				switch(exporter->collector_arr[i].protocol){ 
 				case UDP:
 					ret=writev( exporter->collector_arr[i].data_socket,
@@ -940,32 +1008,25 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 					msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
 					return -1;
 			
-				case SCTP://TODO noch nicht fertig
+				case SCTP:
 					addr.sin_family = AF_INET;
 					addr.sin_port = htons (exporter->collector_arr[i].port_number);
 					addr.sin_addr.s_addr = inet_addr(exporter->collector_arr[i].ipv4address);
-						
-					ret = sctp_sendmsg(exporter->collector_arr[i].data_socket,
-						buff,
-						exporter->data_sendbuffer->entries[0].iov_len,
+					ret = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
+						exporter->data_sendbuffer->entries,
+						exporter->data_sendbuffer->committed,
 						(struct sockaddr*)&addr,
 						sizeof(addr),
 						0,0,
 						1,//Stream Number
 						0,0
 						);
-// 					ret=writev( exporter->collector_arr[i].data_socket,
-// 						exporter->data_sendbuffer->entries,
-// 						exporter->data_sendbuffer->committed
-// 						);
-					// TODO: we should also check, what writev returned. NO ERROR HANDLING IMPLEMENTED YET!
 					break;
-			
 				default:
 					msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
 					return -1;	
-					
                         	}
+                        	printf("Sending %d Data Bytes ....\n",ret);
                         }
                 } // end exporter loop
                 ret = 1;
