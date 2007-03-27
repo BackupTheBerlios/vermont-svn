@@ -24,7 +24,7 @@ problem1: XMLConfObj-Exceptions
 Bisher:
 Wenn in der Konfigurationsdatei ein Node, der initialisiert werden soll, nicht angegeben wird, so wird in der XMLConfObj::getValue-Funktion eine Exception geworfen und das Modul beendet, ergo: Man muss alles angeben.
 Besser:
-Exception ignorieren/unterbinden und das Problem den Modulen überlassen.
+Exception ignorieren/unterbinden und das Problem den Modulen überlassen?
 ------------------------------------
 */
 
@@ -332,9 +332,9 @@ void Stat::init_output_verbosity(XMLConfObj * config) {
 
 }
 
-// extracting monitored values to vector<MonValue>;
-// the values are stored there as constants defined
-// in enum MonValue in stat_main.h
+// extracting monitored values to vector<Metric>;
+// the values (some of them splitted) are stored there as
+// constants defined in enum Metric in stat_main.h
 void Stat::init_monitored_values(XMLConfObj * config) {
 
   std::stringstream Warning1, Warning2, Warning3, Usage;
@@ -357,91 +357,6 @@ void Stat::init_monitored_values(XMLConfObj * config) {
   }
 
   config->enterNode("monitored_values");
-
-// TODO
-// extract values to monitored_values without storing them in
-// tmp_monitored_data first
-// Problem: The following code didnt work!
-//    terminate called after throwing an instance of 'exceptions::ConfigError'
-//    what():  No next node exists
-
-/*
-if (config->nodeExists("value")) {
-
-    // store the first monitored value
-    if ( 0 == strcasecmp("packets",config->getValue("value").c_str()) )
-      monitored_values.push_back(PACKETS);
-    else if ( 0 == strcasecmp("bytes",config->getValue("value").c_str()) )
-      monitored_values.push_back(BYTES);
-    else if ( 0 == strcasecmp("octets",config->getValue("value").c_str()) )
-      monitored_values.push_back(BYTES);
-    else if ( 0 == strcasecmp("records",config->getValue("value").c_str()) )
-      monitored_values.push_back(RECORDS);
-    else if ( 0 == strcasecmp("octets/packet",config->getValue("value").c_str()) )
-      monitored_values.push_back(BYTES_PER_PACKET);
-    else if ( 0 == strcasecmp("bytes/packet",config->getValue("value").c_str()) )
-      monitored_values.push_back(BYTES_PER_PACKET);
-    else if ( 0 == strcasecmp("packets_out-packets_in",config->getValue("value").c_str()) )
-      monitored_values.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
-    else if ( 0 == strcasecmp("octets_out-octets_in",config->getValue("value").c_str()) )
-      monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
-    else if ( 0 == strcasecmp("bytes_out-bytes_in",config->getValue("value").c_str()) )
-      monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
-    else if ( 0 == strcasecmp("packets(t)-packets(t-1)",config->getValue("value").c_str()) )
-      monitored_values.push_back(PACKETS_T_MINUS_PACKETS_T_1);
-    else if ( 0 == strcasecmp("octets(t)-octets(t-1)",config->getValue("value").c_str()) )
-      monitored_values.push_back(BYTES_T_MINUS_BYTES_T_1);
-    else if ( 0 == strcasecmp("bytes(t)-bytes(t-1)",config->getValue("value").c_str()) )
-      monitored_values.push_back(BYTES_T_MINUS_BYTES_T_1);
-    else {
-      std::cerr << Warning3.str() << Usage.str() << "Exiting.\n";
-      if (warning_verbosity==1)
-        outfile << Warning3.str() << Usage.str() << "Exiting." << std::endl;
-      exit(0);
-    }
-
-    // store the rest of the monitored values
-    while (config->nextNodeExists()) {
-
-      if ( 0 == strcasecmp("packets",config->getNextValue().c_str()) )
-        monitored_values.push_back(PACKETS);
-      else if ( 0 == strcasecmp("bytes",config->getNextValue().c_str()) )
-        monitored_values.push_back(BYTES);
-      else if ( 0 == strcasecmp("octets",config->getNextValue().c_str()) )
-        monitored_values.push_back(BYTES);
-      else if ( 0 == strcasecmp("records",config->getNextValue().c_str()) )
-        monitored_values.push_back(RECORDS);
-      else if ( 0 == strcasecmp("octets/packet",config->getNextValue().c_str()) )
-        monitored_values.push_back(BYTES_PER_PACKET);
-      else if ( 0 == strcasecmp("bytes/packet",config->getNextValue().c_str()) )
-        monitored_values.push_back(BYTES_PER_PACKET);
-      else if ( 0 == strcasecmp("packets_out-packets_in",config->getNextValue().c_str()) )
-        monitored_values.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
-      else if ( 0 == strcasecmp("octets_out-octets_in",config->getNextValue().c_str()) )
-        monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
-      else if ( 0 == strcasecmp("bytes_out-bytes_in",config->getNextValue().c_str()) )
-        monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
-      else if ( 0 == strcasecmp("packets(t)-packets(t-1)",config->getNextValue().c_str()) )
-        monitored_values.push_back(PACKETS_T_MINUS_PACKETS_T_1);
-      else if ( 0 == strcasecmp("octets(t)-octets(t-1)",config->getNextValue().c_str()) )
-        monitored_values.push_back(BYTES_T_MINUS_BYTES_T_1);
-      else if ( 0 == strcasecmp("bytes(t)-bytes(t-1)",config->getNextValue().c_str()) )
-        monitored_values.push_back(BYTES_T_MINUS_BYTES_T_1);
-      else {
-        std::cerr << Warning3.str() << Usage.str() << "Exiting.\n";
-        if (warning_verbosity==1)
-          outfile << Warning3.str() << Usage.str() << "Exiting." << std::endl;
-        exit(0);
-      }
-    }
-  }
-  else {
-    std::cerr << Warning2.str() << Usage.str() << "Exiting.\n";
-    if (warning_verbosity==1)
-      outfile << Warning2.str() << Usage.str() << "Exiting." << std::endl;
-    exit(0);
-  }
-*/
 
   // more circumstantial than the above way ... but it works
   std::vector<std::string> tmp_monitored_data;
@@ -468,58 +383,68 @@ if (config->nodeExists("value")) {
   tmp_monitored_data.clear();
   tmp_monitored_data = tmp;
 
+  std::stringstream monValues;
+
   // extract the values from tmp_monitored_data (string)
-  // to monitored_values (enum)
-  enum MonValue m;
+  // to monitored_values (vector<enum>)
   std::vector<std::string>::iterator it = tmp_monitored_data.begin();
   while ( it != tmp_monitored_data.end() ) {
     if ( 0 == strcasecmp("packets", (*it).c_str()) ) {
-      m = PACKETS;
-      monitored_values.push_back(m);
+      monitored_values.push_back(PACKETS_IN);
+      monitored_values.push_back(PACKETS_OUT);
+      monValues << "packets, ";
     }
     else if ( 0 == strcasecmp("bytes", (*it).c_str()) ) {
-      m = BYTES;
-      monitored_values.push_back(m);
+      monitored_values.push_back(BYTES_IN);
+      monitored_values.push_back(BYTES_OUT);
+      monValues << "octets, ";
     }
     else if ( 0 == strcasecmp("octets",(*it).c_str()) ) {
-      m = BYTES;
-      monitored_values.push_back(m);
+      monitored_values.push_back(BYTES_IN);
+      monitored_values.push_back(BYTES_OUT);
+      monValues << "octets, ";
     }
     else if ( 0 == strcasecmp("records",(*it).c_str()) ) {
-      m = RECORDS;
-      monitored_values.push_back(m);
+      monitored_values.push_back(RECORDS_IN);
+      monitored_values.push_back(RECORDS_OUT);
+      monValues << "records, ";
     }
     else if ( 0 == strcasecmp("octets/packet",(*it).c_str()) ) {
-      m = BYTES_PER_PACKET;
-      monitored_values.push_back(m);
+      monitored_values.push_back(BYTES_IN_PER_PACKET_IN);
+      monitored_values.push_back(BYTES_OUT_PER_PACKET_OUT);
+      monValues << "octets/packet, ";
     }
     else if ( 0 == strcasecmp("bytes/packet",(*it).c_str()) ) {
-      m = BYTES_PER_PACKET;
-      monitored_values.push_back(m);
+      monitored_values.push_back(BYTES_IN_PER_PACKET_IN);
+      monitored_values.push_back(BYTES_OUT_PER_PACKET_OUT);
+      monValues << "bytes/packet, ";
     }
     else if ( 0 == strcasecmp("packets_out-packets_in",(*it).c_str()) ) {
-      m = PACKETS_OUT_MINUS_PACKETS_IN;
-      monitored_values.push_back(m);
+      monitored_values.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
+      monValues << "packets_out-packets_in, ";
     }
     else if ( 0 == strcasecmp("octets_out-octets_in",(*it).c_str()) ) {
-      m = BYTES_OUT_MINUS_BYTES_IN;
-      monitored_values.push_back(m);
+      monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
+      monValues << "octets_out-octets_in, ";
     }
     else if ( 0 == strcasecmp("bytes_out-bytes_in",(*it).c_str()) ) {
-      m = BYTES_OUT_MINUS_BYTES_IN;
-      monitored_values.push_back(m);
+      monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
+      monValues << "octets_out-octets_in, ";
     }
     else if ( 0 == strcasecmp("packets(t)-packets(t-1)",(*it).c_str()) ) {
-      m = PACKETS_T_MINUS_PACKETS_T_1;
-      monitored_values.push_back(m);
+      monitored_values.push_back(PACKETS_T_IN_MINUS_PACKETS_T_1_IN);
+      monitored_values.push_back(PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT);
+      monValues << "packets(t)-packets(t-1), ";
     }
     else if ( 0 == strcasecmp("octets(t)-octets(t-1)",(*it).c_str()) ) {
-      m = BYTES_T_MINUS_BYTES_T_1;
-      monitored_values.push_back(m);
+      monitored_values.push_back(BYTES_T_IN_MINUS_BYTES_T_1_IN);
+      monitored_values.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
+      monValues << "octets(t)-octets(t-1), ";
     }
     else if ( 0 == strcasecmp("bytes(t)-bytes(t-1)",(*it).c_str()) ) {
-      m = BYTES_T_MINUS_BYTES_T_1;
-      monitored_values.push_back(m);
+      monitored_values.push_back(BYTES_T_IN_MINUS_BYTES_T_1_IN);
+      monitored_values.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
+      monValues << "octets(t)-octets(t-1), ";
     }
     else {
         std::cerr << Warning3.str() << Usage.str() << "Exiting.\n";
@@ -530,6 +455,9 @@ if (config->nodeExists("value")) {
     it++;
   }
 
+  if (output_verbosity >= 3)
+      outfile << "Monitored values: " << monValues.str() << std::endl;
+
   // subscribing to all needed IPFIX_TYPEID-fields
 
   // to prevent multiple subscription
@@ -537,24 +465,26 @@ if (config->nodeExists("value")) {
   bool bytesSubscribed = false;
 
   for (int i = 0; i != monitored_values.size(); i++) {
-
-    if ( (monitored_values.at(i) == PACKETS
+    // we only need to check the IN-metrics, because if the
+    // corresponding monitored value was chosen, both metrics
+    // have to be in monitored_values
+    if ( (monitored_values.at(i) == PACKETS_IN
       || monitored_values.at(i) == PACKETS_OUT_MINUS_PACKETS_IN
-      || monitored_values.at(i) == PACKETS_T_MINUS_PACKETS_T_1)
+      || monitored_values.at(i) == PACKETS_T_IN_MINUS_PACKETS_T_1_IN)
       && packetsSubscribed == false) {
       subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
       packetsSubscribed = true;
     }
 
-    if ( (monitored_values.at(i) == BYTES
+    if ( (monitored_values.at(i) == BYTES_IN
       || monitored_values.at(i) == BYTES_OUT_MINUS_BYTES_IN
-      || monitored_values.at(i) == BYTES_T_MINUS_BYTES_T_1)
+      || monitored_values.at(i) == BYTES_T_IN_MINUS_BYTES_T_1_IN)
       && bytesSubscribed == false ) {
       subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
       bytesSubscribed = true;
     }
 
-    if ( monitored_values.at(i) == BYTES_PER_PACKET
+    if ( monitored_values.at(i) == BYTES_IN_PER_PACKET_IN
       && packetsSubscribed == false
       && bytesSubscribed == false) {
       subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
@@ -807,6 +737,8 @@ void Stat::init_ports(XMLConfObj * config) {
     // needed because of problem1
     if( config->getValue("ports") == "all" ) {
       StatStore::setMonitorAllPorts() = true;
+      if (warning_verbosity==1)
+        outfile << Default.str();
     }
     else {
       std::string Ports = config->getValue("ports");
@@ -1189,7 +1121,7 @@ void Stat::test(StatStore * store) {
   // in our  "std::map<EndPoint, Samples> Records"  sample container.
   // If not, then we add it as a new pair <EndPoint, Samples>.
   // If yes, then we update the corresponding Samples using
-  // Metrics extracted data.
+  // Values extracted data.
 
   outfile << "#### LEARN/UPDATE PHASE" << std::endl;
 
@@ -1222,14 +1154,13 @@ void Stat::test(StatStore * store) {
       // as limits are implemented in the StatStore class
 
       Samples S;
-      // extract_data has struct Metrics as output
+      // extract_data has enum Metric as output
       (S.Old).push_back(extract_data(Data_it->second, prev));
       Records[Data_it->first] = S;
       if (output_verbosity >= 3) {
 	      outfile << "New monitored EndPoint added" << std::endl;
 	      if (output_verbosity >= 4) {
-          outfile << "  sample_old: " << S.Old.back();
-          outfile << "  sample_new is empty\n" << std::endl;
+          outfile << "with first sample_old: " << S.Old.back() << std::endl;
 	      }
       }
 
@@ -1252,7 +1183,7 @@ void Stat::test(StatStore * store) {
 
 
   // Problem: (Records_it->second).Old und (Records_it->second).New
-  // waren bisher int, jetzt sind es Structs Metrics.
+  // waren bisher int, jetzt sind es Structs Values.
   // Hier sollen aber nicht alle darin enthaltenen Metriken
   // ausgegeben werden, sondern nur die relevanten ...
   if (output_verbosity >= 4) {
@@ -1319,34 +1250,37 @@ void Stat::test(StatStore * store) {
 // extracts interesting data from StatStore according to monitored_values:
 //
 
-Metrics Stat::extract_data (const Info & info, const Info & prev) {
+Values Stat::extract_data (const Info & info, const Info & prev) {
 
-  Metrics result;
-  init_metrics(result); // int64_t doesnt seem to be initialized to 0 by default
+  Values result;
+  init_values(result); // int64_t doesnt seem to be initialized to 0 by default
   bool gotValue = false; // false means: unknown type of value occurred
 
   //TODO
   // <value>all</value> --> all values shall be monitored
   // possibly managable in init_monitored_values
 
-  std::vector<MonValue>::iterator it = monitored_values.begin();
+  std::vector<Metric>::iterator it = monitored_values.begin();
 
+  // we only need to check the IN-metrics, because if the
+  // corresponding monitored value was chosen, both metrics
+  // have to be in monitored_values
   while (it != monitored_values.end() ) {
 
     switch ( *it ) {
-      case PACKETS:
+      case PACKETS_IN:
         extract_data_packets (info, result);
         gotValue = true;
         break;
-      case BYTES:
+      case BYTES_IN:
         extract_data_octets (info, result);
         gotValue = true;
         break;
-      case RECORDS:
+      case RECORDS_IN:
         extract_data_records (info, result);
         gotValue = true;
         break;
-      case BYTES_PER_PACKET:
+      case BYTES_IN_PER_PACKET_IN:
         extract_data_octets_per_packets (info, result);
         gotValue = true;
         break;
@@ -1358,11 +1292,11 @@ Metrics Stat::extract_data (const Info & info, const Info & prev) {
         extract_data_octets_out_minus_octets_in (info, result);
         gotValue = true;
         break;
-      case PACKETS_T_MINUS_PACKETS_T_1:
+      case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
         extract_packets_t_minus_packets_t_1 (info, prev, result);
         gotValue = true;
         break;
-      case BYTES_T_MINUS_BYTES_T_1:
+      case BYTES_T_IN_MINUS_BYTES_T_1_IN:
         extract_octets_t_minus_octets_t_1 (info, prev, result);
         gotValue = true;
         break;
@@ -1385,7 +1319,7 @@ Metrics Stat::extract_data (const Info & info, const Info & prev) {
 
 // functions called by the extract_data()-function:
 //
-void Stat::extract_data_packets (const Info & info, Metrics & result) {
+void Stat::extract_data_packets (const Info & info, Values & result) {
 
   if (info.packets_out >= noise_threshold_packets)
     result.packets_out = info.packets_out;
@@ -1395,7 +1329,7 @@ void Stat::extract_data_packets (const Info & info, Metrics & result) {
   return;
 }
 
-void Stat::extract_data_octets (const Info & info, Metrics & result) {
+void Stat::extract_data_octets (const Info & info, Values & result) {
 
   if (info.bytes_out >= noise_threshold_bytes)
     result.bytes_out = info.bytes_out;
@@ -1405,7 +1339,7 @@ void Stat::extract_data_octets (const Info & info, Metrics & result) {
   return;
 }
 
-void Stat::extract_data_records (const Info & info, Metrics & result) {
+void Stat::extract_data_records (const Info & info, Values & result) {
 
   result.records_out = info.records_out;
   result.records_in  = info.records_in;
@@ -1413,7 +1347,7 @@ void Stat::extract_data_records (const Info & info, Metrics & result) {
   return;
 }
 
-void Stat::extract_data_octets_per_packets (const Info & info, Metrics & result) {
+void Stat::extract_data_octets_per_packets (const Info & info, Values & result) {
 
   int64_t packets_in;
   int64_t packets_out;
@@ -1448,7 +1382,7 @@ void Stat::extract_data_octets_per_packets (const Info & info, Metrics & result)
   return;
 }
 
-void Stat::extract_data_packets_out_minus_packets_in (const Info & info, Metrics & result) {
+void Stat::extract_data_packets_out_minus_packets_in (const Info & info, Values & result) {
 
   if (info.packets_out >= noise_threshold_packets ||
       info.packets_in  >= noise_threshold_packets )
@@ -1457,7 +1391,7 @@ void Stat::extract_data_packets_out_minus_packets_in (const Info & info, Metrics
   return;
 }
 
-void Stat::extract_data_octets_out_minus_octets_in (const Info & info, Metrics & result) {
+void Stat::extract_data_octets_out_minus_octets_in (const Info & info, Values & result) {
 
   if (info.bytes_out >= noise_threshold_bytes ||
       info.bytes_in  >= noise_threshold_bytes )
@@ -1466,7 +1400,7 @@ void Stat::extract_data_octets_out_minus_octets_in (const Info & info, Metrics &
   return;
 }
 
-void Stat::extract_packets_t_minus_packets_t_1 (const Info & info, const Info & prev, Metrics & result) {
+void Stat::extract_packets_t_minus_packets_t_1 (const Info & info, const Info & prev, Values & result) {
 
   // prev holds the data for the same EndPoint as info
   // from the last call to test()
@@ -1481,7 +1415,7 @@ void Stat::extract_packets_t_minus_packets_t_1 (const Info & info, const Info & 
   return;
 }
 
-void Stat::extract_octets_t_minus_octets_t_1 (const Info & info, const Info & prev, Metrics & result) {
+void Stat::extract_octets_t_minus_octets_t_1 (const Info & info, const Info & prev, Values & result) {
 
   // prev holds the data for the same EndPoint as info
   // from the last call to test()
@@ -1502,9 +1436,9 @@ void Stat::extract_octets_t_minus_octets_t_1 (const Info & info, const Info & pr
 
 // learn/update function for samples (called everytime test() is called)
 //
-void Stat::update ( std::list<Metrics> & sample_old,
-		    std::list<Metrics> & sample_new,
-		    const Metrics & new_value ) {
+void Stat::update ( std::list<Values> & sample_old,
+		    std::list<Values> & sample_new,
+		    const Values & new_value ) {
 
   // Learning phase?
 
@@ -1516,7 +1450,7 @@ void Stat::update ( std::list<Metrics> & sample_old,
       outfile << "Learning phase for sample_old..." << std::endl;
       // TODO
       // sample_old und sample_new waren bisher list<int>
-      // Jetzt sind es list<Metrics>. Hier sollen aber nicht alle
+      // Jetzt sind es list<Values>. Hier sollen aber nicht alle
       // darin enthaltenen Metriken ausgegeben werden, sondern
       // nur die relevanten ...
       /*
@@ -1537,7 +1471,7 @@ void Stat::update ( std::list<Metrics> & sample_old,
       outfile << "Learning phase for sample_new..." << std::endl;
       // TODO
       // sample_old und sample_new waren bisher list<int>
-      // Jetzt sind es list<Metrics>. Hier solle naber nicht alle
+      // Jetzt sind es list<Values>. Hier solle naber nicht alle
       // darin enthaltenen Metriken ausgegeben werden, sondern
       // nur die relevanten ...
       /*
@@ -1576,7 +1510,7 @@ void Stat::update ( std::list<Metrics> & sample_old,
     outfile << "Update done" << std::endl;
     // TODO
     // sample_old und sample_new waren bisher list<int>
-    // Jetzt sind es list<Metrics>. Hier solle naber nicht alle
+    // Jetzt sind es list<Values>. Hier solle naber nicht alle
     // darin enthaltenen Metriken ausgegeben werden, sondern
     // nur die relevanten ...
     /*
@@ -1596,19 +1530,16 @@ void Stat::update ( std::list<Metrics> & sample_old,
 // statistical test function
 // (optional, depending on how often the user wishes to do it)
 //
-void Stat::stat_test (std::list<Metrics> & sample_old,
-		      std::list<Metrics> & sample_new) {
+void Stat::stat_test (std::list<Values> & sample_old,
+		      std::list<Values> & sample_new) {
 
-  // value holds the monitored_value, the two metrics are for the splitted
-  // monitored_values, e. g.
-  // packets --> metric1 = packets_in, metric2 = packets_out
-  enum MonValue value;
-  enum MonValueMetric metric1, metric2;
+  // value holds (one of the two metrics of) the monitored_value
+  enum Metric value;
   // Containers for single metrics
   std::list<int64_t> sample_old_single_metric;
   std::list<int64_t> sample_new_single_metric;
 
-  std::vector<MonValue>::iterator it = monitored_values.begin();
+  std::vector<Metric>::iterator it = monitored_values.begin();
 
   // for every value in monitored_values, do the tests;
   // and if a value was splitted into two, do the tests for
@@ -1617,113 +1548,23 @@ void Stat::stat_test (std::list<Metrics> & sample_old,
 
     value = *it;
 
-    switch(value) {
-      case PACKETS:
-        metric1 = METRIC_PACKETS_IN;
-        metric2 = METRIC_PACKETS_OUT;
-        break;
-      case BYTES:
-        metric1 = METRIC_BYTES_IN;
-        metric2 = METRIC_BYTES_OUT;
-        break;
-      case RECORDS:
-        metric1 = METRIC_RECORDS_IN;
-        metric2 = METRIC_RECORDS_OUT;
-        break;
-      case BYTES_PER_PACKET:
-        metric1 = METRIC_BYTES_IN_PER_PACKET_IN;
-        metric2 = METRIC_BYTES_OUT_PER_PACKET_OUT;
-        break;
-      case PACKETS_OUT_MINUS_PACKETS_IN:
-        metric1 = METRIC_PACKETS_OUT_MINUS_PACKETS_IN;
-        break;
-      case BYTES_OUT_MINUS_BYTES_IN:
-        metric1 = METRIC_BYTES_OUT_MINUS_BYTES_IN;
-        break;
-      case PACKETS_T_MINUS_PACKETS_T_1:
-        metric1 = METRIC_PACKETS_T_IN_MINUS_PACKETS_T_1_IN;
-        metric2 = METRIC_PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT;
-        break;
-      case BYTES_T_MINUS_BYTES_T_1:
-        metric1 = METRIC_BYTES_T_IN_MINUS_BYTES_T_1_IN;
-        metric2 = METRIC_BYTES_T_OUT_MINUS_BYTES_T_1_OUT;
-        break;
-      default:
-        std::cerr << "Error! Got unknown value in Stat::stat_test(...)!\n"
-                  << "init_monitored_values() should not let this Error happen!";
-        exit(0);
-    }
+    if (output_verbosity >= 4)
+      outfile << "### Performing Statistical Tests for metric " << getMetricName(value) << ":\n";
 
-    // for the splitted metrics, we need to perform the tests twice:
-    // once for the incoming values and once for the outgoing values
-    if ( value == PACKETS
-      || value == BYTES
-      || value == RECORDS
-      || value == BYTES_PER_PACKET
-      || value == PACKETS_T_MINUS_PACKETS_T_1
-      || value == BYTES_T_MINUS_BYTES_T_1 ) {
+    sample_old_single_metric = getSingleMetric(sample_old, value);
+    sample_new_single_metric = getSingleMetric(sample_new, value);
 
-  // tests for the incoming values
-      if (output_verbosity >= 4)
-        outfile << "### Performing Statistical Tests for metric " << getMetricName(value) << " (incoming):\n";
+    // Wilcoxon-Mann-Whitney test:
+    if (enable_wmw_test == true)
+      stat_test_wmw(sample_old_single_metric, sample_new_single_metric);
 
-      sample_old_single_metric = getSingleMetric(sample_old, metric1);
-      sample_new_single_metric = getSingleMetric(sample_new, metric1);
+    // Kolmogorov-Smirnov test:
+    if (enable_ks_test == true)
+      stat_test_ks (sample_old_single_metric, sample_new_single_metric);
 
-      // Wilcoxon-Mann-Whitney test:
-      if (enable_wmw_test == true)
-        stat_test_wmw(sample_old_single_metric, sample_new_single_metric);
-
-      // Kolmogorov-Smirnov test:
-      if (enable_ks_test == true)
-        stat_test_ks (sample_old_single_metric, sample_new_single_metric);
-
-      // Pearson chi-square test:
-      if (enable_pcs_test == true)
-        stat_test_pcs(sample_old_single_metric, sample_new_single_metric);
-
-  // tests for the outgoing values
-      if (output_verbosity >= 4)
-        outfile << "### Performing Statistical Tests for metric " << getMetricName(value) << " (outgoing):\n";
-
-      sample_old_single_metric = getSingleMetric(sample_old, metric2);
-      sample_new_single_metric = getSingleMetric(sample_new, metric2);
-
-      // Wilcoxon-Mann-Whitney test:
-      if (enable_wmw_test == true)
-        stat_test_wmw(sample_old_single_metric, sample_new_single_metric);
-
-      // Kolmogorov-Smirnov test:
-      if (enable_ks_test == true)
-        stat_test_ks (sample_old_single_metric, sample_new_single_metric);
-
-      // Pearson chi-square test:
-      if (enable_pcs_test == true)
-        stat_test_pcs(sample_old_single_metric, sample_new_single_metric);
-
-    }
-
-    // for the other metrics, we only need to perform the tests once
-    else {
-
-      if (output_verbosity >= 4)
-        outfile << "### Performing Statistical Tests for metric " << getMetricName(value) << ":\n";
-
-      sample_old_single_metric = getSingleMetric(sample_old, metric1);
-      sample_new_single_metric = getSingleMetric(sample_new, metric1);
-
-      // Wilcoxon-Mann-Whitney test:
-      if (enable_wmw_test == true)
-        stat_test_wmw(sample_old_single_metric, sample_new_single_metric);
-
-      // Kolmogorov-Smirnov test:
-      if (enable_ks_test == true)
-        stat_test_ks (sample_old_single_metric, sample_new_single_metric);
-
-      // Pearson chi-square test:
-      if (enable_pcs_test == true)
-        stat_test_pcs(sample_old_single_metric, sample_new_single_metric);
-    }
+    // Pearson chi-square test:
+    if (enable_pcs_test == true)
+      stat_test_pcs(sample_old_single_metric, sample_new_single_metric);
 
     it++;
   }
@@ -1733,91 +1574,91 @@ void Stat::stat_test (std::list<Metrics> & sample_old,
 }
 
 // functions called by the stat_test()-function
-std::list<int64_t> Stat::getSingleMetric(const std::list<Metrics> & l, const enum MonValueMetric & m) {
+std::list<int64_t> Stat::getSingleMetric(const std::list<Values> & l, const enum Metric & m) {
 
   std::list<int64_t> result;
-  std::list<Metrics>::const_iterator it = l.begin();
+  std::list<Values>::const_iterator it = l.begin();
 
   switch(m) {
-    case METRIC_PACKETS_IN:
+    case PACKETS_IN:
       while ( it != l.end() ) {
         result.push_back(it->packets_in);
         it++;
       }
       break;
-    case METRIC_PACKETS_OUT:
+    case PACKETS_OUT:
       while ( it != l.end() ) {
         result.push_back(it->packets_out);
         it++;
       }
       break;
-    case METRIC_BYTES_IN:
+    case BYTES_IN:
       while ( it != l.end() ) {
         result.push_back(it->bytes_in);
         it++;
       }
       break;
-    case METRIC_BYTES_OUT:
+    case BYTES_OUT:
       while ( it != l.end() ) {
         result.push_back(it->bytes_out);
         it++;
       }
       break;
-    case METRIC_RECORDS_IN:
+    case RECORDS_IN:
       while ( it != l.end() ) {
         result.push_back(it->records_in);
         it++;
       }
       break;
-    case METRIC_RECORDS_OUT:
+    case RECORDS_OUT:
       while ( it != l.end() ) {
         result.push_back(it->records_out);
         it++;
       }
       break;
-    case METRIC_BYTES_IN_PER_PACKET_IN:
+    case BYTES_IN_PER_PACKET_IN:
       while ( it != l.end() ) {
         result.push_back(it->bytes_per_packet_in);
         it++;
       }
       break;
-    case METRIC_BYTES_OUT_PER_PACKET_OUT:
+    case BYTES_OUT_PER_PACKET_OUT:
       while ( it != l.end() ) {
         result.push_back(it->bytes_per_packet_out);
         it++;
       }
       break;
-    case METRIC_PACKETS_OUT_MINUS_PACKETS_IN:
+    case PACKETS_OUT_MINUS_PACKETS_IN:
       while ( it != l.end() ) {
         result.push_back(it->p_out_minus_p_in);
         it++;
       }
       break;
-    case METRIC_BYTES_OUT_MINUS_BYTES_IN:
+    case BYTES_OUT_MINUS_BYTES_IN:
       while ( it != l.end() ) {
         result.push_back(it->b_out_minus_b_in);
         it++;
       }
       break;
-    case METRIC_PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
+    case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
       while ( it != l.end() ) {
         result.push_back(it->pt_minus_pt1_in);
         it++;
       }
       break;
-    case METRIC_PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
+    case PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
       while ( it != l.end() ) {
         result.push_back(it->pt_minus_pt1_out);
         it++;
       }
       break;
-    case METRIC_BYTES_T_IN_MINUS_BYTES_T_1_IN:
+    case BYTES_T_IN_MINUS_BYTES_T_1_IN:
       while ( it != l.end() ) {
         result.push_back(it->bt_minus_bt1_in);
         it++;
       }
       break;
-    case METRIC_BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
+    case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
       while ( it != l.end() ) {
         result.push_back(it->bt_minus_bt1_out);
         it++;
@@ -1832,24 +1673,36 @@ std::list<int64_t> Stat::getSingleMetric(const std::list<Metrics> & l, const enu
   return result;
 }
 
-std::string Stat::getMetricName(const enum MonValue & metric) {
+std::string Stat::getMetricName(const enum Metric & metric) {
   switch(metric) {
-    case PACKETS:
-      return std::string("packets");
-    case BYTES:
-      return std::string("octets");
-    case RECORDS:
-      return std::string("records");
-    case BYTES_PER_PACKET:
-      return std::string("octets/packet");
+    case PACKETS_IN:
+      return std::string("packets_in");
+    case PACKETS_OUT:
+      return std::string("packets_out");
+    case BYTES_IN:
+      return std::string("octets_in");
+    case BYTES_OUT:
+      return std::string("octets_out");
+    case RECORDS_IN:
+      return std::string("records_in");
+    case RECORDS_OUT:
+      return std::string("records_out");
+    case BYTES_IN_PER_PACKET_IN:
+      return std::string("octets_in/packet_in");
+    case BYTES_OUT_PER_PACKET_OUT:
+      return std::string("octets_out/packet_out");
     case PACKETS_OUT_MINUS_PACKETS_IN:
       return std::string("packets_out-packets_in");
     case BYTES_OUT_MINUS_BYTES_IN:
       return std::string("octets_out-octets_in");
-    case PACKETS_T_MINUS_PACKETS_T_1:
-      return std::string("packets(t)-packets(t-1)");
-    case BYTES_T_MINUS_BYTES_T_1:
-      return std::string("octets(t)-octets(t-1)");
+    case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
+      return std::string("packets_in(t)-packets_in(t-1)");
+    case PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
+      return std::string("packets_out(t)-packets_out(t-1)");
+    case BYTES_T_IN_MINUS_BYTES_T_1_IN:
+      return std::string("octets_in(t)-octets_in(t-1)");
+    case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
+      return std::string("octets_out(t)-octets_out(t-1)");
     default:
       std::cerr << "Error! Unknown type of Metric in getMetricName().\n"
                 << "Exiting.";
@@ -2042,7 +1895,7 @@ void Stat::stat_test_pcs (std::list<int64_t> & sample_old,
   return;
 }
 
-void Stat::init_metrics(Metrics & m) {
+void Stat::init_values(Values & m) {
 
   m.packets_in = 0;
   m.packets_out = 0;

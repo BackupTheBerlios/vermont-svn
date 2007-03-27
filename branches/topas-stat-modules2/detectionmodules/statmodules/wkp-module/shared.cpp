@@ -66,7 +66,7 @@ std::ostream & operator << (std::ostream & os, const std::vector<unsigned> & V) 
   return os;
 }
 
-std::ostream & operator << (std::ostream & os, const Metrics & M) {
+std::ostream & operator << (std::ostream & os, const Values & M) {
   os << "packets_in=" << M.packets_in << "; "
      << "packets_out=" << M.packets_out << "; "
      << "bytes_in=" << M.bytes_in << "; "
@@ -83,9 +83,9 @@ std::ostream & operator << (std::ostream & os, const Metrics & M) {
      << "bt_minus_bt1_out=" << M.bt_minus_bt1_out << "; "
      << std::endl;
 }
-/*
-std::ostream & operator << (std::ostream & os, const std::list<Metrics> & L) {
-std::list<Metrics>::const_iterator it = L.begin();
+
+std::ostream & operator << (std::ostream & os, const std::list<Values> & L) {
+std::list<Values>::const_iterator it = L.begin();
   while (it != L.end()) {
     os << "packets_in=" << it->packets_in << "; "
      << "packets_out=" << it->packets_out << "; "
@@ -106,4 +106,3 @@ std::list<Metrics>::const_iterator it = L.begin();
      it++;
   }
 }
-*/

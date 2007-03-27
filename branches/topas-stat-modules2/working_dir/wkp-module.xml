@@ -18,10 +18,19 @@
     <noise_threshold_packets>0</noise_threshold_packets>
     <noise_threshold_bytes>0</noise_threshold_bytes>
 		<monitored_values>
+      <!--
+      <value>records</value>
+      <value>octets/packet</value>
+      <value>packets_out-packets_in</value>
+      <value>octets_out-octets_in</value>
+      <value>packets(t)-packets(t-1)</value>
       <value>octets(t)-octets(t-1)</value>
+      -->
+      <value>packets</value>
+      <value>octets</value>
     </monitored_values>
 		<protocols>TCP</protocols>
-    <ports>all</ports>
+    <ports>80 8080</ports>
 	  <netmask>32</netmask>
 		<stat_test_frequency>1</stat_test_frequency>
 		<report_only_first_attack>true</report_only_first_attack>

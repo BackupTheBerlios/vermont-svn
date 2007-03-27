@@ -39,34 +39,22 @@
 #define DEFAULT_sample_new_size 11
 #define DEFAULT_stat_test_frequency 1
 
-// constants for monitored values
-enum MonValue {
-  PACKETS,
-  BYTES,
-  RECORDS,
-  BYTES_PER_PACKET,
+// constants for (splitted) monitored values
+enum Metric {
+  PACKETS_IN,
+  PACKETS_OUT,
+  BYTES_IN,
+  BYTES_OUT,
+  RECORDS_IN,
+  RECORDS_OUT,
+  BYTES_IN_PER_PACKET_IN,
+  BYTES_OUT_PER_PACKET_OUT,
   PACKETS_OUT_MINUS_PACKETS_IN,
   BYTES_OUT_MINUS_BYTES_IN,
-  PACKETS_T_MINUS_PACKETS_T_1,
-  BYTES_T_MINUS_BYTES_T_1
-};
-
-// constants for splitted monitored values
-enum MonValueMetric {
-  METRIC_PACKETS_IN,
-  METRIC_PACKETS_OUT,
-  METRIC_BYTES_IN,
-  METRIC_BYTES_OUT,
-  METRIC_RECORDS_IN,
-  METRIC_RECORDS_OUT,
-  METRIC_BYTES_IN_PER_PACKET_IN,
-  METRIC_BYTES_OUT_PER_PACKET_OUT,
-  METRIC_PACKETS_OUT_MINUS_PACKETS_IN,
-  METRIC_BYTES_OUT_MINUS_BYTES_IN,
-  METRIC_PACKETS_T_IN_MINUS_PACKETS_T_1_IN,
-  METRIC_PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT,
-  METRIC_BYTES_T_IN_MINUS_BYTES_T_1_IN,
-  METRIC_BYTES_T_OUT_MINUS_BYTES_T_1_OUT
+  PACKETS_T_IN_MINUS_PACKETS_T_1_IN,
+  PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT,
+  BYTES_T_IN_MINUS_BYTES_T_1_IN,
+  BYTES_T_OUT_MINUS_BYTES_T_1_OUT
 };
 
 // main class: does tests, stores samples,
@@ -105,8 +93,8 @@ class Stat : public DetectionBase<StatStore> {
   static void sigTerm(int);
   static void sigInt(int);
 
-  // setting all values of struct Metrics to 0
-  void init_metrics(Metrics &);
+  // setting all values of struct Values to 0
+  void init_values(Values &);
 
   // this function is called by the Stat constructor, its job is to extract
   // user's preferences and test parameters from the XML config file:
@@ -137,24 +125,24 @@ class Stat : public DetectionBase<StatStore> {
 
 
   // the following functions are called by the test()-function:
-  Metrics extract_data (const Info &, const Info &);
-  void update(std::list<Metrics> &, std::list<Metrics> &, const Metrics &);
-  void stat_test(std::list<Metrics> &, std::list<Metrics> &);
+  Values extract_data (const Info &, const Info &);
+  void update(std::list<Values> &, std::list<Values> &, const Values &);
+  void stat_test(std::list<Values> &, std::list<Values> &);
 
   // the following functions are called by the extract_data()-function:
-  void extract_data_packets (const Info &, Metrics &);
-  void extract_data_octets (const Info &, Metrics &);
-  void extract_data_records (const Info &, Metrics &);
-  void extract_data_octets_per_packets (const Info &, Metrics &);
-  void extract_data_packets_out_minus_packets_in (const Info &, Metrics &);
-  void extract_data_octets_out_minus_octets_in (const Info &, Metrics &);
-  void extract_packets_t_minus_packets_t_1 (const Info &, const Info &, Metrics &);
-  void extract_octets_t_minus_octets_t_1 (const Info &, const Info &, Metrics &);
+  void extract_data_packets (const Info &, Values &);
+  void extract_data_octets (const Info &, Values &);
+  void extract_data_records (const Info &, Values &);
+  void extract_data_octets_per_packets (const Info &, Values &);
+  void extract_data_packets_out_minus_packets_in (const Info &, Values &);
+  void extract_data_octets_out_minus_octets_in (const Info &, Values &);
+  void extract_packets_t_minus_packets_t_1 (const Info &, const Info &, Values &);
+  void extract_octets_t_minus_octets_t_1 (const Info &, const Info &, Values &);
 
   // this function is called by stat_test() to extract a single metric to test
-  // from the struct Metrics
-  std::list<int64_t> getSingleMetric(const std::list<Metrics> &, const enum MonValueMetric &);
-  std::string getMetricName(const enum MonValue &);
+  // from the struct Values
+  std::list<int64_t> getSingleMetric(const std::list<Values> &, const enum Metric &);
+  std::string getMetricName(const enum Metric &);
 
   // and the following functions are called by the stat_test()-function:
   void stat_test_wmw(std::list<int64_t> &, std::list<int64_t> &);
@@ -178,8 +166,8 @@ class Stat : public DetectionBase<StatStore> {
   std::ofstream outfile;
   int warning_verbosity;
   int output_verbosity;
-  // holds the constants for the monitored values
-  std::vector<MonValue> monitored_values;
+  // holds the constants for the (splitted) monitored values
+  std::vector<Metric> monitored_values;
   int noise_threshold_packets;
   int noise_threshold_bytes;
   std::string ipfile;

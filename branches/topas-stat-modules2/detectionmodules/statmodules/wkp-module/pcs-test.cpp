@@ -211,18 +211,16 @@ void pcs_categories ( std::list<int64_t> sample1, std::list<int64_t> sample2,
 
   sample1.sort(); outfile << "sorted sample1: " << sample1 << std::endl;
   sample2.sort(); outfile << "sorted sample2: " << sample2 << std::endl;
-  // TODO
-  // An genau dieser Stelle hängt sich das Modul auf,
-  // wenn negative Werte in den Samples vorkommen ...
 
   unsigned lg1 = sample1.size();
   unsigned lg2 = sample2.size();
   unsigned n = lg1 + lg2;
 
-  unsigned min = sample1.front()<sample2.front() ? sample1.front():sample2.front();
+  int64_t min = sample1.front()<sample2.front() ? sample1.front():sample2.front();
   unsigned sample1_oldsize = lg1;
   unsigned sample2_oldsize = lg2;
   double E1, E2;
+
   // M.L.E. of the probability that an item in sample1 (E1) and sample2 (E2)
   // will be in the current category, i.e. expected number of observations
   // (of items, of elements) in the current category for both samples;

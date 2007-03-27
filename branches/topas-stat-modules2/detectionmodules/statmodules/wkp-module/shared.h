@@ -41,11 +41,11 @@ struct Info {
   uint64_t records_out;
 };
 
-// ======================== STRUCT Metrics ========================
+// ======================== STRUCT Values ========================
 
 // this structure is used to extract metric-values to
 
-struct Metrics {
+struct Values {
   int64_t packets_in;
   int64_t packets_out;
   int64_t bytes_in;
@@ -66,12 +66,12 @@ struct Metrics {
 
 // we use this structure as value field in std::map< key, value >
 // it contains a list of the old and the new metrics.
-// Letting Old and New be lists of struct Metrics enables us
+// Letting Old and New be lists of struct Values enables us
 // to store values for multiple monitored values
 
 struct Samples {
-  std::list<Metrics> Old;
-  std::list<Metrics> New;
+  std::list<Values> Old;
+  std::list<Values> New;
 };
 
 
@@ -170,7 +170,7 @@ class EndPoint {
 std::ostream & operator << (std::ostream &, const std::list<int64_t> &);
 std::ostream & operator << (std::ostream &, const std::vector<unsigned> &);
 std::ostream & operator << (std::ostream &, const std::map<EndPoint,Info> &);
-std::ostream & operator << (std::ostream &, const Metrics &);
-//std::ostream & operator << (std::ostream &, const std::list<Metrics> &);
+std::ostream & operator << (std::ostream &, const Values &);
+std::ostream & operator << (std::ostream &, const std::list<Values> &);
 
 #endif
