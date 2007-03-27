@@ -115,7 +115,10 @@ private:
  */
 class IpAddress {
 public:
-        IpAddress() : address(0,0,0,0) {}
+        IpAddress()
+       	{
+		setAddress(0, 0, 0, 0);
+	}
 
         /**
          * Constructor
