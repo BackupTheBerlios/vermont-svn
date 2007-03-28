@@ -23,7 +23,7 @@
 #include <sstream>
 
 
-int DataStore::fieldToInt(byte* data, int len) 
+uint64_t DataStore::fieldToInt(byte* data, unsigned len) 
 {
         switch (len) {
         case 1:
@@ -35,9 +35,10 @@ int DataStore::fieldToInt(byte* data, int len)
         case 8:
                 return ntohll(*(uint64_t*)data);
         default:
-                return -1;
+                return (uint64_t) -1;
         }
 }
+
 
 std::string IpAddress::toString() const
 {

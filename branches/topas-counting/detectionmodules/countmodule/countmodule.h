@@ -57,7 +57,9 @@ to do this)
 #endif
 
     private:
-	int threshold;
+	uint64_t octetThreshold;
+	uint64_t packetThreshold;
+	uint64_t flowThreshold;
 
 	std::ofstream outfile;
 
@@ -68,6 +70,7 @@ to do this)
 	static void sigInt(int);
 
 	void init(const std::string& configfile);
+	bool checkThresholds(const Counters& count);
 };
 
 

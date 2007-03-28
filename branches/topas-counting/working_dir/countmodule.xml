@@ -17,6 +17,9 @@
 	<counting>
 		<bf_size>1000</bf_size>
 		<bf_hashfunctions>3</bf_hashfunctions>
-		<key_id>destinationtransportport</key_id>
+		<count_per_src_ip>false</count_per_src_ip>
+		<count_per_dst_ip />
+		<count_per_src_port />
+		<count_per_dst_port />
 	</counting>
 </configuration>

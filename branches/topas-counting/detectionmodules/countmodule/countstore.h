@@ -77,7 +77,20 @@ template<unsigned size> class GenericKey
 
 
 struct Counters {
-    uint64_t octets, packets, flows;
+    public:
+	Counters(): octetCount(0), packetCount(0), flowCount(0) {}
+	Counters(uint64_t octets, uint64_t packets, uint64_t flows)
+	    : octetCount(octets), packetCount(packets), flowCount(flows) {}
+	~Counters() {}
+
+	void update(uint64_t octets, uint64_t packets, uint64_t flows)
+	{
+	    octetCount += octets;
+	    packetCount += packets;
+	    flowCount += flows;
+	}
+	
+	uint64_t octetCount, packetCount, flowCount;
 };
 
 
@@ -87,9 +100,14 @@ class CountStore : public DataStore
 	typedef GenericKey<15> FiveTuple;
 	typedef std::map<IpAddress, Counters> IpCountMap;
 	typedef std::map<uint32_t, Counters> PortCountMap;
+	typedef uint32_t ProtoPort;
 
-	CountStore();
-	~CountStore();
+	CountStore() : recordStarted(false)
+	{
+	    bfilter.clear();
+	}
+
+	~CountStore() {}
 
 	/**
 	 * Will be invoked, whenever a new data record starts
@@ -120,10 +138,14 @@ class CountStore : public DataStore
 	PortCountMap srcPortCounts, dstPortCounts;
 
     private:
+	void updateIpCountMap(IpCountMap& countmap, IpCountMap::iterator& iter, const IpAddress& addr, const bool newFlowKey);
+	void updatePortCountMap(PortCountMap& countmap, PortCountMap::iterator& iter, ProtoPort port, const bool newFlowKey);
+	
 	static BloomFilter bfilter;
 	
 	IpAddress srcIp, dstIp;
-	uint32_t srcPort, dstPort;
+	ProtoPort  srcPort, dstPort;
+	uint64_t octets, packets;
 
 	FiveTuple flowKey;
 
