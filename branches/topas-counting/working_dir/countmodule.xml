@@ -11,13 +11,16 @@
 		</xmlBlaster>
 	</xmlBlasters>
 	<preferences>
-		<accepted_source_ids>1234</accepted_source_ids>
 		<alarm_time>12</alarm_time>
+		<octet_threshold>1000</octet_threshold>
+		<packet_threshold>5</packet_threshold>
+		<flow_threshold>3</flow_threshold>
+		<verbose />
 	</preferences>
 	<counting>
 		<bf_size>1000</bf_size>
 		<bf_hashfunctions>3</bf_hashfunctions>
-		<count_per_src_ip>false</count_per_src_ip>
+		<count_per_src_ip />
 		<count_per_dst_ip />
 		<count_per_src_port />
 		<count_per_dst_port />

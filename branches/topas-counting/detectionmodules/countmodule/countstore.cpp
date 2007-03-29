@@ -17,6 +17,7 @@
 /**************************************************************************/
 
 #include "countstore.h"
+#include "countmodule.h"
 
 #include <cassert>
 
@@ -41,7 +42,7 @@ void CountStore::addFieldData(int id, byte* fieldData, int fieldDataLength, Ente
 		flowKey.append(fieldData, 4); // we ignore the netmask
 	    }
 	    else
-		msg(MSG_ERROR, "CountStore: IP address field too short.\n");
+		msg(MSG_ERROR, "CountStore: IP address field too short.");
 	    break;
 	case IPFIX_TYPEID_destinationIPv4Address:
 	    /* fieldDataLength == 5 means fieldData == xxx.yyy.zzz/aa (ip address and netmask)
@@ -53,7 +54,7 @@ void CountStore::addFieldData(int id, byte* fieldData, int fieldDataLength, Ente
 		flowKey.append(fieldData, 4); // we ignore the netmask
 	    }
 	    else
-		msg(MSG_ERROR, "CountStore: IP address field too short.\n");
+		msg(MSG_ERROR, "CountStore: IP address field too short.");
 	    break;
 	case IPFIX_TYPEID_sourceTransportPort:
 	    if (fieldDataLength == 2)
@@ -62,7 +63,7 @@ void CountStore::addFieldData(int id, byte* fieldData, int fieldDataLength, Ente
 		flowKey.append(fieldData, 2);
 	    }
 	    else
-		msg(MSG_ERROR, "CountStore: Invalide port field length.\n");
+		msg(MSG_ERROR, "CountStore: Invalide port field length.");
 	    break;
 	case IPFIX_TYPEID_destinationTransportPort:
 	    if (fieldDataLength == 2)
@@ -71,7 +72,7 @@ void CountStore::addFieldData(int id, byte* fieldData, int fieldDataLength, Ente
 		flowKey.append(fieldData, 2);
 	    }
 	    else
-		msg(MSG_ERROR, "CountStore: Invalide port field length.\n");
+		msg(MSG_ERROR, "CountStore: Invalide port field length.");
 	    break;
 	case IPFIX_TYPEID_protocolIdentifier:
 	    if (fieldDataLength == 1)
@@ -81,7 +82,7 @@ void CountStore::addFieldData(int id, byte* fieldData, int fieldDataLength, Ente
 		flowKey.append(fieldData, 1);
 	    }
 	    else
-		msg(MSG_ERROR, "CountStore: Invalide protocol field length.\n");
+		msg(MSG_ERROR, "CountStore: Invalide protocol field length.");
 	    break;
 	case IPFIX_TYPEID_octetDeltaCount:
 	    octets = fieldToInt(fieldData, fieldDataLength);
@@ -119,6 +120,8 @@ void CountStore::recordEnd()
     IpCountMap::iterator srcIpIter, dstIpIter; 
     PortCountMap::iterator srcPortIter, dstPortIter; 
     
+    msg(MSG_INFO, "CountStore: New record received:");
+	
     // search flow key in tables first to eventually detect bloom filter colisions
     if(countPerSrcIp)
     {	
@@ -146,36 +149,34 @@ void CountStore::recordEnd()
     }
 
     if(newFlowKey != newFlowKeyBf)
-	std::cout << "This was a bloomfilter collision!";
-
-    std::cout << std::endl;
+	msg(MSG_DIALOG, "There was a bloomfilter collision!");
 
     // now update the tables
     // SrcIp
     if(countPerSrcIp)
     {
-	std::cout << "SrcIp: ";
+	msg(MSG_INFO, "SrcIp: ");
 	updateIpCountMap(srcIpCounts, srcIpIter, srcIp, newFlowKey);
     }
 
     // DstIp
     if(countPerDstIp)
     {
-	std::cout << "DstIp: ";
+	msg(MSG_INFO, "DstIp: ");
 	updateIpCountMap(dstIpCounts, dstIpIter, dstIp, newFlowKey);
     }
 
     // SrcPort
     if(countPerSrcPort)
     {
-	std::cout << "SrcPort: ";
+	msg(MSG_INFO, "SrcPort: ");
 	updatePortCountMap(srcPortCounts, srcPortIter, srcPort, newFlowKey);
     }
 
     // DstPort
     if(countPerDstPort)
     {
-	std::cout << "DstPort: ";
+	msg(MSG_INFO, "DstPort: ");
 	updatePortCountMap(dstPortCounts, dstPortIter, dstPort, newFlowKey);
     }
 
@@ -184,28 +185,27 @@ void CountStore::recordEnd()
 
 void CountStore::updateIpCountMap(IpCountMap& countmap, IpCountMap::iterator& iter, const IpAddress& addr, const bool newFlowKey)
 {
-    std::cout << "This IP-5-tuple ";
     if(iter != countmap.end()) 
     {
 	if(newFlowKey) 
 	{
-	    std::cout << "is new, update octets, packets, and flows." << std::endl;
+	    msg(MSG_INFO, "This IP-5-tuple is new, update octets, packets, and flows.");
 	    iter->second.update(octets, packets, 1);
 	}
 	else
 	{
-	    std::cout << "is already known, update octets and packets." << std::endl;
+	    msg(MSG_INFO, "This IP-5-tuple is already known, update octets and packets only.");
 	    iter->second.update(octets, packets, 0);
 	}
     }
     else if(countmap.size() < (countmap.max_size()-1))
     {
-	std::cout << "is new, new entry." << std::endl;
+	msg(MSG_INFO, "This IP-5-tuple is new, create new table entry.");
 	countmap.insert(std::pair<IpAddress,Counters>(addr, Counters(octets, packets, 1)));
     }
     else
     {
-	std::cout << "is new, but I'm out of memory. Update default." << std::endl;
+	msg(MSG_INFO, "This IP-5-tuple is new, but I'm out of memory. Update default table entry.");
 	if((iter = countmap.find(IpAddress(0,0,0,0))) != countmap.end())
 	{
 	    if(newFlowKey)
@@ -216,36 +216,35 @@ void CountStore::updateIpCountMap(IpCountMap& countmap, IpCountMap::iterator& it
 	else
 	    countmap.insert(std::pair<IpAddress,Counters>(IpAddress(0,0,0,0), Counters(octets, packets, 1)));
     }
-    //
-    // FIXME: testcode
-    if((iter = countmap.find(addr)) != countmap.end())
-	std::cout << "table entry: " << iter->first << " o:" << iter->second.octetCount << " p:" << iter->second.packetCount << " f:" << iter->second.flowCount << std::endl;
+
+    if(CountModule::verbose)
+	if((iter = countmap.find(addr)) != countmap.end())
+	    msg(MSG_INFO, "Table entry: %s o:%Ld p:%Ld f:%Ld", iter->first.toString().c_str(), iter->second.octetCount, iter->second.packetCount, iter->second.flowCount);
 }
 
 void CountStore::updatePortCountMap(PortCountMap& countmap, PortCountMap::iterator& iter, ProtoPort port, const bool newFlowKey)
 {
-    std::cout << "This IP-5-tuple ";
     if(iter != countmap.end()) 
     {
 	if(newFlowKey) 
 	{
-	    std::cout << "is new, update octets, packets, and flows." << std::endl;
+	    msg(MSG_INFO, "This IP-5-tuple is new, update octets, packets, and flows.");
 	    iter->second.update(octets, packets, 1);
 	}
 	else
 	{
-	    std::cout << "is already known, update octets and packets." << std::endl;
+	    msg(MSG_INFO, "This IP-5-tuple is already known, update octets and packets only.");
 	    iter->second.update(octets, packets, 0);
 	}
     }
     else if(countmap.size() < (countmap.max_size()-1))
     {
-	std::cout << "is new, new entry." << std::endl;
+	msg(MSG_INFO, "This IP-5-tuple is new, create new table entry.");
 	countmap.insert(std::pair<ProtoPort,Counters>(port, Counters(octets, packets, 1)));
     }
     else
     {
-	std::cout << "is new, but I'm out of memory. Update default." << std::endl;
+	msg(MSG_INFO, "This IP-5-tuple is new, but I'm out of memory. Update default table entry.");
 	if((iter = countmap.find(0)) != countmap.end())
 	{
 	    if(newFlowKey)
@@ -256,8 +255,8 @@ void CountStore::updatePortCountMap(PortCountMap& countmap, PortCountMap::iterat
 	else
 	    countmap.insert(std::pair<ProtoPort,Counters>(0, Counters(octets, packets, 1)));
     }
-    //
-    // FIXME: testcode
-    if((iter = countmap.find(port)) != countmap.end())
-	std::cout << "table entry: " << (iter->first >> 16) << "." << (0x0000FFFF & iter->first) << " o:" << iter->second.octetCount << " p:" << iter->second.packetCount << " f:" << iter->second.flowCount << std::endl;
+    
+    if(CountModule::verbose)
+	if((iter = countmap.find(port)) != countmap.end())
+	    msg(MSG_INFO, "Table entry: %d.%d o:%Ld p:%Ld f:%Ld", (iter->first >> 16), (iter->first & 0x0000FFFF), iter->second.octetCount, iter->second.packetCount, iter->second.flowCount);
 }

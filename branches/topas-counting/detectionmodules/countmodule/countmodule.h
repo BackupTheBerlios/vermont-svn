@@ -56,6 +56,8 @@ to do this)
 	void update(XMLConfObj* xmlObj);
 #endif
 
+	static bool verbose;
+
     private:
 	uint64_t octetThreshold;
 	uint64_t packetThreshold;
