@@ -18,14 +18,31 @@
 /*                                                                        */
 /**************************************************************************/
 
-/* TODO
-problem1: XMLConfObj-Exceptions
+/*
+TODO(1)
+XMLConfObj-Exceptions
 ------------------------------------
 Bisher:
-Wenn in der Konfigurationsdatei ein Node, der initialisiert werden soll, nicht angegeben wird, so wird in der XMLConfObj::getValue-Funktion eine Exception geworfen und das Modul beendet, ergo: Man muss alles angeben.
+Wenn in der Konfigurationsdatei ein Node, der initialisiert werden soll, nicht angegeben wird, so wird in der XMLConfObj::getValue-Funktion eine Exception geworfen und das Modul beendet, ergo: Man muss alles angeben, wenn auch leer (z. B. <ports></ports>)
 Besser:
 Exception ignorieren/unterbinden und das Problem den Modulen überlassen?
 ------------------------------------
+
+TODO(2)
+Container für Metriken
+------------------------------------
+Bisher:
+struct Values enthält alle möglichen Metriken
+Besser:
+nur die tatsächlich gewollten Metriken speichern
+
+TODO(3)
+Port- oder IP-Monitoring
+------------------------------------
+Bisher:
+Es werden sowohl IP-Adresse als auch Port (und Protokoll) in einem EndPoint gespeichert, was reines Port-Monitoring verkompliziert
+Besser:
+Man soll wählen können, ob man an Ports oder IP-Adressen interessiert (oder an beidem) ist und das jeweils andere dann auf 0 belassen (um die Vergleichsfunktionen nicht zu beinflussen, also z. B. wenn man in Ports interessiert ist, sollen alle EndPoints mit dem gleichen Port identisch sein, ungeachtet der IP-Adresse). Spielt das Protokoll hierbei eine Rolle?
 */
 
 
@@ -58,7 +75,6 @@ Stat::Stat(const std::string & configfile)
 }
 
 
-
 // =========================== init FUNCTION ==========================
 
 
@@ -75,8 +91,7 @@ void Stat::init(const std::string & configfile) {
 	registerModule("wkp-module");
 #endif
 
-
-  // NB: the order of the following operations is important,
+  // the order of the following operations is important,
   // as some of these functions use Stat members initialized
   // by the preceding functions; so beware if you change the order
 
@@ -494,7 +509,7 @@ void Stat::init_monitored_values(XMLConfObj * config) {
   }
 
   // whatever the above monitored values are, we always monitor IP addresses
-  // TODO: Maybe if we are only interested in Ports, we dont need IPs
+  // TODO(3): Maybe if we are only interested in Ports, we dont need IPs
   subscribeTypeId(IPFIX_TYPEID_sourceIPv4Address);
   subscribeTypeId(IPFIX_TYPEID_destinationIPv4Address);
 
@@ -556,8 +571,6 @@ void Stat::init_protocols(XMLConfObj * config) {
 
   if (!(config->getValue("protocols")).empty()) {
 
-    subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
-
     std::string Proto = config->getValue("protocols");
     std::istringstream ProtoStream (Proto);
 
@@ -565,34 +578,30 @@ void Stat::init_protocols(XMLConfObj * config) {
     while (ProtoStream >> protocol) {
 
       if ( strcasecmp(protocol.c_str(),"ICMP") == 0
-	   || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_ICMP )
-	StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
-
+	    || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_ICMP )
+	      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
       else if ( strcasecmp(protocol.c_str(),"TCP") == 0
-		|| atoi(protocol.c_str()) == IPFIX_protocolIdentifier_TCP ) {
-	StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
-	port_monitoring = true;
+		  || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_TCP ) {
+	      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
+	      port_monitoring = true;
       }
-
       else if ( strcasecmp(protocol.c_str(),"UDP") == 0
-		|| atoi(protocol.c_str()) == IPFIX_protocolIdentifier_UDP ) {
-	StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
-	port_monitoring = true;
+      || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_UDP ) {
+	      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
+	      port_monitoring = true;
       }
-
       else if ( strcasecmp(protocol.c_str(),"RAW") == 0
-		|| atoi(protocol.c_str()) == IPFIX_protocolIdentifier_RAW )
-	StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
-
+		  || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_RAW )
+	      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
       else {
-	std::cerr << "Warning! An unknown protocol (" << protocol
-		  << ") was provided!\n"
-		  << Usage.str() << "Exiting.\n";
-	if (warning_verbosity==1)
-	  outfile << "Warning! An unknown protocol (" << protocol
-		  << ") was provided!\n"
-		  << Usage.str() << "Exiting." << std::endl;
-	exit(0);
+	      std::cerr << "Warning! An unknown protocol (" << protocol
+		    << ") was provided!\n"
+		    << Usage.str() << "Exiting.\n";
+	      if (warning_verbosity==1)
+	        outfile << "Warning! An unknown protocol (" << protocol
+		      << ") was provided!\n"
+		      << Usage.str() << "Exiting." << std::endl;
+	      exit(0);
       }
 
     }
@@ -603,13 +612,15 @@ void Stat::init_protocols(XMLConfObj * config) {
     std::cerr << Default.str();
     if (warning_verbosity==1)
       outfile << Default.str() << std::flush;
-    subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
     StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
     StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
     StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
     StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
     port_monitoring = true;
   }
+
+  // in either way
+  subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
 
   return;
 
@@ -734,25 +745,14 @@ void Stat::init_ports(XMLConfObj * config) {
       // only ICMP and/or RAW are monitored: no need to subscribe to
       // IPFIX port information
 
-    // needed because of problem1
-    if( config->getValue("ports") == "all" ) {
-      StatStore::setMonitorAllPorts() = true;
-      if (warning_verbosity==1)
-        outfile << Default.str();
-    }
-    else {
-      std::string Ports = config->getValue("ports");
-      std::istringstream PortsStream (Ports);
+    std::string Ports = config->getValue("ports");
+    std::istringstream PortsStream (Ports);
 
-      unsigned int port;
-      while (PortsStream >> port)
-        StatStore::AddPortToMonitoredPorts(port);
+    unsigned int port;
+    while (PortsStream >> port)
+      StatStore::AddPortToMonitoredPorts(port);
 
-      StatStore::setMonitorAllPorts() = false;
-    }
-
-    subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
-    subscribeTypeId(IPFIX_TYPEID_destinationTransportPort);
+    StatStore::setMonitorAllPorts() = false;
   }
   else {
 
@@ -765,11 +765,14 @@ void Stat::init_ports(XMLConfObj * config) {
     if (warning_verbosity==1)
       outfile << Warning.str() << Default.str();
 
-    subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
-    subscribeTypeId(IPFIX_TYPEID_destinationTransportPort);
     StatStore::setMonitorAllPorts() = true;
 
   }
+
+  // in either way
+  //TODO(3) Maybe we arent interested in Ports, but only in IPs?
+  subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
+  subscribeTypeId(IPFIX_TYPEID_destinationTransportPort);
 
   return;
 
@@ -1256,10 +1259,6 @@ Values Stat::extract_data (const Info & info, const Info & prev) {
   init_values(result); // int64_t doesnt seem to be initialized to 0 by default
   bool gotValue = false; // false means: unknown type of value occurred
 
-  //TODO
-  // <value>all</value> --> all values shall be monitored
-  // possibly managable in init_monitored_values
-
   std::vector<Metric>::iterator it = monitored_values.begin();
 
   // we only need to check the IN-metrics, because if the
@@ -1441,14 +1440,13 @@ void Stat::update ( std::list<Values> & sample_old,
 		    const Values & new_value ) {
 
   // Learning phase?
-
   if (sample_old.size() != sample_old_size) {
 
     sample_old.push_back(new_value);
 
     if (output_verbosity >= 3) {
       outfile << "Learning phase for sample_old..." << std::endl;
-      // TODO
+      // TODO(2)
       // sample_old und sample_new waren bisher list<int>
       // Jetzt sind es list<Values>. Hier sollen aber nicht alle
       // darin enthaltenen Metriken ausgegeben werden, sondern
@@ -1469,7 +1467,7 @@ void Stat::update ( std::list<Values> & sample_old,
 
     if (output_verbosity >= 3) {
       outfile << "Learning phase for sample_new..." << std::endl;
-      // TODO
+      // TODO(2)
       // sample_old und sample_new waren bisher list<int>
       // Jetzt sind es list<Values>. Hier solle naber nicht alle
       // darin enthaltenen Metriken ausgegeben werden, sondern
@@ -1486,7 +1484,6 @@ void Stat::update ( std::list<Values> & sample_old,
   }
 
   // Learning phase over: update:
-
   if (pause_update_when_attack == false) {
     sample_old.pop_front();
     sample_old.push_back(sample_new.front());
@@ -1508,7 +1505,7 @@ void Stat::update ( std::list<Values> & sample_old,
 
   if (output_verbosity >= 3) {
     outfile << "Update done" << std::endl;
-    // TODO
+    // TODO(2)
     // sample_old und sample_new waren bisher list<int>
     // Jetzt sind es list<Values>. Hier solle naber nicht alle
     // darin enthaltenen Metriken ausgegeben werden, sondern
@@ -1533,26 +1530,22 @@ void Stat::update ( std::list<Values> & sample_old,
 void Stat::stat_test (std::list<Values> & sample_old,
 		      std::list<Values> & sample_new) {
 
-  // value holds (one of the two metrics of) the monitored_value
-  enum Metric value;
-  // Containers for single metrics
+  // Containers for the values of single metrics
   std::list<int64_t> sample_old_single_metric;
   std::list<int64_t> sample_new_single_metric;
 
   std::vector<Metric>::iterator it = monitored_values.begin();
 
-  // for every value in monitored_values, do the tests;
-  // and if a value was splitted into two, do the tests for
-  // both of them
+  // for every value (represented by *it) in monitored_values,
+  // do the tests; and if a value was splitted into two,
+  // do the tests for both of them
   while (it != monitored_values.end()) {
 
-    value = *it;
-
     if (output_verbosity >= 4)
-      outfile << "### Performing Statistical Tests for metric " << getMetricName(value) << ":\n";
+      outfile << "### Performing Statistical Tests for metric " << getMetricName(*it) << ":\n";
 
-    sample_old_single_metric = getSingleMetric(sample_old, value);
-    sample_new_single_metric = getSingleMetric(sample_new, value);
+    sample_old_single_metric = getSingleMetric(sample_old, *it);
+    sample_new_single_metric = getSingleMetric(sample_new, *it);
 
     // Wilcoxon-Mann-Whitney test:
     if (enable_wmw_test == true)
@@ -1673,8 +1666,8 @@ std::list<int64_t> Stat::getSingleMetric(const std::list<Values> & l, const enum
   return result;
 }
 
-std::string Stat::getMetricName(const enum Metric & metric) {
-  switch(metric) {
+std::string Stat::getMetricName(const enum Metric & m) {
+  switch(m) {
     case PACKETS_IN:
       return std::string("packets_in");
     case PACKETS_OUT:

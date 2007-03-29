@@ -29,8 +29,8 @@
       <value>packets</value>
       <value>octets</value>
     </monitored_values>
-		<protocols>TCP</protocols>
-    <ports>80 8080</ports>
+		<protocols></protocols>
+    <ports></ports>
 	  <netmask>32</netmask>
 		<stat_test_frequency>1</stat_test_frequency>
 		<report_only_first_attack>true</report_only_first_attack>
