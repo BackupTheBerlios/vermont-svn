@@ -107,6 +107,7 @@ class Stat : public DetectionBase<StatStore> {
   void init_alarm_time(XMLConfObj *);
   void init_warning_verbosity(XMLConfObj *);
   void init_output_verbosity(XMLConfObj *);
+  void init_endpoint_key(XMLConfObj *);
   void init_monitored_values(XMLConfObj *);
   void init_noise_thresholds(XMLConfObj *);
   void init_protocols(XMLConfObj *);
@@ -192,10 +193,10 @@ class Stat : public DetectionBase<StatStore> {
   // rather than everytime
   int test_counter;
 
-  // port-monitoring flag: set to false at the beginning of
-  // init_protocols() and then to true if TCP or UDP protocols are
-  // monitored; enables init_ports() to adapt its behavior
   bool port_monitoring;
+  bool ports_relevant; // if only ICMP AND/OR RAW --> ports_relevant = false
+  bool ip_monitoring;
+  bool protocol_monitoring;
 
   // last-test-was-an-attack flags: useful to keep in mind results of
   // tests if report_only_first_attack==true

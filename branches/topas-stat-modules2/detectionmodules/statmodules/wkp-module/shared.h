@@ -26,7 +26,6 @@
 #include <vector>
 #include <iostream>
 
-
 // ======================== STRUCT Info ========================
 
 // this structure is used to store traffic information

@@ -15,9 +15,8 @@
 		<alarm_time>5</alarm_time>
 		<warning_verbosity>1</warning_verbosity>
 	  <output_verbosity>5</output_verbosity>
-    <noise_threshold_packets>0</noise_threshold_packets>
-    <noise_threshold_bytes>0</noise_threshold_bytes>
-		<monitored_values>
+    <endpoint_key>port protocol</endpoint_key>
+    <monitored_values>
       <!--
       <value>records</value>
       <value>octets/packet</value>
@@ -29,14 +28,16 @@
       <value>packets</value>
       <value>octets</value>
     </monitored_values>
+    <noise_threshold_packets>0</noise_threshold_packets>
+    <noise_threshold_bytes>0</noise_threshold_bytes>
 		<protocols></protocols>
-    <ports></ports>
 	  <netmask>32</netmask>
+    <ports></ports>
+    <ip_addresses_to_monitor></ip_addresses_to_monitor>
+    <iplist_maxsize>4000</iplist_maxsize>
 		<stat_test_frequency>1</stat_test_frequency>
 		<report_only_first_attack>true</report_only_first_attack>
     <pause_update_when_attack>true</pause_update_when_attack>
-		<ip_addresses_to_monitor></ip_addresses_to_monitor>
-		<iplist_maxsize>4000</iplist_maxsize>
 	</preferences>
 	<test-params>
 		<wilcoxon_test>true</wilcoxon_test>

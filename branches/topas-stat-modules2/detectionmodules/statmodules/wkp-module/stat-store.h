@@ -38,10 +38,7 @@ class StatStore : public DataStore {
 
   uint64_t packet_nb;               // data coming
   uint64_t byte_nb;                 // from the
-  IpAddress SourceIP, DestIP;       // current record
-  uint16_t SourcePort, DestPort;
-  byte protocol;                    // useful in StatStore::recordEnd()
-
+                                    // current record
   EndPoint e_source;
   EndPoint e_dest;
 
@@ -71,7 +68,7 @@ class StatStore : public DataStore {
   std::map<EndPoint,Info> getData() const {return Data;}
   std::map<EndPoint,Info> getPreviousData() const {return PreviousData;}
 
-  bool gotSourceIP, gotDestIP, gotProtocol, gotSourcePort, gotDestPort;
+  bool skip_both, skip_source, skip_dest;
 
   int IpListMaxSizeReachedAndNewIpWantedToEnterIt;
   // This is just a flag, set to 0 at the beginning by the StatStore
@@ -113,6 +110,10 @@ class StatStore : public DataStore {
   // Protocols to monitor. Provided by the user in the XML config file
   // and initialised by Stat::init(). A protocol identifier (1, 6, 17...)
   // is 1 byte (= uint8_t) long, hence the vector<byte>
+
+  static bool MonitorAllProtocols;
+  // If no protocols to monitor are provided, Stat::init() will set MonitorAllProtocols
+  // to "true" ("false" otherwise)
 
   static std::vector<uint16_t> MonitoredPorts;
   // Ports to monitor. Provided by the user in the XML config file
@@ -177,6 +178,10 @@ class StatStore : public DataStore {
 
   static bool & setMonitorAllPorts () {
     return MonitorAllPorts;
+  }
+
+  static bool & setMonitorAllProtocols () {
+    return MonitorAllProtocols;
   }
 
   static bool & setBeginMonitoring () {

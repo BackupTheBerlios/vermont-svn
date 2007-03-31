@@ -26,7 +26,7 @@ Bisher:
 Wenn in der Konfigurationsdatei ein Node, der initialisiert werden soll, nicht angegeben wird, so wird in der XMLConfObj::getValue-Funktion eine Exception geworfen und das Modul beendet, ergo: Man muss alles angeben, wenn auch leer (z. B. <ports></ports>)
 Besser:
 Exception ignorieren/unterbinden und das Problem den Modulen überlassen?
-------------------------------------
+Stand: bis "init_ip_addresses" auf nodeExists umgebaut
 
 TODO(2)
 Container für Metriken
@@ -35,14 +35,28 @@ Bisher:
 struct Values enthält alle möglichen Metriken
 Besser:
 nur die tatsächlich gewollten Metriken speichern
+Stand:
 
-TODO(3)
-Port- oder IP-Monitoring
-------------------------------------
-Bisher:
-Es werden sowohl IP-Adresse als auch Port (und Protokoll) in einem EndPoint gespeichert, was reines Port-Monitoring verkompliziert
-Besser:
-Man soll wählen können, ob man an Ports oder IP-Adressen interessiert (oder an beidem) ist und das jeweils andere dann auf 0 belassen (um die Vergleichsfunktionen nicht zu beinflussen, also z. B. wenn man in Ports interessiert ist, sollen alle EndPoints mit dem gleichen Port identisch sein, ungeachtet der IP-Adresse). Spielt das Protokoll hierbei eine Rolle?
+TODO(4)
+Alle Metriken in Konfigdatei angeben
+--------------------------------------
+Bisher: Nur packets, octets usw.
+Besser: Statt packets -> packets_in und packets_out
+Stand:
+
+TODO(5)
+Mehr Protokolle
+--------------------------------------
+Bisher: Nur TCP, UDP, ICMP und RAW
+Besser: Alle möglichen
+Stand:
+
+TODO(6)
+Port-Unterscheidung (Source/Dest)
+---------------------------------
+Bisher: Ports werden aggregiert, d. h. Informationen darüber, ob der Port ein Quell- oder Zielport war, gehen verloren.
+Besser: Diese Informationen erhalten?
+Stand:
 */
 
 
@@ -69,6 +83,10 @@ Stat::Stat(const std::string & configfile)
 
   // lock, will be unlocked at the end of init() (cf. StatStore class header):
   StatStore::setBeginMonitoring () = false;
+
+  ip_monitoring = false;
+  port_monitoring = false; ports_relevant = false;
+  protocol_monitoring = false;
 
   test_counter = 0;
   init(configfile);
@@ -113,6 +131,9 @@ void Stat::init(const std::string & configfile) {
 
   // extracting output verbosity
   init_output_verbosity(config);
+
+  // extracting the key of the endpoints
+  init_endpoint_key(config);
 
   // extracting monitored values
   init_monitored_values(config);
@@ -195,60 +216,79 @@ void Stat::update(XMLConfObj* xmlObj)
 void Stat::init_output_file(XMLConfObj * config) {
 
   // extracting output file's name
-  if (!(config->getValue("output_file")).empty()) {
-    outfile.open(config->getValue("output_file").c_str());
-    if (!outfile) {
-      std::cerr << "Error: could not open output file "
-		<< config->getValue("output_file") << ". "
-		<< "Check if you have enough rights to create or write to it. "
-		<< "Exiting.\n";
+  if(config->nodeExists("output_file")) {
+    if (!(config->getValue("output_file")).empty()) {
+      outfile.open(config->getValue("output_file").c_str());
+      if (!outfile) {
+        std::cerr << "Error: could not open output file "
+      << config->getValue("output_file") << ". "
+      << "Check if you have enough rights to create or write to it.\n"
+      << "Exiting.\n";
+        exit(0);
+      }
+    }
+    else {
+      std::cerr <<"Error: No value for output_file parameter defined in XML config file!\n"
+          <<"Please define one and restart.\nExiting.\n";
       exit(0);
     }
   }
   else {
-    std::cerr <<"Error! No output_file parameter defined in XML config file!\n"
-	      <<"Please give one and restart. Exiting.\n";
+    std::cerr << "Error: No output_file parameter defined in XML config file!\n"
+      << "Please define one and restart.\nExiting.\n";
     exit(0);
   }
 
   return;
-
 }
 
 void Stat::init_accept_source_ids(XMLConfObj * config) {
-	if (!(config->getValue("accept_source_ids")).empty()) {
-		std::string str = config->getValue("accept_source_ids");
-		unsigned res, IDEnd = 0, last = 0;
-		bool more = true;
-		std::string temp;
-		do {
-			res = str.find(',', last);
-			if (res == std::string::npos) {
-				more = false;
-				res = str.size();
-			}
-			if (IDEnd == 0) {
-				IDEnd = res;
-				if (IDEnd > 0) {
-					temp = std::string(str.begin(), str.begin() + res);
-					accept_source_ids.push_back(atoi(temp.c_str()));
-				}
-			} else {
-				temp = std::string(str.begin() + last, str.begin() + res);
-				if (!temp.empty()) {accept_source_ids.push_back(atoi(temp.c_str())); }
-			}
-			last = res + 1; // one past last space
-		} while (more);
-		StatStore::accept_source_ids = &accept_source_ids;
-	}
-	if (accept_source_ids.size() == 0) {
-		std::stringstream Error;
-		Error << "Error! No accept_source_ids parameter defined in XML config file!\n"
-		      << "Please give one and restart. Exiting.\n";
-		std::cerr << Error.str();
-		outfile << Error.str() << std::flush;
-		exit(0);
-	}
+
+  if (config->nodeExists("accept_source_ids")) {
+    if (!(config->getValue("accept_source_ids")).empty()) {
+      std::string str = config->getValue("accept_source_ids");
+      unsigned res, IDEnd = 0, last = 0;
+      bool more = true;
+      std::string temp;
+      do {
+        res = str.find(',', last);
+        if (res == std::string::npos) {
+          more = false;
+          res = str.size();
+        }
+        if (IDEnd == 0) {
+          IDEnd = res;
+          if (IDEnd > 0) {
+            temp = std::string(str.begin(), str.begin() + res);
+            accept_source_ids.push_back(atoi(temp.c_str()));
+          }
+        } else {
+          temp = std::string(str.begin() + last, str.begin() + res);
+          if (!temp.empty()) {accept_source_ids.push_back(atoi(temp.c_str())); }
+        }
+        last = res + 1; // one past last space
+      } while (more);
+      StatStore::accept_source_ids = &accept_source_ids;
+    }
+    else {
+      std::stringstream Error;
+      Error << "Error: No value for accept_source_ids parameter defined in XML config file!\n"
+            << "Please define one and restart.\nExiting.\n";
+      std::cerr << Error.str();
+      outfile << Error.str() << std::flush;
+      exit(0);
+    }
+  }
+  else {
+    std::stringstream Error;
+    Error << "Error: No accept_source_ids parameter defined in XML config file!\n"
+      << "Please define one and restart.\nExiting.\n";
+    std::cerr << Error.str();
+    outfile << Error.str() << std::flush;
+    exit(0);
+  }
+
+  return;
 }
 
 void Stat::init_alarm_time(XMLConfObj * config) {
@@ -256,63 +296,80 @@ void Stat::init_alarm_time(XMLConfObj * config) {
   // extracting alarm_time
   // (that means that the test() methode will be called
   // atoi(alarm_time) seconds after the last test()-run ended)
-  if (!(config->getValue("alarm_time")).empty())
-    setAlarmTime( atoi(config->getValue("alarm_time").c_str()) );
-
+  if(config->nodeExists("alarm_time")) {
+    if (!(config->getValue("alarm_time")).empty())
+      setAlarmTime( atoi(config->getValue("alarm_time").c_str()) );
+    else {
+      std::stringstream Error;
+      Error << "Error: No value for alarm_time parameter defined in XML config file!\n"
+      << "Please define one and restart.\nExiting.\n";
+      std::cerr << Error.str();
+      outfile << Error.str() << std::flush;
+      exit(0);
+    }
+  }
   else {
     std::stringstream Error;
-    Error << "Error! No alarm_time parameter defined in XML config file!\n"
-	  << "Please give one and restart. Exiting.\n";
+    Error << "Error: No alarm_time parameter defined in XML config file!\n"
+    << "Please define one and restart.\nExiting.\n";
     std::cerr << Error.str();
     outfile << Error.str() << std::flush;
     exit(0);
   }
 
   return;
-
 }
 
 void Stat::init_warning_verbosity(XMLConfObj * config) {
 
   // extracting warning verbosity
-  std::stringstream Warning, Default, Usage;
-  Warning << "Warning! Parameter warning_verbosity "
-	  << "defined in XML config file should be 0 or 1.\n";
-  Default << "Warning! No warning_verbosity parameter defined "
+  std::stringstream Error1, Warning, Default, Usage;
+  Error1 << "Error: warning_verbosity parameter "
+	  << "defined in XML config file should be 0 or 1.\n"
+    << "Please define it that way and restart.\n";
+  Warning << "Warning: No warning_verbosity parameter defined in XML config file!\n"
+        << DEFAULT_warning_verbosity << "\" assumed.\n";
+  Default << "Warning: No value for warning_verbosity parameter defined "
 	  << "in XML config file! \""
 	  << DEFAULT_warning_verbosity << "\" assumed.\n";
   Usage   << "O: warnings are sent to stderr\n"
 	  << "1: warnings are sent to stderr and output file\n";
 
-  if (!(config->getValue("warning_verbosity")).empty()) {
-    if ( 0 == atoi( config->getValue("warning_verbosity").c_str() )
-	 ||
-	 1 == atoi( config->getValue("warning_verbosity").c_str() ) )
-      warning_verbosity =
-	atoi( config->getValue("warning_verbosity").c_str() );
+  if(config->nodeExists("warning_verbosity")) {
+    if (!(config->getValue("warning_verbosity")).empty()) {
+      if ( 0 == atoi( config->getValue("warning_verbosity").c_str() )
+      ||   1 == atoi( config->getValue("warning_verbosity").c_str() ) )
+        warning_verbosity = atoi( config->getValue("warning_verbosity").c_str() );
+      else {
+        std::cerr << Error1.str() << Usage.str() << "Exiting.\n";
+        outfile << Error1.str() << Usage.str() << "Exiting.\n" << std::flush;
+        exit(0);
+      }
+    }
     else {
-      std::cerr << Warning.str() << Usage.str() << "Exiting.\n";
-      outfile << Warning.str() << Usage.str() << "Exiting.\n" << std::flush;
-      exit(0);
+      std::cerr << Default.str() << Usage.str();
+      warning_verbosity = DEFAULT_warning_verbosity;
     }
   }
-
   else {
-    std::cerr << Default.str() << Usage.str();
+    std::cerr << Warning.str() << Usage.str();
     warning_verbosity = DEFAULT_warning_verbosity;
   }
 
   return;
-
 }
 
 void Stat::init_output_verbosity(XMLConfObj * config) {
 
   // extracting output verbosity
-  std::stringstream Warning, Default, Usage;
-  Warning << "Warning! Parameter output_verbosity defined in XML config file "
-	  << "should be between 0 and 5.\n";
-  Default << "Warning! No output_verbosity parameter defined "
+  std::stringstream Error, Warning, Default, Usage;
+  Error << "Error: output_verbosity parameter defined in XML config file "
+	  << "should be between 0 and 5.\n"
+    << "Please define it that way and restart.\n";
+  Warning << "Warning: No output_verbosity parameter defined "
+    << "in XML config file! \""
+    << DEFAULT_output_verbosity << "\" assumed.\n";
+  Default << "Warning: No value for output_verbosity parameter defined "
 	  << "in XML config file! \""
 	  << DEFAULT_output_verbosity << "\" assumed.\n";
   Usage   << "O: no output generated\n"
@@ -322,29 +379,88 @@ void Stat::init_output_verbosity(XMLConfObj * config) {
 	  << "4: same as 3, plus sample printing\n"
 	  << "5: same as 4, plus all details from statistical tests\n";
 
-  if (!(config->getValue("output_verbosity")).empty()) {
-    if ( 0 <= atoi( config->getValue("output_verbosity").c_str() )
-	 &&
-	 5 >= atoi( config->getValue("output_verbosity").c_str() ) )
-      output_verbosity =
-	atoi( config->getValue("output_verbosity").c_str() );
+  if(config->nodeExists("output_verbosity")) {
+    if (!(config->getValue("output_verbosity")).empty()) {
+      if ( 0 <= atoi( config->getValue("output_verbosity").c_str() )
+        && 5 >= atoi( config->getValue("output_verbosity").c_str() ) )
+        output_verbosity = atoi( config->getValue("output_verbosity").c_str() );
+      else {
+        std::cerr << Error.str() << Usage.str() << "Exiting.\n";
+        if (warning_verbosity==1)
+          outfile << Error.str() << Usage.str() << "Exiting." << std::endl;
+        exit(0);
+      }
+    }
     else {
-      std::cerr << Warning.str() << Usage.str() << "Exiting.\n";
+      std::cerr << Default.str() << Usage.str();
       if (warning_verbosity==1)
-	outfile << Warning.str() << Usage.str() << "Exiting." << std::endl;
-      exit(0);
+        outfile << Default.str() << Usage.str();
+      output_verbosity = DEFAULT_output_verbosity;
     }
   }
-
   else {
-    std::cerr << Default.str() << Usage.str();
+    std::cerr << Warning.str() << Usage.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << Usage.str();
+      outfile << Warning.str() << Usage.str();
     output_verbosity = DEFAULT_output_verbosity;
   }
 
   return;
+}
 
+// init, which (part of the) endpoints shall be considered
+void Stat::init_endpoint_key(XMLConfObj * config) {
+
+  std::stringstream Warning, Error, Default;
+  Warning
+    << "Warning: No endpoint_key parameter in XML config file!\n"
+    << "Please define one and restart.\n";
+  Error
+    << "Error: Unknown value defined for endpoint_key parameter in XML config file!\n"
+    << "Value should be either port, ip, protocol or a combination of them (seperated via spaces)!\n";
+  Default
+    << "Warning: Value of endpoint_key parameter in XML config file is empty!\n"
+    << "Every endpoint will be monitored!";
+
+  // extracting endpoints to monitor
+  if (config->nodeExists("endpoint_key")) {
+    if (!(config->getValue("endpoint_key")).empty()) {
+      std::string keys = config->getValue("endpoint_key");
+      std::istringstream KeyStream (keys);
+      std::string key;
+
+      while (KeyStream >> key) {
+        if ( 0 == strcasecmp(key.c_str(), "ip") )
+          ip_monitoring = true;
+        else if ( 0 == strcasecmp(key.c_str(), "port") )
+          port_monitoring = true;
+        else if ( 0 == strcasecmp(key.c_str(), "protocol") )
+          protocol_monitoring = true;
+        else {
+          std::cerr << Error.str() << "Exiting.\n";
+          if (warning_verbosity==1)
+            outfile << Error.str() << "Exiting." << std::endl;
+          exit(0);
+        }
+      }
+    }
+    else {
+      std::cerr << Default.str() << "\n";
+      if (warning_verbosity==1)
+        outfile << Default.str() << std::endl;
+      ip_monitoring = true;
+      port_monitoring = true;
+      protocol_monitoring = true;
+    }
+  }
+  else {
+    std::cerr << Warning.str() << "Exiting.\n";
+    if (warning_verbosity==1)
+      outfile << Warning.str() << "Exiting." << std::endl;
+    exit(0);
+  }
+
+  return;
 }
 
 // extracting monitored values to vector<Metric>;
@@ -352,28 +468,33 @@ void Stat::init_output_verbosity(XMLConfObj * config) {
 // constants defined in enum Metric in stat_main.h
 void Stat::init_monitored_values(XMLConfObj * config) {
 
-  std::stringstream Warning1, Warning2, Warning3, Usage;
-  Warning1
-    << "Warning! No monitored_values parameter in XML config file!\n";
-  Warning2
-    << "Warning! No value parameter(s) defined for monitored_values in XML config file!\n";
-  Warning3
-    << "Warning! Unknown value parameter(s) defined for monitored_values in XML config file!\n";
+  std::stringstream Error1, Error2, Error3, Usage;
+  Error1
+    << "Error: No monitored_values parameter in XML config file!\n"
+    << "Please define one and restart.\n";
+  Error2
+    << "Error: No value parameter(s) defined for monitored_values in XML config file!\n"
+    << "Please define at least one and restart.\n";
+  Error3
+    << "Error: Unknown value parameter(s) defined for monitored_values in XML config file!\n"
+    << "Please provide only valid <value>-parameters.\n";
   Usage
-    << "Use packets, bytes, records, bytes/packet, packets_out-packets_in, "
-    << "bytes_out-bytes_in,\n"
-    << "packets(t)-packets(t-1) or bytes(t)-bytes(t-1).\n";
+    << "Use for each <value>-Tag one of the following metrics:\n"
+    << "packets_in, packets_out, bytes_in, bytes_out, records_in, records_out, "
+    << "bytes_in/packet_in, bytes_out/packet_out, packets_out-packets_in, "
+    << "bytes_out-bytes_in, packets_in(t)-packets_in(t-1), "
+    << "packets_out(t)-packets_out(t-1), bytes_in(t)-bytes_in(t-1) or "
+    << "bytes_out(t)-bytes_out(t-1).\n";
 
   if (!config->nodeExists("monitored_values")) {
-    std::cerr << Warning1.str() << Usage.str() << "Exiting.\n";
+    std::cerr << Error1.str() << Usage.str() << "Exiting.\n";
     if (warning_verbosity==1)
-      outfile << Warning1.str() << Usage.str() << "Exiting." << std::endl;
+      outfile << Error1.str() << Usage.str() << "Exiting." << std::endl;
     exit(0);
   }
 
   config->enterNode("monitored_values");
 
-  // more circumstantial than the above way ... but it works
   std::vector<std::string> tmp_monitored_data;
 
   /* get all monitored values */
@@ -383,23 +504,17 @@ void Stat::init_monitored_values(XMLConfObj * config) {
       tmp_monitored_data.push_back(config->getNextValue());
   }
   else {
-    std::cerr << Warning2.str() << Usage.str() << "Exiting.\n";
+    std::cerr << Error2.str() << Usage.str() << "Exiting.\n";
     if (warning_verbosity==1)
-      outfile << Warning2.str() << Usage.str() << "Exiting." << std::endl;
+      outfile << Error2.str() << Usage.str() << "Exiting." << std::endl;
     exit(0);
   }
 
   config->leaveNode();
 
-  // just in case the user provided multiple same values
-  sort(tmp_monitored_data.begin(),tmp_monitored_data.end());
-  std::vector<std::string>::iterator new_end = unique(tmp_monitored_data.begin(),tmp_monitored_data.end());
-  std::vector<std::string> tmp (tmp_monitored_data.begin(), new_end);
-  tmp_monitored_data.clear();
-  tmp_monitored_data = tmp;
-
   std::stringstream monValues;
 
+   //siehe TODO(4)
   // extract the values from tmp_monitored_data (string)
   // to monitored_values (vector<enum>)
   std::vector<std::string>::iterator it = tmp_monitored_data.begin();
@@ -462,18 +577,15 @@ void Stat::init_monitored_values(XMLConfObj * config) {
       monValues << "octets(t)-octets(t-1), ";
     }
     else {
-        std::cerr << Warning3.str() << Usage.str() << "Exiting.\n";
+        std::cerr << Error3.str() << Usage.str() << "Exiting.\n";
         if (warning_verbosity==1)
-          outfile << Warning3.str() << Usage.str() << "Exiting." << std::endl;
+          outfile << Error3.str() << Usage.str() << "Exiting." << std::endl;
         exit(0);
       }
     it++;
   }
 
-  if (output_verbosity >= 3)
-      outfile << "Monitored values: " << monValues.str() << std::endl;
-
-  // subscribing to all needed IPFIX_TYPEID-fields
+  // subscribing to the needed IPFIX_TYPEID-fields
 
   // to prevent multiple subscription
   bool packetsSubscribed = false;
@@ -508,271 +620,311 @@ void Stat::init_monitored_values(XMLConfObj * config) {
 
   }
 
-  // whatever the above monitored values are, we always monitor IP addresses
-  // TODO(3): Maybe if we are only interested in Ports, we dont need IPs
-  subscribeTypeId(IPFIX_TYPEID_sourceIPv4Address);
-  subscribeTypeId(IPFIX_TYPEID_destinationIPv4Address);
-
   return;
 }
 
 void Stat::init_noise_thresholds(XMLConfObj * config) {
 
   // extracting noise threshold for packets
-  if (config->getValue("noise_threshold_packets").empty()) {
+  if(config->nodeExists("noise_threshold_packets")) {
+    if ( !(config->getValue("noise_threshold_packets").empty()) )
+      noise_threshold_packets = atoi(config->getValue("noise_threshold_packets").c_str());
+    else {
+      std::stringstream Default1;
+      Default1 << "Warning: No value for noise_threshold_packets parameter defined in XML config file!\n"
+          << "There will be no noise reduction for packets.\n";
+      std::cerr << Default1.str();
+      if (warning_verbosity==1)
+        outfile << Default1.str() << std::flush;
+      noise_threshold_packets = 0;
+    }
+  }
+  else {
     std::stringstream Default1;
-    Default1 << "Warning! No noise threshold for packets was provided!\n"
+    Default1 << "Warning: No noise_threshold_packets parameter defined in XML config file!\n"
         << "There will be no noise reduction for packets.\n";
     std::cerr << Default1.str();
-
     if (warning_verbosity==1)
       outfile << Default1.str() << std::flush;
-
     noise_threshold_packets = 0;
   }
 
-  else {
-    noise_threshold_packets = atoi(config->getValue("noise_threshold_packets").c_str());
-  }
 
-  // extracting noise threshold for bytes
-  if (config->getValue("noise_threshold_bytes").empty()) {
+    // extracting noise threshold for bytes
+  if(config->nodeExists("noise_threshold_bytes")) {
+    if ( !(config->getValue("noise_threshold_bytes").empty()) )
+      noise_threshold_bytes = atoi(config->getValue("noise_threshold_bytes").c_str());
+    else {
+      std::stringstream Default2;
+      Default2 << "Warning! No value for noise_threshold_bytes parameter defined in XML config file!\n"
+          << "There will be no noise reduction for bytes.\n";
+      std::cerr << Default2.str();
+      if (warning_verbosity==1)
+        outfile << Default2.str() << std::flush;
+      noise_threshold_bytes = 0;
+    }
+  }
+  else {
     std::stringstream Default2;
-    Default2 << "Warning! No noise threshold for bytes was provided!\n"
+    Default2 << "Warning! No noise_threshold_bytes parameter defined in XML config file!\n"
         << "There will be no noise reduction for bytes.\n";
     std::cerr << Default2.str();
     if (warning_verbosity==1)
       outfile << Default2.str() << std::flush;
-
-    noise_threshold_bytes = 0;
-  }
-
-  else {
-    noise_threshold_bytes =	atoi(config->getValue("noise_threshold_bytes").c_str());
   }
 
   return;
 
 }
 
+//TODO(5)
+// What about other protocols like sctp?
 void Stat::init_protocols(XMLConfObj * config) {
 
-  port_monitoring = false;
+  // shall protocols be monitored at all?
+  // (that means, they were part of the endpoint_key-parameter)
+  if (protocol_monitoring == true) {
 
-  // extracting monitored protocols
-  std::stringstream Default, Usage;
-  Default << "Warning! No protocol(s) to monitor was (were) provided!\n"
-	  << "All protocols will be monitored (ICMP, TCP, UDP, RAW).\n";
-  Usage << "Please use ICMP, TCP, UDP or RAW (or "
-	<< IPFIX_protocolIdentifier_ICMP << ", "
-	<< IPFIX_protocolIdentifier_TCP  << ", "
-	<< IPFIX_protocolIdentifier_UDP << " or "
-	<< IPFIX_protocolIdentifier_RAW  << ").\n";
+    std::stringstream Default, Warning, Usage;
+    Default << "Warning: No protocols parameter defined in XML config file!\n"
+      << "All protocols will be monitored (ICMP, TCP, UDP, RAW).\n";
+    Warning << "Warning: No value for protocols parameter defined in XML config file!\n"
+      << "All protocols will be monitored (ICMP, TCP, UDP, RAW).\n";
+    Usage << "Please use ICMP, TCP, UDP or RAW (or "
+    << IPFIX_protocolIdentifier_ICMP << ", "
+    << IPFIX_protocolIdentifier_TCP  << ", "
+    << IPFIX_protocolIdentifier_UDP << " or "
+    << IPFIX_protocolIdentifier_RAW  << ").\n";
 
-  if (!(config->getValue("protocols")).empty()) {
+    // extracting monitored protocols
+    if (config->nodeExists("protocols")) {
 
-    std::string Proto = config->getValue("protocols");
-    std::istringstream ProtoStream (Proto);
+      if (!(config->getValue("protocols")).empty()) {
 
-    std::string protocol;
-    while (ProtoStream >> protocol) {
+        std::string Proto = config->getValue("protocols");
+        std::istringstream ProtoStream (Proto);
 
-      if ( strcasecmp(protocol.c_str(),"ICMP") == 0
-	    || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_ICMP )
-	      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
-      else if ( strcasecmp(protocol.c_str(),"TCP") == 0
-		  || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_TCP ) {
-	      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
-	      port_monitoring = true;
+        std::string protocol;
+        while (ProtoStream >> protocol) {
+
+          if ( strcasecmp(protocol.c_str(),"ICMP") == 0
+          || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_ICMP )
+            StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
+          else if ( strcasecmp(protocol.c_str(),"TCP") == 0
+          || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_TCP ) {
+            StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
+            ports_relevant = true;
+          }
+          else if ( strcasecmp(protocol.c_str(),"UDP") == 0
+          || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_UDP ) {
+            StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
+            ports_relevant = true;
+          }
+          else if ( strcasecmp(protocol.c_str(),"RAW") == 0
+          || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_RAW )
+            StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
+          else {
+            std::cerr << "Error: An unknown value (" << protocol
+            << ") for the protocol parameter was defined in XML config file!\n"
+            << Usage.str() << "Exiting.\n";
+            if (warning_verbosity==1)
+              outfile << "Error: An unknown value (" << protocol
+                << ") for the protocol parameter was defined in XML config file!\n"
+                << Usage.str() << "Exiting." << std::endl;
+            exit(0);
+          }
+        }
       }
-      else if ( strcasecmp(protocol.c_str(),"UDP") == 0
-      || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_UDP ) {
-	      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
-	      port_monitoring = true;
-      }
-      else if ( strcasecmp(protocol.c_str(),"RAW") == 0
-		  || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_RAW )
-	      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
       else {
-	      std::cerr << "Warning! An unknown protocol (" << protocol
-		    << ") was provided!\n"
-		    << Usage.str() << "Exiting.\n";
-	      if (warning_verbosity==1)
-	        outfile << "Warning! An unknown protocol (" << protocol
-		      << ") was provided!\n"
-		      << Usage.str() << "Exiting." << std::endl;
-	      exit(0);
+        std::cerr << Warning.str();
+        if (warning_verbosity==1)
+          outfile << Warning.str() << std::flush;
+        StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
+        StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
+        StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
+        StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
+        ports_relevant = true;
       }
 
+      subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
     }
-
+    else {
+      std::cerr << Default.str();
+      if (warning_verbosity==1)
+        outfile << Default.str() << std::flush;
+    }
   }
-
-  else {
-    std::cerr << Default.str();
-    if (warning_verbosity==1)
-      outfile << Default.str() << std::flush;
-    StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
-    StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
-    StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
-    StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
-    port_monitoring = true;
-  }
-
-  // in either way
-  subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
+  // dont consider protocols;
+  // but we may be interested in ports, no matter which protocol is used,
+  // so we set the flag to true (so we dont bother port_monitoring)
+  else
+    ports_relevant = true;
 
   return;
-
 }
 
 void Stat::init_netmask(XMLConfObj * config) {
 
-  std::stringstream Default, Warning, Usage;
-  Default << "Warning! No netmask parameter defined in XML config file! "
-	  << "32 assumed.\n";
-  Warning << "Warning! Netmask was provided in an unknown format!\n";
+  // shall ip-addresses be monitored at all?
+  // (that means, they were part of the endpoint_key-parameter)
+  // if not -> no need for netmask
+  if (ip_monitoring == true) {
+
+  std::stringstream Default, Warning, Error, Usage;
+  Default << "Warning: No value for netmask parameter defined in XML config file! "
+    << "32 assumed.\n";
+  Warning << "Warning: No netmask parameter defined in XML config file! "
+    << "32 assumed.\n";
+  Error << "Error: Netmask parameter was provided in an unknown format in XML config file!\n";
   Usage   << "Use xxx.yyy.zzz.ttt, hexadecimal or an int between 0 and 32.\n";
 
-  const char * netmask;
-  unsigned int mask[4];
+    if (config->nodeExists("netmask")) {
 
-  if (!(config->getValue("netmask")).empty()) {
-    netmask = config->getValue("netmask").c_str();
-  }
+      const char * netmask;
+      unsigned int mask[4];
 
-  else {
-    std::cerr << Default.str();
-    if (warning_verbosity==1)
-      outfile << Default.str();
-    StatStore::InitialiseSubnetMask (0xFF,0xFF,0xFF,0xFF);
-    return;
-  }
+      if (!(config->getValue("netmask")).empty()) {
+        netmask = config->getValue("netmask").c_str();
+      }
+      else {
+        std::cerr << Default.str();
+        if (warning_verbosity==1)
+          outfile << Default.str();
+        StatStore::InitialiseSubnetMask (0xFF,0xFF,0xFF,0xFF);
+        return;
+      }
 
-  // is netmask provided as xxx.yyy.zzz.ttt?
-  if ( netmask[0]=='.' || netmask[1]=='.' ||
-       netmask[2]=='.' || netmask[3]=='.' ) {
-    std::istringstream maskstream (netmask);
-    char dot;
-    maskstream >> mask[0] >> dot >> mask[1] >> dot >> mask[2] >> dot >>mask[3];
-  }
-
-  // is netmask provided as 0xABCDEFGH?
-  else if ( strncmp(netmask, "0x", 2)==0 ) {
-    char mask1[3] = {netmask[2],netmask[3],'\0'};
-    char mask2[3] = {netmask[4],netmask[5],'\0'};
-    char mask3[3] = {netmask[6],netmask[7],'\0'};
-    char mask4[3] = {netmask[8],netmask[9],'\0'};
-    mask[0] = strtol (mask1, NULL, 16);
-    mask[1] = strtol (mask2, NULL, 16);
-    mask[2] = strtol (mask3, NULL, 16);
-    mask[3] = strtol (mask4, NULL, 16);
-  }
-
-  // is netmask provided as 0,1,..,32?
-  else if ( atoi(netmask) >= 0 && atoi(netmask) <= 32 ) {
-    std::string Mask;
-    switch( atoi(netmask) ) {
-    case  0: Mask="0x00000000"; break;
-    case  1: Mask="0x80000000"; break;
-    case  2: Mask="0xC0000000"; break;
-    case  3: Mask="0xE0000000"; break;
-    case  4: Mask="0xF0000000"; break;
-    case  5: Mask="0xF8000000"; break;
-    case  6: Mask="0xFC000000"; break;
-    case  7: Mask="0xFE000000"; break;
-    case  8: Mask="0xFF000000"; break;
-    case  9: Mask="0xFF800000"; break;
-    case 10: Mask="0xFFC00000"; break;
-    case 11: Mask="0xFFE00000"; break;
-    case 12: Mask="0xFFF00000"; break;
-    case 13: Mask="0xFFF80000"; break;
-    case 14: Mask="0xFFFC0000"; break;
-    case 15: Mask="0xFFFE0000"; break;
-    case 16: Mask="0xFFFF0000"; break;
-    case 17: Mask="0xFFFF8000"; break;
-    case 18: Mask="0xFFFFC000"; break;
-    case 19: Mask="0xFFFFE000"; break;
-    case 20: Mask="0xFFFFF000"; break;
-    case 21: Mask="0xFFFFF800"; break;
-    case 22: Mask="0xFFFFFC00"; break;
-    case 23: Mask="0xFFFFFE00"; break;
-    case 24: Mask="0xFFFFFF00"; break;
-    case 25: Mask="0xFFFFFF80"; break;
-    case 26: Mask="0xFFFFFFC0"; break;
-    case 27: Mask="0xFFFFFFE0"; break;
-    case 28: Mask="0xFFFFFFF0"; break;
-    case 29: Mask="0xFFFFFFF8"; break;
-    case 30: Mask="0xFFFFFFFC"; break;
-    case 31: Mask="0xFFFFFFFE"; break;
-    case 32: Mask="0xFFFFFFFF"; break;
+      // is netmask provided as xxx.yyy.zzz.ttt?
+      if ( netmask[0]=='.' || netmask[1]=='.' ||
+          netmask[2]=='.' || netmask[3]=='.' ) {
+        std::istringstream maskstream (netmask);
+        char dot;
+        maskstream >> mask[0] >> dot >> mask[1] >> dot >> mask[2] >> dot >>mask[3];
+      }
+      // is netmask provided as 0xABCDEFGH?
+      else if ( strncmp(netmask, "0x", 2)==0 ) {
+        char mask1[3] = {netmask[2],netmask[3],'\0'};
+        char mask2[3] = {netmask[4],netmask[5],'\0'};
+        char mask3[3] = {netmask[6],netmask[7],'\0'};
+        char mask4[3] = {netmask[8],netmask[9],'\0'};
+        mask[0] = strtol (mask1, NULL, 16);
+        mask[1] = strtol (mask2, NULL, 16);
+        mask[2] = strtol (mask3, NULL, 16);
+        mask[3] = strtol (mask4, NULL, 16);
+      }
+      // is netmask provided as 0,1,..,32?
+      else if ( atoi(netmask) >= 0 && atoi(netmask) <= 32 ) {
+        std::string Mask;
+        switch( atoi(netmask) ) {
+        case  0: Mask="0x00000000"; break;
+        case  1: Mask="0x80000000"; break;
+        case  2: Mask="0xC0000000"; break;
+        case  3: Mask="0xE0000000"; break;
+        case  4: Mask="0xF0000000"; break;
+        case  5: Mask="0xF8000000"; break;
+        case  6: Mask="0xFC000000"; break;
+        case  7: Mask="0xFE000000"; break;
+        case  8: Mask="0xFF000000"; break;
+        case  9: Mask="0xFF800000"; break;
+        case 10: Mask="0xFFC00000"; break;
+        case 11: Mask="0xFFE00000"; break;
+        case 12: Mask="0xFFF00000"; break;
+        case 13: Mask="0xFFF80000"; break;
+        case 14: Mask="0xFFFC0000"; break;
+        case 15: Mask="0xFFFE0000"; break;
+        case 16: Mask="0xFFFF0000"; break;
+        case 17: Mask="0xFFFF8000"; break;
+        case 18: Mask="0xFFFFC000"; break;
+        case 19: Mask="0xFFFFE000"; break;
+        case 20: Mask="0xFFFFF000"; break;
+        case 21: Mask="0xFFFFF800"; break;
+        case 22: Mask="0xFFFFFC00"; break;
+        case 23: Mask="0xFFFFFE00"; break;
+        case 24: Mask="0xFFFFFF00"; break;
+        case 25: Mask="0xFFFFFF80"; break;
+        case 26: Mask="0xFFFFFFC0"; break;
+        case 27: Mask="0xFFFFFFE0"; break;
+        case 28: Mask="0xFFFFFFF0"; break;
+        case 29: Mask="0xFFFFFFF8"; break;
+        case 30: Mask="0xFFFFFFFC"; break;
+        case 31: Mask="0xFFFFFFFE"; break;
+        case 32: Mask="0xFFFFFFFF"; break;
+        }
+        char mask1[3] = {Mask[2],Mask[3],'\0'};
+        char mask2[3] = {Mask[4],Mask[5],'\0'};
+        char mask3[3] = {Mask[6],Mask[7],'\0'};
+        char mask4[3] = {Mask[8],Mask[9],'\0'};
+        mask[0] = strtol (mask1, NULL, 16);
+        mask[1] = strtol (mask2, NULL, 16);
+        mask[2] = strtol (mask3, NULL, 16);
+        mask[3] = strtol (mask4, NULL, 16);
+      }
+      // if not, then netmask is provided in an unknown format
+      else {
+        std::cerr << Error.str() << Usage.str() << "Exiting.\n";
+        if (warning_verbosity==1)
+          outfile << Error.str() << Usage.str() << "Exiting." << std::endl;
+        exit(0);
+      }
+      // if everything is OK:
+      StatStore::InitialiseSubnetMask (mask[0], mask[1], mask[2], mask[3]);
     }
-    char mask1[3] = {Mask[2],Mask[3],'\0'};
-    char mask2[3] = {Mask[4],Mask[5],'\0'};
-    char mask3[3] = {Mask[6],Mask[7],'\0'};
-    char mask4[3] = {Mask[8],Mask[9],'\0'};
-    mask[0] = strtol (mask1, NULL, 16);
-    mask[1] = strtol (mask2, NULL, 16);
-    mask[2] = strtol (mask3, NULL, 16);
-    mask[3] = strtol (mask4, NULL, 16);
+    else {
+      std::cerr << Warning.str();
+      if (warning_verbosity==1)
+        outfile << Warning.str();
+      StatStore::InitialiseSubnetMask (0xFF,0xFF,0xFF,0xFF);
+    }
   }
 
-  // if not, then netmask is provided in an unknown format
-  else {
-    std::cerr << Warning.str() << Usage.str() << "Exiting.\n";
-    if (warning_verbosity==1)
-      outfile << Warning.str() << Usage.str() << "Exiting." << std::endl;
-    exit(0);
-  }
-
-  // if everything is OK:
-  StatStore::InitialiseSubnetMask (mask[0], mask[1], mask[2], mask[3]);
   return;
-
 }
 
 void Stat::init_ports(XMLConfObj * config) {
 
-  std::stringstream Warning, Default;
-  Warning << "Warning! No port number(s) to monitor was (were) provided!\n";
-  Default << "Every port will be monitored.\n";
+  // shall ports be monitored at all?
+  // (that means, they are part of the endpoint_key-parameter);
+  // if TCP or UDP are monitored or we arent interested
+  // in protocols: subscribe to IPFIX port information (ports relevant)
+  if (port_monitoring == true && ports_relevant == true) {
 
-  // extracting port numbers to monitor
-  if (!(config->getValue("ports")).empty()) {
+    std::stringstream Warning1, Warning2, Default;
+    Warning1 << "Warning: No ports parameter was provided in XML config file!\n";
+    Warning2 << "Warning: No value for ports parameter was provided in XML config file!\n";
+    Default << "Every port will be monitored.\n";
 
-    if (port_monitoring == false)
-      return;
-      // only ICMP and/or RAW are monitored: no need to subscribe to
-      // IPFIX port information
+    if (config->nodeExists("ports")) {
+      // extracting port numbers to monitor
+      if (!(config->getValue("ports")).empty()) {
 
-    std::string Ports = config->getValue("ports");
-    std::istringstream PortsStream (Ports);
+        std::string Ports = config->getValue("ports");
+        std::istringstream PortsStream (Ports);
 
-    unsigned int port;
-    while (PortsStream >> port)
-      StatStore::AddPortToMonitoredPorts(port);
+        unsigned int port;
+        while (PortsStream >> port)
+          StatStore::AddPortToMonitoredPorts(port);
 
-    StatStore::setMonitorAllPorts() = false;
+        StatStore::setMonitorAllPorts() = false;
+      }
+      else {
+        std::cerr << Warning2.str() << Default.str();
+        if (warning_verbosity==1)
+          outfile << Warning2.str() << Default.str();
+
+        StatStore::setMonitorAllPorts() = true;
+      }
+
+      subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
+      subscribeTypeId(IPFIX_TYPEID_destinationTransportPort);
+    }
+    else {
+      std::cerr << Warning1.str() << Default.str();
+      if (warning_verbosity==1)
+        outfile << Warning1.str() << Default.str();
+
+      StatStore::setMonitorAllPorts() = true;
+    }
   }
-  else {
-
-    if (port_monitoring == false)
-      return;
-      // only ICMP and/or RAW are monitored: no need to issue any
-      // warning message
-
-    std::cerr << Warning.str() << Default.str();
-    if (warning_verbosity==1)
-      outfile << Warning.str() << Default.str();
-
-    StatStore::setMonitorAllPorts() = true;
-
-  }
-
-  // in either way
-  //TODO(3) Maybe we arent interested in Ports, but only in IPs?
-  subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
-  subscribeTypeId(IPFIX_TYPEID_destinationTransportPort);
 
   return;
 
@@ -780,87 +932,93 @@ void Stat::init_ports(XMLConfObj * config) {
 
 void Stat::init_ip_addresses(XMLConfObj * config) {
 
-  std::stringstream Warning, Default;
-  Warning
+  // shall ip-addresses be monitored at all?
+  // (that means, they were part of the endpoint_key-parameter)
+  if (ip_monitoring == true) {
+
+    std::stringstream Warning, Default;
+    Warning
     << "Warning! I got no file with IP addresses to monitor in  config file!\n"
     << "I suppose you want me to monitor everything; I'll try.\n";
-  Default
+    Default
     << "Warning! I got no iplist_maxsize preference in XML config file!\n"
     << "I'll use default value, " << DEFAULT_iplist_maxsize << ".\n";
 
-  // the following section extracts either the IP addresses to monitor
-  // or the maximal number of IPs to monitor in case the user doesn't
-  // give IP addresses to monitor
-  bool gotIpfile = false;
+    // the following section extracts either the IP addresses to monitor
+    // or the maximal number of IPs to monitor in case the user doesn't
+    // give IP addresses to monitor
+    bool gotIpfile = false;
 
-  if (!(config->getValue("ip_addresses_to_monitor")).empty()) {
-    ipfile = config->getValue("ip_addresses_to_monitor");
-    gotIpfile = true;
-  }
-  else {
-    std::cerr << Warning.str();
-    if (warning_verbosity==1)
-      outfile << Warning.str() << std::flush;
-    if (!(config->getValue("iplist_maxsize")).empty()) {
-      iplist_maxsize = atoi( config->getValue("iplist_maxsize").c_str() );
+    if (!(config->getValue("ip_addresses_to_monitor")).empty()) {
+      ipfile = config->getValue("ip_addresses_to_monitor");
+      gotIpfile = true;
     }
     else {
-      std::cerr << Default.str();
+      std::cerr << Warning.str();
       if (warning_verbosity==1)
-	outfile << Default.str() << std::flush;
-      iplist_maxsize = DEFAULT_iplist_maxsize;
-    }
-  }
-
-  // and the following section uses the extracted ipfile or iplist_maxsize
-  // information to initialise some static members of the StatStore class
-  if (gotIpfile == true) {
-
-    std::stringstream Error;
-    Error << "Error! I could not open IP-file " << ipfile << "!\n"
-    << "Please check that the file exists, "
-    << "and that you have enough rights to read it.\n"
-    << "Exiting.\n";
-
-    std::ifstream ipstream(ipfile.c_str());
-      // .c_str() because the constructor only accepts C-style strings
-
-    if (!ipstream) {
-      std::cerr << Error.str();
-      if (warning_verbosity==1)
-  outfile << Error.str() << std::flush;
-      exit(0);
+        outfile << Warning.str() << std::flush;
+      if (!(config->getValue("iplist_maxsize")).empty()) {
+        iplist_maxsize = atoi( config->getValue("iplist_maxsize").c_str() );
+      }
+      else {
+        std::cerr << Default.str();
+        if (warning_verbosity==1)
+          outfile << Default.str() << std::flush;
+        iplist_maxsize = DEFAULT_iplist_maxsize;
+      }
     }
 
-    else {
+    // and the following section uses the extracted ipfile or iplist_maxsize
+    // information to initialise some static members of the StatStore class
+    if (gotIpfile == true) {
 
-      std::vector<EndPoint> IpVector;
-      unsigned int ip[4];
-      char dot;
+      std::stringstream Error;
+      Error << "Error! I could not open IP-file " << ipfile << "!\n"
+      << "Please check that the file exists, "
+      << "and that you have enough rights to read it.\n"
+      << "Exiting.\n";
 
-      while (ipstream >> ip[0] >> dot >> ip[1] >> dot >> ip[2] >> dot>>ip[3]) {
-  // save read IPs in a vector; mask them at the same time
-  IpVector.push_back(EndPoint(IpAddress(ip[0],ip[1],ip[2],ip[3]).mask(StatStore::getSubnetMask()), 0, 0));
+      std::ifstream ipstream(ipfile.c_str());
+        // .c_str() because the constructor only accepts C-style strings
+
+      if (!ipstream) {
+        std::cerr << Error.str();
+        if (warning_verbosity==1)
+          outfile << Error.str() << std::flush;
+        exit(0);
+      }
+      else {
+        std::vector<EndPoint> IpVector;
+        unsigned int ip[4];
+        char dot;
+
+        while (ipstream >> ip[0] >> dot >> ip[1] >> dot >> ip[2] >> dot>>ip[3]) {
+          // save read IPs in a vector; mask them at the same time
+          IpVector.push_back(EndPoint(IpAddress(ip[0],ip[1],ip[2],ip[3]).mask(StatStore::getSubnetMask()), 0, 0));
+        }
+
+        // just in case the user provided a file with multiples IPs,
+        // or the mask function made multiple IPs to appear:
+        sort(IpVector.begin(),IpVector.end());
+        std::vector<EndPoint>::iterator new_end = unique(IpVector.begin(),IpVector.end());
+        std::vector<EndPoint> IpVectorBis (IpVector.begin(), new_end);
+
+        // finally, add these IPs to monitor to static member
+        // StatStore::MonitoredIpAddresses
+        StatStore::AddIpToMonitoredIp (IpVectorBis);
+
+        // no need to monitor every IP:
+        StatStore::setMonitorEveryIp() = false;
       }
 
-      // just in case the user provided a file with multiples IPs,
-      // or the mask function made multiples IPs to appear:
-      sort(IpVector.begin(),IpVector.end());
-      std::vector<EndPoint>::iterator new_end = unique(IpVector.begin(),IpVector.end());
-      std::vector<EndPoint> IpVectorBis (IpVector.begin(), new_end);
-
-      // finally, add these IPs to monitor to static member
-      // StatStore::MonitoredIpAddresses
-      StatStore::AddIpToMonitoredIp (IpVectorBis);
-
-      // no need to monitor every IP:
-      StatStore::setMonitorEveryIp() = false;
+    }
+    else {
+      StatStore::setMonitorEveryIp() = true;
+      StatStore::setIpListMaxSize() = iplist_maxsize;
     }
 
-  }
-  else { // gotIpfile == false
-    StatStore::setMonitorEveryIp() = true;
-    StatStore::setIpListMaxSize() = iplist_maxsize;
+    subscribeTypeId(IPFIX_TYPEID_sourceIPv4Address);
+    subscribeTypeId(IPFIX_TYPEID_destinationIPv4Address);
   }
 
   return;

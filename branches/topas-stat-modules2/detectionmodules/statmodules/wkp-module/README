@@ -74,6 +74,12 @@ If not given, a warning message is issued and default 3 is used; if
 something less than 0 or greater than 5 is given, a warning message is
 issued and the module exits.
 
+<endpoint_key>:
+
+The user can choose between ip, port, protocol and any combination of them, seperated by spaces. This value will form the key of the EndPoints, i. e. that all EndPoints sharing this same key are considered as one EndPoint.
+E. g. if you are only interested in ports and protocols, ip-addresses will be ignored and an EndPoint will look like "0.0.0.0:portNr | protocolNr". This enables the user t oinvestigate port/protocol/ip-combination anomalies.
+
+
 <monitored_values>:
 
 The user should choose which value (s)he prefers to monitor and add each of them
