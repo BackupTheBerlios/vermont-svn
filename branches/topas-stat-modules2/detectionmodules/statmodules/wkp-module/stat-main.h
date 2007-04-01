@@ -130,16 +130,6 @@ class Stat : public DetectionBase<StatStore> {
   void update(std::list<Values> &, std::list<Values> &, const Values &);
   void stat_test(std::list<Values> &, std::list<Values> &);
 
-  // the following functions are called by the extract_data()-function:
-  void extract_data_packets (const Info &, Values &);
-  void extract_data_octets (const Info &, Values &);
-  void extract_data_records (const Info &, Values &);
-  void extract_data_octets_per_packets (const Info &, Values &);
-  void extract_data_packets_out_minus_packets_in (const Info &, Values &);
-  void extract_data_octets_out_minus_octets_in (const Info &, Values &);
-  void extract_packets_t_minus_packets_t_1 (const Info &, const Info &, Values &);
-  void extract_octets_t_minus_octets_t_1 (const Info &, const Info &, Values &);
-
   // this function is called by stat_test() to extract a single metric to test
   // from the struct Values
   std::list<int64_t> getSingleMetric(const std::list<Values> &, const enum Metric &);

@@ -445,8 +445,8 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
 }
 
 // extracting monitored values to vector<Metric>;
-// the values (some of them splitted) are stored there as
-// constants defined in enum Metric in stat_main.h
+// the values are stored there as constants
+// defined in enum Metric in stat_main.h
 void Stat::init_monitored_values(XMLConfObj * config) {
 
   std::stringstream Error1, Error2, Error3, Usage;
@@ -493,70 +493,46 @@ void Stat::init_monitored_values(XMLConfObj * config) {
 
   config->leaveNode();
 
-  std::stringstream monValues;
-
    //siehe TODO(4)
   // extract the values from tmp_monitored_data (string)
   // to monitored_values (vector<enum>)
   std::vector<std::string>::iterator it = tmp_monitored_data.begin();
   while ( it != tmp_monitored_data.end() ) {
-    if ( 0 == strcasecmp("packets", (*it).c_str()) ) {
+    if ( 0 == strcasecmp("packets_in", (*it).c_str()) )
       monitored_values.push_back(PACKETS_IN);
+    else if ( 0 == strcasecmp("packets_out", (*it).c_str()) )
       monitored_values.push_back(PACKETS_OUT);
-      monValues << "packets, ";
-    }
-    else if ( 0 == strcasecmp("bytes", (*it).c_str()) ) {
+    else if ( 0 == strcasecmp("bytes_in", (*it).c_str())
+           || 0 == strcasecmp("octets_in",(*it).c_str()) )
       monitored_values.push_back(BYTES_IN);
+    else if ( 0 == strcasecmp("bytes_out", (*it).c_str())
+           || 0 == strcasecmp("octets_out",(*it).c_str()) )
       monitored_values.push_back(BYTES_OUT);
-      monValues << "octets, ";
-    }
-    else if ( 0 == strcasecmp("octets",(*it).c_str()) ) {
-      monitored_values.push_back(BYTES_IN);
-      monitored_values.push_back(BYTES_OUT);
-      monValues << "octets, ";
-    }
-    else if ( 0 == strcasecmp("records",(*it).c_str()) ) {
+    else if ( 0 == strcasecmp("records_in",(*it).c_str()) )
       monitored_values.push_back(RECORDS_IN);
+    else if ( 0 == strcasecmp("records_out",(*it).c_str()) )
       monitored_values.push_back(RECORDS_OUT);
-      monValues << "records, ";
-    }
-    else if ( 0 == strcasecmp("octets/packet",(*it).c_str()) ) {
+    else if ( 0 == strcasecmp("octets_in/packet_in",(*it).c_str())
+           || 0 == strcasecmp("bytes_in/packet_in",(*it).c_str()) )
       monitored_values.push_back(BYTES_IN_PER_PACKET_IN);
+    else if ( 0 == strcasecmp("octets_out/packet_out",(*it).c_str())
+           || 0 == strcasecmp("bytes_out/packet_out",(*it).c_str()) )
       monitored_values.push_back(BYTES_OUT_PER_PACKET_OUT);
-      monValues << "octets/packet, ";
-    }
-    else if ( 0 == strcasecmp("bytes/packet",(*it).c_str()) ) {
-      monitored_values.push_back(BYTES_IN_PER_PACKET_IN);
-      monitored_values.push_back(BYTES_OUT_PER_PACKET_OUT);
-      monValues << "bytes/packet, ";
-    }
-    else if ( 0 == strcasecmp("packets_out-packets_in",(*it).c_str()) ) {
+    else if ( 0 == strcasecmp("packets_out-packets_in",(*it).c_str()) )
       monitored_values.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
-      monValues << "packets_out-packets_in, ";
-    }
-    else if ( 0 == strcasecmp("octets_out-octets_in",(*it).c_str()) ) {
+    else if ( 0 == strcasecmp("octets_out-octets_in",(*it).c_str())
+           || 0 == strcasecmp("bytes_out-bytes_in",(*it).c_str()) )
       monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
-      monValues << "octets_out-octets_in, ";
-    }
-    else if ( 0 == strcasecmp("bytes_out-bytes_in",(*it).c_str()) ) {
-      monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
-      monValues << "octets_out-octets_in, ";
-    }
-    else if ( 0 == strcasecmp("packets(t)-packets(t-1)",(*it).c_str()) ) {
+    else if ( 0 == strcasecmp("packets_in(t)-packets_in(t-1)",(*it).c_str()) )
       monitored_values.push_back(PACKETS_T_IN_MINUS_PACKETS_T_1_IN);
+    else if ( 0 == strcasecmp("packets_out(t)-packets_out(t-1)",(*it).c_str()) )
       monitored_values.push_back(PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT);
-      monValues << "packets(t)-packets(t-1), ";
-    }
-    else if ( 0 == strcasecmp("octets(t)-octets(t-1)",(*it).c_str()) ) {
+    else if ( 0 == strcasecmp("octets_in(t)-octets_in(t-1)",(*it).c_str())
+           || 0 == strcasecmp("bytes_in(t)-bytes_in(t-1)",(*it).c_str()) )
       monitored_values.push_back(BYTES_T_IN_MINUS_BYTES_T_1_IN);
+    else if ( 0 == strcasecmp("octets_out(t)-octets_out(t-1)",(*it).c_str())
+           || 0 == strcasecmp("bytes_out(t)-bytes_out(t-1)",(*it).c_str()) )
       monitored_values.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
-      monValues << "octets(t)-octets(t-1), ";
-    }
-    else if ( 0 == strcasecmp("bytes(t)-bytes(t-1)",(*it).c_str()) ) {
-      monitored_values.push_back(BYTES_T_IN_MINUS_BYTES_T_1_IN);
-      monitored_values.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
-      monValues << "octets(t)-octets(t-1), ";
-    }
     else {
         std::cerr << Error3.str() << Usage.str() << "Exiting.\n";
         if (warning_verbosity==1)
@@ -573,33 +549,33 @@ void Stat::init_monitored_values(XMLConfObj * config) {
   bool bytesSubscribed = false;
 
   for (int i = 0; i != monitored_values.size(); i++) {
-    // we only need to check the IN-metrics, because if the
-    // corresponding monitored value was chosen, both metrics
-    // have to be in monitored_values
-    // !!! bald nicht mehr, denn: TODO(4)
     if ( (monitored_values.at(i) == PACKETS_IN
+      || monitored_values.at(i) == PACKETS_OUT
       || monitored_values.at(i) == PACKETS_OUT_MINUS_PACKETS_IN
-      || monitored_values.at(i) == PACKETS_T_IN_MINUS_PACKETS_T_1_IN)
+      || monitored_values.at(i) == PACKETS_T_IN_MINUS_PACKETS_T_1_IN
+      || monitored_values.at(i) == PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT)
       && packetsSubscribed == false) {
       subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
       packetsSubscribed = true;
     }
 
     if ( (monitored_values.at(i) == BYTES_IN
+      || monitored_values.at(i) == BYTES_OUT
       || monitored_values.at(i) == BYTES_OUT_MINUS_BYTES_IN
-      || monitored_values.at(i) == BYTES_T_IN_MINUS_BYTES_T_1_IN)
+      || monitored_values.at(i) == BYTES_T_IN_MINUS_BYTES_T_1_IN
+      || monitored_values.at(i) == BYTES_T_OUT_MINUS_BYTES_T_1_OUT)
       && bytesSubscribed == false ) {
       subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
       bytesSubscribed = true;
     }
 
-    if ( monitored_values.at(i) == BYTES_IN_PER_PACKET_IN
+    if ( (monitored_values.at(i) == BYTES_IN_PER_PACKET_IN
+       || monitored_values.at(i) == BYTES_OUT_PER_PACKET_OUT)
       && packetsSubscribed == false
       && bytesSubscribed == false) {
       subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
       subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
     }
-
   }
 
   return;
@@ -1307,9 +1283,7 @@ void Stat::init_significance_level(XMLConfObj * config) {
 
 // ============================= TEST FUNCTION ===============================
 
-
 void Stat::test(StatStore * store) {
-
 
 #ifdef IDMEF_SUPPORT_ENABLED
   idmefMessage = getNewIdmefMessage("wkp-module", "statistical anomaly detection");
@@ -1378,7 +1352,7 @@ void Stat::test(StatStore * store) {
       // in our sample container "Records"; that means it's a new one,
       // so we just add it in "Records"; there will not be jeopardy
       // of memory exhaustion through endless growth of the "Records" map
-      // as limits are implemented in the StatStore class
+      // as limits are implemented in the StatStore class (EndPointListMaxSize)
 
       Samples S;
       // extract_data has enum Metric as output
@@ -1471,188 +1445,121 @@ void Stat::test(StatStore * store) {
 
 // =================== FUNCTIONS USED BY THE TEST FUNCTION ====================
 
-
-// ------ FUNCTIONS USED TO EXTRACT DATA FROM THE STORAGE CLASS StatStore -----
-
 // extracts interesting data from StatStore according to monitored_values:
-//
-
 Values Stat::extract_data (const Info & info, const Info & prev) {
 
   Values result;
   init_values(result); // int64_t doesnt seem to be initialized to 0 by default
-  bool gotValue = false; // false means: unknown type of value occurred
 
   std::vector<Metric>::iterator it = monitored_values.begin();
 
-  // we only need to check the IN-metrics, because if the
-  // corresponding monitored value was chosen, both metrics
-  // have to be in monitored_values
   while (it != monitored_values.end() ) {
 
     switch ( *it ) {
+
       case PACKETS_IN:
-        extract_data_packets (info, result);
-        gotValue = true;
+        if (info.packets_in >= noise_threshold_packets)
+          result.packets_in = info.packets_in;
         break;
+
+      case PACKETS_OUT:
+        if (info.packets_out >= noise_threshold_packets)
+          result.packets_out = info.packets_out;
+        break;
+
       case BYTES_IN:
-        extract_data_octets (info, result);
-        gotValue = true;
+        if (info.bytes_in >= noise_threshold_bytes)
+          result.bytes_in = info.bytes_in;
         break;
+
+      case BYTES_OUT:
+        if (info.bytes_out >= noise_threshold_bytes)
+          result.bytes_out = info.bytes_out;
+        break;
+
       case RECORDS_IN:
-        extract_data_records (info, result);
-        gotValue = true;
+        result.records_in = info.records_in;
         break;
+
+      case RECORDS_OUT:
+        result.records_out = info.records_out;
+        break;
+
       case BYTES_IN_PER_PACKET_IN:
-        extract_data_octets_per_packets (info, result);
-        gotValue = true;
+        if ( info.packets_in >= noise_threshold_packets
+          || info.bytes_in   >= noise_threshold_bytes ) {
+          if (info.packets_in == 0)
+            result.bytes_per_packet_in = 0;
+          else
+            result.bytes_per_packet_in = (1000 * info.bytes_in) / info.packets_in;
+            // the multiplier 1000 enables us to increase precision and "simulate"
+            // a float result, while keeping an integer result: thanks to this trick,
+            // we do not have to write new versions of the tests to support floats
+        }
         break;
+
+      case BYTES_OUT_PER_PACKET_OUT:
+        if (info.packets_out >= noise_threshold_packets ||
+            info.bytes_out   >= noise_threshold_bytes ) {
+          if (info.packets_out == 0)
+            result.bytes_per_packet_out = 0;
+          else
+            result.bytes_per_packet_out = (1000 * info.bytes_out) / info.packets_out;
+        }
+        break;
+
       case PACKETS_OUT_MINUS_PACKETS_IN:
-        extract_data_packets_out_minus_packets_in (info, result);
-        gotValue = true;
+        if (info.packets_out >= noise_threshold_packets
+         || info.packets_in  >= noise_threshold_packets )
+          result.p_out_minus_p_in = info.packets_out - info.packets_in;
         break;
+
       case BYTES_OUT_MINUS_BYTES_IN:
-        extract_data_octets_out_minus_octets_in (info, result);
-        gotValue = true;
+        if (info.bytes_out >= noise_threshold_bytes
+         || info.bytes_in  >= noise_threshold_bytes )
+          result.b_out_minus_b_in = info.bytes_out - info.bytes_in;
         break;
+
       case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
-        extract_packets_t_minus_packets_t_1 (info, prev, result);
-        gotValue = true;
+        if (info.packets_in  >= noise_threshold_packets
+         || prev.packets_in  >= noise_threshold_packets)
+          // prev holds the data for the same EndPoint as info
+          // from the last call to test()
+          // it is updated at the beginning of the while-loop in test()
+          result.pt_minus_pt1_in = info.packets_in - prev.packets_in;
         break;
+
+      case PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
+        if (info.packets_out >= noise_threshold_packets
+         || prev.packets_out >= noise_threshold_packets)
+          result.pt_minus_pt1_out = info.packets_out - prev.packets_out;
+        break;
+
       case BYTES_T_IN_MINUS_BYTES_T_1_IN:
-        extract_octets_t_minus_octets_t_1 (info, prev, result);
-        gotValue = true;
+        if (info.bytes_in >= noise_threshold_bytes
+         || prev.bytes_in >= noise_threshold_bytes)
+          result.bt_minus_bt1_in = info.bytes_in - prev.bytes_in;
         break;
+
+      case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
+        if (info.bytes_out >= noise_threshold_bytes
+         || prev.bytes_out >= noise_threshold_bytes)
+          result.bt_minus_bt1_out = info.bytes_out - prev.bytes_out;
+        break;
+
+      default:
+        std::cerr << "ERROR: monitored_values seems to be empty "
+        << "or it holds an unknown type which isnt supported yet."
+        << "But this shouldnt happen as the init_monitored_values"
+        << "-function handles that.\nExiting.\n";
+        exit(0);
     }
 
     it++;
   }
 
-  if (gotValue == false) {
-    std::cerr << "ERROR: monitored_values seems to be empty "
-        << "or it holds an unknown type which isnt supported yet."
-        << "But this shouldnt happen as the init_monitored_values"
-        << "-function handles that.\n";
-    exit(0);
-  }
-
   return result;
-
 }
-
-// functions called by the extract_data()-function:
-//
-void Stat::extract_data_packets (const Info & info, Values & result) {
-
-  if (info.packets_out >= noise_threshold_packets)
-    result.packets_out = info.packets_out;
-  if (info.packets_in  >= noise_threshold_packets)
-    result.packets_in = info.packets_in;
-
-  return;
-}
-
-void Stat::extract_data_octets (const Info & info, Values & result) {
-
-  if (info.bytes_out >= noise_threshold_bytes)
-    result.bytes_out = info.bytes_out;
-  if (info.bytes_in  >= noise_threshold_bytes)
-    result.bytes_in  = info.bytes_in;
-
-  return;
-}
-
-void Stat::extract_data_records (const Info & info, Values & result) {
-
-  result.records_out = info.records_out;
-  result.records_in  = info.records_in;
-
-  return;
-}
-
-void Stat::extract_data_octets_per_packets (const Info & info, Values & result) {
-
-  int64_t packets_in;
-  int64_t packets_out;
-  int64_t bytes_in;
-  int64_t bytes_out;
-
-  if (info.packets_out >= noise_threshold_packets ||
-      info.bytes_out   >= noise_threshold_bytes ) {
-    packets_out  = info.packets_out;
-    bytes_out    = info.bytes_out;
-  }
-  if (info.packets_in >= noise_threshold_packets ||
-      info.bytes_in   >= noise_threshold_bytes ) {
-    packets_in  = info.packets_in;
-    bytes_in    = info.bytes_in;
-  }
-
-  if (packets_out == 0)
-    result.bytes_per_packet_out = 0;
-  // i.e. bytes_per_packet_out[EndPoint] = 0
-  else
-    result.bytes_per_packet_out = (1000 * bytes_out) / packets_out;
-  // i.e. bytes_per_packet_out[EndPoint] = (1000 * #bytes) / #packets
-  // the multiplier 1000 enables us to increase precision and "simulate"
-  // a float result, while keeping an integer result: thanks to this trick,
-  // we do not have to write new versions of the tests to support floats
-  if (packets_in == 0)
-    result.bytes_per_packet_in = 0;
-  else
-    result.bytes_per_packet_in = (1000 * bytes_in) / packets_in;
-
-  return;
-}
-
-void Stat::extract_data_packets_out_minus_packets_in (const Info & info, Values & result) {
-
-  if (info.packets_out >= noise_threshold_packets ||
-      info.packets_in  >= noise_threshold_packets )
-    result.p_out_minus_p_in = info.packets_out - info.packets_in;
-
-  return;
-}
-
-void Stat::extract_data_octets_out_minus_octets_in (const Info & info, Values & result) {
-
-  if (info.bytes_out >= noise_threshold_bytes ||
-      info.bytes_in  >= noise_threshold_bytes )
-    result.b_out_minus_b_in = info.bytes_out - info.bytes_in;
-
-  return;
-}
-
-void Stat::extract_packets_t_minus_packets_t_1 (const Info & info, const Info & prev, Values & result) {
-
-  // prev holds the data for the same EndPoint as info
-  // from the last call to test()
-  // it is updated at the beginning of the while-loop in test()
-  if (info.packets_out >= noise_threshold_packets ||
-      prev.packets_out >= noise_threshold_packets)
-    result.pt_minus_pt1_out = info.packets_out - prev.packets_out;
-  if (info.packets_in  >= noise_threshold_packets ||
-      prev.packets_in  >= noise_threshold_packets)
-    result.pt_minus_pt1_in = info.packets_in  - prev.packets_in;
-
-  return;
-}
-
-void Stat::extract_octets_t_minus_octets_t_1 (const Info & info, const Info & prev, Values & result) {
-
-  // prev holds the data for the same EndPoint as info
-  // from the last call to test()
-  // it is updated at the beginning of the while-loop in test()
-  if (info.bytes_out >= noise_threshold_bytes ||
-      prev.bytes_out >= noise_threshold_bytes)
-    result.bt_minus_bt1_out = info.bytes_out - prev.bytes_out;
-  if (info.bytes_in >= noise_threshold_bytes ||
-      prev.bytes_in >= noise_threshold_bytes)
-    result.bt_minus_bt1_in = info.bytes_in - prev.bytes_in;
-
-  return;
-}
-
 
 
 // -------------------------- LEARN/UPDATE FUNCTION ---------------------------
@@ -1761,8 +1668,7 @@ void Stat::stat_test (std::list<Values> & sample_old,
   std::vector<Metric>::iterator it = monitored_values.begin();
 
   // for every value (represented by *it) in monitored_values,
-  // do the tests; and if a value was splitted into two,
-  // do the tests for both of them
+  // do the tests
   while (it != monitored_values.end()) {
 
     if (output_verbosity >= 4)
@@ -1897,32 +1803,32 @@ std::string Stat::getMetricName(const enum Metric & m) {
     case PACKETS_OUT:
       return std::string("packets_out");
     case BYTES_IN:
-      return std::string("octets_in");
+      return std::string("bytes_in");
     case BYTES_OUT:
-      return std::string("octets_out");
+      return std::string("bytes_out");
     case RECORDS_IN:
       return std::string("records_in");
     case RECORDS_OUT:
       return std::string("records_out");
     case BYTES_IN_PER_PACKET_IN:
-      return std::string("octets_in/packet_in");
+      return std::string("bytes_in/packet_in");
     case BYTES_OUT_PER_PACKET_OUT:
-      return std::string("octets_out/packet_out");
+      return std::string("bytes_out/packet_out");
     case PACKETS_OUT_MINUS_PACKETS_IN:
       return std::string("packets_out-packets_in");
     case BYTES_OUT_MINUS_BYTES_IN:
-      return std::string("octets_out-octets_in");
+      return std::string("bytes_out-bytes_in");
     case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
       return std::string("packets_in(t)-packets_in(t-1)");
     case PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
       return std::string("packets_out(t)-packets_out(t-1)");
     case BYTES_T_IN_MINUS_BYTES_T_1_IN:
-      return std::string("octets_in(t)-octets_in(t-1)");
+      return std::string("bytes_in(t)-bytes_in(t-1)");
     case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
-      return std::string("octets_out(t)-octets_out(t-1)");
+      return std::string("bytes_out(t)-bytes_out(t-1)");
     default:
       std::cerr << "ERROR: Unknown type of Metric in getMetricName().\n"
-                << "Exiting.";
+                << "Exiting.\n";
       exit(0);
   }
 }

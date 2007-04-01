@@ -18,15 +18,21 @@
     <endpoint_key>port</endpoint_key>
     <monitored_values>
       <!--
-      <value>records</value>
-      <value>octets/packet</value>
+      <value>packets_out</value>
+      <value>bytes_in</value>
+      <value>records_in</value>
+      <value>records_out</value>
+      <value>bytes_in/packet_in</value>
+      <value>bytes_out/packet_out</value>
       <value>packets_out-packets_in</value>
-      <value>octets_out-octets_in</value>
-      <value>packets(t)-packets(t-1)</value>
-      <value>octets(t)-octets(t-1)</value>
+      <value>bytes_out-bytes_in</value>
+      <value>packets_in(t)-packets_in(t-1)</value>
+      <value>packets_out(t)-packets_out(t-1)</value>
+      <value>bytes_in(t)-bytes_in(t-1)</value>
+      <value>bytes_out(t)-bytes_out(t-1)</value>
       -->
-      <value>packets</value>
-      <value>octets</value>
+      <value>packets_in</value>
+      <value>bytes_out</value>
     </monitored_values>
     <noise_threshold_packets>0</noise_threshold_packets>
     <noise_threshold_bytes>0</noise_threshold_bytes>

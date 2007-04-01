@@ -45,6 +45,7 @@ path to the module output file. If not given, or if troubles opening
 it occur (e.g. problems with rights), the module will issue a warning
 message and exit.
 
+
 <alarm_time>:
 
 time (in sec.) between two "test-runs". A "test-run" is defined as the
@@ -54,6 +55,7 @@ its own samples information, and -- possibly, but not systematically
 Pearson chi-square statistical tests. If no alam time is given, a
 warning message is issued and the module exits.
 
+
 <warning_verbosity>:
 
 O: warnings are sent to stderr
@@ -61,6 +63,7 @@ O: warnings are sent to stderr
 If not given, a warning message is issued and default 0 is used; if
 something else as 0 or 1 is given, a warning message is issued and the
 module exits.
+
 
 <output_verbosity>:
 
@@ -74,29 +77,47 @@ If not given, a warning message is issued and default 3 is used; if
 something less than 0 or greater than 5 is given, a warning message is
 issued and the module exits.
 
+
 <endpoint_key>:
 
 The user can choose between ip, port, protocol and any combination of them, seperated by spaces. This value will form the key of the EndPoints, i. e. that all EndPoints sharing this same key are considered as one EndPoint.
-E. g. if you are only interested in ports and protocols, ip-addresses will be ignored and an EndPoint will look like "0.0.0.0:portNr | protocolNr". This enables the user t oinvestigate port/protocol/ip-combination anomalies.
+E. g. if you are only interested in ports and protocols, ip-addresses will be ignored and an EndPoint will look like "0.0.0.0:portNr | protocolNr". This enables the user to investigate port/protocol/ip-combination anomalies.
 
 
 <monitored_values>:
 
 The user should choose which value (s)he prefers to monitor and add each of them
 per <value></value>-Tag. The possible values are:
-packets, octets, records, octets/packet, packets_out-packets_in, octets_out-octets_in,
-packets(t)-packets(t-1) and octets(t)-octets(t-1).
+
+packets_in
+packets_out
+bytes_in
+bytes_out
+records_in
+records_out
+bytes_in/packet_in
+bytes_out/packet_out
+packets_out-packets_in
+bytes_out-bytes_in
+packets_in(t)-packets_in(t-1)
+packets_out(t)-packets_out(t-1)
+bytes_in(t)-bytes_in(t-1)
+bytes_out(t)-bytes_out(t-1)
+
 Example configuration:
+
   <monitored_values>
-    <value>packets</value>
-    <value>octets/packet</value>
+    <value>packets_out</value>
+    <value>bytes_in/packet_in</value>
   </monitored_values>
+
 The input is not case-sensitive, and "bytes" and "octets" are synonymous.
 If nothing or something else is given, the module exits after a
 warning message. Please note that the module does in fact NOT handle
 octets/packet, but rather 1000*octets/packet, the result being an
 integer: this trick enables to "simulate" a float division and
 increase precision, without re-writing loads of existing code.
+
 
 <noise_threshold_packets>, <noise_threshold_bytes>:
 
@@ -112,6 +133,7 @@ If no noise reduction prefererences are provided and if monitored_value is
 packets or bytes, a warning message is issued and default values 0 are used
 (no noise reduction).
 
+
 <protocols>:
 
 protocols to monitor; packets of other protocols will be ignored.
@@ -120,6 +142,7 @@ Possible choices are ICMP, TCP, UDP, RAW, or their identifiers 1, 6,
 case-sensitive. If some other protocol is provided, the module will
 exit with an usage message. Default is monitoring all of them (after
 some warning message).
+
 
 <netmask>:
 
@@ -133,12 +156,14 @@ number (0xFFFFFF00, don't forget the 0x) or as an integer shortcut
 (24). If something else is provided, the module exits after issuing an
 error message; if nothing is given, default value 32 is assumed.
 
+
 <ports>:
 
 ports to monitor; packets to or from other ports will be ignored. They
 must be written as a space-separated list. If not given, default
 behavior is to pay no attention to ports and monitor everything (a
 warning message will be issued).
+
 
 <ip_addresses_to_monitor>:
 
@@ -154,6 +179,7 @@ the monitored device (see <iplist_maxsize>). Please note that the IP
 addresses reported to the collector by the monitor will also be
 masked.
 
+
 <iplist_maxsize>:
 
 In case the user wants every IP address to be monitored, a limit to
@@ -163,12 +189,14 @@ default 421 will be used after a warning message. If the user gives
 both <ip_addresses_to_monitor> and <iplist_maxsize>, only the former
 will be taken into account.
 
+
 <stat_test_frequency>:
 
 This parameter tells the module to perform a statistical test every X
 "test-runs" (see <alarm_time>), i.e. every
 <stat_test_frequency>*<alarm_time> seconds. If not provided, a warning
 message will be issued, and default X=1 will be used.
+
 
 <report_only_first_attack>:
 
@@ -178,6 +206,7 @@ log file more readable. Moreover, as an attack usually covers many
 Stat::test()-runs, only the first alarm message is relevant.
 This parameter is a case-insensitive boolean that will be set to true
 if no value is provided (after an information message).
+
 
 <pause_update_when_attack>:
 
@@ -189,6 +218,8 @@ current anomaly ceases and traffic returns to normal values.
 This parameter is a case-insensitive boolean that will be set to true
 if no value is provided (after an information message).
 
+
+
 <test-params>
 -------------
 
@@ -198,6 +229,7 @@ These parameters tell the module which statistical tests to
 perform. They are case-insensitive booleans that will all be assumed
 to true (after some warning messages) if not given.
 
+
 <sample_old_size>, <sample_new_size>:
 
 These parameters are the length of the two sample vectors used by the
@@ -205,6 +237,7 @@ statistical tests. The former is the "profile", the "past" of the
 monitored network, to which the later, the "present" of the network,
 is compared. If not provided, default values 111 (for the "old"
 sample) and 11 (for the "new" sample) are used.
+
 
 <two_sided>:
 
@@ -216,6 +249,7 @@ This parameter is active only if Wilcoxon-Mann-Whitney test is enabled;
 Kolmogorov-Smirnov and Pearson chi-square tests are one-sided only
 (see the comments in their source files, and the STATS file if you need
 to revive some memories about one-sided and two-sided tests).
+
 
 <significance_level>:
 
@@ -229,7 +263,7 @@ is given, the module will not display any warning message, nor any
 
 
 
-II - How does it work?
+II - How does it work? (obsolete!!!)
 ======================
 
 Wilcoxon-Mann-Whitney, Kolmogorov-Smirnov and Pearson chi-square tests
