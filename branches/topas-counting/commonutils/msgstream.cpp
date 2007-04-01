@@ -16,28 +16,47 @@
 /*    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA    */
 /**************************************************************************/
 
-/**
- * @author Gerhard Muenz <muenz@informatik.uni-tuebingen.de>
- */
+#include "msgstream.h"
 
-#include "countmodule.h"
 
-#include <iostream>
-#include <cstdlib>
-#include <commonutils/msgstream.h>
 
-MsgStream ms;
-
-/* demonstrates the use of libdetectionModule */
-int main(int argc, char** argv) 
+void MsgStream::setOutputLevel(MsgLevel level)
 {
-    ms.setName("CountModule");
-
-    if (argc == 2) {
-	CountModule m(argv[1]);
-	return m.exec();
-    }
-
-    ms.print(MsgStream::ERROR, "Configuration file argument is missing!");
-    exit(-1);
+    outputLevel = level;
 }
+
+void MsgStream::setName(std::string newname)
+{
+    name = newname;
+}
+
+void MsgStream::printIntro(MsgLevel level)
+{
+    switch(level){
+	case FATAL:
+	    std::cout << "FATAL [" << name << "]: ";
+	    break;
+	case ERROR:
+	    std::cout << "ERROR [" << name << "]: ";
+	    break;
+	case WARN:
+	    std::cout << "WARN  [" << name << "]: ";
+	    break;
+	case INFO:
+	    std::cout << "INFO  [" << name << "]: ";
+	    break;
+	case DEBUG:
+	    std::cout << "DEBUG [" << name << "]: ";
+	    break;
+    }
+}
+
+void MsgStream::print(MsgLevel level, const std::string& msg)
+{
+    if(level <= outputLevel)
+    {
+	printIntro(level);
+	std::cout << msg << std::endl;
+    }
+}
+

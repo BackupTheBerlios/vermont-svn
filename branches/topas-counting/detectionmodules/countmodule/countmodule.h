@@ -63,6 +63,8 @@ to do this)
 	uint64_t packetThreshold;
 	uint64_t flowThreshold;
 
+	unsigned alarm;
+	
 	std::ofstream outfile;
 
 	/**

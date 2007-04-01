@@ -20,7 +20,9 @@
 #include <concentrator/ipfix_names.h>
 
 #include <iostream>
-#include <stdlib.h>
+#include <commonutils/msgstream.h>
+
+extern MsgStream ms;
 
 bool CountModule::verbose = false;
 
@@ -30,10 +32,10 @@ CountModule::CountModule(const std::string& configfile)
 {
     /* signal handlers */
     if (signal(SIGTERM, sigTerm) == SIG_ERR) {
-	msg(MSG_ERROR, "CountModule: Couldn't install signal handler for SIGTERM.\n ");
+	ms.print(MsgStream::ERROR, "Couldn't install signal handler for SIGTERM.");
     } 
     if (signal(SIGINT, sigInt) == SIG_ERR) {
-	msg(MSG_ERROR, "CountModule: Couldn't install signal handler for SIGINT.\n ");
+	ms.print(MsgStream::ERROR, "Couldn't install signal handler for SIGINT.");
     } 	
 
     init(configfile);
@@ -47,7 +49,7 @@ CountModule::~CountModule() {
 void CountModule::init(const std::string& configfile)
 {
     /* Default values */
-    unsigned alarm = 10;
+    alarm = 10;
     unsigned bfSize = 1024;
     unsigned bfHF = 3;
     char filename[] = "countmodule.txt";
@@ -64,7 +66,7 @@ void CountModule::init(const std::string& configfile)
 	    outfile.open(filename);
 	if(!outfile) 
 	{
-	    msg(MSG_ERROR, "CountModule: Could not open output file.\n");
+	    ms << MsgStream::ERROR << "Could not open output file " << filename << ".";
 	    stop();
 	}
 
@@ -102,7 +104,14 @@ void CountModule::init(const std::string& configfile)
 	    if(config.getValue("verbose") != "false")
 	    {
 		CountModule::verbose = true;
-		msg_setlevel(MSG_INFO);
+		ms.setOutputLevel(MsgStream::INFO);
+	    }
+
+	if(config.nodeExists("debug"))
+	    if(config.getValue("debug") != "false")
+	    {
+		CountModule::verbose = true;
+		ms.setOutputLevel(MsgStream::DEBUG);
 	    }
 
 	config.leaveNode();
@@ -144,24 +153,49 @@ void CountModule::init(const std::string& configfile)
     subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
     subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
     subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
-
+    
 }
 
 #ifdef IDMEF_SUPPORT_ENABLED
 void CountModule::update(XMLConfObj* xmlObj)
 {
     if (xmlObj->nodeExists("stop")) {
-	msg(MSG_INFO, "CountModule update: Stopping module.");
+	ms.print(MsgStream::INFO, "Update: Stopping module.");
 	stop();
     } else if (xmlObj->nodeExists("restart")) {
-	msg(MSG_INFO, "CountModule update: Restarting module.");
+	ms.print(MsgStream::INFO, "Update: Restarting module.");
 	restart();
-	/*
     } else if (xmlObj->nodeExists("config")) {
-	msg(MSG_INFO, "changing module configuration.");
-	*/
+	ms.print(MsgStream::INFO, "Update: Changing module configuration.");
+	xmlObj->enterNode("config");
+	if(xmlObj->nodeExists("count_per_src_ip")) {
+	    if(xmlObj->getValue("count_per_src_ip") != "false")
+		CountStore::countPerSrcIp = true;
+	    else
+		CountStore::countPerSrcIp = false; }
+	if(xmlObj->nodeExists("count_per_dst_ip")) {
+	    if(xmlObj->getValue("count_per_dst_ip") != "false")
+		CountStore::countPerDstIp = true;
+	    else
+		CountStore::countPerDstIp = false; }
+	if(xmlObj->nodeExists("count_per_src_port")) {
+	    if(xmlObj->getValue("count_per_src_port") != "false")
+		CountStore::countPerSrcPort = true;
+	    else
+		CountStore::countPerSrcPort = false; }
+	if(xmlObj->nodeExists("count_per_dst_port")) {
+	    if(xmlObj->getValue("count_per_dst_port") != "false")
+		CountStore::countPerDstPort = true;
+	    else
+		CountStore::countPerDstPort = false; }
+	if(xmlObj->nodeExists("octet_threshold"))
+	    octetThreshold = atoi(xmlObj->getValue("octet_threshold").c_str());
+	if(xmlObj->nodeExists("packet_threshold"))
+	    packetThreshold = atoi(xmlObj->getValue("packet_threshold").c_str());
+	if(xmlObj->nodeExists("flow_threshold"))
+	    flowThreshold = atoi(xmlObj->getValue("flow_threshold").c_str());
     } else { // add your commands here
-	msg(MSG_INFO, "CountModule update: Unsupported operation.");
+	ms.print(MsgStream::INFO, "Update: Unsupported operation.");
     }
 }
 #endif
@@ -170,10 +204,11 @@ void CountModule::update(XMLConfObj* xmlObj)
 void CountModule::test(CountStore* store) 
 {
 #ifdef IDMEF_SUPPORT_ENABLED
-    IdmefMessage& idmefMessage;
+    std::stringstream portStr, protoStr, ocStr, pcStr, fcStr, orStr, prStr;
+    IdmefMessage& idmefMessage = getNewIdmefMessage("Countmodule", "threshold detection");
 #endif
 
-    msg(MSG_INFO, "CountModule: Generating report...");
+    ms.print(MsgStream::INFO, "Generating report...");
     outfile << "******************** Report *********************" << std::endl;
     outfile << "thresholds: octets>=" << octetThreshold << " packets>=" << packetThreshold << " flows>=" << flowThreshold << std::endl;
 
@@ -187,9 +222,14 @@ void CountModule::test(CountStore* store)
 		outfile << i->first << " \to:" << i->second.octetCount << " \tp:" << i->second.packetCount << " \tf:" << i->second.flowCount << std::endl;
 
 #ifdef IDMEF_SUPPORT_ENABLED
-		idmefMessage = getNewIdmefMessage("Countmodule", "threshold detection");
+		idmefMessage = getNewIdmefMessage();
 		idmefMessage.createSourceNode("no", "ipv4-addr", i->first.toString(), "255.255.255.255");
-		// FIXME: where to put i->second data?
+		ocStr.str(""); ocStr << i->second.octetCount;
+		pcStr.str(""); pcStr << i->second.packetCount;
+		fcStr.str(""); fcStr << i->second.flowCount;
+		orStr.str(""); orStr << (unsigned)(i->second.octetCount/alarm);
+		prStr.str(""); prStr << (unsigned)(i->second.packetCount/alarm);
+		idmefMessage.createExtStatisticsNode(ocStr.str(), pcStr.str(), fcStr.str(), orStr.str(), prStr.str(), "");
 		sendIdmefMessage("Dummy", idmefMessage);
 #endif       
 	    }   
@@ -206,9 +246,14 @@ void CountModule::test(CountStore* store)
 		outfile << i->first << " \to:" << i->second.octetCount << " \tp:" << i->second.packetCount << " \tf:" << i->second.flowCount << std::endl;
 
 #ifdef IDMEF_SUPPORT_ENABLED
-		idmefMessage = getNewIdmefMessage("Countmodule", "threshold detection");
+		idmefMessage = getNewIdmefMessage();
 		idmefMessage.createTargetNode("no", "ipv4-addr", i->first.toString(), "255.255.255.255");
-		// FIXME: where to put i->second data?
+		ocStr.str(""); ocStr << i->second.octetCount;
+		pcStr.str(""); pcStr << i->second.packetCount;
+		fcStr.str(""); fcStr << i->second.flowCount;
+		orStr.str(""); orStr << (unsigned)(i->second.octetCount/alarm);
+		prStr.str(""); prStr << (unsigned)(i->second.packetCount/alarm);
+		idmefMessage.createExtStatisticsNode(ocStr.str(), pcStr.str(), fcStr.str(), orStr.str(), prStr.str(), "");
 		sendIdmefMessage("Dummy", idmefMessage);
 #endif       
 	    }
@@ -225,10 +270,17 @@ void CountModule::test(CountStore* store)
 		outfile << (i->first >> 16) << "." << (0x0000FFFF & i->first) << " \to:" << i->second.octetCount << " \tp:" << i->second.packetCount << " \tf:" << i->second.flowCount << std::endl;
 
 #ifdef IDMEF_SUPPORT_ENABLED
-		idmefMessage = getNewIdmefMessage("Countmodule", "threshold detection");
-		idmefMessage.createSourceNode("unknown", "ipv4-addr", "0.0.0.0", "0.0.0.0");
-		idmefMessage.createServiceNode("Source", "", itoa(0x0000FFFF & i->first), "", itoa(i->first >> 16)); 
-		// FIXME: where to put i->second data?
+		idmefMessage = getNewIdmefMessage();
+		//idmefMessage.createSourceNode("unknown", "ipv4-addr", "0.0.0.0", "0.0.0.0");
+		portStr.str(""); protoStr << (0x0000FFFF & i->first);
+		protoStr.str(""); protoStr << (i->first >> 16);
+		idmefMessage.createServiceNode("Source", "", portStr.str(), "", protoStr.str()); 
+		ocStr.str(""); ocStr << i->second.octetCount;
+		pcStr.str(""); pcStr << i->second.packetCount;
+		fcStr.str(""); fcStr << i->second.flowCount;
+		orStr.str(""); orStr << (unsigned)(i->second.octetCount/alarm);
+		prStr.str(""); prStr << (unsigned)(i->second.packetCount/alarm);
+		idmefMessage.createExtStatisticsNode(ocStr.str(), pcStr.str(), fcStr.str(), orStr.str(), prStr.str(), "");
 		sendIdmefMessage("Dummy", idmefMessage);
 #endif       
 	    }
@@ -245,10 +297,17 @@ void CountModule::test(CountStore* store)
 		outfile << (i->first >> 16) << "." << (0x0000FFFF & i->first) << " \to:" << i->second.octetCount << " \tp:" << i->second.packetCount << " \tf:" << i->second.flowCount << std::endl;
 
 #ifdef IDMEF_SUPPORT_ENABLED
-		idmefMessage = getNewIdmefMessage("Countmodule", "threshold detection");
-		idmefMessage.createTargetNode("unknown", "ipv4-addr", "0.0.0.0", "0.0.0.0");
-		idmefMessage.createServiceNode("Target", "", itoa(0x0000FFFF & i->first), "", itoa(i->first >> 16)); 
-		// FIXME: where to put i->second data?
+		idmefMessage = getNewIdmefMessage();
+		//idmefMessage.createTargetNode("unknown", "ipv4-addr", "0.0.0.0", "0.0.0.0");
+		portStr.str(""); protoStr << (0x0000FFFF & i->first);
+		protoStr.str(""); protoStr << (i->first >> 16);
+		idmefMessage.createServiceNode("Target", "", portStr.str(), "", protoStr.str()); 
+		ocStr.str(""); ocStr << i->second.octetCount;
+		pcStr.str(""); pcStr << i->second.packetCount;
+		fcStr.str(""); fcStr << i->second.flowCount;
+		orStr.str(""); orStr << (unsigned)(i->second.octetCount/alarm);
+		prStr.str(""); prStr << (unsigned)(i->second.packetCount/alarm);
+		idmefMessage.createExtStatisticsNode(ocStr.str(), pcStr.str(), fcStr.str(), orStr.str(), prStr.str(), "");
 		sendIdmefMessage("Dummy", idmefMessage);
 #endif       
 	    }
