@@ -15,7 +15,7 @@
 		<alarm_time>5</alarm_time>
 		<warning_verbosity>1</warning_verbosity>
 	  <output_verbosity>5</output_verbosity>
-    <endpoint_key>port protocol</endpoint_key>
+    <endpoint_key>port</endpoint_key>
     <monitored_values>
       <!--
       <value>records</value>
