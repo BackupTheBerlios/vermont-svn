@@ -32,9 +32,12 @@
 
 // ========================== CLASS Stat ==========================
 
+#define DEFAULT_alarm_time 10
 #define DEFAULT_warning_verbosity 0
 #define DEFAULT_output_verbosity 3
-#define DEFAULT_iplist_maxsize 421
+#define DEFAULT_noise_threshold_packets 0
+#define DEFAULT_noise_threshold_bytes 0
+#define DEFAULT_endpointlist_maxsize 500
 #define DEFAULT_sample_old_size 111
 #define DEFAULT_sample_new_size 11
 #define DEFAULT_stat_test_frequency 1
@@ -65,7 +68,7 @@ class Stat : public DetectionBase<StatStore> {
  public:
 
   Stat(const std::string & configfile);
-  ~Stat() {}
+  ~Stat();
 
   /* Test function. This function will be called in periodic intervals.
    *   Set interval size with @c setAlarmTime().
@@ -103,13 +106,14 @@ class Stat : public DetectionBase<StatStore> {
   // as the init function is really huge, we divide it into tasks:
   // those related to the user's preferences regarding the module...
   void init_output_file(XMLConfObj *);
-  void init_accept_source_ids(XMLConfObj *);
+  void init_accepted_source_ids(XMLConfObj *);
   void init_alarm_time(XMLConfObj *);
   void init_warning_verbosity(XMLConfObj *);
   void init_output_verbosity(XMLConfObj *);
   void init_endpoint_key(XMLConfObj *);
   void init_monitored_values(XMLConfObj *);
   void init_noise_thresholds(XMLConfObj *);
+  void init_endpointlist_maxsize(XMLConfObj *);
   void init_protocols(XMLConfObj *);
   void init_netmask(XMLConfObj *);
   void init_ports(XMLConfObj *);
@@ -141,8 +145,14 @@ class Stat : public DetectionBase<StatStore> {
   void stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &);
 
 
-  // here is the sample container:
-  std::map<EndPoint, Samples> Records;
+  // here is the sample container for the wkp-tests:
+  std::map<EndPoint, Samples> SampleData;
+  // TODO
+  // another container for the cusum-test
+  // maybe sth. like:
+  // std::map<EndPoint, std::vector<int> > CusumData;
+  // where the vector<int> contains the cusum-parameters
+  // for each endpoint
 
   // source id's to accept
   std::vector<int> accept_source_ids;
@@ -161,8 +171,8 @@ class Stat : public DetectionBase<StatStore> {
   std::vector<Metric> monitored_values;
   int noise_threshold_packets;
   int noise_threshold_bytes;
+  int endpointlist_maxsize;
   std::string ipfile;
-  int iplist_maxsize;
   int stat_test_frequency;
   bool report_only_first_attack;
   bool pause_update_when_attack;

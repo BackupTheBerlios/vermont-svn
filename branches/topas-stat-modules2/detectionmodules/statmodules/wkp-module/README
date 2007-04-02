@@ -41,9 +41,16 @@ The module's XML configuration file must provide the following two sections:
 
 <output_file>:
 
-path to the module output file. If not given, or if troubles opening
-it occur (e.g. problems with rights), the module will issue a warning
-message and exit.
+path to the module output file. If not given, wkp_output.txt will be
+used as default. If troubles opening it occur (e.g. problems with rights),
+the module will issue an error message and exit.
+
+
+<accepted_source_ids>:
+
+comma-seperated list of source ids (of the exporting processes) to be
+accepted. If parameter is omitted or left blank, all source ids will
+be accepted.
 
 
 <alarm_time>:
@@ -52,8 +59,8 @@ time (in sec.) between two "test-runs". A "test-run" is defined as the
 time when the module gathers information from the data-store, updates
 its own samples information, and -- possibly, but not systematically
 (see <stat_test_frequency>) -- runs Wilcoxon and/or Kolmogorov and/or
-Pearson chi-square statistical tests. If no alam time is given, a
-warning message is issued and the module exits.
+Pearson chi-square statistical tests. If no alarm time is given, a
+warning message is issued and the DEFAULT_alarm_time will be used.
 
 
 <warning_verbosity>:
@@ -61,7 +68,7 @@ warning message is issued and the module exits.
 O: warnings are sent to stderr
 1: warnings are sent to stderr and output file
 If not given, a warning message is issued and default 0 is used; if
-something else as 0 or 1 is given, a warning message is issued and the
+something else as 0 or 1 is given, an error message is issued and the
 module exits.
 
 
@@ -74,14 +81,14 @@ O: no output generated
 4: same as 3, plus sample printing
 5: same as 4, plus all details from statistical tests
 If not given, a warning message is issued and default 3 is used; if
-something less than 0 or greater than 5 is given, a warning message is
+something less than 0 or greater than 5 is given, an error message is
 issued and the module exits.
 
 
 <endpoint_key>:
 
 The user can choose between ip, port, protocol and any combination of them, seperated by spaces. This value will form the key of the EndPoints, i. e. that all EndPoints sharing this same key are considered as one EndPoint.
-E. g. if you are only interested in ports and protocols, ip-addresses will be ignored and an EndPoint will look like "0.0.0.0:portNr | protocolNr". This enables the user to investigate port/protocol/ip-combination anomalies.
+E. g. if you are only interested in ports and protocols, ip-addresses will be ignored and an EndPoint will look like "0.0.0.0:portNr | protocolNr". This enables the user to investigate port/protocol/ip-combination anomalies. By default, all three are used as key (ip port protocol).
 
 
 <monitored_values>:
@@ -112,8 +119,8 @@ Example configuration:
   </monitored_values>
 
 The input is not case-sensitive, and "bytes" and "octets" are synonymous.
-If nothing or something else is given, the module exits after a
-warning message. Please note that the module does in fact NOT handle
+If nothing or something else is given, the module exits after an
+error message. Please note that the module does in fact NOT handle
 octets/packet, but rather 1000*octets/packet, the result being an
 integer: this trick enables to "simulate" a float division and
 increase precision, without re-writing loads of existing code.
@@ -130,8 +137,18 @@ network traffic. This helps reducing the number of "false positive" alarms.
 Noise reduction is active only if monitored_value is packets or bytes; these
 parameters will be ignored if monitored_value is something else.
 If no noise reduction prefererences are provided and if monitored_value is
-packets or bytes, a warning message is issued and default values 0 are used
-(no noise reduction).
+packets or bytes, a warning message is issued and default values are used
+(DEFAULT_noise_threshold_packets and DEFAULT_noise_threshold_bytes).
+
+
+<endpointlist_maxsize>
+
+This parameter defines the number of maximal observable endpoints. If this
+size is reached, every further endpoint will be ignored. This is to avoid
+storage exhaustion, if you run the module for a longer time. The "bigger" the
+endpoint_key, the more endpoints will be monitored, so if you e. g. use the
+combination of ip/port/protocol as endpoint_key, you should think about increasing the maxsize of the endpointlist. If nothing is given, default value will be used
+(DEFAULT_endpointlist_maxsize).
 
 
 <protocols>:
@@ -172,22 +189,11 @@ filter: only the given IPs will be monitored by the module, in both
 "in" and "out" directions; the others will be ignored. It can contain
 hosts and/or networks addresses; keep in mind that they will all be
 masked by the same subnet mask (see <netmask>). If a problem occurs
-opening this file, the module will exit after a warning message. If no
+opening this file, the module will exit after an error message. If no
 file is given, a warning message will be issued stating that it is
 assumed the user wants the module to monitor every IP address found on
-the monitored device (see <iplist_maxsize>). Please note that the IP
-addresses reported to the collector by the monitor will also be
-masked.
-
-
-<iplist_maxsize>:
-
-In case the user wants every IP address to be monitored, a limit to
-the number of these IP addresses must be provided to prevent memory
-exhaustion through too many monitored IP addresses. If not given, then
-default 421 will be used after a warning message. If the user gives
-both <ip_addresses_to_monitor> and <iplist_maxsize>, only the former
-will be taken into account.
+the monitored device. Please note that the IP addresses reported to
+the collector by the monitor will also be masked.
 
 
 <stat_test_frequency>:
@@ -195,7 +201,8 @@ will be taken into account.
 This parameter tells the module to perform a statistical test every X
 "test-runs" (see <alarm_time>), i.e. every
 <stat_test_frequency>*<alarm_time> seconds. If not provided, a warning
-message will be issued, and default X=1 will be used.
+message will be issued, and default value will be used
+(X = DEFAULT_stat_test_frequency).
 
 
 <report_only_first_attack>:
@@ -235,8 +242,8 @@ to true (after some warning messages) if not given.
 These parameters are the length of the two sample vectors used by the
 statistical tests. The former is the "profile", the "past" of the
 monitored network, to which the later, the "present" of the network,
-is compared. If not provided, default values 111 (for the "old"
-sample) and 11 (for the "new" sample) are used.
+is compared. If not provided, default values are used
+(DEFAULT_sample_old_size und DEFAULT_sample_new_size).
 
 
 <two_sided>:
@@ -257,7 +264,7 @@ If this parameter is provided, the module will display an "ATTACK!"
 message everytime the statistical tests yield a p-value hinting at the
 possibility of an attack, to significance level <significance_level>.
 Usually, we use 0.05. If a value smaller than 0 or greater than 1 is
-given, the module will display a warning message and exit. If no value
+given, the module will display an error message and exit. If no value
 is given, the module will not display any warning message, nor any
 "ATTACK!" message.
 

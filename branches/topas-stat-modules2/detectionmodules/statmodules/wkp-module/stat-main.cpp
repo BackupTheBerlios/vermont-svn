@@ -29,11 +29,10 @@ nur die tatsächlich gewollten Metriken speichern
 Stand:
 
 TODO(4)
-Alle Metriken in Konfigdatei angeben
---------------------------------------
-Bisher: Nur packets, octets usw.
-Besser: Statt packets -> packets_in und packets_out
-Stand:
+all-Werte für endpoint_key, ports, protocols
+----------------------------------------------
+(Damit man die Warnungen nicht mehr angezeigt bekommt,
+wenn man die Default-Werte verwendet)
 
 TODO(5)
 Mehr Protokolle
@@ -84,6 +83,13 @@ Stat::Stat(const std::string & configfile)
 }
 
 
+Stat::~Stat() {
+
+  outfile.close();
+
+}
+
+
 // =========================== init FUNCTION ==========================
 
 
@@ -100,6 +106,21 @@ void Stat::init(const std::string & configfile) {
 	registerModule("wkp-module");
 #endif
 
+  if (!config->nodeExists("preferences")) {
+    std::cerr
+      << "ERROR: No preferences node defined in XML config file!\n"
+      << "Define one, fill it with some parameters and restart.\nExiting.\n";
+    exit(0);
+  }
+
+  if (!config->nodeExists("test-params")) {
+    std::cerr
+      << "ERROR: No test-params node defined in XML config file!\n"
+      << "Define one, fill it with some parameters and restart.\nExiting.\n";
+    exit(0);
+  }
+
+  // ATTENTION:
   // the order of the following operations is important,
   // as some of these functions use Stat members initialized
   // by the preceding functions; so beware if you change the order
@@ -110,7 +131,7 @@ void Stat::init(const std::string & configfile) {
   init_output_file(config);
 
   // extracting source id's to accept
-  // init_accept_source_ids(config);
+  init_accepted_source_ids(config);
 
   // extracting alarm_time
   // (that means that the test() methode will be called
@@ -131,6 +152,10 @@ void Stat::init(const std::string & configfile) {
 
   // extracting noise reduction preferences
   init_noise_thresholds(config);
+
+  // extract the maximum size of the endpoint list
+  // i. e. how many endpoints can be monitored
+  init_endpointlist_maxsize(config);
 
   // extracting monitored protocols
   init_protocols(config);
@@ -208,73 +233,62 @@ void Stat::init_output_file(XMLConfObj * config) {
 
   // extracting output file's name
   if(!config->nodeExists("output_file")) {
-    std::cerr << "ERROR: No output_file parameter defined in XML config file!\n"
-      << "Please define one and restart.\nExiting.\n";
-    exit(0);
+    std::cerr
+      << "WARNING: No output_file parameter defined in XML config file!\n"
+      << "Default outputfile used (wkp_output.txt).\n";
+    outfile.open("wkp_output.txt");
   }
-  else if (!(config->getValue("output_file")).empty()) {
+  else if (!(config->getValue("output_file")).empty())
     outfile.open(config->getValue("output_file").c_str());
-    if (!outfile) {
-      std::cerr << "ERROR: could not open output file "
-    << config->getValue("output_file") << ". "
-    << "Check if you have enough rights to create or write to it.\n"
-    << "Exiting.\n";
-      exit(0);
-    }
-  }
   else {
-    std::cerr <<"ERROR: No value for output_file parameter defined in XML config file!\n"
-        <<"Please define one and restart.\nExiting.\n";
-    exit(0);
+    std::cerr
+      << "WARNING: No value for output_file parameter defined in XML config file!\n"
+      << "Default output_file used (wkp_output.txt).\n";
+    outfile.open("wkp_output.txt");
+  }
+
+  if (!outfile) {
+      std::cerr << "ERROR: could not open output file!\n"
+        << "Check if you have enough rights to create or write to it.\n"
+        << "Exiting.\n";
+      exit(0);
   }
 
   return;
 }
 
-void Stat::init_accept_source_ids(XMLConfObj * config) {
+void Stat::init_accepted_source_ids(XMLConfObj * config) {
 
-  if (!config->nodeExists("accept_source_ids")) {
-    std::stringstream Error;
-    Error << "ERROR: No accept_source_ids parameter defined in XML config file!\n"
-      << "Please define one and restart.\nExiting.\n";
-    std::cerr << Error.str();
-    outfile << Error.str() << std::flush;
-    exit(0);
+  if (!config->nodeExists("accepted_source_ids")) {
+    std::stringstream Warning;
+    Warning
+      << "WARNING: No accepted_source_ids parameter defined in XML config file!\n"
+      << "All source ids will be accepted.\n";
+    std::cerr << Warning.str();
+    outfile << Warning.str() << std::flush;
   }
-  else if (!(config->getValue("accept_source_ids")).empty()) {
-    std::string str = config->getValue("accept_source_ids");
-    unsigned res, IDEnd = 0, last = 0;
-    bool more = true;
-    std::string temp;
+  else if (!(config->getValue("accepted_source_ids")).empty()) {
+    std::string str = config->getValue("accepted_source_ids");
+    unsigned startpos = 0, endpos = 0;
     do {
-      res = str.find(',', last);
-      if (res == std::string::npos) {
-        more = false;
-        res = str.size();
-      }
-      if (IDEnd == 0) {
-        IDEnd = res;
-        if (IDEnd > 0) {
-          temp = std::string(str.begin(), str.begin() + res);
-          accept_source_ids.push_back(atoi(temp.c_str()));
+        endpos = str.find(',', endpos);
+        if (endpos == std::string::npos) {
+            subscribeSourceId(atoi((str.substr(startpos)).c_str()));
+            break;
         }
-      } else {
-        temp = std::string(str.begin() + last, str.begin() + res);
-        if (!temp.empty()) {accept_source_ids.push_back(atoi(temp.c_str())); }
-      }
-      last = res + 1; // one past last space
-    } while (more);
-    StatStore::accept_source_ids = &accept_source_ids;
+        subscribeSourceId(atoi((str.substr(startpos, endpos-startpos)).c_str()));
+        endpos++;
+    }
+    while(true);
   }
   else {
-    std::stringstream Error;
-    Error << "ERROR: No value for accept_source_ids parameter defined in XML config file!\n"
-          << "Please define one and restart.\nExiting.\n";
-    std::cerr << Error.str();
-    outfile << Error.str() << std::flush;
-    exit(0);
+    std::stringstream Warning;
+    Warning
+      << "WARNING: No value for accepted_source_ids parameter defined in XML config file!\n"
+      << "All source ids will be accepted.\n";
+    std::cerr << Warning.str();
+    outfile << Warning.str() << std::flush;
   }
-
 
   return;
 }
@@ -285,22 +299,24 @@ void Stat::init_alarm_time(XMLConfObj * config) {
   // (that means that the test() methode will be called
   // atoi(alarm_time) seconds after the last test()-run ended)
   if(!config->nodeExists("alarm_time")) {
-    std::stringstream Error;
-    Error << "ERROR: No alarm_time parameter defined in XML config file!\n"
-    << "Please define one and restart.\nExiting.\n";
-    std::cerr << Error.str();
-    outfile << Error.str() << std::flush;
-    exit(0);
+    std::stringstream Warning;
+    Warning
+      << "WARNING: No alarm_time parameter defined in XML config file!\n"
+      << DEFAULT_alarm_time << " assumed.\n";
+    std::cerr << Warning.str();
+    outfile << Warning.str() << std::flush;
+    setAlarmTime(DEFAULT_alarm_time);
   }
   else if (!(config->getValue("alarm_time")).empty())
     setAlarmTime( atoi(config->getValue("alarm_time").c_str()) );
   else {
-    std::stringstream Error;
-    Error << "ERROR: No value for alarm_time parameter defined in XML config file!\n"
-    << "Please define one and restart.\nExiting.\n";
-    std::cerr << Error.str();
-    outfile << Error.str() << std::flush;
-    exit(0);
+    std::stringstream Warning;
+    Warning
+      << "Warning: No value for alarm_time parameter defined in XML config file!\n"
+      << DEFAULT_alarm_time << " assumed.\n";
+    std::cerr << Warning.str();
+    outfile << Warning.str() << std::flush;
+    setAlarmTime(DEFAULT_alarm_time);
   }
 
   return;
@@ -309,15 +325,19 @@ void Stat::init_alarm_time(XMLConfObj * config) {
 void Stat::init_warning_verbosity(XMLConfObj * config) {
 
   std::stringstream Error, Warning, Default, Usage;
-  Error << "ERROR: warning_verbosity parameter "
+  Error
+    << "ERROR: warning_verbosity parameter "
 	  << "defined in XML config file should be 0 or 1.\n"
     << "Please define it that way and restart.\n";
-  Warning << "WARNING: No warning_verbosity parameter defined in XML config file!\n"
-        << DEFAULT_warning_verbosity << "\" assumed.\n";
-  Default << "WARNING: No value for warning_verbosity parameter defined "
+  Warning
+    << "WARNING: No warning_verbosity parameter defined in XML config file!\n"
+    << DEFAULT_warning_verbosity << "\" assumed.\n";
+  Default
+    << "WARNING: No value for warning_verbosity parameter defined "
 	  << "in XML config file! \""
 	  << DEFAULT_warning_verbosity << "\" assumed.\n";
-  Usage   << "O: warnings are sent to stderr\n"
+  Usage
+    << "O: warnings are sent to stderr\n"
 	  << "1: warnings are sent to stderr and output file\n";
 
   // extracting warning verbosity
@@ -346,16 +366,20 @@ void Stat::init_warning_verbosity(XMLConfObj * config) {
 void Stat::init_output_verbosity(XMLConfObj * config) {
 
   std::stringstream Error, Warning, Default, Usage;
-  Error << "ERROR: output_verbosity parameter defined in XML config file "
+  Error
+    << "ERROR: output_verbosity parameter defined in XML config file "
 	  << "should be between 0 and 5.\n"
     << "Please define it that way and restart.\n";
-  Warning << "WARNING: No output_verbosity parameter defined "
+  Warning
+    << "WARNING: No output_verbosity parameter defined "
     << "in XML config file! \""
     << DEFAULT_output_verbosity << "\" assumed.\n";
-  Default << "WARNING: No value for output_verbosity parameter defined "
+  Default
+    << "WARNING: No value for output_verbosity parameter defined "
 	  << "in XML config file! \""
 	  << DEFAULT_output_verbosity << "\" assumed.\n";
-  Usage   << "O: no output generated\n"
+  Usage
+    << "O: no output generated\n"
 	  << "1: only p-values and attacks are recorded\n"
 	  << "2: same as 1, plus some cosmetics\n"
 	  << "3: same as 2, plus learning phases, updates and empty records events\n"
@@ -395,13 +419,13 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
   std::stringstream Warning, Error, Default;
   Warning
     << "WARNING: No endpoint_key parameter in XML config file!\n"
-    << "Every endpoint will be monitored!";
+    << "endpoint_key will be ip + port + protocol!";
   Error
     << "ERROR: Unknown value defined for endpoint_key parameter in XML config file!\n"
     << "Value should be either port, ip, protocol or any combination of them (seperated via spaces)!\n";
   Default
-    << "WARNING: Value of endpoint_key parameter in XML config file is empty!\n"
-    << "Every endpoint will be monitored!";
+    << "WARNING: No value for endpoint_key parameter defined in XML config file!\n"
+    << "endpoint_key will be ip + port + protocol!";
 
   // extracting key of endpoints to monitor
   if (!config->nodeExists("endpoint_key")) {
@@ -586,46 +610,80 @@ void Stat::init_noise_thresholds(XMLConfObj * config) {
   // extracting noise threshold for packets
   if(!config->nodeExists("noise_threshold_packets")) {
     std::stringstream Default1;
-    Default1 << "WARNING: No noise_threshold_packets parameter defined in XML config file!\n"
-        << "There will be no noise reduction for packets.\n";
+    Default1
+      << "WARNING: No noise_threshold_packets parameter defined in XML config file!\n"
+      << "\"" << DEFAULT_noise_threshold_packets << "\" assumed.\n";
     std::cerr << Default1.str();
     if (warning_verbosity==1)
       outfile << Default1.str() << std::flush;
-    noise_threshold_packets = 0;
+    noise_threshold_packets = DEFAULT_noise_threshold_packets;
   }
   else if ( !(config->getValue("noise_threshold_packets").empty()) )
     noise_threshold_packets = atoi(config->getValue("noise_threshold_packets").c_str());
   else {
     std::stringstream Default1;
-    Default1 << "WARNING: No value for noise_threshold_packets parameter defined in XML config file!\n"
-        << "There will be no noise reduction for packets.\n";
+    Default1
+      << "WARNING: No value for noise_threshold_packets parameter defined in XML config file!\n"
+      << "\"" << DEFAULT_noise_threshold_packets << "\" assumed.\n";
     std::cerr << Default1.str();
     if (warning_verbosity==1)
       outfile << Default1.str() << std::flush;
-    noise_threshold_packets = 0;
+    noise_threshold_packets = DEFAULT_noise_threshold_packets;
   }
 
     // extracting noise threshold for bytes
   if(!config->nodeExists("noise_threshold_bytes")) {
     std::stringstream Default2;
-    Default2 << "WARNING! No noise_threshold_bytes parameter defined in XML config file!\n"
-        << "There will be no noise reduction for bytes.\n";
+    Default2
+      << "WARNING: No noise_threshold_bytes parameter defined in XML config file!\n"
+      << "\"" << DEFAULT_noise_threshold_bytes << "\" assumed.\n";
     std::cerr << Default2.str();
     if (warning_verbosity==1)
       outfile << Default2.str() << std::flush;
-    noise_threshold_bytes = 0;
+    noise_threshold_bytes = DEFAULT_noise_threshold_bytes;
   }
   else if ( !(config->getValue("noise_threshold_bytes").empty()) )
     noise_threshold_bytes = atoi(config->getValue("noise_threshold_bytes").c_str());
   else {
     std::stringstream Default2;
-    Default2 << "WARNING: No value for noise_threshold_bytes parameter defined in XML config file!\n"
-        << "There will be no noise reduction for bytes.\n";
+    Default2
+      << "WARNING: No value for noise_threshold_bytes parameter defined in XML config file!\n"
+      << "\"" << DEFAULT_noise_threshold_bytes << "\" assumed.\n";
     std::cerr << Default2.str();
     if (warning_verbosity==1)
       outfile << Default2.str() << std::flush;
-    noise_threshold_bytes = 0;
+    noise_threshold_bytes = DEFAULT_noise_threshold_bytes;
   }
+
+  return;
+}
+
+void Stat::init_endpointlist_maxsize(XMLConfObj * config) {
+
+  std::stringstream Warning, Warning1;
+  Warning
+    << "WARNING: No endpointlist_maxsize parameter defined in XML config file!\n"
+    << DEFAULT_endpointlist_maxsize << " assumed.\n";
+  Warning1
+    << "WARNING: No value for endpointlist_maxsize parameter defined in XML config file!\n"
+    << DEFAULT_endpointlist_maxsize << " assumed.\n";
+
+  if (!config->nodeExists("endpointlist_maxsize")) {
+    std::cerr << Warning.str();
+    if (warning_verbosity==1)
+      outfile << Warning.str() << std::flush;
+    endpointlist_maxsize = DEFAULT_endpointlist_maxsize;
+  }
+  else if (!(config->getValue("endpointlist_maxsize")).empty())
+    endpointlist_maxsize = atoi( config->getValue("endpointlist_maxsize").c_str() );
+  else {
+    std::cerr << Warning1.str();
+    if (warning_verbosity==1)
+      outfile << Warning1.str() << std::flush;
+    endpointlist_maxsize = DEFAULT_endpointlist_maxsize;
+  }
+
+  StatStore::setEndPointListMaxSize() = endpointlist_maxsize;
 
   return;
 }
@@ -639,15 +697,18 @@ void Stat::init_protocols(XMLConfObj * config) {
   if (protocol_monitoring == true) {
 
     std::stringstream Default, Warning, Usage;
-    Default << "WARNING: No protocols parameter defined in XML config file!\n"
+    Default
+      << "WARNING: No protocols parameter defined in XML config file!\n"
       << "All protocols will be monitored (ICMP, TCP, UDP, RAW).\n";
-    Warning << "WARNING: No value for protocols parameter defined in XML config file!\n"
+    Warning
+      << "WARNING: No value for protocols parameter defined in XML config file!\n"
       << "All protocols will be monitored (ICMP, TCP, UDP, RAW).\n";
-    Usage << "Please use ICMP, TCP, UDP or RAW (or "
-    << IPFIX_protocolIdentifier_ICMP << ", "
-    << IPFIX_protocolIdentifier_TCP  << ", "
-    << IPFIX_protocolIdentifier_UDP << " or "
-    << IPFIX_protocolIdentifier_RAW  << ").\n";
+    Usage
+      << "Please use ICMP, TCP, UDP or RAW (or "
+      << IPFIX_protocolIdentifier_ICMP << ", "
+      << IPFIX_protocolIdentifier_TCP  << ", "
+      << IPFIX_protocolIdentifier_UDP << " or "
+      << IPFIX_protocolIdentifier_RAW  << ").\n";
 
     // extracting monitored protocols
     if (!config->nodeExists("protocols")) {
@@ -726,12 +787,16 @@ void Stat::init_netmask(XMLConfObj * config) {
   if (ip_monitoring == true) {
 
     std::stringstream Default, Warning, Error, Usage;
-    Default << "WARNING: No value for netmask parameter defined in XML config file! "
-      << "32 assumed.\n";
-    Warning << "WARNING: No netmask parameter defined in XML config file! "
-      << "32 assumed.\n";
-    Error << "ERROR: Netmask parameter was provided in an unknown format in XML config file!\n";
-    Usage   << "Use xxx.yyy.zzz.ttt, hexadecimal or an int between 0 and 32.\n";
+    Default
+      << "WARNING: No value for netmask parameter defined in XML config file!\n"
+      << "\"32\" assumed.\n";
+    Warning
+      << "WARNING: No netmask parameter defined in XML config file!\n"
+      << "\"32\" assumed.\n";
+    Error
+      << "ERROR: Netmask parameter was provided in an unknown format in XML config file!\n";
+    Usage
+      << "Use xxx.yyy.zzz.ttt, hexadecimal or an int between 0 and 32.\n";
 
     if (config->nodeExists("netmask")) {
 
@@ -844,9 +909,12 @@ void Stat::init_ports(XMLConfObj * config) {
   if (port_monitoring == true && ports_relevant == true) {
 
     std::stringstream Warning1, Warning2, Default;
-    Warning1 << "WARNING: No ports parameter was provided in XML config file!\n";
-    Warning2 << "WARNING: No value for ports parameter was provided in XML config file!\n";
-    Default << "Every port will be monitored.\n";
+    Warning1
+      << "WARNING: No ports parameter was provided in XML config file!\n";
+    Warning2
+      << "WARNING: No value for ports parameter was provided in XML config file!\n";
+    Default
+      << "Every port will be monitored.\n";
 
     // extracting port numbers to monitor
     if (config->nodeExists("ports")) {
@@ -887,19 +955,13 @@ void Stat::init_ip_addresses(XMLConfObj * config) {
   // (that means, they were part of the endpoint_key-parameter)
   if (ip_monitoring == true) {
 
-    std::stringstream Warning, Warning1, Warning2, Warning3;
+    std::stringstream Warning, Warning1;
     Warning
-    << "WARNING: I got no parameter ip_addresses_to_monitor in XML config file!\n"
-    << "I suppose you want me to monitor everything; I'll try.\n";
+      << "WARNING: No ip_addresses_to_monitor parameter defined in XML config file!\n"
+      << "I suppose you want me to monitor everything; I'll try.\n";
     Warning1
-    << "WARNING: I got no value for parameter ip_addresses_to_monitor in XML config file!\n"
-    << "I suppose you want me to monitor everything; I'll try.\n";
-    Warning2
-    << "WARNING: I got no iplist_maxsize parameter in XML config file!\n"
-    << "I'll use default value, " << DEFAULT_iplist_maxsize << ".\n";
-    Warning3
-    << "WARNING: I got no value for iplist_maxsize parameter in XML config file!\n"
-    << "I'll use default value, " << DEFAULT_iplist_maxsize << ".\n";
+      << "WARNING: No value for ip_addresses_to_monitor parameter defined in XML config file!\n"
+      << "I suppose you want me to monitor everything; I'll try.\n";
 
     // the following section extracts either the IP addresses to monitor
     // or the maximal number of IPs to monitor in case the user doesn't
@@ -919,31 +981,18 @@ void Stat::init_ip_addresses(XMLConfObj * config) {
       std::cerr << Warning1.str();
       if (warning_verbosity==1)
         outfile << Warning1.str() << std::flush;
-      if (!config->nodeExists("iplist_maxsize")) {
-        std::cerr << Warning2.str();
-        if (warning_verbosity==1)
-          outfile << Warning2.str() << std::flush;
-        iplist_maxsize = DEFAULT_iplist_maxsize;
-      }
-      else if (!(config->getValue("iplist_maxsize")).empty())
-        iplist_maxsize = atoi( config->getValue("iplist_maxsize").c_str() );
-      else {
-        std::cerr << Warning3.str();
-        if (warning_verbosity==1)
-          outfile << Warning3.str() << std::flush;
-        iplist_maxsize = DEFAULT_iplist_maxsize;
-      }
     }
 
-    // and the following section uses the extracted ipfile or iplist_maxsize
+    // and the following section uses the extracted ipfile
     // information to initialise some static members of the StatStore class
     if (gotIpfile == true) {
 
       std::stringstream Error;
-      Error << "ERROR: I could not open IP-file " << ipfile << "!\n"
-      << "Please check that the file exists, "
-      << "and that you have enough rights to read it.\n"
-      << "Exiting.\n";
+      Error
+        << "ERROR: I could not open IP-file " << ipfile << "!\n"
+        << "Please check that the file exists, "
+        << "and that you have enough rights to read it.\n"
+        << "Exiting.\n";
 
       std::ifstream ipstream(ipfile.c_str());
 
@@ -954,33 +1003,30 @@ void Stat::init_ip_addresses(XMLConfObj * config) {
         exit(0);
       }
       else {
-        std::vector<EndPoint> IpVector;
+        std::vector<IpAddress> IpVector;
         unsigned int ip[4];
         char dot;
 
         // save read IPs in a vector; mask them at the same time
-        while (ipstream >> ip[0] >> dot >> ip[1] >> dot >> ip[2] >> dot>>ip[3])
-          IpVector.push_back(EndPoint(IpAddress(ip[0],ip[1],ip[2],ip[3]).mask(StatStore::getSubnetMask()), 0, 0));
+        while (ipstream >> ip[0] >> dot >> ip[1] >> dot >> ip[2] >> dot >> ip[3])
+          IpVector.push_back(IpAddress(ip[0],ip[1],ip[2],ip[3]).mask(StatStore::getSubnetMask()) );
 
         // just in case the user provided a file with multiples IPs,
         // or the mask function made multiple IPs to appear:
         sort(IpVector.begin(),IpVector.end());
-        std::vector<EndPoint>::iterator new_end = unique(IpVector.begin(),IpVector.end());
-        std::vector<EndPoint> IpVectorBis (IpVector.begin(), new_end);
+        std::vector<IpAddress>::iterator new_end = unique(IpVector.begin(),IpVector.end());
+        std::vector<IpAddress> IpVectorBis (IpVector.begin(), new_end);
 
         // finally, add these IPs to monitor to static member
         // StatStore::MonitoredIpAddresses
         StatStore::AddIpToMonitoredIp (IpVectorBis);
-
         // no need to monitor every IP:
         StatStore::setMonitorEveryIp() = false;
       }
 
     }
-    else {
+    else
       StatStore::setMonitorEveryIp() = true;
-      StatStore::setIpListMaxSize() = iplist_maxsize;
-    }
 
     subscribeTypeId(IPFIX_TYPEID_sourceIPv4Address);
     subscribeTypeId(IPFIX_TYPEID_destinationIPv4Address);
@@ -994,8 +1040,9 @@ void Stat::init_stat_test_freq(XMLConfObj * config) {
   // extracting statistical test frequency
   if (!config->nodeExists("stat_test_frequency")) {
     std::stringstream Default;
-    Default << "WARNING: No stat_test_frequency parameter "
-      << "defined in XML config file! \""
+    Default
+      << "WARNING: No stat_test_frequency parameter "
+      << "defined in XML config file!\n\""
       << DEFAULT_stat_test_frequency << "\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
@@ -1008,8 +1055,9 @@ void Stat::init_stat_test_freq(XMLConfObj * config) {
   }
   else {
     std::stringstream Default;
-    Default << "WARNING: No value for stat_test_frequency parameter "
-	    << "defined in XML config file! \""
+    Default
+      << "WARNING: No value for stat_test_frequency parameter "
+	    << "defined in XML config file!\n\""
 	    << DEFAULT_stat_test_frequency << "\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
@@ -1025,8 +1073,10 @@ void Stat::init_report_only_first_attack(XMLConfObj * config) {
   // extracting report_only_first_attack preference
   if (!config->nodeExists("report_only_first_attack")) {
     std::stringstream Default;
-    Default << "WARNING: No report_only_first_attack parameter "
-      << "defined in XML config file! \"true\" assumed.\n";
+    Default
+      << "WARNING: No report_only_first_attack parameter "
+      << "defined in XML config file!\n"
+      << "\"true\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
       outfile << Default.str();
@@ -1038,8 +1088,10 @@ void Stat::init_report_only_first_attack(XMLConfObj * config) {
   }
   else {
     std::stringstream Default;
-    Default << "WARNING: No value for report_only_first_attack parameter "
-	    << "defined in XML config file! \"true\" assumed.\n";
+    Default
+      << "WARNING: No value for report_only_first_attack parameter "
+	    << "defined in XML config file!\n"
+      << "\"true\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
       outfile << Default.str();
@@ -1061,8 +1113,10 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
   // extracting pause_update_when_attack preference
   if (!config->nodeExists("pause_update_when_attack")) {
     std::stringstream Default;
-    Default << "WARNING: No pause_update_when_attack parameter "
-      << "defined in XML config file! \"true\" assumed.\n";
+    Default
+      << "WARNING: No pause_update_when_attack parameter "
+      << "defined in XML config file!\n"
+      << "\"true\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
       outfile << Default.str();
@@ -1074,8 +1128,10 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
   }
   else {
     std::stringstream Default;
-    Default << "WARNING: No value for pause_update_when_attack parameter "
-	    << "defined in XML config file! \"true\" assumed.\n";
+    Default
+      << "WARNING: No value for pause_update_when_attack parameter "
+	    << "defined in XML config file!\n"
+      << "\"true\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
       outfile << Default.str();
@@ -1088,18 +1144,24 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
 void Stat::init_which_test(XMLConfObj * config) {
 
   std::stringstream WMWdefault, WMWdefault1, KSdefault, KSdefault1, PCSdefault, PCSdefault1;
-  WMWdefault << "WARNING: No wilcoxon_test parameter "
-	     << "defined in XML config file! \"true\" assumed.\n";
-  WMWdefault1 << "WARNING: No value for wilcoxon_test parameter "
-       << "defined in XML config file! \"true\" assumed.\n";
-  KSdefault  << "WARNING: No kolmogorov_test parameter "
-	     << "defined in XML config file! \"true\" assumed.\n";
-  KSdefault1  << "WARNING: No value for kolmogorov_test parameter "
-       << "defined in XML config file! \"true\" assumed.\n";
-  PCSdefault << "WARNING: No pearson_chi-square_test parameter "
-	     << "defined in XML config file! \"true\" assumed.\n";
-  PCSdefault1 << "WARNING: No value for pearson_chi-square_test parameter "
-       << "defined in XML config file! \"true\" assumed.\n";
+  WMWdefault
+    << "WARNING: No wilcoxon_test parameter "
+    << "defined in XML config file!\n\"true\" assumed.\n";
+  WMWdefault1
+    << "WARNING: No value for wilcoxon_test parameter "
+    << "defined in XML config file!\n\"true\" assumed.\n";
+  KSdefault
+    << "WARNING: No kolmogorov_test parameter "
+    << "defined in XML config file!\n\"true\" assumed.\n";
+  KSdefault1
+    << "WARNING: No value for kolmogorov_test parameter "
+    << "defined in XML config file!\n\"true\" assumed.\n";
+  PCSdefault
+    << "WARNING: No pearson_chi-square_test parameter "
+    << "defined in XML config file!\n\"true\" assumed.\n";
+  PCSdefault1
+    << "WARNING: No value for pearson_chi-square_test parameter "
+    << "defined in XML config file!\n\"true\" assumed.\n";
 
   // extracting type of test
   // (Wilcoxon and/or Kolmogorov and/or Pearson chi-square)
@@ -1157,18 +1219,18 @@ void Stat::init_which_test(XMLConfObj * config) {
 void Stat::init_sample_sizes(XMLConfObj * config) {
 
   std::stringstream Default_old, Default1_old, Default_new, Default1_new;
-  Default_old << "WARNING: No sample_old_size parameter defined in XML config file! "
-	      << "Using default value, "
-	      << DEFAULT_sample_old_size << ".\n";
-  Default1_old << "WARNING: No value for sample_old_size parameter defined in XML config file! "
-        << "Using default value, "
-        << DEFAULT_sample_old_size << ".\n";
-  Default_new << "WARNING: No sample_new_size parameter defined in XML config file! "
-	      << "Using default value, "
-	      << DEFAULT_sample_new_size << ".\n";
-  Default1_new << "WARNING: No value for sample_new_size parameter defined in XML config file! "
-        << "Using default value, "
-        << DEFAULT_sample_new_size << ".\n";
+  Default_old
+    << "WARNING: No sample_old_size parameter defined in XML config file! "
+	  << DEFAULT_sample_old_size << " assumed.\n";
+  Default1_old
+    << "WARNING: No value for sample_old_size parameter defined in XML config file! "
+    << DEFAULT_sample_old_size << " assumed.\n";
+  Default_new
+    << "WARNING: No sample_new_size parameter defined in XML config file! "
+    << DEFAULT_sample_new_size << " assumed.\n";
+  Default1_new
+    << "WARNING: No value for sample_new_size parameter defined in XML config file! "
+    << DEFAULT_sample_new_size << " assumed.\n";
 
   // extracting size of sample_old
   if (!config->nodeExists("sample_old_size")) {
@@ -1217,7 +1279,8 @@ void Stat::init_two_sided(XMLConfObj * config) {
     // statistical test; Pearson chi-square test and Kolmogorov-Smirnov
     // test are one-sided only.
     std::stringstream Default;
-    Default << "WARNING: No two_sided parameter defined in XML config file! "
+    Default
+      << "WARNING: No two_sided parameter defined in XML config file!\n"
       << "\"false\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
@@ -1226,7 +1289,8 @@ void Stat::init_two_sided(XMLConfObj * config) {
   }
   else if ( enable_wmw_test == true && config->getValue("two_sided").empty() ) {
     std::stringstream Default;
-    Default << "WARNING: No value for two_sided parameter defined in XML config file! "
+    Default
+      << "WARNING: No value for two_sided parameter defined in XML config file!\n"
       << "\"false\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
@@ -1257,10 +1321,13 @@ void Stat::init_significance_level(XMLConfObj * config) {
       }
     }
     else {
-      std::stringstream Warning("WARNING: No value for significance_level parameter defined in XML config file!\n -1 assumed (nothing will be interpreted as an attack).\n");
-        std::cerr << Warning.str();
-        if (warning_verbosity==1)
-          outfile << Warning.str() << std::flush;
+      std::stringstream Warning;
+      Warning
+        << "WARNING: No value for significance_level parameter defined in XML config file!\n"
+        << "-1 assumed (nothing will be interpreted as an attack).\n";
+      std::cerr << Warning.str();
+      if (warning_verbosity==1)
+        outfile << Warning.str() << std::flush;
       significance_level = -1;
       // means no alarmist verbose effect ("Attack!!!", etc):
       // as 0 <= p-value <= 1, we will always have
@@ -1270,11 +1337,14 @@ void Stat::init_significance_level(XMLConfObj * config) {
     }
   }
   else {
-      std::stringstream Warning("WARNING: No significance_level parameter defined in XML config file!\n -1 assumed (nothing will be interpreted as an attack).\n");
-        std::cerr << Warning.str();
-        if (warning_verbosity==1)
-          outfile << Warning.str() << std::flush;
-      significance_level = -1;
+    std::stringstream Warning;
+    Warning
+      << "WARNING: No significance_level parameter defined in XML config file!\n"
+      << "-1 assumed (nothing will be interpreted as an attack).\n";
+      std::cerr << Warning.str();
+      if (warning_verbosity==1)
+        outfile << Warning.str() << std::flush;
+    significance_level = -1;
   }
 
   return;
@@ -1296,18 +1366,6 @@ void Stat::test(StatStore * store) {
   std::map<EndPoint,Info> Data = store->getData();
   std::map<EndPoint,Info> PreviousData = store->getPreviousData();
 
-  // Print some warning message if it appears that maximal size of IP list
-  // was reached (in the StatStore object "store") and that a new IP
-  // had to be rejected:
-  if (store->IpListMaxSizeReachedAndNewIpWantedToEnterIt == 1) {
-    std::cerr << "Could not monitor a new IP address, "
-	      << "maximal size of sample container reached\n";
-    if (output_verbosity >= 3) {
-      outfile << "Could not monitor a new IP address, "
-	      << "maximal size of sample container reached" << std::endl;
-    }
-  }
-
   // Dumping empty records:
   if (Data.empty()==true) {
     if (output_verbosity>=3 || warning_verbosity==1)
@@ -1319,7 +1377,7 @@ void Stat::test(StatStore * store) {
   // 1) LEARN/UPDATE PHASE
 
   // Parsing data to see whether the recorded EndPoints already exist
-  // in our  "std::map<EndPoint, Samples> Records"  sample container.
+  // in our  "std::map<EndPoint, Samples> SampleData" sample container.
   // If not, then we add it as a new pair <EndPoint, Samples>.
   // If yes, then we update the corresponding Samples using
   // Values extracted data.
@@ -1341,23 +1399,23 @@ void Stat::test(StatStore * store) {
     // PreviousData[Data_it->first] will automaticaly be an Info structure
     // with all fields set to 0.
 
-    std::map<EndPoint, Samples>::iterator Records_it =
-      Records.find(Data_it->first);
+    std::map<EndPoint, Samples>::iterator SampleData_it =
+      SampleData.find(Data_it->first);
 
     outfile << "[[ " << Data_it->first << " ]]" << std::endl;
 
-    if (Records_it == Records.end()) {
+    if (SampleData_it == SampleData.end()) {
 
       // We didn't find the recorded EndPoint Data_it->first
-      // in our sample container "Records"; that means it's a new one,
-      // so we just add it in "Records"; there will not be jeopardy
-      // of memory exhaustion through endless growth of the "Records" map
+      // in our sample container "SampleData"; that means it's a new one,
+      // so we just add it in "SampleData"; there will not be jeopardy
+      // of memory exhaustion through endless growth of the "SampleData" map
       // as limits are implemented in the StatStore class (EndPointListMaxSize)
 
       Samples S;
       // extract_data has enum Metric as output
       (S.Old).push_back(extract_data(Data_it->second, prev));
-      Records[Data_it->first] = S;
+      SampleData[Data_it->first] = S;
       if (output_verbosity >= 3) {
 	      outfile << "New monitored EndPoint added" << std::endl;
 	      if (output_verbosity >= 4) {
@@ -1368,10 +1426,10 @@ void Stat::test(StatStore * store) {
     }
     else {
       // We found the recorded EndPoint Data_it->first
-      // in our sample container "Records"; so we update the samples
-      // (Records_it->second).Old and (Records_it->second).New
+      // in our sample container "SampleData"; so we update the samples
+      // (SampleData_it->second).Old and (SampleData_it->second).New
       // thanks to the recorded new value in Data_it->second:
-      update ( (Records_it->second).Old , (Records_it->second).New ,
+      update ( (SampleData_it->second).Old , (SampleData_it->second).New ,
 	       extract_data(Data_it->second, prev) );
 
     }
@@ -1383,19 +1441,19 @@ void Stat::test(StatStore * store) {
   // 1.5) MAP PRINTING (OPTIONAL, DEPENDS ON VERBOSITY SETTINGS)
 
 
-  // Problem: (Records_it->second).Old und (Records_it->second).New
+  // Problem: (SampleData_it->second).Old und (SampleData_it->second).New
   // waren bisher int, jetzt sind es Structs Values.
   // Hier sollen aber nicht alle darin enthaltenen Metriken
   // ausgegeben werden, sondern nur die relevanten ...
   if (output_verbosity >= 4) {
     outfile << "#### STATE OF ALL MONITORED ENDPOINTS:" << std::endl;
-    std::map<EndPoint, Samples>::iterator Records_it =
-      Records.begin();
-    while (Records_it != Records.end()) {
-      outfile << "[[ " << Records_it->first << " ]]" << std::endl;
-      outfile << "size of old: " << ((Records_it->second).Old).size();
-      outfile << " ## size of new: " << ((Records_it->second).New).size() << std::endl;
-      Records_it++;
+    std::map<EndPoint, Samples>::iterator SampleData_it =
+      SampleData.begin();
+    while (SampleData_it != SampleData.end()) {
+      outfile << "[[ " << SampleData_it->first << " ]]" << std::endl;
+      outfile << "size of old: " << ((SampleData_it->second).Old).size();
+      outfile << " ## size of new: " << ((SampleData_it->second).New).size() << std::endl;
+      SampleData_it++;
     }
     outfile << std::flush;
   }
@@ -1415,20 +1473,19 @@ void Stat::test(StatStore * store) {
 
   if (MakeStatTest == true) {
 
-    outfile << "#### STATISTICAL TESTS" << std::endl;
     // We begin testing as soon as possible, i.e. as soon as a sample
     // is big enough to test, i.e. when its learning phase is over.
-    // The other samples in the "Records" map are let learning.
+    // The other samples in the "SampleData" map are let learning.
 
-    std::map<EndPoint,Samples>::iterator Records_it = Records.begin();
+    std::map<EndPoint,Samples>::iterator SampleData_it = SampleData.begin();
 
-    while (Records_it != Records.end()) {
-      if ( ((Records_it->second).New).size() == sample_new_size ) {
+    while (SampleData_it != SampleData.end()) {
+      if ( ((SampleData_it->second).New).size() == sample_new_size ) {
         // i.e., learning phase over
-        outfile << "\n[[ " << Records_it->first << " ]]\n";
-        stat_test ( (Records_it->second).Old, (Records_it->second).New );
+        outfile << "\n#### STATISTICAL TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
+        stat_test ( (SampleData_it->second).Old, (SampleData_it->second).New );
       }
-      Records_it++;
+      SampleData_it++;
     }
 
   }

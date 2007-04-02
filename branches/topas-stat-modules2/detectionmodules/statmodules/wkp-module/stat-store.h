@@ -28,6 +28,7 @@
 #include <vector>
 #include <algorithm> // <vector> does not have a member function find(...)
 #include <iostream>
+#include <sstream>
 
 
 // ==================== STORAGE CLASS StatStore ====================
@@ -41,6 +42,9 @@ class StatStore : public DataStore {
                                     // current record
   EndPoint e_source;
   EndPoint e_dest;
+
+  bool skip_both, skip_source, skip_dest; // flags for skipping a record if
+                                          // some filters did match
 
   std::map<EndPoint,Info> Data;     // data collected from all records received
                                     // since last call to Stat::test()
@@ -63,30 +67,13 @@ class StatStore : public DataStore {
   void addFieldData(int id, byte * fieldData, int fieldDataLength,
 		    EnterpriseNo eid = 0);
 
-  static std::vector<int>* accept_source_ids;
-
   std::map<EndPoint,Info> getData() const {return Data;}
   std::map<EndPoint,Info> getPreviousData() const {return PreviousData;}
-
-  bool skip_both, skip_source, skip_dest;
-
-  int IpListMaxSizeReachedAndNewIpWantedToEnterIt;
-  // This is just a flag, set to 0 at the beginning by the StatStore
-  // constructor, then to 1 by StatStore::addFieldData if a new addresse
-  // was observed but could not be added to our IpList for place reasons.
-  // ToDo: this should be replaced by an exception.
-  // Stat::test() should use this flag to display some warning message,
-  // rather than use MonitoredIpAddresses.size(), because the former is reset
-  // at the beginning of a new "round": using the later would yield
-  // "false positive NewIpWantedToEnter events"
-
-  // It is public because Stat::test() will read it and that it doesn't
-  // deserve a "getter", as it should be replaced by an exception...
 
 
  private:
 
-  static std::vector<EndPoint> MonitoredIpAddresses;
+  static std::vector<IpAddress> MonitoredIpAddresses;
   // IP addresses to monitor. They are provided in a file by the user;
   // this file is read by Stat::init(), which then initializes
   // MonitoredIpAddresses
@@ -102,7 +89,11 @@ class StatStore : public DataStore {
   // MonitoredIpAddresses vector until a maximal size (to prevent
   // memory exhaustion) is reached.
 
-  static int IpListMaxSize;
+  static std::vector<EndPoint> EndPointList;
+  // Currently monitored EndPoints. Every Endpoint we are interested in
+  // is added to this List until EndPointListMaxSize is reached.
+
+  static int EndPointListMaxSize;
   // This maximal size is defined by the user and set by Stat::init().
   // If forgotten by the user, default max size is provided.
 
@@ -141,11 +132,11 @@ class StatStore : public DataStore {
 
   // Public "setters" we just spoke about:
 
-  static void AddIpToMonitoredIp (EndPoint IP) {
+  static void AddIpToMonitoredIp (IpAddress IP) {
     MonitoredIpAddresses.push_back(IP);
   }
 
-  static void AddIpToMonitoredIp (const std::vector<EndPoint> & IPvector) {
+  static void AddIpToMonitoredIp (const std::vector<IpAddress> & IPvector) {
     MonitoredIpAddresses.insert(MonitoredIpAddresses.end(),
 				IPvector.begin(), IPvector.end());
   }
@@ -164,8 +155,8 @@ class StatStore : public DataStore {
     return MonitorEveryIp;
   }
 
-  static int & setIpListMaxSize () {
-    return IpListMaxSize;
+  static int & setEndPointListMaxSize () {
+    return EndPointListMaxSize;
   }
 
   static void AddProtocolToMonitoredProtocols (byte Protocol_id) {

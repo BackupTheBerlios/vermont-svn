@@ -11,47 +11,34 @@
 		</xmlBlaster>
 	</xmlBlasters>
 	<preferences>
-	  <output_file>wkp.output</output_file>
-		<alarm_time>5</alarm_time>
-		<warning_verbosity>1</warning_verbosity>
-	  <output_verbosity>5</output_verbosity>
-    <endpoint_key>port</endpoint_key>
-    <monitored_values>
-      <!--
-      <value>packets_out</value>
-      <value>bytes_in</value>
-      <value>records_in</value>
-      <value>records_out</value>
-      <value>bytes_in/packet_in</value>
-      <value>bytes_out/packet_out</value>
-      <value>packets_out-packets_in</value>
-      <value>bytes_out-bytes_in</value>
-      <value>packets_in(t)-packets_in(t-1)</value>
-      <value>packets_out(t)-packets_out(t-1)</value>
-      <value>bytes_in(t)-bytes_in(t-1)</value>
-      <value>bytes_out(t)-bytes_out(t-1)</value>
-      -->
-      <value>packets_in</value>
+	  <output_file>wkp.output</output_file> // Default: wkp_output.txt
+    <accepted_source_ids></accepted_source_ids> // Default: all
+		<alarm_time>5</alarm_time>  // Default: 10
+		<warning_verbosity>1</warning_verbosity> // Default: 0
+	  <output_verbosity>5</output_verbosity>  // Default: 3
+    <endpoint_key>ip port protocol</endpoint_key> // Default: all
+    <monitored_values>  // HAS TO BE DEFINED
+      <value>packets_in</value> // HAS TO BE DEFINED (at least one value)
       <value>bytes_out</value>
     </monitored_values>
-    <noise_threshold_packets>0</noise_threshold_packets>
-    <noise_threshold_bytes>0</noise_threshold_bytes>
-		<protocols></protocols>
-	  <netmask>32</netmask>
-    <ports></ports>
-    <ip_addresses_to_monitor></ip_addresses_to_monitor>
-    <iplist_maxsize>4000</iplist_maxsize>
-		<stat_test_frequency>1</stat_test_frequency>
-		<report_only_first_attack>true</report_only_first_attack>
-    <pause_update_when_attack>true</pause_update_when_attack>
+    <noise_threshold_packets>0</noise_threshold_packets> // Default: 0
+    <noise_threshold_bytes>0</noise_threshold_bytes>  // Default: 0
+    <endpointlist_maxsize>1000</endpointlist_maxsize> // Default: 500
+		<protocols></protocols> // Default: all
+	  <netmask>32</netmask> // Default: 32
+    <ports></ports> // Default: all
+    <ip_addresses_to_monitor></ip_addresses_to_monitor> // Default: all (no file)
+		<stat_test_frequency>1</stat_test_frequency> // Default: 1
+		<report_only_first_attack>true</report_only_first_attack> // Default: true
+    <pause_update_when_attack>true</pause_update_when_attack> // Default: true
 	</preferences>
 	<test-params>
-		<wilcoxon_test>true</wilcoxon_test>
-		<kolmogorov_test>true</kolmogorov_test>
-		<pearson_chi-square_test>true</pearson_chi-square_test>
-		<sample_old_size>2</sample_old_size>
-		<sample_new_size>1</sample_new_size>
-		<two_sided>true</two_sided>
-		<significance_level>0.05</significance_level>
+		<wilcoxon_test>true</wilcoxon_test> // Default: true
+		<kolmogorov_test>true</kolmogorov_test> // Default: true
+		<pearson_chi-square_test>true</pearson_chi-square_test> // Default: true
+		<sample_old_size>2</sample_old_size>  // Default: 111
+		<sample_new_size>1</sample_new_size>  // Default: 11
+		<two_sided>false</two_sided> // Default: false
+		<significance_level>0.05</significance_level> // Default: -1 (no Alarms will be generated)
 	</test-params>
 </configuration>
