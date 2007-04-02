@@ -26,13 +26,11 @@
 #include <cstdlib>
 #include <commonutils/msgstream.h>
 
-MsgStream ms;
+MsgStream ms(MsgStream::WARN, "CountModule");
 
 /* demonstrates the use of libdetectionModule */
 int main(int argc, char** argv) 
 {
-    ms.setName("CountModule");
-
     if (argc == 2) {
 	CountModule m(argv[1]);
 	return m.exec();

@@ -62,6 +62,7 @@ public:
 	 * Creates a new message stream.
 	 */
 	MsgStream() : outputLevel(WARN), name("unknown"), printThis(false) {}
+	MsgStream(MsgLevel l, std::string s) : outputLevel(l), name(s), printThis(false) {}
 
 	/**
 	 * Destroyes the message stream
