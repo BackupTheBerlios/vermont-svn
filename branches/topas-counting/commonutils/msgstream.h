@@ -23,10 +23,37 @@
 #include <sstream>
 #include <iostream>
 
+/**
+ * Message Stream class as a C++ alternative to the msg(...) function of msg.h/c
+ *
+ * This class allows printing error, info and debug messages to stdout.
+ * Currently, five messaging levels are defined in enum type MsgLevel:
+ *   FATAL, ERROR, WARN, INFO, DEBUG
+ * The default level is WARN, which means that FATAL, ERROR and WARN level
+ * messages are printed. You can change the messaging level with 
+ * setLevel(MsgLevel).
+ * The method setName(const std::string&) sets a name (typically the module or
+ * program name) which is included in every output.
+ * There are two ways to print a message:
+ * (i)  Use the method print(MsgLevel level, const std::string& msg) to print
+ *      a string.
+ * (ii) Use the streaming operator << to generate more flexible output.
+ *      The first input to the stream should be the level of the message, i.e. 
+ *      MsgStream::FATAL. To terminate the line, use MsgStream::endl.
+ *      
+ * Usage example:
+ *   MsgStream ms;
+ *   ms.setLevel(MsgStream::INFO);
+ *   ms.setName("my module");
+ *   ms.print(MsgStream::INFO, "Just a short note.");
+ *   ms << MsgStream::FATAL << "I have to die!" << MsgStream::endl;
+ * 
+ */
+
 class MsgStream {
 public:
 	typedef enum {
-	    FATAL, ERROR, WARN, INFO, DEBUG
+	    FATAL=1, ERROR=2, WARN=3, INFO=4, DEBUG=5
 	} MsgLevel;
 	
 	typedef enum {endl} MsgControl;
@@ -34,7 +61,7 @@ public:
 	/**
 	 * Creates a new message stream.
 	 */
-	MsgStream() : outputLevel(ERROR), name("unknown"), printThis(false) {}
+	MsgStream() : outputLevel(WARN), name("unknown"), printThis(false) {}
 
 	/**
 	 * Destroyes the message stream
@@ -45,13 +72,13 @@ public:
 	 * Sets the messaging level.
 	 * @level new messaging level
 	 */
-	void setOutputLevel(MsgLevel level);
+	void setLevel(MsgLevel level);
 
 	/**
 	 * Sets the name of the module issuing the messages.
 	 * @name new name
 	 */
-	void setName(std::string newname);
+	void setName(const std::string& newname);
 
 	/**
 	 * Print a message at given messaging level.
@@ -91,7 +118,7 @@ inline MsgStream& operator<<(MsgStream& ms, MsgStream::MsgLevel input)
 
 inline MsgStream& operator<<(MsgStream& ms, MsgStream::MsgControl input)
 {
-    if(input == MsgStream::endl)
+    if((ms.printThis) && (input == MsgStream::endl))
 	std::cout << std::endl;
     ms.printThis = false;
     return ms;

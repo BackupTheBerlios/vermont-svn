@@ -11,7 +11,7 @@
 		</xmlBlaster>
 	</xmlBlasters>
 	<preferences>
-		<alarm_time>12</alarm_time>
+		<alarm_time>10</alarm_time>
 		<octet_threshold>1000</octet_threshold>
 		<packet_threshold>5</packet_threshold>
 		<flow_threshold>3</flow_threshold>

@@ -45,6 +45,18 @@ CONFIGURATION:
     </counting>
 </configuration>
 
+UPDATE VIA XMLBLASTER:
+<config>
+    <octet_threshold>1000</octet_threshold>
+    <packet_threshold>5</packet_threshold>
+    <flow_threshold>3</flow_threshold>
+    <count_per_src_ip />
+    <count_per_dst_ip />
+    <count_per_src_port />
+    <count_per_dst_port />
+</config>
+
+
 REFERENCES:
 [1] @inproceedings{keys05,
     Author = {Keys, Ken and Moore, David and Estan, Cristian},

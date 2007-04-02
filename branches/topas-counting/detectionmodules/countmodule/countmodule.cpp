@@ -55,10 +55,26 @@ void CountModule::init(const std::string& configfile)
     char filename[] = "countmodule.txt";
 
     XMLConfObj config = XMLConfObj(configfile, XMLConfObj::XML_FILE);
-
+    
     if(config.nodeExists("preferences"))
     {
 	config.enterNode("preferences");
+
+	if(config.nodeExists("verbose"))
+	    if(config.getValue("verbose") != "false")
+	    {
+		CountModule::verbose = true;
+		ms.setLevel(MsgStream::INFO);
+	    }
+
+	if(config.nodeExists("debug"))
+	    if(config.getValue("debug") != "false")
+	    {
+		CountModule::verbose = true;
+		ms.setLevel(MsgStream::DEBUG);
+	    }
+
+	ms.print(MsgStream::INFO, "Starting with parameters:");
 
 	if(config.nodeExists("output_file"))
 	    outfile.open(config.getValue("output_file").c_str());
@@ -66,19 +82,22 @@ void CountModule::init(const std::string& configfile)
 	    outfile.open(filename);
 	if(!outfile) 
 	{
-	    ms << MsgStream::ERROR << "Could not open output file " << filename << ".";
+	    ms << MsgStream::ERROR << "Could not open output file " << filename << "." << MsgStream::endl;
 	    stop();
 	}
+	ms << MsgStream::INFO << "Output file: " << filename << MsgStream::endl;
 
 	if(config.nodeExists("alarm_time"))
 	    alarm = atoi(config.getValue("alarm_time").c_str());
 	setAlarmTime(alarm);
+	ms << MsgStream::INFO << "Test interval: " << alarm << " seconds" << MsgStream::endl;
 
 	if(config.nodeExists("accept_source_ids"))
 	{
 	    std::string str = config.getValue("accept_source_ids");
 	    if(str.size()>0)
 	    {
+		ms << MsgStream::INFO << "Accepted source ids: " << str << MsgStream::endl;
 		unsigned startpos = 0, endpos = 0;
 		do {
 		    endpos = str.find(',', endpos);
@@ -99,20 +118,8 @@ void CountModule::init(const std::string& configfile)
 	    packetThreshold = atoi(config.getValue("packet_threshold").c_str());
 	if(config.nodeExists("flow_threshold"))
 	    flowThreshold = atoi(config.getValue("flow_threshold").c_str());
-
-	if(config.nodeExists("verbose"))
-	    if(config.getValue("verbose") != "false")
-	    {
-		CountModule::verbose = true;
-		ms.setOutputLevel(MsgStream::INFO);
-	    }
-
-	if(config.nodeExists("debug"))
-	    if(config.getValue("debug") != "false")
-	    {
-		CountModule::verbose = true;
-		ms.setOutputLevel(MsgStream::DEBUG);
-	    }
+	ms << MsgStream::INFO << "Thresholds: " << octetThreshold << " octets, " << packetThreshold << " packets, "
+	    << flowThreshold << " flows" << MsgStream::endl;
 
 	config.leaveNode();
     }
@@ -126,19 +133,34 @@ void CountModule::init(const std::string& configfile)
 	if(config.nodeExists("bf_hashfunctions"))
 	    bfHF = atoi(config.getValue("bf_hashfunctions").c_str());
 	CountStore::init(bfSize, bfHF);
+	ms << MsgStream::INFO << "Bloomfilter: " << bfSize << " bits, " << bfHF << " hash functions" << MsgStream::endl;
 
+	ms << MsgStream::INFO << "Counting per ";
 	if(config.nodeExists("count_per_src_ip"))
-	    if(config.getValue("count_per_src_ip") != "false")
+	    if(config.getValue("count_per_src_ip") != "false") 
+	    {
 		CountStore::countPerSrcIp = true;
+		ms << "src addr, ";
+	    }
 	if(config.nodeExists("count_per_dst_ip"))
 	    if(config.getValue("count_per_dst_ip") != "false")
+	    {
 		CountStore::countPerDstIp = true;
+		ms << "dst addr, ";
+	    }
 	if(config.nodeExists("count_per_src_port"))
 	    if(config.getValue("count_per_src_port") != "false")
+	    {
 		CountStore::countPerSrcPort = true;
+		ms << "src port, ";
+	    }
 	if(config.nodeExists("count_per_dst_port"))
 	    if(config.getValue("count_per_dst_port") != "false")
+	    {
 		CountStore::countPerDstPort = true;
+		ms << "dst port";
+	    }
+	ms << MsgStream::endl;
     }
 
 #ifdef IDMEF_SUPPORT_ENABLED
@@ -153,7 +175,6 @@ void CountModule::init(const std::string& configfile)
     subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
     subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
     subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
-    
 }
 
 #ifdef IDMEF_SUPPORT_ENABLED

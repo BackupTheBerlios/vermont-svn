@@ -20,12 +20,12 @@
 
 
 
-void MsgStream::setOutputLevel(MsgLevel level)
+void MsgStream::setLevel(MsgLevel level)
 {
     outputLevel = level;
 }
 
-void MsgStream::setName(std::string newname)
+void MsgStream::setName(const std::string& newname)
 {
     name = newname;
 }
