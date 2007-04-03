@@ -66,43 +66,29 @@ std::ostream & operator << (std::ostream & os, const std::vector<unsigned> & V) 
   return os;
 }
 
-std::ostream & operator << (std::ostream & os, const Values & M) {
-  os << "packets_in=" << M.packets_in << "; "
-     << "packets_out=" << M.packets_out << "; "
-     << "bytes_in=" << M.bytes_in << "; "
-     << "bytes_out=" << M.bytes_out << "; "
-     << "records_in=" << M.records_in << "; "
-     << "records_out=" << M.records_out << "; "
-     << "bytes_per_packet_in=" << M.bytes_per_packet_in << "; "
-     << "bytes_per_packet_out=" << M.bytes_per_packet_out << "; "
-     << "p_out_minus_p_in=" << M.p_out_minus_p_in << "; "
-     << "b_out_minus_b_in=" << M.b_out_minus_b_in << "; "
-     << "pt_minus_pt1_in=" << M.pt_minus_pt1_in << "; "
-     << "pt_minus_pt1_out=" << M.pt_minus_pt1_out << "; "
-     << "bt_minus_bt1_in=" << M.bt_minus_bt1_in << "; "
-     << "bt_minus_bt1_out=" << M.bt_minus_bt1_out << "; "
-     << std::endl;
+std::ostream & operator << (std::ostream & os, const std::vector<int64_t> & V) {
+  std::vector<int64_t>::const_iterator it = V.begin();
+  os << "(";
+  // there is at least one element in V, so there will be no problem
+  // dereferencing "it" without check
+  os << *it; it++;
+  while (it != V.end()) {
+    os << ", " << *it;
+    it++;
+  }
+  os << ")";
+  return os;
 }
 
-std::ostream & operator << (std::ostream & os, const std::list<Values> & L) {
-std::list<Values>::const_iterator it = L.begin();
-  while (it != L.end()) {
-    os << "packets_in=" << it->packets_in << "; "
-     << "packets_out=" << it->packets_out << "; "
-     << "bytes_in=" << it->bytes_in << "; "
-     << "bytes_out=" << it->bytes_out << "; "
-     << "records_in=" << it->records_in << "; "
-     << "records_out=" << it->records_out << "; "
-     << "bytes_per_packet_in=" << it->bytes_per_packet_in << "; "
-     << "bytes_per_packet_out=" << it->bytes_per_packet_out << "; "
-     << "p_out_minus_p_in=" << it->p_out_minus_p_in << "; "
-     << "b_out_minus_b_in=" << it->b_out_minus_b_in << "; "
-     << "pt_minus_pt1_in=" << it->pt_minus_pt1_in << "; "
-     << "pt_minus_pt1_out=" << it->pt_minus_pt1_out << "; "
-     << "bt_minus_bt1_in=" << it->bt_minus_bt1_in << "; "
-     << "bt_minus_bt1_out=" << it->bt_minus_bt1_out << "; "
-     << std::endl;
-
-     it++;
+std::ostream & operator << (std::ostream & os, const std::list<std::vector<int64_t> > & L) {
+  // here we need a ckeck as L for sample_new is initially empty
+  if (L.size() > 0) {
+    std::list<std::vector<int64_t> >::const_iterator it = L.begin();
+    os << *it; it++;
+    while (it != L.end()) {
+      os << ", " << *it;
+      it++;
+    }
   }
+  return os;
 }

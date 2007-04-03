@@ -49,8 +49,7 @@ the module will issue an error message and exit.
 <accepted_source_ids>:
 
 comma-seperated list of source ids (of the exporting processes) to be
-accepted. If parameter is omitted or left blank, all source ids will
-be accepted.
+accepted. "all" is also psooible. If parameter is omitted or left blank, all source ids will be accepted, too.
 
 
 <alarm_time>:
@@ -87,8 +86,8 @@ issued and the module exits.
 
 <endpoint_key>:
 
-The user can choose between ip, port, protocol and any combination of them, seperated by spaces. This value will form the key of the EndPoints, i. e. that all EndPoints sharing this same key are considered as one EndPoint.
-E. g. if you are only interested in ports and protocols, ip-addresses will be ignored and an EndPoint will look like "0.0.0.0:portNr | protocolNr". This enables the user to investigate port/protocol/ip-combination anomalies. By default, all three are used as key (ip port protocol).
+The user can choose between ip, port, protocol, any combination of them (seperated by spaces) OR "all". This value will form the key of the EndPoints, i. e. that all EndPoints sharing this same key are considered as one EndPoint.
+E. g. if you are only interested in ports and protocols, ip-addresses will be ignored and an EndPoint will look like "0.0.0.0:portNr | protocolNr". This enables the user to investigate port/protocol/ip-combination anomalies. If omitted, all three values will be used as key and a warning message is printed. "all" and "ip port protocol" yield the same result.
 
 
 <monitored_values>:
@@ -154,8 +153,8 @@ combination of ip/port/protocol as endpoint_key, you should think about increasi
 <protocols>:
 
 protocols to monitor; packets of other protocols will be ignored.
-Possible choices are ICMP, TCP, UDP, RAW, or their identifiers 1, 6,
-17, 255; they must be written as a space-separated list. Input is not
+Possible choices are ICMP, TCP, UDP, RAW or their identifiers 1, 6,
+17, 255 OR "all"; they must be written as a space-separated list. Input is not
 case-sensitive. If some other protocol is provided, the module will
 exit with an usage message. Default is monitoring all of them (after
 some warning message).
@@ -177,7 +176,7 @@ error message; if nothing is given, default value 32 is assumed.
 <ports>:
 
 ports to monitor; packets to or from other ports will be ignored. They
-must be written as a space-separated list. If not given, default
+must be numbers written as a space-separated list OR "all". If not given, default
 behavior is to pay no attention to ports and monitor everything (a
 warning message will be issued).
 
@@ -193,7 +192,7 @@ opening this file, the module will exit after an error message. If no
 file is given, a warning message will be issued stating that it is
 assumed the user wants the module to monitor every IP address found on
 the monitored device. Please note that the IP addresses reported to
-the collector by the monitor will also be masked.
+the collector by the monitor will also be masked. You can also use "all" to monitor every ip address. Dont be foolish and name your ipfile that way ;)
 
 
 <stat_test_frequency>:

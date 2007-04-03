@@ -9,6 +9,12 @@
             <run>yes</run>
             <configFile>sw-module.xml</configFile>
       </module>
+      <module>
+          <filename>../detectionmodules/sfd2/sfdmodule</filename>
+            <run>yes</run>
+            <configFile>sfd2/idmef.xml</configFile>
+            <arg>sfd2/addresses.conf</arg>
+      </module>
       -->
       <module>
           <filename>../detectionmodules/statmodules/wkp-module/wkp-module</filename>

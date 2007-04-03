@@ -60,6 +60,19 @@ enum Metric {
   BYTES_T_OUT_MINUS_BYTES_T_1_OUT
 };
 
+// ======================== STRUCT Samples ========================
+
+// we use this structure as value field in std::map< key, value >
+// it contains a list of the old and the new metrics.
+// Letting Old and New be lists of struct Values enables us
+// to store values for multiple monitored values
+
+struct Samples {
+  std::list<std::vector<int64_t> > Old;
+  std::list<std::vector<int64_t> > New;
+};
+
+
 // main class: does tests, stores samples,
 // reads and stores test parameters...
 
@@ -96,9 +109,6 @@ class Stat : public DetectionBase<StatStore> {
   static void sigTerm(int);
   static void sigInt(int);
 
-  // setting all values of struct Values to 0
-  void init_values(Values &);
-
   // this function is called by the Stat constructor, its job is to extract
   // user's preferences and test parameters from the XML config file:
   void init(const std::string & configfile);
@@ -130,13 +140,13 @@ class Stat : public DetectionBase<StatStore> {
 
 
   // the following functions are called by the test()-function:
-  Values extract_data (const Info &, const Info &);
-  void update(std::list<Values> &, std::list<Values> &, const Values &);
-  void stat_test(std::list<Values> &, std::list<Values> &);
+  std::vector<int64_t> extract_data (const Info &, const Info &);
+  void update(std::list<std::vector<int64_t> > &, std::list<std::vector<int64_t> > &, const std::vector<int64_t> &);
+  void stat_test(std::list<std::vector<int64_t> > &, std::list<std::vector<int64_t> > &);
 
   // this function is called by stat_test() to extract a single metric to test
-  // from the struct Values
-  std::list<int64_t> getSingleMetric(const std::list<Values> &, const enum Metric &);
+  // from a std::vector<int64_t>
+  std::list<int64_t> getSingleMetric(const std::list<std::vector<int64_t> > &, const enum Metric &, const short &);
   std::string getMetricName(const enum Metric &);
 
   // and the following functions are called by the stat_test()-function:

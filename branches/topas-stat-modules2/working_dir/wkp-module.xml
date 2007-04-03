@@ -10,24 +10,26 @@
 		  <prop>log4cplus.rootLogger WARN, STDOUT</prop>
 		</xmlBlaster>
 	</xmlBlasters>
-	<preferences>
+	<preferences> // Default = value chosen, if parameter was omitted or left blank
 	  <output_file>wkp.output</output_file> // Default: wkp_output.txt
-    <accepted_source_ids></accepted_source_ids> // Default: all
+    <accepted_source_ids>all</accepted_source_ids> // Default: all
 		<alarm_time>5</alarm_time>  // Default: 10
 		<warning_verbosity>1</warning_verbosity> // Default: 0
 	  <output_verbosity>5</output_verbosity>  // Default: 3
-    <endpoint_key>ip port protocol</endpoint_key> // Default: all
+    <endpoint_key>all</endpoint_key> // Default: all
     <monitored_values>  // HAS TO BE DEFINED
       <value>packets_in</value> // HAS TO BE DEFINED (at least one value)
       <value>bytes_out</value>
+      <value>packets_out</value>
+      <value>bytes_out(t)-bytes_out(t-1)</value>
     </monitored_values>
     <noise_threshold_packets>0</noise_threshold_packets> // Default: 0
     <noise_threshold_bytes>0</noise_threshold_bytes>  // Default: 0
     <endpointlist_maxsize>1000</endpointlist_maxsize> // Default: 500
-		<protocols></protocols> // Default: all
+		<protocols>all</protocols> // Default: all
 	  <netmask>32</netmask> // Default: 32
-    <ports></ports> // Default: all
-    <ip_addresses_to_monitor></ip_addresses_to_monitor> // Default: all (no file)
+    <ports>all</ports> // Default: all
+    <ip_addresses_to_monitor>all</ip_addresses_to_monitor> // Default: all (no file)
 		<stat_test_frequency>1</stat_test_frequency> // Default: 1
 		<report_only_first_attack>true</report_only_first_attack> // Default: true
     <pause_update_when_attack>true</pause_update_when_attack> // Default: true
