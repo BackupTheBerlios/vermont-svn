@@ -276,6 +276,11 @@ void StatStore::recordEnd() {
   if (skip_source == false) {
     // EndPoint already known
     if ( find(EndPointList.begin(), EndPointList.end(), e_source) != EndPointList.end() ) {
+      //std::map<EndPoint,Info>::iterator it = Data.find(e_source);
+      //it->second.packets_out += packet_nb;
+      //it->second.bytes_out += byte_nb;
+      //it->second.records_out++;
+      
       Data[e_source].packets_out += packet_nb;
       Data[e_source].bytes_out += byte_nb;
       Data[e_source].records_out++;
@@ -284,6 +289,12 @@ void StatStore::recordEnd() {
     else {
       if (EndPointList.size() < EndPointListMaxSize) {
         EndPointList.push_back(e_source);
+	//Info newinfo;
+	//newinfo.bytes_in = newinfo.packets_in = newinfo.records_in = 0;
+	//newinfo.packets_out = packet_nb;
+	//newinfo.bytes_out = byte_nb;
+	//newinfo.records_out = 1;
+	//Data.insert(std::pair<EndPoint, Info>(e_source, newinfo));
         Data[e_source].packets_out = packet_nb;
         Data[e_source].bytes_out = byte_nb;
         Data[e_source].records_out = 1;

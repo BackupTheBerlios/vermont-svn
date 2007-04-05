@@ -1397,6 +1397,7 @@ void Stat::init_significance_level(XMLConfObj * config) {
 
 
 // ============================= TEST FUNCTION ===============================
+#include <time.h>
 
 void Stat::test(StatStore * store) {
 
@@ -1405,7 +1406,7 @@ void Stat::test(StatStore * store) {
 #endif
 
   outfile << "########## Stat::test(...)-call number: " << test_counter
-	  << " ##########" << std::endl;
+	  << " ##########" << time(0) << std::endl;
 
   // Getting whole Data from store
   std::map<EndPoint,Info> Data = store->getData();
@@ -1535,6 +1536,7 @@ void Stat::test(StatStore * store) {
 
   /* don't forget to free the store-object! */
   delete store;
+
   return;
 
 }

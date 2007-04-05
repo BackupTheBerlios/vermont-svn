@@ -13,10 +13,10 @@
 	<preferences> // Default = value chosen, if parameter was omitted or left blank
 	  <output_file>wkp.output</output_file> // Default: wkp_output.txt
     <accepted_source_ids>all</accepted_source_ids> // Default: all
-		<alarm_time>5</alarm_time>  // Default: 10
+		<alarm_time>10</alarm_time>  // Default: 10
 		<warning_verbosity>1</warning_verbosity> // Default: 0
 	  <output_verbosity>5</output_verbosity>  // Default: 3
-    <endpoint_key>all</endpoint_key> // Default: all
+    <endpoint_key>ip</endpoint_key> // Default: all
     <monitored_values>  // HAS TO BE DEFINED
       <value>packets_in</value> // HAS TO BE DEFINED (at least one value)
       <value>bytes_out</value>
