@@ -49,13 +49,13 @@ void Express_sampler_hook_entry(void *ctx, void *data)
 	((uint8_t *)ph->ip_header)[10]=(uint8_t)1;
 
 	// Check if transport header is available
-	if(ph->transport_header == NULL) {
+//	if(ph->transport_header == NULL) {
 	   // ExpressaggregateDataRecord(aggregator, NULL, ph->length, fdata, data);
-	}
-	else
-	{
+//	}
+//	else
+//	{
 	    ExpressaggregateDataRecord(aggregator, NULL, ph->length, fdata, ph);
-	}
+//	}
 
 	/* restore IP header */
 	((uint32_t *)ph->ip_header)[1]=pad1;

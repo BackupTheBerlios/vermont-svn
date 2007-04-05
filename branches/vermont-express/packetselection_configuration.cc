@@ -98,12 +98,24 @@ void PacketSelectionConfiguration::configure()
 					xmlNodePtr k = j->xmlChildrenNode;
 						while (NULL != k) {
 							if (tagMatches(k, "is")) {
-								char *tmp = new char[getContent(k).length() + 1];;
-								strcpy(tmp, getContent(k).c_str());
+								xmlChar *stype;
+								char *tmp = new char[getContent(k).length() + 1];
+								stype = xmlGetProp(k, (const xmlChar *)"type");
+								if(strncmp((const char*)stype, "HEX", 3) == 0) {
+									tmp = sfilter->hexparser(getContent(k).c_str());
+								} else {
+									strcpy(tmp, getContent(k).c_str());
+								}
 								sfilter->addandFilter(tmp);
 							} else if (tagMatches(k, "isnot")) {
-								char *tmp = new char[getContent(k).length() + 1];;
-								strcpy(tmp, getContent(k).c_str());
+								xmlChar *stype;
+								char *tmp = new char[getContent(k).length() + 1];
+								stype = xmlGetProp(k, (const xmlChar *)"type");
+								if(strncmp((const char*)stype, "HEX", 3) == 0) {
+									tmp = sfilter->hexparser(getContent(k).c_str());
+								} else {
+									strcpy(tmp, getContent(k).c_str());
+								}
 								sfilter->addnotFilter(tmp);
 							}
 							k = k->next;

@@ -38,10 +38,11 @@ public:
     notFilters.push_back (string);
   };
 
+  char* hexparser(const char* input);
 
   virtual bool processPacket (const Packet * p);
 
-  int filtertype;
+//  int filtertype;
 
 
 protected:
@@ -53,7 +54,7 @@ protected:
   bool compare (unsigned char *data, char *toMatch, unsigned int plength);
 
 
-  char *match;
+//  char *match;
 
 
 

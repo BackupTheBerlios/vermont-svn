@@ -5,27 +5,14 @@
 inline bool regExFilter::compare(char *pdata)
 {
 
-	int status;
-	regex_t expr;
 	char *tmp = (char*)malloc(match.size() + 2);
 	tmp = (char*)match.c_str();
+	boost::regex rexp(tmp); 
+	if (boost::regex_search(pdata, rexp)) {
+		return true;
+	} 
 
-//	tmp = "[A-Z][A-Z][A-Z]";
-/*	for (unsigned int i=0; i<strlen(tmp); i++) {
-		printf("char[%d] %d, %c\n", i, tmp[i], tmp[i]);
-	}*/
-
-
-	if (regcomp(&expr, tmp, REG_EXTENDED) != 0) {
-		return false;
-	}
-	status = regexec(&expr, pdata, (size_t) 0, NULL, 0);
-	regfree(&expr);
-
-	if( status != 0 ) {
-		return false;
-	}
-	return true;
+	return false;
 
 };
 

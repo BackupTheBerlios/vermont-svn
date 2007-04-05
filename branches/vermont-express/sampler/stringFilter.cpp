@@ -6,6 +6,38 @@
 #include "stringFilter.h"
 
 
+
+char* stringFilter::hexparser(const char* input) {
+
+  unsigned int i;
+  char *output = new char[sizeof(input)];
+  int j=0;
+  char hex[5], *stop;
+  for (i = 0; i < strlen (input); i += 2)
+    {
+      hex[0] = '0';
+      hex[1] = 'x';
+      hex[2] = input[i];
+      hex[3] = input[i + 1];
+      hex[4] = 0;
+      output[j] = strtol (hex, &stop, 16);
+      printf("-%c", output[j]);
+      getc(stdin);
+
+      j+=1;
+
+    }
+  output[j] = '\0';
+  //strcat(output, "\0");
+
+  printf("%s", output);
+  getc(stdin);
+
+  return output;
+
+
+}
+
 /**
  * compare given String to packet data and check for a match
  * @param pdata Packet payload
