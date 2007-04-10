@@ -274,30 +274,37 @@ void StatStore::recordEnd() {
   << "Couldn't monitor new EndPoint: ";
 
   if (skip_source == false) {
-    // EndPoint already known
+    // EndPoint already known and thus in our List?
     if ( find(EndPointList.begin(), EndPointList.end(), e_source) != EndPointList.end() ) {
-      //std::map<EndPoint,Info>::iterator it = Data.find(e_source);
-      //it->second.packets_out += packet_nb;
-      //it->second.bytes_out += byte_nb;
-      //it->second.records_out++;
-      
-      Data[e_source].packets_out += packet_nb;
-      Data[e_source].bytes_out += byte_nb;
-      Data[e_source].records_out++;
+      // Since Data is destroyed after every test()-run,
+      // we need to check, if the endpoint was already seen in the
+      // current run
+      std::map<EndPoint,Info>::iterator it = Data.find(e_source);
+      if( it != Data.end() ) {
+        it->second.packets_out += packet_nb;
+        it->second.bytes_out += byte_nb;
+        it->second.records_out++;
+      }
+      else {
+        Data[e_source].packets_out += packet_nb;
+        it = Data.find(e_source);
+        it->second.bytes_out += byte_nb;
+        it->second.records_out++;
+      }
     }
     // EndPoint not known, still place to add it?
     else {
       if (EndPointList.size() < EndPointListMaxSize) {
+        Info newinfo;
+        newinfo.bytes_in = newinfo.packets_in = newinfo.records_in = 0;
+        newinfo.packets_out = packet_nb;
+        newinfo.bytes_out = byte_nb;
+        newinfo.records_out = 1;
+        Data.insert(std::make_pair<EndPoint,Info>(e_source, newinfo));
+//         Data[e_source].packets_out = packet_nb;
+//         Data[e_source].bytes_out = byte_nb;
+//         Data[e_source].records_out = 1;
         EndPointList.push_back(e_source);
-	//Info newinfo;
-	//newinfo.bytes_in = newinfo.packets_in = newinfo.records_in = 0;
-	//newinfo.packets_out = packet_nb;
-	//newinfo.bytes_out = byte_nb;
-	//newinfo.records_out = 1;
-	//Data.insert(std::pair<EndPoint, Info>(e_source, newinfo));
-        Data[e_source].packets_out = packet_nb;
-        Data[e_source].bytes_out = byte_nb;
-        Data[e_source].records_out = 1;
       }
       else
         std::cerr << Warning.str() << e_source << std::endl;
@@ -305,19 +312,37 @@ void StatStore::recordEnd() {
   }
 
   if (skip_dest == false) {
-    // EndPoint already known
+    // EndPoint already known and thus in our List?
     if ( find(EndPointList.begin(), EndPointList.end(), e_dest) != EndPointList.end() ) {
-      Data[e_dest].packets_in += packet_nb;
-      Data[e_dest].bytes_in += byte_nb;
-      Data[e_dest].records_in++;
+      // Since Data is destroyed after every test()-run,
+      // we need to check, if the endpoint was already seen in the
+      // current run
+      std::map<EndPoint,Info>::iterator it = Data.find(e_dest);
+      if ( it != Data.end() ) {
+        it->second.packets_in += packet_nb;
+        it->second.bytes_in += byte_nb;
+        it->second.records_in++;
+      }
+      else {
+        Data[e_dest].packets_in += packet_nb;
+        it = Data.find(e_dest);
+        it->second.bytes_in += byte_nb;
+        it->second.records_in++;
+      }
     }
     // EndPoint not known, still place to add it?
     else {
       if (EndPointList.size() < EndPointListMaxSize) {
+        Info newinfo;
+        newinfo.bytes_out = newinfo.packets_out = newinfo.records_out = 0;
+        newinfo.packets_in = packet_nb;
+        newinfo.bytes_in = byte_nb;
+        newinfo.records_in = 1;
+        Data.insert(std::make_pair<EndPoint,Info>(e_dest, newinfo));
+//         Data[e_dest].packets_in = packet_nb;
+//         Data[e_dest].bytes_in = byte_nb;
+//         Data[e_dest].records_in = 1;
         EndPointList.push_back(e_dest);
-        Data[e_dest].packets_in = packet_nb;
-        Data[e_dest].bytes_in = byte_nb;
-        Data[e_dest].records_in = 1;
       }
       else
         std::cerr << Warning.str() << e_dest << std::endl;

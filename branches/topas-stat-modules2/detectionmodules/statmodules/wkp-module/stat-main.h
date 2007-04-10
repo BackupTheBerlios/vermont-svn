@@ -68,8 +68,24 @@ enum Metric {
 // to store values for multiple monitored values
 
 struct Samples {
+
+public:
   std::list<std::vector<int64_t> > Old;
   std::list<std::vector<int64_t> > New;
+
+  // last-test-was-an-attack flags: useful to keep for every endpoint
+  // in mind results of tests if report_only_first_attack==true
+  bool last_wmw_test_was_attack;
+  bool last_ks_test_was_attack;
+  bool last_pcs_test_was_attack;
+
+  Samples()
+  {
+    last_wmw_test_was_attack = false;
+    last_ks_test_was_attack = false;
+    last_pcs_test_was_attack = false;
+  }
+
 };
 
 
@@ -141,18 +157,18 @@ class Stat : public DetectionBase<StatStore> {
 
   // the following functions are called by the test()-function:
   std::vector<int64_t> extract_data (const Info &, const Info &);
-  void update(std::list<std::vector<int64_t> > &, std::list<std::vector<int64_t> > &, const std::vector<int64_t> &);
-  void stat_test(std::list<std::vector<int64_t> > &, std::list<std::vector<int64_t> > &);
+  void update(Samples &, const std::vector<int64_t> &);
+  void stat_test(Samples &);
 
   // this function is called by stat_test() to extract a single metric to test
   // from a std::vector<int64_t>
   std::list<int64_t> getSingleMetric(const std::list<std::vector<int64_t> > &, const enum Metric &, const short &);
   std::string getMetricName(const enum Metric &);
 
-  // and the following functions are called by the stat_test()-function:
-  void stat_test_wmw(std::list<int64_t> &, std::list<int64_t> &);
-  void stat_test_ks (std::list<int64_t> &, std::list<int64_t> &);
-  void stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &);
+  // and the following functions are called by the stat_test()-function
+  void stat_test_wmw(std::list<int64_t> &, std::list<int64_t> &, bool &);
+  void stat_test_ks (std::list<int64_t> &, std::list<int64_t> &, bool &);
+  void stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &, bool &);
 
 
   // here is the sample container for the wkp-tests:
@@ -207,13 +223,6 @@ class Stat : public DetectionBase<StatStore> {
   bool ports_relevant; // if only ICMP AND/OR RAW --> ports_relevant = false
   bool ip_monitoring;
   bool protocol_monitoring;
-
-  // last-test-was-an-attack flags: useful to keep in mind results of
-  // tests if report_only_first_attack==true
-  bool last_wmw_test_was_an_attack;
-  bool last_ks_test_was_an_attack;
-  bool last_pcs_test_was_an_attack;
-
 };
 
 #endif

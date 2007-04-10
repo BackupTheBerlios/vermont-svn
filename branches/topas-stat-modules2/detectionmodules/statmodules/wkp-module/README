@@ -75,10 +75,10 @@ module exits.
 
 O: no output generated
 1: only p-values and attacks are recorded
-2: same as 1, plus some cosmetics
-3: same as 2, plus learning phases, updates and empty records events
-4: same as 3, plus sample printing
-5: same as 4, plus all details from statistical tests
+2: plus some cosmetics
+3: plus learning phases, updates and empty records events
+4: plus sample printing
+5: plus all details from statistical tests
 If not given, a warning message is issued and default 3 is used; if
 something less than 0 or greater than 5 is given, an error message is
 issued and the module exits.
@@ -223,6 +223,10 @@ into the "old" sample. This avoids detecting another anomaly when the
 current anomaly ceases and traffic returns to normal values.
 This parameter is a case-insensitive boolean that will be set to true
 if no value is provided (after an information message).
+
+"0" - Sobald ein Test Alarm schlägt, Update pausieren
+"1" - Nur wenn alle aktivierten Tests Alarm schlagen Update pausieren
+"2" - Wenn mehr als die Hälfte der Tests Alarm schlägt Update pausieren
 
 
 

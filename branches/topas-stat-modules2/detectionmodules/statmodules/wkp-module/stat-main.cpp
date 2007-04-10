@@ -33,6 +33,22 @@ Port-Unterscheidung (Source/Dest)
 Bisher: Ports werden aggregiert, d. h. Informationen darüber, ob der Port ein Quell- oder Zielport war, gehen verloren.
 Besser: Diese Informationen erhalten?
 Stand:
+
+TODO(3)
+pause_update_when_attack bei mehreren Metriken
+--------------------------------------------------------
+Bisher:
+- Pause_update_when_attack greift nur, wenn alle drei Tests im letzten Durchlauf einen Angriff erkannten. Wenn man z. B. nur den KS-Test aktiviert, so greift pause_update_when_attack nie! (Siehe update()-Funktion);
+
+Besser:
+- Auch pause_update_when_attack, wenn nur ein Test Alarm schlägt --> Soll konfigurierbar sein, mit folgenden drei Modi:
+  "0" - Niemals pausieren
+  "1" - Sobald ein Test Alarm schlägt, Update pausieren
+  "2" - Nur wenn alle aktivierten Tests Alarm schlagen Update pausieren
+  "3" - Wenn mehr als die Hälfte (o, ä.) der Tests Alarm schlägt Update pausieren
+
+Stand:
+- Struct Samples hat die last_test-flags nun implementiert und wird update(), stat_test() und den Testfunktionen mit übergeben (um es ändern zu können)
 */
 
 
@@ -382,7 +398,7 @@ void Stat::init_output_verbosity(XMLConfObj * config) {
   if(!config->nodeExists("output_verbosity")) {
     std::cerr << Warning.str() << Usage.str();
     if (warning_verbosity==1)
-      outfile << Warning.str() << Usage.str();
+      outfile << Warning.str() << Usage.str() << std::flush;
     output_verbosity = DEFAULT_output_verbosity;
   }
   else if (!(config->getValue("output_verbosity")).empty()) {
@@ -392,14 +408,14 @@ void Stat::init_output_verbosity(XMLConfObj * config) {
     else {
       std::cerr << Error.str() << Usage.str() << "Exiting.\n";
       if (warning_verbosity==1)
-        outfile << Error.str() << Usage.str() << "Exiting." << std::endl;
+        outfile << Error.str() << Usage.str() << "Exiting." << std::endl << std::flush;
       exit(0);
     }
   }
   else {
     std::cerr << Default.str() << Usage.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << Usage.str();
+      outfile << Default.str() << Usage.str() << std::flush;
     output_verbosity = DEFAULT_output_verbosity;
   }
 
@@ -423,7 +439,7 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
   if (!config->nodeExists("endpoint_key")) {
     std::cerr << Warning.str() << "\n";
     if (warning_verbosity==1)
-      outfile << Warning.str() << std::endl;
+      outfile << Warning.str() << std::endl << std::flush;
     ip_monitoring = true;
     port_monitoring = true;
     protocol_monitoring = true;
@@ -452,7 +468,7 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
       else {
         std::cerr << Error.str() << "Exiting.\n";
         if (warning_verbosity==1)
-          outfile << Error.str() << "Exiting." << std::endl;
+          outfile << Error.str() << "Exiting." << std::endl << std::flush;
         exit(0);
       }
     }
@@ -460,7 +476,7 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
   else {
     std::cerr << Default.str() << "\n";
     if (warning_verbosity==1)
-      outfile << Default.str() << std::endl;
+      outfile << Default.str() << std::endl << std::flush;
     ip_monitoring = true;
     port_monitoring = true;
     protocol_monitoring = true;
@@ -495,7 +511,7 @@ void Stat::init_monitored_values(XMLConfObj * config) {
   if (!config->nodeExists("monitored_values")) {
     std::cerr << Error1.str() << Usage.str() << "Exiting.\n";
     if (warning_verbosity==1)
-      outfile << Error1.str() << Usage.str() << "Exiting." << std::endl;
+      outfile << Error1.str() << Usage.str() << "Exiting." << std::endl << std::flush;
     exit(0);
   }
 
@@ -512,7 +528,7 @@ void Stat::init_monitored_values(XMLConfObj * config) {
   else {
     std::cerr << Error2.str() << Usage.str() << "Exiting.\n";
     if (warning_verbosity==1)
-      outfile << Error2.str() << Usage.str() << "Exiting." << std::endl;
+      outfile << Error2.str() << Usage.str() << "Exiting." << std::endl << std::flush;
     exit(0);
   }
 
@@ -560,7 +576,7 @@ void Stat::init_monitored_values(XMLConfObj * config) {
     else {
         std::cerr << Error3.str() << Usage.str() << "Exiting.\n";
         if (warning_verbosity==1)
-          outfile << Error3.str() << Usage.str() << "Exiting." << std::endl;
+          outfile << Error3.str() << Usage.str() << "Exiting." << std::endl << std::flush;
         exit(0);
       }
     it++;
@@ -593,7 +609,7 @@ void Stat::init_monitored_values(XMLConfObj * config) {
   Information << ")\n";
   std::cerr << Information.str();
     if (warning_verbosity==1)
-      outfile << Information.str();
+      outfile << Information.str() << std::flush;
 
 
   // subscribing to the needed IPFIX_TYPEID-fields
@@ -791,7 +807,7 @@ void Stat::init_protocols(XMLConfObj * config) {
             if (warning_verbosity==1)
               outfile << "ERROR: An unknown value (" << protocol
                 << ") for the protocol parameter was defined in XML config file!\n"
-                << Usage.str() << "Exiting." << std::endl;
+                << Usage.str() << "Exiting." << std::endl << std::flush;
             exit(0);
           }
         }
@@ -849,7 +865,7 @@ void Stat::init_netmask(XMLConfObj * config) {
       else {
         std::cerr << Default.str();
         if (warning_verbosity==1)
-          outfile << Default.str();
+          outfile << Default.str() << std::flush;
         StatStore::InitialiseSubnetMask (0xFF,0xFF,0xFF,0xFF);
         return;
       }
@@ -923,7 +939,7 @@ void Stat::init_netmask(XMLConfObj * config) {
       else {
         std::cerr << Error.str() << Usage.str() << "Exiting.\n";
         if (warning_verbosity==1)
-          outfile << Error.str() << Usage.str() << "Exiting." << std::endl;
+          outfile << Error.str() << Usage.str() << "Exiting." << std::endl << std::flush;
         exit(0);
       }
       // if everything is OK:
@@ -932,7 +948,7 @@ void Stat::init_netmask(XMLConfObj * config) {
     else {
       std::cerr << Warning.str();
       if (warning_verbosity==1)
-        outfile << Warning.str();
+        outfile << Warning.str() << std::flush;
       StatStore::InitialiseSubnetMask (0xFF,0xFF,0xFF,0xFF);
     }
   }
@@ -976,14 +992,14 @@ void Stat::init_ports(XMLConfObj * config) {
       else {
         std::cerr << Warning2.str() << Default.str();
         if (warning_verbosity==1)
-          outfile << Warning2.str() << Default.str();
+          outfile << Warning2.str() << Default.str() << std::flush;
         StatStore::setMonitorAllPorts() = true;
       }
     }
     else {
       std::cerr << Warning1.str() << Default.str();
       if (warning_verbosity==1)
-        outfile << Warning1.str() << Default.str();
+        outfile << Warning1.str() << Default.str() << std::flush;
       StatStore::setMonitorAllPorts() = true;
     }
     subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
@@ -1091,7 +1107,7 @@ void Stat::init_stat_test_freq(XMLConfObj * config) {
       << DEFAULT_stat_test_frequency << "\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str();
+      outfile << Default.str() << std::flush;
     stat_test_frequency = DEFAULT_stat_test_frequency;
   }
   else if (!(config->getValue("stat_test_frequency")).empty()) {
@@ -1106,7 +1122,7 @@ void Stat::init_stat_test_freq(XMLConfObj * config) {
 	    << DEFAULT_stat_test_frequency << "\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str();
+      outfile << Default.str() << std::flush;
     stat_test_frequency = DEFAULT_stat_test_frequency;
   }
 
@@ -1124,7 +1140,7 @@ void Stat::init_report_only_first_attack(XMLConfObj * config) {
       << "\"true\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str();
+      outfile << Default.str() << std::flush;
     report_only_first_attack = true;
   }
   else if (!(config->getValue("report_only_first_attack")).empty()) {
@@ -1139,20 +1155,14 @@ void Stat::init_report_only_first_attack(XMLConfObj * config) {
       << "\"true\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str();
+      outfile << Default.str() << std::flush;
     report_only_first_attack = true;
   }
-
-  // whatever the choice of the user is, we set last_xyz_test_was_an_attack
-  // flags = false as the first test isn't an attack and as these flags are
-  // also needed by the update function
-  last_wmw_test_was_an_attack = false;
-  last_ks_test_was_an_attack  = false;
-  last_pcs_test_was_an_attack = false;
 
   return;
 }
 
+//TODO(3)
 void Stat::init_pause_update_when_attack(XMLConfObj * config) {
 
   // extracting pause_update_when_attack preference
@@ -1164,7 +1174,7 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
       << "\"true\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str();
+      outfile << Default.str() << std::flush;
     pause_update_when_attack = true;
   }
   else if (!(config->getValue("pause_update_when_attack")).empty()) {
@@ -1179,7 +1189,7 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
       << "\"true\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str();
+      outfile << Default.str() << std::flush;
     pause_update_when_attack = true;
   }
 
@@ -1329,7 +1339,7 @@ void Stat::init_two_sided(XMLConfObj * config) {
       << "\"false\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str();
+      outfile << Default.str() << std::flush;
     two_sided = false;
   }
   else if ( enable_wmw_test == true && config->getValue("two_sided").empty() ) {
@@ -1339,7 +1349,7 @@ void Stat::init_two_sided(XMLConfObj * config) {
       << "\"false\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str();
+      outfile << Default.str() << std::flush;
     two_sided = false;
   }
   // Every value but "true" is assumed to be false!
@@ -1397,16 +1407,11 @@ void Stat::init_significance_level(XMLConfObj * config) {
 
 
 // ============================= TEST FUNCTION ===============================
-#include <time.h>
-
 void Stat::test(StatStore * store) {
 
 #ifdef IDMEF_SUPPORT_ENABLED
   idmefMessage = getNewIdmefMessage("wkp-module", "statistical anomaly detection");
 #endif
-
-  outfile << "########## Stat::test(...)-call number: " << test_counter
-	  << " ##########" << time(0) << std::endl;
 
   // Getting whole Data from store
   std::map<EndPoint,Info> Data = store->getData();
@@ -1415,10 +1420,16 @@ void Stat::test(StatStore * store) {
   // Dumping empty records:
   if (Data.empty()==true) {
     if (output_verbosity>=3 || warning_verbosity==1)
-      outfile << "Got empty record; "
-	      << "dumping it and waiting for another record" << std::endl;
+      outfile << "INFORMATION: Got empty record; "
+	      << "dumping it and waiting for another record" << std::endl << std::flush;
     return;
   }
+
+  outfile
+    << "####################################################" << std::endl
+    << "########## Stat::test(...)-call number: " << test_counter
+    << " ##########" << std::endl
+    << "####################################################" << std::endl;
 
   // 1) LEARN/UPDATE PHASE
 
@@ -1475,8 +1486,7 @@ void Stat::test(StatStore * store) {
       // in our sample container "SampleData"; so we update the samples
       // (SampleData_it->second).Old and (SampleData_it->second).New
       // thanks to the recorded new value in Data_it->second:
-      update ( (SampleData_it->second).Old , (SampleData_it->second).New ,
-	       extract_data(Data_it->second, prev) );
+      update ( SampleData_it->second, extract_data(Data_it->second, prev) );
 
     }
 
@@ -1484,10 +1494,12 @@ void Stat::test(StatStore * store) {
 
   }
 
+  outfile << std::endl << std::flush;
+
   // 1.5) MAP PRINTING (OPTIONAL, DEPENDS ON VERBOSITY SETTINGS)
   if (output_verbosity >= 4) {
-    outfile << "#### STATE OF ALL MONITORED ENDPOINTS:" << std::endl;
-    std::map<EndPoint, Samples>::iterator SampleData_it =
+    outfile << "#### STATE OF ALL MONITORED ENDPOINTS (" << SampleData.size() << "):" << std::endl;
+    std::map<EndPoint,Samples>::iterator SampleData_it =
       SampleData.begin();
     while (SampleData_it != SampleData.end()) {
       outfile
@@ -1498,7 +1510,6 @@ void Stat::test(StatStore * store) {
         << (SampleData_it->second).New << "\n";
       SampleData_it++;
     }
-    outfile << std::flush;
   }
 
   // 2) STATISTICAL TEST
@@ -1525,7 +1536,7 @@ void Stat::test(StatStore * store) {
       if ( ((SampleData_it->second).New).size() == sample_new_size ) {
         // i.e., learning phase over
         outfile << "\n#### STATISTICAL TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
-        stat_test ( (SampleData_it->second).Old, (SampleData_it->second).New );
+        stat_test ( SampleData_it->second );
       }
       SampleData_it++;
     }
@@ -1536,7 +1547,7 @@ void Stat::test(StatStore * store) {
 
   /* don't forget to free the store-object! */
   delete store;
-
+  outfile << std::endl << std::flush;
   return;
 
 }
@@ -1665,79 +1676,74 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
 
 // learn/update function for samples (called everytime test() is called)
 //
-void Stat::update ( std::list<std::vector<int64_t> > & sample_old,
-		    std::list<std::vector<int64_t> > & sample_new,
-		    const std::vector<int64_t> & new_value ) {
+void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
 
   // Learning phase?
-  if (sample_old.size() != sample_old_size) {
+  if (S.Old.size() != sample_old_size) {
 
-    sample_old.push_back(new_value);
+    S.Old.push_back(new_value);
 
     if (output_verbosity >= 3) {
       outfile << "Learning phase for sample_old ..." << std::endl;
       if (output_verbosity >= 4) {
-        outfile << "  sample_old: " << sample_old << std::endl;
-        outfile << "  sample_new: " << sample_new << std::endl;
+        outfile << "  sample_old: " << S.Old << std::endl;
+        outfile << "  sample_new: " << S.New << std::endl;
       }
     }
 
     return;
   }
-  else if (sample_new.size() != sample_new_size) {
+  else if (S.New.size() != sample_new_size) {
 
-    sample_new.push_back(new_value);
+    S.New.push_back(new_value);
 
     if (output_verbosity >= 3) {
       outfile << "Learning phase for sample_new..." << std::endl;
       if (output_verbosity >= 4) {
-        outfile << "  sample_old: " << sample_old << std::endl;
-        outfile << "  sample_new: " << sample_new << std::endl;
+        outfile << "  sample_old: " << S.Old << std::endl;
+        outfile << "  sample_new: " << S.New << std::endl;
       }
     }
 
     return;
   }
 
+  // siehe TODO(3)
   // Learning phase over: update:
-  if (pause_update_when_attack == false) {
-    sample_old.pop_front();
-    sample_old.push_back(sample_new.front());
-    sample_new.pop_front();
-    sample_new.push_back(new_value);
+  if (pause_update_when_attack == false
+    || ( S.last_wmw_test_was_attack == false
+        || S.last_ks_test_was_attack  == false
+        || S.last_pcs_test_was_attack == false ) ) {
+    S.Old.pop_front();
+    S.Old.push_back(S.New.front());
+    S.New.pop_front();
+    S.New.push_back(new_value);
   }
-  else if (last_wmw_test_was_an_attack == false ||
-	   last_ks_test_was_an_attack  == false ||
-	   last_pcs_test_was_an_attack == false ) {
-    sample_old.pop_front();
-    sample_old.push_back(sample_new.front());
-    sample_new.pop_front();
-    sample_new.push_back(new_value);
-  }
+  // pausing update only, if all three tests found an attack
+  // maybe better to pause, if at least one test found an attack?
+  // pausing update for old sample ...
   else {
-    sample_new.pop_front();
-    sample_new.push_back(new_value);
+    S.New.pop_front();
+    S.New.push_back(new_value);
   }
 
   if (output_verbosity >= 3) {
     outfile << "Update done" << std::endl;
     if (output_verbosity >= 4) {
-      outfile << "  sample_old: " << sample_old << std::endl;
-      outfile << "  sample_new: " << sample_new << std::endl;
+      outfile << "  sample_old: " << S.Old << std::endl;
+      outfile << "  sample_new: " << S.New << std::endl;
     }
   }
 
+  outfile << std::flush;
   return;
-
 }
 
 // ------- FUNCTIONS USED TO CONDUCT STATISTICAL TESTS ON THE SAMPLES ---------
 
 // statistical test function
 // (optional, depending on how often the user wishes to do it)
-//
-void Stat::stat_test (std::list<std::vector<int64_t> > & sample_old,
-		      std::list<std::vector<int64_t> > & sample_new) {
+void Stat::stat_test (Samples & S) {
 
   // Containers for the values of single metrics
   std::list<int64_t> sample_old_single_metric;
@@ -1753,25 +1759,26 @@ void Stat::stat_test (std::list<std::vector<int64_t> > & sample_old,
     if (output_verbosity >= 4)
       outfile << "### Performing Statistical Tests for metric " << getMetricName(*it) << ":\n";
 
-    sample_old_single_metric = getSingleMetric(sample_old, *it, index);
-    sample_new_single_metric = getSingleMetric(sample_new, *it, index);
+    sample_old_single_metric = getSingleMetric(S.Old, *it, index);
+    sample_new_single_metric = getSingleMetric(S.New, *it, index);
 
     // Wilcoxon-Mann-Whitney test:
     if (enable_wmw_test == true)
-      stat_test_wmw(sample_old_single_metric, sample_new_single_metric);
+      stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
 
     // Kolmogorov-Smirnov test:
     if (enable_ks_test == true)
-      stat_test_ks (sample_old_single_metric, sample_new_single_metric);
+      stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
 
     // Pearson chi-square test:
     if (enable_pcs_test == true)
-      stat_test_pcs(sample_old_single_metric, sample_new_single_metric);
+      stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
 
     it++;
     index++;
   }
 
+  outfile << std::flush;
   return;
 
 }
@@ -1914,12 +1921,13 @@ std::string Stat::getMetricName(const enum Metric & m) {
 }
 
 void Stat::stat_test_wmw (std::list<int64_t> & sample_old,
-			  std::list<int64_t> & sample_new) {
+			  std::list<int64_t> & sample_new, bool & last_wmw_test_was_attack) {
 
   double p;
+  bool was_attack = false;
 
   if (output_verbosity >= 5) {
-    outfile << "Wilcoxon-Mann-Whitney test details:\n";
+    outfile << " Wilcoxon-Mann-Whitney test details:\n";
     p = wmw_test(sample_old, sample_new, two_sided, outfile);
   }
   else {
@@ -1928,47 +1936,47 @@ void Stat::stat_test_wmw (std::list<int64_t> & sample_old,
   }
 
   if (output_verbosity >= 2) {
-    outfile << "Wilcoxon-Mann-Whitney test returned:\n"
+    outfile << " Wilcoxon-Mann-Whitney test returned:\n"
 	    << "  p-value: " << p << std::endl;
     outfile << "  reject H0 (no attack) to any significance level alpha > "
 	    << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
-	  || last_wmw_test_was_an_attack == false) {
-	outfile << "    ATTACK! ATTACK! ATTACK!\n"
-		<< "    Wilcoxon-Mann-Whitney test says we're under attack!\n"
-		<< "    ALARM! ALARM! Women und children first!" << std::endl;
-	std::cout << "  ATTACK! ATTACK! ATTACK!\n"
-		  << "  Wilcoxon-Mann-Whitney test says we're under attack!\n"
-		  << "  ALARM! ALARM! Women und children first!" << std::endl;
-#ifdef IDMEF_SUPPORT_ENABLED
-	idmefMessage.setAnalyzerAttr("", "", "wmw-test", "");
-	sendIdmefMessage("DDoS", idmefMessage);
-	idmefMessage = getNewIdmefMessage();
-#endif
+	    || last_wmw_test_was_attack == false) {
+	      outfile
+          << "    ATTACK! ATTACK! ATTACK!\n"
+		      << "    Wilcoxon-Mann-Whitney test says we're under attack!\n"
+		      << "    ALARM! ALARM! Women und children first!" << std::endl;
+	      std::cout
+          << "  ATTACK! ATTACK! ATTACK!\n"
+          << "  Wilcoxon-Mann-Whitney test says we're under attack!\n"
+		      << "  ALARM! ALARM! Women und children first!" << std::endl;
+      #ifdef IDMEF_SUPPORT_ENABLED
+        idmefMessage.setAnalyzerAttr("", "", "wmw-test", "");
+        sendIdmefMessage("DDoS", idmefMessage);
+        idmefMessage = getNewIdmefMessage();
+      #endif
       }
-      last_wmw_test_was_an_attack = true;
+      last_wmw_test_was_attack = true;
     }
-    else {
-      last_wmw_test_was_an_attack = false;
-    }
+    else
+      last_wmw_test_was_attack = false;
   }
 
   if (output_verbosity == 1) {
     outfile << "wmw: " << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
-	  || last_wmw_test_was_an_attack == false) {
-	outfile << "attack to significance level "
-		<< significance_level << "!" << std::endl;
-	std::cout << "attack to significance level "
-		  << significance_level << "!" << std::endl;
+      || last_wmw_test_was_attack == false) {
+	      outfile << "attack to significance level "
+		      << significance_level << "!" << std::endl;
+	      std::cout << "attack to significance level "
+		      << significance_level << "!" << std::endl;
       }
-      last_wmw_test_was_an_attack = true;
+      last_wmw_test_was_attack = true;
     }
-    else {
-      last_wmw_test_was_an_attack = false;
-    }
+    else
+      last_wmw_test_was_attack = false;
   }
 
   return;
@@ -1976,12 +1984,12 @@ void Stat::stat_test_wmw (std::list<int64_t> & sample_old,
 
 
 void Stat::stat_test_ks (std::list<int64_t> & sample_old,
-			 std::list<int64_t> & sample_new) {
+			 std::list<int64_t> & sample_new, bool & last_ks_test_was_attack) {
 
   double p;
 
   if (output_verbosity>=5) {
-    outfile << "Kolmogorov-Smirnov test details:\n";
+    outfile << " Kolmogorov-Smirnov test details:\n";
     p = ks_test(sample_old, sample_new, outfile);
   }
   else {
@@ -1990,47 +1998,45 @@ void Stat::stat_test_ks (std::list<int64_t> & sample_old,
   }
 
   if (output_verbosity >= 2) {
-    outfile << "Kolmogorov-Smirnov test returned:\n"
+    outfile << " Kolmogorov-Smirnov test returned:\n"
 	    << "  p-value: " << p << std::endl;
     outfile << "  reject H0 (no attack) to any significance level alpha > "
 	    << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
-	  || last_ks_test_was_an_attack == false) {
-	outfile << "    ATTACK! ATTACK! ATTACK!\n"
-		<< "    Kolmogorov-Smirnov test says we're under attack!\n"
-		<< "    ALARM! ALARM! Women und children first!" << std::endl;
-	std::cout << "  ATTACK! ATTACK! ATTACK!\n"
-		  << "  Kolmogorov-Smirnov test says we're under attack!\n"
-		  << "  ALARM! ALARM! Women und children first!" << std::endl;
-#ifdef IDMEF_SUPPORT_ENABLED
-	idmefMessage.setAnalyzerAttr("", "", "ks-test", "");
-	sendIdmefMessage("DDoS", idmefMessage);
-	idmefMessage = getNewIdmefMessage();
-#endif
+	    || last_ks_test_was_attack == false) {
+	      outfile << "    ATTACK! ATTACK! ATTACK!\n"
+		      << "    Kolmogorov-Smirnov test says we're under attack!\n"
+		      << "    ALARM! ALARM! Women und children first!" << std::endl;
+	      std::cout << "  ATTACK! ATTACK! ATTACK!\n"
+          << "  Kolmogorov-Smirnov test says we're under attack!\n"
+          << "  ALARM! ALARM! Women und children first!" << std::endl;
+      #ifdef IDMEF_SUPPORT_ENABLED
+        idmefMessage.setAnalyzerAttr("", "", "ks-test", "");
+        sendIdmefMessage("DDoS", idmefMessage);
+        idmefMessage = getNewIdmefMessage();
+      #endif
       }
-      last_ks_test_was_an_attack = true;
+      last_ks_test_was_attack = true;
     }
-    else {
-      last_ks_test_was_an_attack = false;
-    }
+    else
+      last_ks_test_was_attack = false;
   }
 
   if (output_verbosity == 1) {
     outfile << "ks : " << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
-	  || last_ks_test_was_an_attack == false) {
-	outfile << "attack to significance level "
-		<< significance_level << "!" << std::endl;
-	std::cout << "attack to significance level "
-		  << significance_level << "!" << std::endl;
+	    || last_ks_test_was_attack == false) {
+        outfile << "attack to significance level "
+          << significance_level << "!" << std::endl;
+        std::cout << "attack to significance level "
+          << significance_level << "!" << std::endl;
       }
-      last_ks_test_was_an_attack = true;
+      last_ks_test_was_attack = true;
     }
-    else {
-      last_ks_test_was_an_attack = false;
-    }
+    else
+      last_ks_test_was_attack = false;
   }
 
   return;
@@ -2038,12 +2044,12 @@ void Stat::stat_test_ks (std::list<int64_t> & sample_old,
 
 
 void Stat::stat_test_pcs (std::list<int64_t> & sample_old,
-			  std::list<int64_t> & sample_new) {
+			  std::list<int64_t> & sample_new, bool & last_pcs_test_was_attack) {
 
   double p;
 
   if (output_verbosity>=5) {
-    outfile << "Pearson chi-square test details:\n";
+    outfile << " Pearson chi-square test details:\n";
     p = pcs_test(sample_old, sample_new, outfile);
   }
   else {
@@ -2052,47 +2058,45 @@ void Stat::stat_test_pcs (std::list<int64_t> & sample_old,
   }
 
   if (output_verbosity >= 2) {
-    outfile << "Pearson chi-square test returned:\n"
+    outfile << " Pearson chi-square test returned:\n"
 	    << "  p-value: " << p << std::endl;
     outfile << "  reject H0 (no attack) to any significance level alpha > "
 	    << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
-	  || last_pcs_test_was_an_attack == false) {
-	outfile << "    ATTACK! ATTACK! ATTACK!\n"
-		<< "    Pearson chi-square test says we're under attack!\n"
-		<< "    ALARM! ALARM! Women und children first!" << std::endl;
-	std::cout << "  ATTACK! ATTACK! ATTACK!\n"
-		  << "  Pearson chi-square test says we're under attack!\n"
-		  << "  ALARM! ALARM! Women und children first!" << std::endl;
-#ifdef IDMEF_SUPPORT_ENABLED
-	idmefMessage.setAnalyzerAttr("", "", "pcs-test", "");
-	sendIdmefMessage("DDoS", idmefMessage);
-	idmefMessage = getNewIdmefMessage();
-#endif
+	    || last_pcs_test_was_attack == false) {
+	      outfile << "    ATTACK! ATTACK! ATTACK!\n"
+		      << "    Pearson chi-square test says we're under attack!\n"
+		      << "    ALARM! ALARM! Women und children first!" << std::endl;
+	      std::cout << "  ATTACK! ATTACK! ATTACK!\n"
+		      << "  Pearson chi-square test says we're under attack!\n"
+		      << "  ALARM! ALARM! Women und children first!" << std::endl;
+      #ifdef IDMEF_SUPPORT_ENABLED
+        idmefMessage.setAnalyzerAttr("", "", "pcs-test", "");
+        sendIdmefMessage("DDoS", idmefMessage);
+        idmefMessage = getNewIdmefMessage();
+      #endif
       }
-      last_pcs_test_was_an_attack = true;
+      last_pcs_test_was_attack = true;
     }
-    else {
-      last_pcs_test_was_an_attack = false;
-    }
+    else
+      last_pcs_test_was_attack = false;
   }
 
   if (output_verbosity == 1) {
     outfile << "pcs: " << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
-	  || last_pcs_test_was_an_attack == false) {
-	outfile << "attack to significance level "
-		<< significance_level << "!" << std::endl;
-	std::cout << "attack to significance level "
-		  << significance_level << "!" << std::endl;
+      || last_pcs_test_was_attack == false) {
+	      outfile << "attack to significance level "
+		      << significance_level << "!" << std::endl;
+	      std::cout << "attack to significance level "
+		      << significance_level << "!" << std::endl;
       }
-      last_pcs_test_was_an_attack = true;
+      last_pcs_test_was_attack = true;
     }
-    else {
-      last_pcs_test_was_an_attack = false;
-    }
+    else
+      last_pcs_test_was_attack = false;
   }
 
   return;
