@@ -149,6 +149,8 @@ class Stat : public DetectionBase<StatStore> {
   void init_pause_update_when_attack(XMLConfObj *);
 
   // ... and those related to the statistical tests parameters
+  void init_cusum_test(XMLConfObj *);
+
   void init_which_test(XMLConfObj *);
   void init_sample_sizes(XMLConfObj *);
   void init_two_sided(XMLConfObj *);
@@ -201,7 +203,7 @@ class Stat : public DetectionBase<StatStore> {
   std::string ipfile;
   int stat_test_frequency;
   bool report_only_first_attack;
-  bool pause_update_when_attack;
+  short pause_update_when_attack;
 
 
   // test parameters (defined in the XML config file):

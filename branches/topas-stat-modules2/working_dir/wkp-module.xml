@@ -32,9 +32,12 @@
     <ip_addresses_to_monitor>all</ip_addresses_to_monitor>
 		<stat_test_frequency>1</stat_test_frequency>
 		<report_only_first_attack>true</report_only_first_attack>
-    <pause_update_when_attack>true</pause_update_when_attack>
+    <pause_update_when_attack>2</pause_update_when_attack>
 	</preferences>
-	<test-params>
+  <cusum-test-params>
+    <cusum_test>true</cusum_test>
+  </cusum-test-params>
+	<wkp-test-params>
 		<wilcoxon_test>true</wilcoxon_test>
 		<kolmogorov_test>true</kolmogorov_test>
 		<pearson_chi-square_test>true</pearson_chi-square_test>
@@ -42,5 +45,5 @@
 		<sample_new_size>1</sample_new_size>
 		<two_sided>false</two_sided>
 		<significance_level>0.05</significance_level>
-	</test-params>
+	</wkp-test-params>
 </configuration>

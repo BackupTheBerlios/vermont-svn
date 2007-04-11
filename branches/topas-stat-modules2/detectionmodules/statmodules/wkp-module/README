@@ -216,21 +216,19 @@ if no value is provided (after an information message).
 
 <pause_update_when_attack>:
 
-If set to true, it "pauses" the update function when an attack occurs,
-i.e. it updates only the "new" sample, so that the anomaly is not
+This parameter is for "pausing" the update function when one ore more attacks
+occurs, i.e. it updates only the "new" sample, so that the anomaly is not
 assumed to be normal traffic when the corresponding sample values are sent
 into the "old" sample. This avoids detecting another anomaly when the
 current anomaly ceases and traffic returns to normal values.
-This parameter is a case-insensitive boolean that will be set to true
-if no value is provided (after an information message).
-
-"0" - Sobald ein Test Alarm schlägt, Update pausieren
-"1" - Nur wenn alle aktivierten Tests Alarm schlagen Update pausieren
-"2" - Wenn mehr als die Hälfte der Tests Alarm schlägt Update pausieren
-
+This parameter can have values 0, 1 or 2 and is set to 0 (after a warning
+message) if omitted.
+0 - no pausing at all
+1 - pause, if (at least) one test detects an attack
+2 - pause, if all tests detect an attack
 
 
-<test-params>
+<wkp-test-params>
 -------------
 
 <wilcoxon_test>, <kolmogorov_test>, <pearson_chi-square_test>:

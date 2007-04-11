@@ -38,17 +38,31 @@ TODO(3)
 pause_update_when_attack bei mehreren Metriken
 --------------------------------------------------------
 Bisher:
-- Pause_update_when_attack greift nur, wenn alle drei Tests im letzten Durchlauf einen Angriff erkannten. Wenn man z. B. nur den KS-Test aktiviert, so greift pause_update_when_attack nie! (Siehe update()-Funktion);
+Pause_update_when_attack greift nur, wenn alle drei Tests im letzten Durchlauf einen Angriff erkannten. Wenn man z. B. nur den KS-Test aktiviert, so greift pause_update_when_attack nie! (Siehe update()-Funktion);
 
 Besser:
-- Auch pause_update_when_attack, wenn nur ein Test Alarm schlägt --> Soll konfigurierbar sein, mit folgenden drei Modi:
-  "0" - Niemals pausieren
-  "1" - Sobald ein Test Alarm schlägt, Update pausieren
-  "2" - Nur wenn alle aktivierten Tests Alarm schlagen Update pausieren
-  "3" - Wenn mehr als die Hälfte (o, ä.) der Tests Alarm schlägt Update pausieren
+Soll konfigurierbar sein, mit folgenden zwei Modi:
+"0" - Niemals pausieren
+"1" - Sobald ein Test Alarm schlägt, Update pausieren
+"2" - Nur wenn alle aktivierten Tests Alarm schlagen Update pausieren
 
 Stand:
-- Struct Samples hat die last_test-flags nun implementiert und wird update(), stat_test() und den Testfunktionen mit übergeben (um es ändern zu können)
+Fertig. last_test-flags nun für jeden Endpunkt einzeln (im Samples-Kontainer) und
+in stat_test() werden diese gesetzt (da mehrere Metriken getestet werden können,
+mussten Hilfsvariablen herhalten, die sich merken, ob mind. für eine Metrik ein
+Angriff erkannt wurde)
+
+TODO(4)
+Initialisierung sparen, falls bestimmte Tests inaktiv
+------------------------------------------------------
+- Wenn kein WKP-Test aktiviert wird, weitere Initialisierung ersparen
+- Wenn Cusum-Test nicht aktiviert ist, weitere Initialisierung sparen
+- Wenn generell kein Test aktiviert ist, meckern!
+
+TODO(5)
+CUSUM
+-----------------------------------------------------
+Stand: Initialisierung überlegen (welche Parameter?)
 */
 
 
@@ -115,9 +129,16 @@ void Stat::init(const std::string & configfile) {
     exit(0);
   }
 
-  if (!config->nodeExists("test-params")) {
+  if (!config->nodeExists("wkp-test-params")) {
     std::cerr
-      << "ERROR: No test-params node defined in XML config file!\n"
+      << "ERROR: No wkp-test-params node defined in XML config file!\n"
+      << "Define one, fill it with some parameters and restart.\nExiting.\n";
+    exit(0);
+  }
+
+  if (!config->nodeExists("cusum-test-params")) {
+    std::cerr
+      << "ERROR: No cusum-test-params node defined in XML config file!\n"
       << "Define one, fill it with some parameters and restart.\nExiting.\n";
     exit(0);
   }
@@ -187,7 +208,15 @@ void Stat::init(const std::string & configfile) {
 
   config->leaveNode();
 
-  config->enterNode("test-params");
+  //TODO(5)
+  config->enterNode("cusum-test-params");
+
+  // extracting cusum parameters
+  init_cusum_test(config);
+
+  config->leaveNode();
+
+  config->enterNode("wkp-test-params");
 
   // extracting type of test
   // (Wilcoxon and/or Kolmogorov and/or Pearson chi-square)
@@ -206,7 +235,6 @@ void Stat::init(const std::string & configfile) {
 
   /* one should not forget to free "config" after use */
   delete config;
-
 }
 
 
@@ -1162,7 +1190,6 @@ void Stat::init_report_only_first_attack(XMLConfObj * config) {
   return;
 }
 
-//TODO(3)
 void Stat::init_pause_update_when_attack(XMLConfObj * config) {
 
   // extracting pause_update_when_attack preference
@@ -1171,28 +1198,58 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
     Default
       << "WARNING: No pause_update_when_attack parameter "
       << "defined in XML config file!\n"
-      << "\"true\" assumed.\n";
+      << "No pausing assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
       outfile << Default.str() << std::flush;
-    pause_update_when_attack = true;
+    pause_update_when_attack = 0;
   }
   else if (!(config->getValue("pause_update_when_attack")).empty()) {
-    pause_update_when_attack =
-      ( 0 == strcasecmp("true", config->getValue("pause_update_when_attack").c_str()) ) ? true:false;
+    switch (atoi(config->getValue("pause_update_when_attack").c_str())) {
+      case 0:
+        pause_update_when_attack = 0;
+        break;
+      case 1:
+        pause_update_when_attack = 1;
+        break;
+      case 2:
+        pause_update_when_attack = 2;
+        break;
+      default:
+        std::stringstream Error;
+        Error
+          << "ERROR: Unknown value ("
+          << config->getValue("pause_update_when_attack")
+          << ") for pause_update_when_attack parameter!\n"
+          << "Please chose one of the following and restart:\n"
+          << "0: no pausing\n"
+          << "1: pause, if one test detected an attack\n"
+          << "2: pause, if all tests detected an attack\n";
+        std::cerr << Error.str();
+        if (warning_verbosity==1)
+          outfile << Error.str() << std::flush;
+        exit(0);
+        break;
+    }
   }
   else {
     std::stringstream Default;
     Default
       << "WARNING: No value for pause_update_when_attack parameter "
 	    << "defined in XML config file!\n"
-      << "\"true\" assumed.\n";
+      << "No pausing assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
       outfile << Default.str() << std::flush;
-    pause_update_when_attack = true;
+    pause_update_when_attack = 0;
   }
 
+  return;
+}
+
+//TODO(5)
+void Stat::init_cusum_test(XMLConfObj * config) {
+  // extract cusum test parameters
   return;
 }
 
@@ -1708,30 +1765,45 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
     return;
   }
 
-  // siehe TODO(3)
-  // Learning phase over: update:
-  if (pause_update_when_attack == false
-    || ( S.last_wmw_test_was_attack == false
-        || S.last_ks_test_was_attack  == false
-        || S.last_pcs_test_was_attack == false ) ) {
+  // Learning phase over: update
+
+  // pausing update for old sample,
+  // if 1 of the last tests was an attack and parameter is 1
+  // or all of the last tests were an attack and parameter is 2
+  if ( (pause_update_when_attack == 1
+        && ( S.last_wmw_test_was_attack == true
+          || S.last_ks_test_was_attack  == true
+          || S.last_pcs_test_was_attack == true ))
+    || (pause_update_when_attack == 2
+        && ( S.last_wmw_test_was_attack == true
+          && S.last_ks_test_was_attack  == true
+          && S.last_pcs_test_was_attack == true )) ) {
+
+    S.New.pop_front();
+    S.New.push_back(new_value);
+
+    if (output_verbosity >= 3) {
+      outfile << "Update done (for new sample only)" << std::endl;
+      if (output_verbosity >= 4) {
+        outfile << "  sample_old: " << S.Old << std::endl;
+        outfile << "  sample_new: " << S.New << std::endl;
+      }
+    }
+  }
+  // if parameter is 0 or there was no attack detected
+  // update both samples
+  else {
     S.Old.pop_front();
     S.Old.push_back(S.New.front());
     S.New.pop_front();
     S.New.push_back(new_value);
-  }
-  // pausing update only, if all three tests found an attack
-  // maybe better to pause, if at least one test found an attack?
-  // pausing update for old sample ...
-  else {
-    S.New.pop_front();
-    S.New.push_back(new_value);
-  }
 
-  if (output_verbosity >= 3) {
-    outfile << "Update done" << std::endl;
-    if (output_verbosity >= 4) {
-      outfile << "  sample_old: " << S.Old << std::endl;
-      outfile << "  sample_new: " << S.New << std::endl;
+    if (output_verbosity >= 3) {
+      outfile << "Update done (for both samples)" << std::endl;
+      if (output_verbosity >= 4) {
+        outfile << "  sample_old: " << S.Old << std::endl;
+        outfile << "  sample_new: " << S.New << std::endl;
+      }
     }
   }
 
@@ -1754,6 +1826,13 @@ void Stat::stat_test (Samples & S) {
   // for every value (represented by *it) in monitored_values,
   // do the tests
   short index = 0;
+  // as the tests can be performed for several metrics, we have to
+  // store, if at least one metric raised an alarm and if so, set
+  // the last_test_was_attack-flag to true
+  bool wmw_was_attack = false;
+  bool ks_was_attack = false;
+  bool pcs_was_attack = false;
+
   while (it != monitored_values.end()) {
 
     if (output_verbosity >= 4)
@@ -1763,20 +1842,38 @@ void Stat::stat_test (Samples & S) {
     sample_new_single_metric = getSingleMetric(S.New, *it, index);
 
     // Wilcoxon-Mann-Whitney test:
-    if (enable_wmw_test == true)
+    if (enable_wmw_test == true) {
       stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
+      if (S.last_wmw_test_was_attack == true)
+        wmw_was_attack = true;
+    }
 
     // Kolmogorov-Smirnov test:
-    if (enable_ks_test == true)
+    if (enable_ks_test == true) {
       stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
+      if (S.last_ks_test_was_attack == true)
+        ks_was_attack = true;
+    }
 
     // Pearson chi-square test:
-    if (enable_pcs_test == true)
+    if (enable_pcs_test == true) {
       stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
+      if (S.last_pcs_test_was_attack == true)
+        pcs_was_attack = true;
+    }
 
     it++;
     index++;
   }
+
+  // if there was at least one alarm, set the corresponding
+  // flag to true
+  if (wmw_was_attack == true)
+    S.last_wmw_test_was_attack = true;
+  if (ks_was_attack == true)
+    S.last_ks_test_was_attack = true;
+  if (pcs_was_attack == true)
+    S.last_pcs_test_was_attack = true;
 
   outfile << std::flush;
   return;
@@ -1924,7 +2021,6 @@ void Stat::stat_test_wmw (std::list<int64_t> & sample_old,
 			  std::list<int64_t> & sample_new, bool & last_wmw_test_was_attack) {
 
   double p;
-  bool was_attack = false;
 
   if (output_verbosity >= 5) {
     outfile << " Wilcoxon-Mann-Whitney test details:\n";
