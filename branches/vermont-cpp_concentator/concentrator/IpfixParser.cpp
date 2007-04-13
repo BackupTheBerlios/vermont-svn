@@ -1,40 +1,24 @@
-/** @file
- * IPFIX Collector module.
+/*
+ * IPFIX Concentrator Module Library
+ * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
  *
- * The IPFIX Collector module receives messages from lower levels (see @c processMessage())
- * and parses the message into separate Templates, Options and Flows. It then
- * invokes the appropriate callback routine for each Template, Option and Flow received
- * (see the @c setTemplateCallback() and @c setDataRecordCallback() function groups).
- *
- * The Collector module supports higher-level modules by providing field types and offsets along 
- * with the raw data block of individual messages passed via the callback functions (see @c TemplateInfo)
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
-/******************************************************************************
-
-IPFIX Collector module
-Copyright (C) 2004 Christoph Sommer
-http://www.deltadevelopment.de/users/christoph/ipfix
-
-FIXME: Basic support for NetflowV9 packets, templates and flow records
-is provided. Will break when fed field types with type ID >= 0x8000.
-
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-
-******************************************************************************/
+// FIXME: Basic support for NetflowV9 packets, templates and flow records is provided. Will break when fed field types with type ID >= 0x8000.
 
 #include <netinet/in.h>
 #include <stdio.h>
@@ -50,121 +34,33 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 /* for ntohll et al */
 #include "ipfixlolib/ipfixlolib.h"
 
-#include "rcvIpfix.h"
-#include "templateBuffer.h"
-#include "ipfix.h"
+#include "IpfixReceiver.hpp"
+#include "IpfixParser.hpp"
+#include "TemplateBuffer.hpp"
+#include "ipfix.hpp"
 
 #include "msg.h"
-/***** Defines ************************************************************/
 
-
-/***** Constants ************************************************************/
-
-#define NetflowV9_SetId_Template  0
-
-/***** Macros ************************************************************/
-
-
-/***** Data Types ************************************************************/
-
-/**
- * IPFIX header helper.
- * Constitutes the first 16 bytes of every IPFIX Message
- */
-typedef struct {
-	uint16_t version;			/**< Expected to be 0x000a */
-	uint16_t length; 
-	uint32_t exportTime;
-	uint32_t sequenceNo;
-	uint32_t observationDomainId;
-	byte   data;
-} IpfixHeader;
-
-/**
- * NetflowV9 header helper.
- * Constitutes the first bytes of every NetflowV9 Message
- */
-typedef struct {
-	uint16_t version;                 /**< Expected to be 0x0009 */
-	uint16_t setCount;
-	uint32_t uptime;
-	uint32_t exportTime;
-	uint32_t sequenceNo;
-	uint32_t observationDomainId;
-	byte   data;
-} NetflowV9Header;
-
-/**
- * IPFIX "Set" helper.
- * Constitutes the first bytes of every IPFIX Template Set, Options Template Set or Data Set
- */
-typedef struct {
-	uint16_t id;
-	uint16_t length;
-	byte data; 
-} IpfixSetHeader;
-
-/**
- * IPFIX "Template Set" helper.
- * Constitutes the first bytes of every IPFIX Template
- */
-typedef struct {
-	uint16_t templateId;
-	uint16_t fieldCount;
-	byte data;
-} IpfixTemplateHeader;
-
-/**
- * IPFIX "DataTemplate Set" helper.
- * Constitutes the first bytes of every IPFIX DataTemplate
- */
-typedef struct {
-	uint16_t templateId;
-	uint16_t fieldCount;
-	uint16_t dataCount;
-	uint16_t precedingRule;
-	byte data;
-} IpfixDataTemplateHeader;
-
-/**
- * IPFIX "Options Template Set" helper.
- * Constitutes the first bytes of every IPFIX Options Template
- */
-typedef struct {
-	uint16_t templateId;
-	uint16_t fieldCount;
-	uint16_t scopeCount; 
-	byte data;
-} IpfixOptionsTemplateHeader;
-
-/***** Global Variables ******************************************************/
-
-
-/***** Internal Functions ****************************************************/
-
-static void processDataSet(IpfixParser* ipfixParser, SourceID* sourceID, IpfixSetHeader* set);
-static void processTemplateSet(IpfixParser* ipfixParser, SourceID* sourceID, IpfixSetHeader* set);
-static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID* sourceID, IpfixSetHeader* set);
-static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSetHeader* set);
+#define MAX_MSG_LEN 65536
 
 /**
  * Processes an IPFIX template set.
  * Called by processMessage
  */
-static void processTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSetHeader* set) {
-	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&set->data;
+void IpfixParser::processTemplateSet(SourceID* sourceId, IpfixSetHeader* set) {
+	uint8_t* endOfSet = (uint8_t*)set + ntohs(set->length);
+	uint8_t* record = (uint8_t*)&set->data;
 
 	/* TemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
 		IpfixTemplateHeader* th = (IpfixTemplateHeader*)record;
-		record = (byte*)&th->data;
+		record = (uint8_t*)&th->data;
 		if (th->fieldCount == 0) {
 			/* This is a Template withdrawal message */
-			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
+			templateBuffer->destroyBufferedTemplate(sourceId, ntohs(th->templateId));
 			continue;
 		}
-		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
+		TemplateBuffer::BufferedTemplate* bt = (TemplateBuffer::BufferedTemplate*)malloc(sizeof(TemplateBuffer::BufferedTemplate));
 		TemplateInfo* ti = (TemplateInfo*)malloc(sizeof(TemplateInfo));
 		memcpy(&bt->sourceID, sourceId, sizeof(SourceID));
 		bt->templateID = ntohs(th->templateId);
@@ -178,19 +74,19 @@ static void processTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId, Ipf
 		int isLengthVarying = 0;
 		uint16_t fieldNo;
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
-			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
-			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((uint8_t*)record+0));
+			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((uint8_t*)record+2));
 			ti->fieldInfo[fieldNo].type.isVariableLength = (ti->fieldInfo[fieldNo].type.length == 65535);
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
 			if (ti->fieldInfo[fieldNo].type.length == 65535) {
 				isLengthVarying=1;
 			}
 			if (ti->fieldInfo[fieldNo].type.id & IPFIX_ENTERPRISE_TYPE) {
-				ti->fieldInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
-				record = (byte*)((byte*)record+8);
+				ti->fieldInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((uint8_t*)record+4));
+				record = (uint8_t*)((uint8_t*)record+8);
 			} else {
 				ti->fieldInfo[fieldNo].type.eid = 0;
-				record = (byte*)((byte*)record+4);
+				record = (uint8_t*)((uint8_t*)record+4);
 			}
 		}
 		if (isLengthVarying) {
@@ -200,15 +96,11 @@ static void processTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId, Ipf
 			}
 		}
         
-		bufferTemplate(ipfixParser->templateBuffer, bt); 
+		templateBuffer->bufferTemplate(bt); 
 		bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
-		int n;          
-		for (n = 0; n < ipfixParser->callbackCount; n++) {
-			CallbackInfo* ci = &ipfixParser->callbackInfo[n];
-			if (ci->templateCallbackFunction) {
-				ci->templateCallbackFunction(ci->handle, sourceId, ti);
-			}
+		for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+			(*i)->onTemplate(sourceId, ti);
 		}
 	}
 }
@@ -217,20 +109,20 @@ static void processTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId, Ipf
  * Processes an IPFIX Options Template Set.
  * Called by processMessage
  */
-static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSetHeader* set) {
-	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&set->data;
+void IpfixParser::processOptionsTemplateSet(SourceID* sourceId, IpfixSetHeader* set) {
+	uint8_t* endOfSet = (uint8_t*)set + ntohs(set->length);
+	uint8_t* record = (uint8_t*)&set->data;
 
 	/* OptionsTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
 		IpfixOptionsTemplateHeader* th = (IpfixOptionsTemplateHeader*)record;
-		record = (byte*)&th->data;
+		record = (uint8_t*)&th->data;
 		if (th->fieldCount == 0) {
 			/* This is a Template withdrawal message */
-			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
+			templateBuffer->destroyBufferedTemplate(sourceId, ntohs(th->templateId));
 			continue;
 		}
-		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
+		TemplateBuffer::BufferedTemplate* bt = (TemplateBuffer::BufferedTemplate*)malloc(sizeof(TemplateBuffer::BufferedTemplate));
 		OptionsTemplateInfo* ti = (OptionsTemplateInfo*)malloc(sizeof(OptionsTemplateInfo));
 		memcpy(&bt->sourceID, sourceId, sizeof(SourceID));
 		bt->templateID = ntohs(th->templateId);
@@ -246,36 +138,36 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID* source
 		int isLengthVarying = 0;
 		uint16_t scopeNo;
 		for (scopeNo = 0; scopeNo < ti->scopeCount; scopeNo++) {
-			ti->scopeInfo[scopeNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
-			ti->scopeInfo[scopeNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->scopeInfo[scopeNo].type.id = ntohs(*(uint16_t*)((uint8_t*)record+0));
+			ti->scopeInfo[scopeNo].type.length = ntohs(*(uint16_t*)((uint8_t*)record+2));
 			ti->scopeInfo[scopeNo].type.isVariableLength = (ti->scopeInfo[scopeNo].type.length == 65535);
 			ti->scopeInfo[scopeNo].offset = bt->recordLength; bt->recordLength+=ti->scopeInfo[scopeNo].type.length;
 			if (ti->scopeInfo[scopeNo].type.length == 65535) {
 				isLengthVarying=1;
 			}
 			if (ti->scopeInfo[scopeNo].type.id & IPFIX_ENTERPRISE_TYPE) {
-				ti->scopeInfo[scopeNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
-				record = (byte*)((byte*)record+8);
+				ti->scopeInfo[scopeNo].type.eid = ntohl(*(uint32_t*)((uint8_t*)record+4));
+				record = (uint8_t*)((uint8_t*)record+8);
 			} else {
 				ti->fieldInfo[scopeNo].type.eid = 0;
-				record = (byte*)((byte*)record+4);
+				record = (uint8_t*)((uint8_t*)record+4);
 			}
 		}
 		uint16_t fieldNo;
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
-			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
-			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((uint8_t*)record+0));
+			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((uint8_t*)record+2));
 			ti->fieldInfo[fieldNo].type.isVariableLength = (ti->fieldInfo[fieldNo].type.length == 65535);
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
 			if (ti->fieldInfo[fieldNo].type.length == 65535) {
 				isLengthVarying=1;
 			}
 			if (ti->fieldInfo[fieldNo].type.id & IPFIX_ENTERPRISE_TYPE) {
-				ti->fieldInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
-				record = (byte*)((byte*)record+8);
+				ti->fieldInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((uint8_t*)record+4));
+				record = (uint8_t*)((uint8_t*)record+8);
 			} else {
 				ti->fieldInfo[fieldNo].type.eid = 0;
-				record = (byte*)((byte*)record+4);
+				record = (uint8_t*)((uint8_t*)record+4);
 			}
 		}
 		if (isLengthVarying) {
@@ -287,16 +179,11 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID* source
 				ti->fieldInfo[fieldNo].offset = 65535;
 			}
 		}
-		bufferTemplate(ipfixParser->templateBuffer, bt); 
+		templateBuffer->bufferTemplate(bt); 
 		bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
-
-		int n;
-		for (n = 0; n < ipfixParser->callbackCount; n++) {
-			CallbackInfo* ci = &ipfixParser->callbackInfo[n];
-			if (ci->optionsTemplateCallbackFunction) {
-				ci->optionsTemplateCallbackFunction(ci->handle, sourceId, ti);
-			}
+		for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+			(*i)->onOptionsTemplate(sourceId, ti);
 		}
 	}
 }
@@ -305,20 +192,20 @@ static void processOptionsTemplateSet(IpfixParser* ipfixParser, SourceID* source
  * Processes an IPFIX DataTemplate set.
  * Called by processMessage
  */
-static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSetHeader* set) {
-	byte* endOfSet = (byte*)set + ntohs(set->length);
-	byte* record = (byte*)&set->data;
+void IpfixParser::processDataTemplateSet(SourceID* sourceId, IpfixSetHeader* set) {
+	uint8_t* endOfSet = (uint8_t*)set + ntohs(set->length);
+	uint8_t* record = (uint8_t*)&set->data;
 
 	/* DataTemplateSets are >= 4 byte, so we stop processing when only 3 bytes are left */
 	while (record < endOfSet - 3) {
 		IpfixDataTemplateHeader* th = (IpfixDataTemplateHeader*)record;
-		record = (byte*)&th->data;
+		record = (uint8_t*)&th->data;
 		if (th->fieldCount == 0) {
 			/* This is a Template withdrawal message */
-			destroyBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(th->templateId));
+			templateBuffer->destroyBufferedTemplate(sourceId, ntohs(th->templateId));
 			continue;
 		}
-		BufferedTemplate* bt = (BufferedTemplate*)malloc(sizeof(BufferedTemplate));
+		TemplateBuffer::BufferedTemplate* bt = (TemplateBuffer::BufferedTemplate*)malloc(sizeof(TemplateBuffer::BufferedTemplate));
 		DataTemplateInfo* ti = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
 		memcpy(&bt->sourceID, sourceId, sizeof(SourceID));
 		bt->templateID = ntohs(th->templateId);
@@ -334,19 +221,19 @@ static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId,
 		int isLengthVarying = 0;
 		uint16_t fieldNo;
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
-			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
-			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->fieldInfo[fieldNo].type.id = ntohs(*(uint16_t*)((uint8_t*)record+0));
+			ti->fieldInfo[fieldNo].type.length = ntohs(*(uint16_t*)((uint8_t*)record+2));
 			ti->fieldInfo[fieldNo].type.isVariableLength = (ti->fieldInfo[fieldNo].type.length == 65535);
 			ti->fieldInfo[fieldNo].offset = bt->recordLength; bt->recordLength+=ti->fieldInfo[fieldNo].type.length;
 			if (ti->fieldInfo[fieldNo].type.length == 65535) {
 				isLengthVarying=1;
 			}
 			if (ti->fieldInfo[fieldNo].type.id & IPFIX_ENTERPRISE_TYPE) {
-				ti->fieldInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
-				record = (byte*)((byte*)record+8);
+				ti->fieldInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((uint8_t*)record+4));
+				record = (uint8_t*)((uint8_t*)record+8);
 			} else {
 				ti->fieldInfo[fieldNo].type.eid = 0;
-				record = (byte*)((byte*)record+4);
+				record = (uint8_t*)((uint8_t*)record+4);
 			}
 		}
 		if (isLengthVarying) {
@@ -358,19 +245,19 @@ static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId,
 
 		ti->dataInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
 		for (fieldNo = 0; fieldNo < ti->dataCount; fieldNo++) {
-			ti->dataInfo[fieldNo].type.id = ntohs(*(uint16_t*)((byte*)record+0));
-			ti->dataInfo[fieldNo].type.length = ntohs(*(uint16_t*)((byte*)record+2));
+			ti->dataInfo[fieldNo].type.id = ntohs(*(uint16_t*)((uint8_t*)record+0));
+			ti->dataInfo[fieldNo].type.length = ntohs(*(uint16_t*)((uint8_t*)record+2));
 			if (ti->dataInfo[fieldNo].type.id & IPFIX_ENTERPRISE_TYPE) {
-				ti->dataInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((byte*)record+4));
-				record = (byte*)((byte*)record+8);
+				ti->dataInfo[fieldNo].type.eid = ntohl(*(uint32_t*)((uint8_t*)record+4));
+				record = (uint8_t*)((uint8_t*)record+8);
 			} else {
 				ti->dataInfo[fieldNo].type.eid = 0;
-				record = (byte*)((byte*)record+4);
+				record = (uint8_t*)((uint8_t*)record+4);
 			}
 		}
 
 		/* done with reading dataInfo, @c record now points to the fixed data block */
-		byte* dataStart = record;
+		uint8_t* dataStart = record;
 
 		int dataLength = 0;
 		for (fieldNo = 0; fieldNo < ti->dataCount; fieldNo++) {
@@ -389,21 +276,17 @@ static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId,
 		}
 
 		/* Copy fixed data block */
-		ti->data = (byte*)malloc(dataLength);
+		ti->data = (uint8_t*)malloc(dataLength);
 		memcpy(ti->data,dataStart,dataLength);
 
 		/* Advance record to end of fixed data block, i.e. start of next template*/
 		record += dataLength;
 
-		bufferTemplate(ipfixParser->templateBuffer, bt); 
+		templateBuffer->bufferTemplate(bt); 
 		bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
 
-		int n;
-		for (n = 0; n < ipfixParser->callbackCount; n++) {
-			CallbackInfo* ci = &ipfixParser->callbackInfo[n];
-			if (ci->dataTemplateCallbackFunction){
-				ci->dataTemplateCallbackFunction(ci->handle, sourceId, ti);
-			}
+		for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+			(*i)->onDataTemplate(sourceId, ti);
 		}
 	}
 }
@@ -412,8 +295,8 @@ static void processDataTemplateSet(IpfixParser* ipfixParser, SourceID* sourceId,
  * Processes an IPFIX data set.
  * Called by processMessage
  */
-static void processDataSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSetHeader* set) {
-	BufferedTemplate* bt = getBufferedTemplate(ipfixParser->templateBuffer, sourceId, ntohs(set->id));
+void IpfixParser::processDataSet(SourceID* sourceId, IpfixSetHeader* set) {
+	TemplateBuffer::BufferedTemplate* bt = templateBuffer->getBufferedTemplate(sourceId, ntohs(set->id));
 
 	if (bt == 0) {
 		/* this error may come in rapid succession; I hope I don't regret it */
@@ -429,12 +312,12 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSe
 
 		TemplateInfo* ti = bt->templateInfo;
         
-		uint16_t length = ntohs(set->length)-((byte*)(&set->data)-(byte*)set);
+		uint16_t length = ntohs(set->length)-((uint8_t*)(&set->data)-(uint8_t*)set);
 
-		byte* record = &set->data;
+		uint8_t* record = &set->data;
         
 		if (bt->recordLength < 65535) {
-			byte* recordX = record+length;
+			uint8_t* recordX = record+length;
         
 			if (record >= recordX - (bt->recordLength - 1)) {
 				DPRINTF("Got a Data Set that contained not a single full record\n");
@@ -442,17 +325,13 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSe
 
 			/* We stop processing when no full record is left */
 			while (record < recordX - (bt->recordLength - 1)) {
-				int n;
-				for (n = 0; n < ipfixParser->callbackCount; n++) {
-					CallbackInfo* ci = &ipfixParser->callbackInfo[n];
-					if (ci->dataRecordCallbackFunction) {
-						ci->dataRecordCallbackFunction(ci->handle, sourceId, ti, bt->recordLength, record);
-					}
+				for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+					(*i)->onDataRecord(sourceId, ti, bt->recordLength, record);
 				}
 				record = record + bt->recordLength;
 			}
 		} else {
-			byte* recordX = record+length;
+			uint8_t* recordX = record+length;
 
 			if (record >= recordX - 3) {
 				DPRINTF("Got a Data Set that contained not a single full record");
@@ -478,12 +357,8 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSe
 					ti->fieldInfo[i].type.length = fieldLength;
 					recordLength += fieldLength;
 				}
-				int n;
-				for (n = 0; n < ipfixParser->callbackCount; n++) {
-					CallbackInfo* ci = &ipfixParser->callbackInfo[n];
-					if (ci->dataRecordCallbackFunction) {
-						ci->dataRecordCallbackFunction(ci->handle, sourceId, ti, recordLength, record);
-					}
+				for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+					(*i)->onDataRecord(sourceId, ti, recordLength, record);
 				}
 				record = record + recordLength;
 			}
@@ -493,23 +368,19 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSe
 
 			OptionsTemplateInfo* ti = bt->optionsTemplateInfo;
 
-			uint16_t length = ntohs(set->length)-((byte*)(&set->data)-(byte*)set);
-			byte* record = &set->data;
+			uint16_t length = ntohs(set->length)-((uint8_t*)(&set->data)-(uint8_t*)set);
+			uint8_t* record = &set->data;
 
 			if (bt->recordLength < 65535) {
-				byte* recordX = record+length;
+				uint8_t* recordX = record+length;
 				while (record < recordX) {
-					int n;
-					for (n = 0; n < ipfixParser->callbackCount; n++) {
-						CallbackInfo* ci = &ipfixParser->callbackInfo[n];
-						if (ci->optionsRecordCallbackFunction) {
-							ci->optionsRecordCallbackFunction(ci->handle, sourceId, ti, bt->recordLength, record);
-						}
+					for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+						(*i)->onOptionsRecord(sourceId, ti, bt->recordLength, record);
 					}
 					record = record + bt->recordLength;
 				}
 			} else {
-				byte* recordX = record+length;
+				uint8_t* recordX = record+length;
 				while (record < recordX) {
 					int recordLength=0;
 					int i;
@@ -545,13 +416,9 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSe
 						ti->fieldInfo[i].type.length = fieldLength;
 						recordLength += fieldLength;
 					}
-					int n;
-					for (n = 0; n < ipfixParser->callbackCount; n++) {
-						CallbackInfo* ci = &ipfixParser->callbackInfo[n];
-						if (ci->optionsRecordCallbackFunction)
-							ci->optionsRecordCallbackFunction(ci->handle, sourceId, ti, recordLength, record);
+					for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+						(*i)->onOptionsRecord(sourceId, ti, recordLength, record);
 					}
-
 					record = record + recordLength;
 				}
 			}
@@ -559,23 +426,19 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSe
 			if (bt->setID == IPFIX_SetId_DataTemplate) {
 				DataTemplateInfo* ti = bt->dataTemplateInfo;
 
-				uint16_t length = ntohs(set->length)-((byte*)(&set->data)-(byte*)set);
-				byte* record = &set->data;
+				uint16_t length = ntohs(set->length)-((uint8_t*)(&set->data)-(uint8_t*)set);
+				uint8_t* record = &set->data;
 
 				if (bt->recordLength < 65535) {
-					byte* recordX = record+length;
+					uint8_t* recordX = record+length;
 					while (record < recordX) {
-						int n;
-						for (n = 0; n < ipfixParser->callbackCount; n++) {
-							CallbackInfo* ci = &ipfixParser->callbackInfo[n];
-							if (ci->dataDataRecordCallbackFunction) {
-								ci->dataDataRecordCallbackFunction(ci->handle, sourceId, ti, bt->recordLength, record);
-							}
+						for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+							(*i)->onDataDataRecord(sourceId, ti, bt->recordLength, record);
 						}
 						record = record + bt->recordLength;
 					}
 				} else {
-					byte* recordX = record+length;
+					uint8_t* recordX = record+length;
 					while (record < recordX) {
 						int recordLength=0;
 						int i;
@@ -595,12 +458,8 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSe
 							ti->fieldInfo[i].type.length = fieldLength;
 							recordLength += fieldLength;
 						}
-						int n;
-						for (n = 0; n < ipfixParser->callbackCount; n++) {
-							CallbackInfo* ci = &ipfixParser->callbackInfo[n];
-							if (ci->dataDataRecordCallbackFunction) {
-								ci->dataDataRecordCallbackFunction(ci->handle, sourceId, ti, recordLength, record);
-							}
+						for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+							(*i)->onDataDataRecord(sourceId, ti, recordLength, record);
 						}
 						record = record + recordLength;
 					}
@@ -616,10 +475,8 @@ static void processDataSet(IpfixParser* ipfixParser, SourceID* sourceId, IpfixSe
 /**
  * Process a NetflowV9 Packet
  * @return 0 on success
- */     
-static int processNetflowV9Packet(IpfixParser* ipfixParser, byte* message, uint16_t length,
-                                  SourceID* sourceId)
-{
+ */
+int IpfixParser::processNetflowV9Packet(uint8_t* message, uint16_t length, SourceID* sourceId) {
 	NetflowV9Header* header = (NetflowV9Header*)message;
 
 	/* pointer to first set */
@@ -627,18 +484,18 @@ static int processNetflowV9Packet(IpfixParser* ipfixParser, byte* message, uint1
 
 	int i;
 
-        sourceId->observationDomainId = ntohl(header->observationDomainId);
+	sourceId->observationDomainId = ntohl(header->observationDomainId);
 
 	for (i = 0; i < ntohs(header->setCount); i++) {
 		if (ntohs(set->id) == NetflowV9_SetId_Template) {
-			processTemplateSet(ipfixParser, sourceId, set);
+			processTemplateSet(sourceId, set);
 		} else
 			if (ntohs(set->id) >= IPFIX_SetId_Data_Start) {
-				processDataSet(ipfixParser, sourceId, set);
+				processDataSet(sourceId, set);
 			} else {
 				msg(MSG_ERROR, "Unsupported Set ID - expected 0/256+, got %d", ntohs(set->id));
 			}
-		set = (IpfixSetHeader*)((byte*)set + ntohs(set->length));
+		set = (IpfixSetHeader*)((uint8_t*)set + ntohs(set->length));
 	}
 
 	return 0;
@@ -647,12 +504,10 @@ static int processNetflowV9Packet(IpfixParser* ipfixParser, byte* message, uint1
 /**
  * Process an IPFIX Packet
  * @return 0 on success
- */     
-static int processIpfixPacket(IpfixParser* ipfixParser, byte* message, uint16_t length,
-                              SourceID* sourceId)
-{
+ */
+int IpfixParser::processIpfixPacket(uint8_t* message, uint16_t length, SourceID* sourceId) {
 	IpfixHeader* header = (IpfixHeader*)message;
-        sourceId->observationDomainId = ntohl(header->observationDomainId);
+    sourceId->observationDomainId = ntohl(header->observationDomainId);
 
 	if (ntohs(header->length) != length) {
 		DPRINTF("Bad message length - expected %#06x, got %#06x\n", length, ntohs(header->length));
@@ -671,22 +526,22 @@ static int processIpfixPacket(IpfixParser* ipfixParser, byte* message, uint16_t 
 
 		switch(tmpid) {
 		case IPFIX_SetId_DataTemplate:
-			processDataTemplateSet(ipfixParser, sourceId, set);
+			processDataTemplateSet(sourceId, set);
 			break;
 		case IPFIX_SetId_Template:
-			processTemplateSet(ipfixParser, sourceId, set);
+			processTemplateSet(sourceId, set);
 			break;
 		case IPFIX_SetId_OptionsTemplate:
-			processOptionsTemplateSet(ipfixParser, sourceId, set);
+			processOptionsTemplateSet(sourceId, set);
 			break;
 		default:
 			if(tmpid >= IPFIX_SetId_Data_Start) {
-				processDataSet(ipfixParser, sourceId, set);
+				processDataSet(sourceId, set);
 			} else {
 				msg(MSG_ERROR, "processIpfixPacket: Unsupported Set ID - expected 2/3/4/256+, got %d", tmpid);
 			}
 		}
-		set = (IpfixSetHeader*)((byte*)set + ntohs(set->length));
+		set = (IpfixSetHeader*)((uint8_t*)set + ntohs(set->length));
 	}
 
 	return 0;
@@ -695,16 +550,16 @@ static int processIpfixPacket(IpfixParser* ipfixParser, byte* message, uint16_t 
 /**
  * Process new Message
  * @return 0 on success
- */     
-static int processMessage(IpfixParser* ipfixParser, byte* message, uint16_t length, SourceID* sourceID)
+ */
+int IpfixParser::processMessage(uint8_t* message, uint16_t length, SourceID* sourceID)
 {
 	IpfixHeader* header = (IpfixHeader*)message;
 	if (ntohs(header->version) == 0x000a) {
-		return processIpfixPacket(ipfixParser, message, length, sourceID);
+		return processIpfixPacket(message, length, sourceID);
 	}
 #ifdef SUPPORT_NETFLOWV9
 	if (ntohs(header->version) == 0x0009) {
-		return processNetflowV9Packet(ipfixParser, message, length, sourceID);
+		return processNetflowV9Packet(message, length, sourceID);
 	}
 	DPRINTF("Bad message version - expected 0x009 or 0x000a, got %#06x\n", ntohs(header->version));
 	return -1;
@@ -713,7 +568,7 @@ static int processMessage(IpfixParser* ipfixParser, byte* message, uint16_t leng
 	return -1;
 #endif
 }
-
+	
 static void printIPv4(FieldType type, FieldData* data) {
 	int octet1 = 0;
 	int octet2 = 0;
@@ -732,7 +587,7 @@ static void printIPv4(FieldType type, FieldData* data) {
 
 	if ((type.length == 5) /*&& (imask != 0)*/) {
 		printf("%d.%d.%d.%d/%d", octet1, octet2, octet3, octet4, 32-imask);
-	}  else {
+	} else {
 		printf("%d.%d.%d.%d", octet1, octet2, octet3, octet4);
 	}
 }
@@ -752,9 +607,7 @@ static void printPort(FieldType type, FieldData* data) {
 		for (i = 0; i < type.length; i+=4) {
 			int starti = ((uint16_t)data[i+0] << 8)+data[i+1];
 			int endi = ((uint16_t)data[i+2] << 8)+data[i+3];
-			if (i > 0) {
-				printf(",");
-			}
+			if (i > 0) printf(",");
 			if (starti != endi) {
 				printf("%d:%d", starti, endi);
 			} else {
@@ -812,9 +665,6 @@ static void printUint(FieldType type, FieldData* data) {
 }
 
 
-/***** Exported Functions ****************************************************/
-
-
 /**
  * Prints a string representation of FieldData to stdout.
  */
@@ -833,7 +683,7 @@ void printFieldData(FieldType type, FieldData* pattern) {
 	case IPFIX_TYPEID_destinationIPv4Address:
 		printf("destinationIPv4Address:");
 		printIPv4(type, pattern);
-		break;                          
+		break;
 	case IPFIX_TYPEID_sourceTransportPort:
 		printf("sourceTransportPort:");
 		printPort(type, pattern);
@@ -855,16 +705,27 @@ void printFieldData(FieldType type, FieldData* pattern) {
 }
 
 /**
- * Gets a Template's FieldInfo by field id.
- * @param ti Template to search in
- * @param type Field id and field eid to look for, length is ignored
+ * Gets a Template's FieldInfo by field id. Length is ignored.
+ * @param ti DataTemplate to search in
+ * @param type Field id and eid to look for. Length is ignored.
  * @return NULL if not found
  */
 FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type) {
+	return getTemplateFieldInfo(ti, type->id, type->eid);
+}
+
+/**
+ * Gets a Template's FieldInfo by field id. Length is ignored.
+ * @param ti Template to search in
+ * @param fieldTypeId FieldType id to look for
+ * @param fieldTypeEid FieldType eid to look for
+ * @return NULL if not found
+ */
+FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid) {
 	int i;
 
 	for (i = 0; i < ti->fieldCount; i++) {
-		if ((ti->fieldInfo[i].type.id == type->id) && (ti->fieldInfo[i].type.eid == type->eid)) {
+		if ((ti->fieldInfo[i].type.id == fieldTypeId) && (ti->fieldInfo[i].type.eid == fieldTypeEid)) {
 			return &ti->fieldInfo[i];
 		}
 	}
@@ -873,257 +734,73 @@ FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type) {
 }
 
 /**
- * Gets a DataTemplate's FieldInfo by field id.
+ * Gets a DataTemplate's FieldInfo by field id. Length is ignored.
  * @param ti DataTemplate to search in
- * @param type Field id and field eid to look for, length is ignored
+ * @param fieldTypeId Field id to look for
+ * @param fieldTypeEid Field eid to look for
  * @return NULL if not found
  */
-FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type) {
+FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid) {
 	int i;
 
 	for (i = 0; i < ti->fieldCount; i++) {
-		if ((ti->fieldInfo[i].type.id == type->id) && (ti->fieldInfo[i].type.eid == type->eid)) {
+		if ((ti->fieldInfo[i].type.id == fieldTypeId) && (ti->fieldInfo[i].type.eid == fieldTypeEid)) {
 			return &ti->fieldInfo[i];
 		}
 	}
 
 	return NULL;
+}
+
+FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type) {
+	return getDataTemplateFieldInfo(ti, type->id, type->eid);
 }
 
 /**
  * Gets a DataTemplate's Data-FieldInfo by field id.
  * @param ti DataTemplate to search in
- * @param type Field id and field eid to look for, length is ignored
+ * @param fieldTypeId Field id to look for
+ * @param fieldTypeEid Field eid to look for
  * @return NULL if not found
  */
-FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type) {
+FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid) {
 	int i;
 
 	for (i = 0; i < ti->dataCount; i++) {
-		if ((ti->dataInfo[i].type.id == type->id) && (ti->dataInfo[i].type.eid == type->eid)) {
+		if ((ti->dataInfo[i].type.id == fieldTypeId) && (ti->dataInfo[i].type.eid == fieldTypeEid)) {
 			return &ti->dataInfo[i];
 		}
 	}
 
-	return NULL;            
+	return NULL;		
 }
-        
+
+FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type) {
+	return getDataTemplateDataInfo(ti, type->id, type->eid);
+}
+
 
 /**
  * Creates a new  @c IpfixParser.
  * @return handle to created instance
  */
-IpfixParser* createIpfixParser() {
-	IpfixParser* ipfixParser;
-
-	if(!(ipfixParser=(IpfixParser*)malloc(sizeof(IpfixParser)))) {
-		msg(MSG_FATAL, "Ran out of memory");
-		goto out0;
-	}
-
-	ipfixParser->callbackInfo = NULL;
-	ipfixParser->callbackCount = 0;
-
-	if(!(ipfixParser->templateBuffer = createTemplateBuffer(ipfixParser))) {
-		msg(MSG_FATAL, "Could not create template Buffer");
-		goto out1;
-	}
-
-	return ipfixParser;
-
-out1:
-	free(ipfixParser);
-out0:
-	return NULL;
+IpfixParser::IpfixParser() {
+	templateBuffer = new TemplateBuffer(this);
 }
 
 /**
  * Frees memory used by an IpfixParser.
  */
-void destroyIpfixParser(IpfixParser* ipfixParser) {
-	destroyTemplateBuffer(ipfixParser->templateBuffer);
-
-	free(ipfixParser->callbackInfo);
-
-	free(ipfixParser);
-}
-
-/**
- * Creates a new @c PacketProcessor.
- * @return handle to the created object
- */
-IpfixPacketProcessor*  createIpfixPacketProcessor() {
-	IpfixPacketProcessor* packetProcessor;
-
-	if(!(packetProcessor=(IpfixPacketProcessor*)malloc(sizeof(IpfixPacketProcessor)))) {
-		msg(MSG_FATAL,"Ran out of memory");
-		goto out0;
-	}
-
-        if (pthread_mutex_init(&packetProcessor->mutex, NULL) != 0) {
-		msg(MSG_FATAL, "Could not init mutex");
-		goto out1;
-	}
-
-	packetProcessor->ipfixParser = NULL;
-	packetProcessor->processPacketCallbackFunction = processMessage;
-
-	return packetProcessor;
-out1:
-	free(packetProcessor);
-out0:
-	return NULL;
-}
-
-
-/**
- * Frees memory used by a @c PacketProcessor
- */
-void destroyIpfixPacketProcessor(IpfixPacketProcessor* packetProcessor) {
-	destroyIpfixParser(packetProcessor->ipfixParser);
-	pthread_mutex_destroy(&packetProcessor->mutex);
-	free(packetProcessor);
+IpfixParser::~IpfixParser() {
+	delete(templateBuffer);
 }
 
 /**
  * Adds a set of callback functions to the list of functions to call when a new Message arrives
- * @param ipfixParser IpfixParser to set the callback function for
- * @param handles set of callback functions
+ * @param flowSink the destination module
  */
-void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles) {
-	int n = ++ipfixParser->callbackCount;
-	ipfixParser->callbackInfo = (CallbackInfo*)realloc(ipfixParser->callbackInfo, n * sizeof(CallbackInfo));
-	memcpy(&ipfixParser->callbackInfo[n-1], &handles, sizeof(CallbackInfo));
+void IpfixParser::addFlowSink(FlowSink* flowSink) {
+	flowSinks.push_back(flowSink);
 }
 
-/** 
- * Assigns an IpfixParser to packetProcessor
- * @param packetProcessor PacketProcessor to assign the IpfixParser to.
- * @param ipfixParser Pointer to an ipfixParser object.
- */
-void setIpfixParser(IpfixPacketProcessor* packetProcessor, IpfixParser* ipfixParser) {
-	packetProcessor->ipfixParser = ipfixParser;
-}
-
-/**
- * Adds a PacketProcessor to the list of PacketProcessors
- * @param ipfixCollector Collector to assign the PacketProcessor to
- * @param packetProcessor handle of packetProcessor
- */
-void addIpfixPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcessor* packetProcessor) {
-	int i;
-	int n = ++ipfixCollector->processorCount;
-	ipfixCollector->packetProcessors = (IpfixPacketProcessor*)realloc(ipfixCollector->packetProcessors,
-									  n*sizeof(IpfixPacketProcessor));
-	memcpy(&ipfixCollector->packetProcessors[n-1], packetProcessor, sizeof(IpfixPacketProcessor));
-
-	for (i = 0; i != ipfixCollector->receiverCount; ++i) {
-		setPacketProcessors(ipfixCollector->ipfixReceivers[i], ipfixCollector->packetProcessors,
-				    ipfixCollector->processorCount);
-	}
-}
-
-
-/**
- * Initializes internal data.
- * Call onces before using any function in this module
- * @return 0 if call succeeded
- */
-int initializeIpfixCollectors() {
-	initializeIpfixReceivers();
-	return 0;
-}
-
-/**
- * Destroys internal data.
- * Call once to tidy up. Do not use any function in this module afterwards
- * @return 0 if call succeeded
- */
-int deinitializeIpfixCollectors() {
-	deinitializeIpfixReceivers();
-	return 0;
-} 
-
-/**
- * Creates a new IpfixCollector.
- * Call @c startIpfixCollector() to start receiving and processing messages.
- * @param rec_type Type of receiver (SCTP, UDP, ...)
- * @param port Port to listen on
- * @return handle for further interaction
- */
-IpfixCollector* createIpfixCollector(Receiver_Type rec_type, int port) {
-	IpfixCollector* ipfixCollector;
-
-	if (!(ipfixCollector = (IpfixCollector*)malloc(sizeof(IpfixCollector)))) {
-		msg(MSG_FATAL, "Ran out of memory");
-		return NULL;
-	}
-
-	ipfixCollector->receiverCount = 0;
-	ipfixCollector->ipfixReceivers = NULL;
-
-	ipfixCollector->processorCount = 0;
-	ipfixCollector->packetProcessors = NULL;
-
-	return ipfixCollector;
-}
-
-/**
- * Frees memory used by a IpfixCollector.
- * @param ipfixCollector Handle returned by @c createIpfixCollector()
- */
-void destroyIpfixCollector(IpfixCollector* ipfixCollector) {
-	int i;
-
-	for (i = 0; i != ipfixCollector->receiverCount; ++i) {
-		destroyIpfixReceiver(ipfixCollector->ipfixReceivers[i]);
-	}
-	free(ipfixCollector->ipfixReceivers);
-
-	for (i = 0; i != ipfixCollector->processorCount; ++i) {
-		destroyIpfixPacketProcessor(&ipfixCollector->packetProcessors[i]);
-	}
-	free(ipfixCollector);
-}
-
-/**
- * Starts receiving and processing messages.
- * All sockets prepared by calls to createIpfixCollector() will start
- * receiving messages until stopIpfixCollector() is called.
- * @return 0 on success, non-zero on error
- */
-int startIpfixCollector(IpfixCollector* ipfixCollector) {
-	int err = 0;
-	int i;
-	for (i = 0; i != ipfixCollector->receiverCount; ++i) {
-		err += startIpfixReceiver(ipfixCollector->ipfixReceivers[i]); 
-	}
-	return err;
-}
-
-/**
- * Stops processing messages.
- * No more messages will be processed until the next startIpfixCollector() call.
- * @return 0 on success, non-zero on error
- */
-int stopIpfixCollector(IpfixCollector* ipfixCollector) {
-	int err = 0;
-	int i;
-	for (i = 0; i != ipfixCollector->receiverCount; ++i) {
-		err += stopIpfixReceiver(ipfixCollector->ipfixReceivers[i]);
-	}
-	return err;
-}
-
-/**
- * Adds a IpfixReceiver to the list of IpfixReceivers
- * @param ipfixCollector Collector to assign the IpfixReceiver to
- * @param ipfixReceiver handle of ipfixReceiver
- */
-void addIpfixReceiver(IpfixCollector* ipfixCollector, IpfixReceiver* ipfixReceiver) {
-	int n = ++ipfixCollector->receiverCount;
-	ipfixCollector->ipfixReceivers = (IpfixReceiver**)realloc(ipfixCollector->ipfixReceivers,
-								  n*sizeof(IpfixReceiver*));
-	ipfixCollector->ipfixReceivers[n - 1] = ipfixReceiver;
-}
 

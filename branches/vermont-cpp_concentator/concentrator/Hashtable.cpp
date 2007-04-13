@@ -1,54 +1,30 @@
-/** @file
- * Hashing sub-module.
+/*
+ * IPFIX Concentrator Module Library
+ * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
  *
- * The hashing module receives flows from higher levels (see @c aggregateTemplateData(), @c aggregateDataTemplateData()),
- * collects them in Buffers (@c Hashtable), then passes them on to lower levels by calling the
- * appropriate callback functions (see @c setNewDataTemplateCallback(), @c setNewDataDataRecordCallback(), @c setNewDataTemplateDestructionCallback()).
- *
- * Flows that differ only in aggregatable fields (like @c IPFIX_TYPEID_inOctetDeltaCount) are
- * aggregated (see @c aggregateFlow()).
- * If for a buffered flow no new aggregatable flows arrive for a certain timespan (@c Hashtable::minBufferTime)
- * or the flow was kept buffered for a certain amount of time (@c Hashtable::maxBufferTime) it is
- * passed on to lower levels (i.e. exported) and removed from the hashtable.
- *
- * Polling for expired flows is accomplished by periodically calling @c expireFlows().
- *
- * Each @c Hashtable contains some fixed-value IPFIX fields @c Hashtable.data
- * described by the @c Hashtable.dataInfo array. The remaining, variable-value
- * fields are stored in @c Hashtable.bucket[].data structures described by the
- * @c Hashtable.fieldInfo array.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
-
-/******************************************************************************
-
-IPFIX Concentrator
-Copyright (C) 2005 Christoph Sommer
-http://www.deltadevelopment.de/users/christoph/ipfix
-
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-
-******************************************************************************/
 
 #include <string.h>
 #include <netinet/in.h>
 #include <time.h>
 
-#include "hashing.h"
-#include "crc16.h"
-#include "ipfix.h"
+#include "Hashtable.hpp"
+#include "crc16.hpp"
+#include "ipfix.hpp"
 
 #include "ipfixlolib/ipfixlolib.h"
 
@@ -57,12 +33,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 /**
  * Initializes memory for a new bucket in @c ht containing @c data
  */
-static HashBucket* createBucket(Hashtable* ht, FieldData* data)
-{
-	HashBucket* bucket = (HashBucket*)malloc(sizeof(HashBucket));
-
-	bucket->expireTime = time(0) + ht->minBufferTime;
-	bucket->forceExpireTime = time(0) + ht->maxBufferTime;
+Hashtable::Bucket* Hashtable::createBucket(FieldData* data) {
+	Hashtable::Bucket* bucket = new Hashtable::Bucket;
+	bucket->expireTime = time(0) + minBufferTime;
+	bucket->forceExpireTime = time(0) + maxBufferTime;
 	bucket->data = data;
 	bucket->next = 0;
 
@@ -72,165 +46,141 @@ static HashBucket* createBucket(Hashtable* ht, FieldData* data)
 /**
  * Exports the given @c bucket
  */
-static void exportBucket(Hashtable* ht, HashBucket* bucket)
-{
+void Hashtable::exportBucket(Hashtable::Bucket* bucket) {
 	/* Pass Data Record to exporter interface */
-	int n;
-	for (n = 0; n < ht->callbackCount; n++) {
-		CallbackInfo* ci = &ht->callbackInfo[n];
-		if (ci->dataDataRecordCallbackFunction) {
-			ci->dataDataRecordCallbackFunction(ci->handle, NULL, ht->dataTemplate, ht->fieldLength, bucket->data);
-		}
+	for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+		(*i)->onDataDataRecord(0, dataTemplate, fieldLength, bucket->data);
 	}
 
-	ht->recordsSent++;
+	recordsSent++;
 }
 
 /**
  * De-allocates memory used by the given @c bucket
  */
-static void destroyBucket(Hashtable* ht, HashBucket* bucket)
-{
+void Hashtable::destroyBucket(Hashtable::Bucket* bucket) {
 	free(bucket->data); //TODO: is this correct?
-	free(bucket);
+	delete bucket;
 }
 
 /**
  * Creates and initializes a new hashtable buffer for flows matching @c rule
  */
-Hashtable* createHashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime)
-{
+Hashtable::Hashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime) {
 	int i;
-	int dataLength = 0; /**< length in bytes of the @c ht->data field */
-	Hashtable* ht = (Hashtable*)malloc(sizeof(Hashtable));
+	int dataLength = 0; /**< length in bytes of the @c data field */
 
-	ht->callbackCount = 0;
-	ht->callbackInfo = 0;
-	ht->minBufferTime = minBufferTime;
-	ht->maxBufferTime = maxBufferTime;
-	ht->bucketCount = HASHTABLE_SIZE;
+	this->minBufferTime = minBufferTime;
+	this->maxBufferTime = maxBufferTime;
 
-	ht->recordsReceived = 0;
-	ht->recordsSent = 0;
+	bucketCount = HASHTABLE_SIZE;
+	for (i = 0; i < bucketCount; i++) buckets[i] = NULL;
 
-	for(i = 0; i < ht->bucketCount; i++) {
-		ht->bucket[i] = NULL;
-	}
+	recordsReceived = 0;
+	recordsSent = 0;
 
-	ht->dataTemplate = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
-	ht->dataTemplate->id=rule->id;
-	ht->dataTemplate->preceding=rule->preceding;
-	ht->dataTemplate->fieldCount = 0;
-	ht->dataTemplate->fieldInfo = NULL;
-	ht->fieldLength = 0;
-	ht->dataTemplate->dataCount = 0;
-	ht->dataTemplate->dataInfo = NULL;
-	ht->dataTemplate->data = NULL;
-	ht->dataTemplate->userData = NULL;
+	dataTemplate = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
+	dataTemplate->id=rule->id;
+	dataTemplate->preceding=rule->preceding;
+	dataTemplate->fieldCount = 0;
+	dataTemplate->fieldInfo = NULL;
+	fieldLength = 0;
+	dataTemplate->dataCount = 0;
+	dataTemplate->dataInfo = NULL;
+	dataTemplate->data = NULL;
+	dataTemplate->userData = NULL;
 
-	ht->fieldModifier = (FieldModifier*)malloc(rule->fieldCount * sizeof(FieldModifier));
+	fieldModifier = (Rule::Field::Modifier*)malloc(rule->fieldCount * sizeof(Rule::Field::Modifier));
 
 	for (i = 0; i < rule->fieldCount; i++) {
-		RuleField* rf = rule->field[i];
+		Rule::Field* rf = rule->field[i];
 
 		if (rf->pattern != NULL) {
 			/* create new fixed-data field containing pattern */
-			ht->dataTemplate->dataCount++;
-			ht->dataTemplate->dataInfo = realloc(ht->dataTemplate->dataInfo, sizeof(FieldInfo) * ht->dataTemplate->dataCount);
-			FieldInfo* fi = &ht->dataTemplate->dataInfo[ht->dataTemplate->dataCount - 1];
+			dataTemplate->dataCount++;
+			dataTemplate->dataInfo = (FieldInfo*)realloc(dataTemplate->dataInfo, sizeof(FieldInfo) * dataTemplate->dataCount);
+			FieldInfo* fi = &dataTemplate->dataInfo[dataTemplate->dataCount - 1];
 			fi->type = rf->type;
 			fi->offset = dataLength;
 			dataLength += fi->type.length;
-			ht->dataTemplate->data = realloc(ht->dataTemplate->data, dataLength);
-			memcpy(ht->dataTemplate->data + fi->offset, rf->pattern, fi->type.length);
+			dataTemplate->data = (FieldData*)realloc(dataTemplate->data, dataLength);
+			memcpy(dataTemplate->data + fi->offset, rf->pattern, fi->type.length);
 		}
 
-		if (rf->modifier != FIELD_MODIFIER_DISCARD) {
-			/* define new data field with RuleField's type */
-			ht->dataTemplate->fieldCount++;
-			ht->dataTemplate->fieldInfo = realloc(ht->dataTemplate->fieldInfo, sizeof(FieldInfo) * ht->dataTemplate->fieldCount);
-			FieldInfo* fi = &ht->dataTemplate->fieldInfo[ht->dataTemplate->fieldCount - 1];
+		if (rf->modifier != Rule::Field::DISCARD) {
+			/* define new data field with Rule::Field's type */
+			dataTemplate->fieldCount++;
+			dataTemplate->fieldInfo = (FieldInfo*)realloc(dataTemplate->fieldInfo, sizeof(FieldInfo) * dataTemplate->fieldCount);
+			FieldInfo* fi = &dataTemplate->fieldInfo[dataTemplate->fieldCount - 1];
 			fi->type = rf->type;
-			fi->offset = ht->fieldLength;
-			ht->fieldLength += fi->type.length;
-			ht->fieldModifier[ht->dataTemplate->fieldCount - 1] = rf->modifier;
+			fi->offset = fieldLength;
+			fieldLength += fi->type.length;
+			fieldModifier[dataTemplate->fieldCount - 1] = rf->modifier;
 		}
 
 	}
 
 	/* Informing the Exporter of a new Data Template is done when adding the callback functions */
-	return ht;
+
 }
 
 /**
  * De-allocates memory of the given hashtable buffer.
  * All remaining Buckets are exported, then destroyed
  */
-void destroyHashtable(Hashtable* ht)
-{
+Hashtable::~Hashtable() {
 	int i;
-
-	for (i = 0; i < HASHTABLE_SIZE; i++) if (ht->bucket[i] != NULL) {
-		HashBucket* bucket = ht->bucket[i];
-
+	for (i = 0; i < HASHTABLE_SIZE; i++) if (buckets[i] != NULL) {
+		Hashtable::Bucket* bucket = buckets[i];
 		while (bucket != 0) {
-			HashBucket* nextBucket = (HashBucket*)bucket->next;
+			Hashtable::Bucket* nextBucket = (Hashtable::Bucket*)bucket->next;
             // we don't want to export the buckets, as the exporter thread may already be shut down!
-			//exportBucket(ht, bucket);
-			destroyBucket(ht, bucket);
+			//exportBucket(bucket);
+			destroyBucket(bucket);
 			bucket = nextBucket;
 		}
 	}
 
 	/* Inform Exporter of Data Template destruction */
     // exporter has already shut down
-	/*for (i = 0; i < ht->callbackCount; i++) {
-		CallbackInfo* ci = &ht->callbackInfo[i];
+	/*
+	for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+		(*i)->onDataTemplateDestruction(0, dataTemplate);
+	}
+	*/
 
-		if (ci->dataTemplateDestructionCallbackFunction) {
-			ci->dataTemplateDestructionCallbackFunction(ci->handle, NULL, ht->dataTemplate);
-		}
-	}*/
-
-
-	free(ht->dataTemplate->fieldInfo);
-	free(ht->fieldModifier);
-	free(ht->dataTemplate->dataInfo);
-	free(ht->dataTemplate->data);
-	free(ht->dataTemplate);
-	free(ht);
+	free(dataTemplate->fieldInfo);
+	free(fieldModifier);
+	free(dataTemplate->dataInfo);
+	free(dataTemplate->data);
+	free(dataTemplate);
 }
 
 /**
  * Exports all expired flows and removes them from the buffer
  */
-void expireFlows(Hashtable* ht)
-{
-	int i;
+void Hashtable::expireFlows() {
 	uint32_t now = time(0);
+	int i;
 
 	/* check each hash bucket's spill chain */
-	for (i = 0; i < ht->bucketCount; i++) if (ht->bucket[i] != 0) {
-		HashBucket* bucket = ht->bucket[i];
-		HashBucket* pred = 0;
+	for (i = 0; i < bucketCount; i++) if (buckets[i] != 0) {
+		Hashtable::Bucket* bucket = buckets[i];
+		Hashtable::Bucket* pred = 0;
 
 		/* iterate over spill chain */
 		while (bucket != 0) {
-			HashBucket* nextBucket = bucket->next;
+			Hashtable::Bucket* nextBucket = (Hashtable::Bucket*)bucket->next;
 			if ((now > bucket->expireTime) || (now > bucket->forceExpireTime)) {
-				if(now > bucket->expireTime) {
-					DPRINTF("expireFlows: normal expiry\n");
-				}
-				if(now > bucket->forceExpireTime) {
-					DPRINTF("expireFlows: forced expiry\n");
-				}
+				if(now > bucket->expireTime) DPRINTF("expireFlows: normal expiry\n");
+				if(now > bucket->forceExpireTime) DPRINTF("expireFlows: forced expiry\n");
 
-				exportBucket(ht, bucket);
-				destroyBucket(ht, bucket);
+				exportBucket(bucket);
+				destroyBucket(bucket);
 				if (pred) {
 					pred->next = nextBucket;
 				} else {
-					ht->bucket[i] = nextBucket;
+					buckets[i] = nextBucket;
 				}
 			} else {
 				pred = bucket;
@@ -244,24 +194,21 @@ void expireFlows(Hashtable* ht)
 /**
  * Returns the sum of two uint32_t values in network byte order
  */
-static uint64_t addUint64Nbo(uint64_t i, uint64_t j)
-{
+uint64_t addUint64Nbo(uint64_t i, uint64_t j) {
 	return (htonll(ntohll(i) + ntohll(j)));
 }
 
 /**
  * Returns the sum of two uint32_t values in network byte order
  */
-static uint32_t addUint32Nbo(uint32_t i, uint32_t j)
-{
+uint32_t addUint32Nbo(uint32_t i, uint32_t j) {
 	return (htonl(ntohl(i) + ntohl(j)));
 }
 
 /**
  * Returns the sum of two uint16_t values in network byte order
  */
-static uint16_t addUint16Nbo(uint16_t i, uint16_t j)
-{
+uint16_t addUint16Nbo(uint16_t i, uint16_t j) {
 	return (htons(ntohs(i) + ntohs(j)));
 }
 
@@ -269,24 +216,21 @@ static uint16_t addUint16Nbo(uint16_t i, uint16_t j)
  * Returns the sum of two uint8_t values in network byte order.
  * As if we needed this...
  */
-static uint8_t addUint8Nbo(uint8_t i, uint8_t j)
-{
+uint8_t addUint8Nbo(uint8_t i, uint8_t j) {
 	return (i + j);
 }
-
+	
 /**
  * Returns the lesser of two uint32_t values in network byte order
  */
-static uint32_t lesserUint32Nbo(uint32_t i, uint32_t j)
-{
+uint32_t lesserUint32Nbo(uint32_t i, uint32_t j) {
 	return (ntohl(i) < ntohl(j))?(i):(j);
 }
 
 /**
  * Returns the greater of two uint32_t values in network byte order
  */
-static uint32_t greaterUint32Nbo(uint32_t i, uint32_t j)
-{
+uint32_t greaterUint32Nbo(uint32_t i, uint32_t j) {
 	return (ntohl(i) > ntohl(j))?(i):(j);
 }
 
@@ -294,7 +238,7 @@ static uint32_t greaterUint32Nbo(uint32_t i, uint32_t j)
  * Checks whether the given @c type is one of the types that has to be aggregated
  * @return 1 if flow is to be aggregated
  */
-static int isToBeAggregated(FieldType type)
+int Hashtable::isToBeAggregated(FieldType type)
 {
 	switch (type.id) {
 	case IPFIX_TYPEID_flowStartSysUpTime:
@@ -340,8 +284,7 @@ static int isToBeAggregated(FieldType type)
 /**
  * Adds (or otherwise aggregates) @c deltaData to @c baseData
  */
-static int aggregateField(FieldType* type, FieldData* baseData, FieldData* deltaData)
-{
+int Hashtable::aggregateField(FieldType* type, FieldData* baseData, FieldData* deltaData) {
 	switch (type->id) {
 
 	case IPFIX_TYPEID_flowStartSysUpTime:
@@ -409,7 +352,7 @@ out:
 /**
  * Adds (or otherwise aggregates) pertinent fields of @c flow to @c baseFlow
  */
-static int aggregateFlow(Hashtable* ht, FieldData* baseFlow, FieldData* flow)
+int Hashtable::aggregateFlow(FieldData* baseFlow, FieldData* flow)
 {
 	int i;
 
@@ -423,8 +366,8 @@ static int aggregateFlow(Hashtable* ht, FieldData* baseFlow, FieldData* flow)
 		return 1;
 	}
 
-	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
-		FieldInfo* fi = &ht->dataTemplate->fieldInfo[i];
+	for (i = 0; i < dataTemplate->fieldCount; i++) {
+		FieldInfo* fi = &dataTemplate->fieldInfo[i];
 
 		if(!isToBeAggregated(fi->type)) {
 			continue;
@@ -438,18 +381,17 @@ static int aggregateFlow(Hashtable* ht, FieldData* baseFlow, FieldData* flow)
 /**
  * Returns a hash value corresponding to all variable, non-aggregatable fields of a flow
  */
-static uint16_t getHash(Hashtable* ht, FieldData* data)
-{
+uint16_t Hashtable::getHash(FieldData* data) {
 	int i;
 
 	uint16_t hash = 0;
-	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
-		if(isToBeAggregated(ht->dataTemplate->fieldInfo[i].type)) {
+	for (i = 0; i < dataTemplate->fieldCount; i++) {
+		if(isToBeAggregated(dataTemplate->fieldInfo[i].type)) {
 			continue;
 		}
 		hash = crc16(hash,
-			     ht->dataTemplate->fieldInfo[i].type.length,
-			     data + ht->dataTemplate->fieldInfo[i].offset
+			     dataTemplate->fieldInfo[i].type.length,
+			     (char*)data + dataTemplate->fieldInfo[i].offset
 			    );
 	}
 
@@ -460,8 +402,7 @@ static uint16_t getHash(Hashtable* ht, FieldData* data)
  * Checks if two data fields are binary equal
  * @return 1 if fields are equal
  */
-static int equalRaw(FieldType* data1Type, FieldData* data1, FieldType* data2Type, FieldData* data2)
-{
+int equalRaw(FieldType* data1Type, FieldData* data1, FieldType* data2Type, FieldData* data2) {
 	int i;
 
 	if(data1Type->id != data2Type->id) return 0;
@@ -481,14 +422,14 @@ static int equalRaw(FieldType* data1Type, FieldData* data1, FieldType* data2Type
  * Checks if all of two flows' (non-aggregatable) fields are binary equal
  * @return 1 if fields are equal
  */
-static int equalFlow(Hashtable* ht, FieldData* flow1, FieldData* flow2)
+int Hashtable::equalFlow(FieldData* flow1, FieldData* flow2)
 {
 	int i;
 
 	if(flow1 == flow2) return 1;
 
-	for(i = 0; i < ht->dataTemplate->fieldCount; i++) {
-		FieldInfo* fi = &ht->dataTemplate->fieldInfo[i];
+	for(i = 0; i < dataTemplate->fieldCount; i++) {
+		FieldInfo* fi = &dataTemplate->fieldInfo[i];
 
 		if(isToBeAggregated(fi->type)) {
 			continue;
@@ -505,27 +446,27 @@ static int equalFlow(Hashtable* ht, FieldData* flow1, FieldData* flow2)
 /**
  * Inserts a data block into the hashtable
  */
-static void bufferDataBlock(Hashtable* ht, FieldData* data)
+void Hashtable::bufferDataBlock(FieldData* data)
 {
-	ht->recordsReceived++;
+	recordsReceived++;
 
-	uint16_t hash = getHash(ht, data);
-	HashBucket* bucket = ht->bucket[hash];
+	uint16_t hash = getHash(data);
+	Hashtable::Bucket* bucket = buckets[hash];
 
 	if (bucket == 0) {
 		/* This slot is still free, place the bucket here */
 		DPRINTF("bufferDataBlock: creating bucket\n");
-		ht->bucket[hash] = createBucket(ht, data);
+		buckets[hash] = createBucket(data);
 		return;
 	}
 
 	/* This slot is already used, search spill chain for equal flow */
 	while(1) {
-		if (equalFlow(ht, bucket->data, data)) {
+		if (equalFlow(bucket->data, data)) {
 			DPRINTF("appending to bucket\n");
 
-			aggregateFlow(ht, bucket->data, data);
-			bucket->expireTime = time(0) + ht->minBufferTime;
+			aggregateFlow(bucket->data, data);
+			bucket->expireTime = time(0) + minBufferTime;
 
 			/* The flow's data block is no longer needed */
 			free(data);
@@ -535,11 +476,10 @@ static void bufferDataBlock(Hashtable* ht, FieldData* data)
 		if (bucket->next == 0) {
 			DPRINTF("creating bucket\n");
 
-			bucket->next = createBucket(ht, data);
+			bucket->next = createBucket(data);
 			break;
 		}
-
-		bucket = (HashBucket*)bucket->next;
+		bucket = (Hashtable::Bucket*)bucket->next;
 	}
 }
 
@@ -547,7 +487,7 @@ static void bufferDataBlock(Hashtable* ht, FieldData* data)
  * Copies \c srcData to \c dstData applying \c modifier.
  * Takes care to pad \c srcData with zero-bytes in case it is shorter than \c dstData.
  */
-static void copyData(FieldType* dstType, FieldData* dstData, FieldType* srcType, FieldData* srcData, FieldModifier modifier)
+void copyData(FieldType* dstType, FieldData* dstData, FieldType* srcType, FieldData* srcData, Rule::Field::Modifier modifier)
 {
 	if((dstType->id != srcType->id) || (dstType->eid != srcType->eid)) {
 		DPRINTF("copyData: Tried to copy field to destination of different type\n");
@@ -577,12 +517,12 @@ static void copyData(FieldType* dstType, FieldData* dstData, FieldType* srcType,
 	}
 
 	/* Apply modifier */
-	if(modifier == FIELD_MODIFIER_DISCARD) {
+	if(modifier == Rule::Field::DISCARD) {
 		DPRINTF("Tried to copy data w/ having field modifier set to discard\n");
 		return;
-	} else if((modifier == FIELD_MODIFIER_KEEP) || (modifier == FIELD_MODIFIER_AGGREGATE)) {
+	} else if((modifier == Rule::Field::KEEP) || (modifier == Rule::Field::AGGREGATE)) {
 
-	} else if((modifier >= FIELD_MODIFIER_MASK_START) && (modifier <= FIELD_MODIFIER_MASK_END)) {
+	} else if((modifier >= Rule::Field::MASK_START) && (modifier <= Rule::Field::MASK_END)) {
 
 		if((dstType->id != IPFIX_TYPEID_sourceIPv4Address) && (dstType->id != IPFIX_TYPEID_destinationIPv4Address)) {
 			DPRINTF("Tried to apply mask to %s field\n", typeid2string(dstType->id));
@@ -594,7 +534,7 @@ static void copyData(FieldType* dstType, FieldData* dstData, FieldType* srcType,
 			return;
 		}
 
-		uint8_t imask = 32 - (modifier - FIELD_MODIFIER_MASK_START);
+		uint8_t imask = 32 - (modifier - (int)Rule::Field::MASK_START);
 		dstData[4] = imask; /* store the inverse network mask */
 
 		if (imask > 0) {
@@ -632,15 +572,15 @@ static void copyData(FieldType* dstType, FieldData* dstData, FieldType* srcType,
 /**
  * Buffer passed flow in Hashtable @c ht
  */
-void aggregateTemplateData(Hashtable* ht, TemplateInfo* ti, FieldData* data)
+void Hashtable::aggregateTemplateData(TemplateInfo* ti, FieldData* data)
 {
 	int i;
 
 	/* Create data block to be inserted into buffer... */
-	FieldData* htdata = (FieldData*)malloc(ht->fieldLength);
+	FieldData* htdata = (FieldData*)malloc(fieldLength);
 
-	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
-		FieldInfo* hfi = &ht->dataTemplate->fieldInfo[i];
+	for (i = 0; i < dataTemplate->fieldCount; i++) {
+		FieldInfo* hfi = &dataTemplate->fieldInfo[i];
 		FieldInfo* tfi = getTemplateFieldInfo(ti, &hfi->type);
 
 		if(!tfi) {
@@ -648,12 +588,12 @@ void aggregateTemplateData(Hashtable* ht, TemplateInfo* ti, FieldData* data)
 			continue;
 		}
 
-		copyData(&hfi->type, htdata + hfi->offset, &tfi->type, data + tfi->offset, ht->fieldModifier[i]);
+		copyData(&hfi->type, htdata + hfi->offset, &tfi->type, data + tfi->offset, fieldModifier[i]);
 
 		/* copy associated mask, should there be one */
 		switch (hfi->type.id) {
 		case IPFIX_TYPEID_sourceIPv4Address:
-			tfi = getTemplateFieldInfo(ti, &(FieldType){.id = IPFIX_TYPEID_sourceIPv4Mask, .eid = 0});
+			tfi = getTemplateFieldInfo(ti, IPFIX_TYPEID_sourceIPv4Mask, 0);
 
 			if(tfi) {
 				if(hfi->type.length != 5) {
@@ -669,7 +609,7 @@ void aggregateTemplateData(Hashtable* ht, TemplateInfo* ti, FieldData* data)
 			break;
 
 		case IPFIX_TYPEID_destinationIPv4Address:
-			tfi = getTemplateFieldInfo(ti, &(FieldType){.id = IPFIX_TYPEID_destinationIPv4Mask, .eid = 0});
+			tfi = getTemplateFieldInfo(ti, IPFIX_TYPEID_destinationIPv4Mask, 0);
 
 			if(tfi) {
 				if(hfi->type.length != 5) {
@@ -690,32 +630,32 @@ void aggregateTemplateData(Hashtable* ht, TemplateInfo* ti, FieldData* data)
 	}
 
 	/* ...then buffer it */
-	bufferDataBlock(ht, htdata);
+	bufferDataBlock(htdata);
 }
 
 /**
  * Buffer passed flow (containing fixed-value fields) in Hashtable @c ht
  */
-void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* data)
+void Hashtable::aggregateDataTemplateData(DataTemplateInfo* ti, FieldData* data)
 {
 	int i;
 
 	/* Create data block to be inserted into buffer... */
-	FieldData* htdata = (FieldData*)malloc(ht->fieldLength);
+	FieldData* htdata = (FieldData*)malloc(fieldLength);
 
-	for (i = 0; i < ht->dataTemplate->fieldCount; i++) {
-		FieldInfo* hfi = &ht->dataTemplate->fieldInfo[i];
+	for (i = 0; i < dataTemplate->fieldCount; i++) {
+		FieldInfo* hfi = &dataTemplate->fieldInfo[i];
 
 		/* Copy from matching variable field, should it exist */
 		FieldInfo* tfi = getDataTemplateFieldInfo(ti, &hfi->type);
 		if(tfi) {
-			copyData(&hfi->type, htdata + hfi->offset, &tfi->type, data + tfi->offset, ht->fieldModifier[i]);
+			copyData(&hfi->type, htdata + hfi->offset, &tfi->type, data + tfi->offset, fieldModifier[i]);
 
 			/* copy associated mask, should there be one */
 			switch (hfi->type.id) {
 
 			case IPFIX_TYPEID_sourceIPv4Address:
-				tfi = getDataTemplateFieldInfo(ti, &(FieldType){.id = IPFIX_TYPEID_sourceIPv4Mask, .eid = 0});
+			tfi = getDataTemplateFieldInfo(ti, IPFIX_TYPEID_sourceIPv4Mask, 0);
 				if(tfi) {
 					if(hfi->type.length != 5) {
 						DPRINTF("Tried to set mask of length %d IP address\n", hfi->type.length);
@@ -730,7 +670,7 @@ void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* d
 				break;
 
 			case IPFIX_TYPEID_destinationIPv4Address:
-				tfi = getDataTemplateFieldInfo(ti, &(FieldType){.id = IPFIX_TYPEID_destinationIPv4Mask, .eid = 0});
+				tfi = getDataTemplateFieldInfo(ti, IPFIX_TYPEID_destinationIPv4Mask, 0);
 				if(tfi) {
 					if(hfi->type.length != 5) {
 						DPRINTF("Tried to set mask of length %d IP address", hfi->type.length);
@@ -754,13 +694,13 @@ void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* d
 		/* No matching variable field. Copy from matching fixed field, should it exist */
 		tfi = getDataTemplateDataInfo(ti, &hfi->type);
 		if(tfi) {
-			copyData(&hfi->type, htdata + hfi->offset, &tfi->type, ti->data + tfi->offset, ht->fieldModifier[i]);
+			copyData(&hfi->type, htdata + hfi->offset, &tfi->type, ti->data + tfi->offset, fieldModifier[i]);
 
 			/* copy associated mask, should there be one */
 			switch (hfi->type.id) {
 
 			case IPFIX_TYPEID_sourceIPv4Address:
-				tfi = getDataTemplateDataInfo(ti, &(FieldType){.id = IPFIX_TYPEID_sourceIPv4Mask, .eid = 0});
+				tfi = getDataTemplateDataInfo(ti, IPFIX_TYPEID_sourceIPv4Mask, 0);
 				if(tfi) {
 					if(hfi->type.length != 5) {
 						DPRINTF("Tried to set mask of length %d IP address\n", hfi->type.length);
@@ -775,7 +715,7 @@ void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* d
 				break;
 
 			case IPFIX_TYPEID_destinationIPv4Address:
-				tfi = getDataTemplateDataInfo(ti, &(FieldType){.id = IPFIX_TYPEID_destinationIPv4Mask, .eid = 0});
+				tfi = getDataTemplateDataInfo(ti, IPFIX_TYPEID_destinationIPv4Mask, 0);
 				if(tfi) {
 					if(hfi->type.length != 5) {
 						DPRINTF("Tried to set mask of length %d IP address\n", hfi->type.length);
@@ -800,28 +740,17 @@ void aggregateDataTemplateData(Hashtable* ht, DataTemplateInfo* ti, FieldData* d
 	}
 
 	/* ...then buffer it */
-	bufferDataBlock(ht, htdata);
+	bufferDataBlock(htdata);
 }
 
 /**
  * Adds a set of callback functions to the list of functions to call when Templates or Records have to be sent
- * @param ht Hashtable to set the callback function for
- * @param handles set of callback functions
+ * @param flowSink the destination module
  */
-void hashingAddCallbacks(Hashtable* ht, CallbackInfo handles)
-{
-	int n;
-	int i = ++ht->callbackCount;
-
-	ht->callbackInfo = (CallbackInfo*)realloc(ht->callbackInfo, i * sizeof(CallbackInfo));
-	memcpy(&ht->callbackInfo[i-1], &handles, sizeof(CallbackInfo));
+void Hashtable::addFlowSink(FlowSink* flowSink) {
+	flowSinks.push_back(flowSink);
 
 	/* Immediately pass the Hashtable's DataTemplate to the new Callback receiver */
-	for (n = 0; n < ht->callbackCount; n++) {
-		CallbackInfo* ci = &ht->callbackInfo[n];
-
-		if (ci->dataTemplateCallbackFunction) {
-			ci->dataTemplateCallbackFunction(ci->handle, NULL, ht->dataTemplate);
-		}
-	}
+	flowSink->onDataTemplate(0, dataTemplate);
 }
+

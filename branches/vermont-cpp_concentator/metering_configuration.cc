@@ -14,8 +14,8 @@
 #include <sampler/Filter.h>
 #include <sampler/ExporterSink.h>
 #include <sampler/HookingFilter.h>
-#include <concentrator/sampler_hook_entry.h>
-#include <concentrator/ipfix.h>
+#include <concentrator/sampler_hook_entry.hpp>
+#include <concentrator/ipfix.hpp>
 
 #include <cctype>
 
@@ -112,8 +112,7 @@ void MeteringConfiguration::connect(Configuration* c)
 			}
  			msg(MSG_DEBUG, "Setting up IpfixSender");
  			exporter->createIpfixSender(observationDomainId);
- 			addAggregatorCallbacks(flowMetering->ipfixAggregator, 
- 					       getIpfixSenderCallbackInfo(exporter->getIpfixSender()));
+ 			flowMetering->ipfixAggregator->addFlowSink(exporter->getIpfixSender());
 		}
 		return;
 	}
@@ -157,8 +156,7 @@ void MeteringConfiguration::connect(Configuration* c)
 		}
 
 		msg(MSG_DEBUG, "Adding aggregator call backs");
-		addAggregatorCallbacks(flowMetering->ipfixAggregator, 
-				       getIpfixDbWriterCallbackInfo(dbWriterConfiguration->getDbWriter()));
+		flowMetering->ipfixAggregator->addFlowSink(dbWriterConfiguration->getDbWriter());
 		return;
 	}
 #endif

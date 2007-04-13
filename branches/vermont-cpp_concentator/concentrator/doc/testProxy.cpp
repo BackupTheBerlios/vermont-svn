@@ -19,7 +19,7 @@
  */
 
 /** \file
- * Separate Program to test the collector
+ * Separate Program to test collector, printer and sender
  * Dumps received flows to stdout
  */
 
@@ -28,61 +28,50 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
-#include "IpfixCollector.hpp"
-#include "IpfixParser.hpp"
-#include "IpfixPacketProcessor.hpp"
 #include "IpfixReceiver.hpp"
 #include "IpfixPrinter.hpp"
-#include "../msg.h"
+#include "IpfixSender.hpp"
+#include "common.hpp"
 
 #define DEFAULT_LISTEN_PORT 1500
+#define DEFAULT_TALK_IP "127.0.0.1"
+#define DEFAULT_TALK_PORT 1501
+
+#define DEFAULT_SOURCE_ID 4711
 
 void sigint(int) {
 }
 
-int main(int argc, char *argv[]) {
-
+int main(int argc, char* argv[]) {
 	int lport = DEFAULT_LISTEN_PORT;
-
-	msg_setlevel(MSG_DEFAULT);
+	char* tip = DEFAULT_TALK_IP;
+	int tport = DEFAULT_TALK_PORT;
 
 	signal(SIGINT, sigint);
 
-	if(argv[1]) {
-		lport=atoi(argv[1]);
-	}
+	if (argc > 1) lport=atoi(argv[1]);
+	if (argc > 2) tip=argv[2];
+	if (argc > 3) tport=atoi(argv[3]);
 
+	IpfixReceiver ipfixReceiver(lport);
 	IpfixPrinter ipfixPrinter;
+	IpfixSender ipfixSender(DEFAULT_SOURCE_ID, tip, tport);
+
+	ipfixReceiver.addFlowSink(&ipfixSender);
+	ipfixReceiver.addFlowSink(&ipfixPrinter);
+
+	ipfixSender.start();
 	ipfixPrinter.start();
+	ipfixReceiver.start();
 
-	IpfixReceiver ipfixReceiver(IpfixReceiver::UDP_IPV4, lport);
-	/* (not in this branch of rcvIpfix)
-	if (argc > 2) {
-		msg(MSG_DIALOG, "Adding %s to list of authorized hosts", argv[2]);
-		ipfixReceiver.addAuthorizedHost(argv[2]);
-	}
-	*/
-
-	IpfixParser ipfixParser;
-	ipfixParser.addFlowSink(&ipfixPrinter);
-
-	IpfixPacketProcessor ipfixPacketProcessor;
-	ipfixPacketProcessor.ipfixParser = &ipfixParser;
-
-	IpfixCollector ipfixCollector;
-	ipfixCollector.addIpfixReceiver(&ipfixReceiver);
-	ipfixCollector.addIpfixPacketProcessor(&ipfixPacketProcessor);
-	ipfixCollector.start();
-
-	DPRINTF("Listening on %d. Hit Ctrl+C to quit\n", lport);
+	debugf("0.0.0.0:%d => %s:%d", lport, tip, tport);
+	debug("Forwarding all Templates and Data Records. Press Ctrl+C to quit.");
 	pause();
-	DPRINTF("Stopping threads and tidying up.\n");
+	debug("Stopping threads and tidying up.");
 
-	DPRINTF("stopping collector\n");
 	ipfixReceiver.stop();
-
-	DPRINTF("stopping printer\n");
 	ipfixPrinter.stop();
+	ipfixSender.stop();
 
 	return 0;
 }

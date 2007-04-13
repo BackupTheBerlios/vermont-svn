@@ -1,52 +1,60 @@
+/*
+ * IPFIX Concentrator Module Library
+ * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *
+ */
+
 #ifndef SNDIPFIX_H
 #define SNDIPFIX_H
 
-#include "rcvIpfix.h"
+#include "IpfixParser.hpp"
 #include "ipfixlolib/ipfixlolib.h"
 
-/***** Constants ************************************************************/
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
 /**
- * Represents an Exporter.
- * Create with @c createIpfixSender()
+ * IPFIX Exporter interface.
+ *
+ * Interface for feeding generated Templates and Data Records to "ipfixlolib" 
  */
-typedef struct {
-	ipfix_exporter* ipfixExporter; /**< underlying ipfix_exporter structure. Cast from void* to minimize header dependencies */
-	uint16_t lastTemplateId; /**< Template ID of last created Template */
-	char ip[128]; /**< IP of Collector we export to */
-	uint16_t port; /**< Port of Collector we export to */
-	uint32_t sentRecords; /**< Statistics: Total number of records sent since last statistics were polled */
-} IpfixSender;
+class IpfixSender : public FlowSink {
+	public:
+		IpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port);
+		~IpfixSender();
 
-/***** Prototypes ***********************************************************/
+		void start();
+		void stop();
 
-int initializeIpfixSenders();
-int deinitializeIpfixSenders();
+		int addCollector(const char *ip, uint16_t port);
 
-IpfixSender* createIpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port);
-void destroyIpfixSender(IpfixSender* ipfixSender);
+		int onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
+		int onDataTemplateDestruction(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
+		int onDataDataRecord(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
 
-void startIpfixSender(IpfixSender* ipfixSender);
-void stopIpfixSender(IpfixSender* ipfixSender);
+		void stats();
 
-int ipfixSenderAddCollector(IpfixSender *ips, const char *ip, uint16_t port);
+	protected:
+		ipfix_exporter* ipfixExporter; /**< underlying ipfix_exporter structure. */
+		uint16_t lastTemplateId; /**< Template ID of last created Template */
+		char ip[128]; /**< IP of Collector we export to */
+		uint16_t port; /**< Port of Collector we export to */
+		uint32_t sentRecords; /**< Statistics: Total number of records sent since last statistics were polled */
 
-int sndNewDataTemplate(void* ipfixSender, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
-int sndDestroyDataTemplate(void* ipfixSender, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
-int sndDataDataRecord(void* ipfixSender, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
-
-CallbackInfo getIpfixSenderCallbackInfo(IpfixSender* ipfixSender);
-
-void statsIpfixSender(void* ipfixSender);
-
-#ifdef __cplusplus
-}
-#endif
+	private:
+		uint16_t ringbufferPos; /**< Pointer to next free slot in @c conversionRingbuffer. */
+		uint8_t conversionRingbuffer[65536]; /**< Ringbuffer used to store converted imasks between @c ipfix_put_data_field() and @c ipfix_send() */
+};
 
 #endif
-

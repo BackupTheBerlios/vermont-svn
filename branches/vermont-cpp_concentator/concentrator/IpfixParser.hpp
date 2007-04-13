@@ -1,292 +1,152 @@
-#ifndef RCVIPFIX_H
-#define RCVIPFIX_H
+/*
+ * IPFIX Concentrator Module Library
+ * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *
+ */
 
-#include "ipfixReceiver.h"
+#ifndef INCLUDED_IpfixParser_hpp
+#define INCLUDED_IpfixParser_hpp
 
+#define NetflowV9_SetId_Template  0
+
+#include "IpfixReceiver.hpp"
+
+#include <list>
 #include <pthread.h>
 #include <stdint.h>
+#include "FlowSink.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/***** Constants ************************************************************/
-
-#define MAX_ADDRESS_LEN 16
-
-/***** Data Types ***********************************************************/
-
-typedef struct {
-	char ip[MAX_ADDRESS_LEN];
-	uint8_t len;
-} ExporterAddress;
-
-typedef struct {
-	uint32_t observationDomainId;
-	ExporterAddress exporterAddress;
-} SourceID;
-
-typedef uint16_t TemplateID;
-typedef uint16_t TypeId;
-typedef uint16_t FieldLength;
-typedef uint32_t EnterpriseNo;
-typedef uint8_t FieldData;
-typedef uint8_t byte;
+class TemplateBuffer;
 
 /**
- * IPFIX field type and length.
- * if "id" is < 0x8000, i.e. no user-defined type, "eid" is 0
- */ 
-typedef struct {
-	TypeId id;            /**< type tag of this field, according to [INFO] */
-	FieldLength length;   /**< length in bytes of this field */
-	int isVariableLength; /**< true if this field's length might change from record to record, false otherwise */
-	EnterpriseNo eid;     /**< enterpriseNo for user-defined data types (i.e. type >= 0x8000) */	
-} FieldType;
-
-/**
- * Information describing a single field in the fields passed via various callback functions.
+ * IPFIX Parser module.
+ *
+ * The IPFIX Parser module receives messages from lower levels (see @c processMessage())
+ * and parses the message into separate Templates, Options and Flows. It then
+ * invokes the appropriate callback routine for each Template, Option and Flow received
+ * (see the @c setTemplateCallback() and @c setDataRecordCallback() function groups).
+ *
+ * The Collector module supports higher-level modules by providing field types and offsets along 
+ * with the raw data block of individual messages passed via the callback functions (see @c TemplateInfo)
  */
-typedef struct {
-	FieldType type;
-	uint16_t offset;          /**< offset in bytes from a data start pointer. For internal purposes 65535 is defined as yet unknown */
-} FieldInfo;
+class IpfixParser {
+	public:
+		IpfixParser();
+		~IpfixParser();
 
-/**
- * Template description passed to the callback function when a new Template arrives.
- */
-typedef struct {
-	uint16_t   templateId;    /**< the template id assigned to this template or 0 if we don't know or don't care */
-	uint16_t   fieldCount;    /**< number of regular fields */
-	FieldInfo* fieldInfo;     /**< array of FieldInfos describing each of these fields */
-	void*      userData;      /**< pointer to a field that can be used by higher-level modules */
-} TemplateInfo;
+		/**
+		 * Add a FlowSink that receives flows we collect
+		 */
+		void addFlowSink(FlowSink* flowSink);
+		int processMessage(uint8_t* message, uint16_t length, SourceID* sourceId);
 
-/**
- * OptionsTemplate description passed to the callback function when a new OptionsTemplate arrives.
- * Note that - other than in [PROTO] - fieldCount specifies only the number of regular fields
- */
-typedef struct {
-	uint16_t   templateId;    /**< the template id assigned to this template or 0 if we don't know or don't care */
-	uint16_t   scopeCount;    /**< number of scope fields */
-	FieldInfo* scopeInfo;     /**< array of FieldInfos describing each of these fields */
-	uint16_t   fieldCount;    /**< number of regular fields. This is NOT the number of all fields */
-	FieldInfo* fieldInfo;     /**< array of FieldInfos describing each of these fields */
-	void*      userData;      /**< pointer to a field that can be used by higher-level modules */
-} OptionsTemplateInfo;
+	protected:
+		/**
+		 * IPFIX header helper.
+		 * Constitutes the first 16 bytes of every IPFIX Message
+		 */
+		typedef struct {
+			uint16_t version; /**< Expected to be 0x000a */
+			uint16_t length; 
+			uint32_t exportTime;
+			uint32_t sequenceNo;
+			uint32_t observationDomainId;
+			uint8_t data;
+		} IpfixHeader;
 
-/**
- * DataTemplate description passed to the callback function when a new DataTemplate arrives.
- */
-typedef struct {
-	uint16_t   id;            /**< the template id assigned to this template or 0 if we don't know or don't care */
-	uint16_t   preceding;     /**< the preceding rule field as defined in the draft */
-	uint16_t   fieldCount;    /**< number of regular fields */
-	FieldInfo* fieldInfo;     /**< array of FieldInfos describing each of these fields */
-	uint16_t   dataCount;     /**< number of fixed-value fields */
-	FieldInfo* dataInfo;      /**< array of FieldInfos describing each of these fields */
-	FieldData* data;          /**< data start pointer for fixed-value fields */
-	void*      userData;      /**< pointer to a field that can be used by higher-level modules */
-} DataTemplateInfo;
+		/**
+		 * NetflowV9 header helper.
+		 * Constitutes the first bytes of every NetflowV9 Message
+		 */
+		typedef struct {
+			uint16_t version; /**< Expected to be 0x0009 */
+			uint16_t setCount;
+			uint32_t uptime;
+			uint32_t exportTime;
+			uint32_t sequenceNo;
+			uint32_t observationDomainId;
+			uint8_t data;
+		} NetflowV9Header;
 
-/*** Template Callbacks ***/
+		/**
+		 * IPFIX "Set" helper.
+		 * Constitutes the first bytes of every IPFIX Template Set, Options Template Set or Data Set
+		 */
+		typedef struct {
+			uint16_t id;
+			uint16_t length;
+			uint8_t data; 
+		} IpfixSetHeader;
 
-/**
- * Callback function invoked when a new Template arrives.
- * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
- * @param sourceId SourceID of the exporter that sent this Template
- * @param templateInfo Pointer to a structure defining this Template
- * @return 0 if packet handled successfully
- */
-typedef int(TemplateCallbackFunction)(void* handle, SourceID* sourceID, TemplateInfo* templateInfo);
+		/**
+		 * IPFIX "Template Set" helper.
+		 * Constitutes the first bytes of every IPFIX Template
+		 */
+		typedef struct {
+			uint16_t templateId;
+			uint16_t fieldCount;
+			uint8_t data;
+		} IpfixTemplateHeader;
 
-/**
- * Callback function invoked when a new OptionsTemplate arrives.
- * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
- * @param sourceId SourceID of the exporter that sent this OptionsTemplate
- * @param optionsTemplateInfo Pointer to a structure defining this OptionsTemplate
- * @return 0 if packet handled successfully
- */
-typedef int(OptionsTemplateCallbackFunction)(void* handle, SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo);
+		/**
+		 * IPFIX "DataTemplate Set" helper.
+		 * Constitutes the first bytes of every IPFIX DataTemplate
+		 */
+		typedef struct {
+			uint16_t templateId;
+			uint16_t fieldCount;
+			uint16_t dataCount;
+			uint16_t precedingRule;
+			uint8_t data;
+		} IpfixDataTemplateHeader;
 
-/**
- * Callback function invoked when a new DataTemplate arrives.
- * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
- * @param sourceId SourceID of the exporter that sent this DataTemplate
- * @return 0 if packet handled successfully
- */
-typedef int(DataTemplateCallbackFunction)(void* handle, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
+		/**
+		 * IPFIX "Options Template Set" helper.
+		 * Constitutes the first bytes of every IPFIX Options Template
+		 */
+		typedef struct {
+			uint16_t templateId;
+			uint16_t fieldCount;
+			uint16_t scopeCount; 
+			uint8_t data;
+		} IpfixOptionsTemplateHeader;
 
-/*** Template Destruction Callbacks ***/
-         
-/**
- * Callback function invoked when a Template is being destroyed.
- * Particularly useful for cleaning up userData associated with this Template
- * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
- * @param sourceId SourceID of the exporter that sent this Template
- * @param templateInfo Pointer to a structure defining this Template
- * @return 0 if packet handled successfully
- */
-typedef int(TemplateDestructionCallbackFunction)(void* handle, SourceID* sourceID, TemplateInfo* templateInfo);
+		typedef std::list<FlowSink*> FlowSinks;
+		FlowSinks flowSinks; /**< List of FlowSink objects that receive flows we collect */
 
-/**
- * Callback function invoked when a OptionsTemplate is being destroyed.
- * Particularly useful for cleaning up userData associated with this Template
- * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
- * @param sourceId SourceID of the exporter that sent this OptionsTemplate
- * @param optionsTemplateInfo Pointer to a structure defining this OptionsTemplate
- * @return 0 if packet handled successfully
- */
-typedef int(OptionsTemplateDestructionCallbackFunction)(void* handle, SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo);
+		friend class TemplateBuffer;
+		TemplateBuffer* templateBuffer; /**< TemplateBuffer* structure */
 
-/**
- * Callback function invoked when a DataTemplate is being destroyed.
- * Particularly useful for cleaning up userData associated with this Template
- * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
- * @param sourceId SourceID of the exporter that sent this DataTemplate
- * @return 0 if packet handled successfully
- */
-typedef int(DataTemplateDestructionCallbackFunction)(void* handle, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
+		void processDataSet(SourceID* sourceID, IpfixSetHeader* set);
+		void processTemplateSet(SourceID* sourceID, IpfixSetHeader* set);
+		void processDataTemplateSet(SourceID* sourceID, IpfixSetHeader* set);
+		void processOptionsTemplateSet(SourceID* sourceId, IpfixSetHeader* set);
+		int processNetflowV9Packet(uint8_t* message, uint16_t length, SourceID* sourceId);
+		int processIpfixPacket(uint8_t* message, uint16_t length, SourceID* sourceId);
 
-/*** Data Callbacks ***/
-
-/**
- * Callback function invoked when a new Data Record arrives.
- * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
- * @param sourceId SourceID of the exporter that sent this Record
- * @param templateInfo Pointer to a structure defining the Template used
- * @param length Length of the data block supplied
- * @param data Pointer to a data block containing all fields
- * @return 0 if packet handled successfully
- */
-typedef int(DataRecordCallbackFunction)(void* handle, SourceID* sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
-
-/**
- * Callback function invoked when a new Options Record arrives.
- * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
- * @param sourceId SourceID of the exporter that sent this Record
- * @param optionsTemplateInfo Pointer to a structure defining the OptionsTemplate used
- * @param length Length of the data block supplied
- * @param data Pointer to a data block containing all fields
- * @return 0 if packet handled successfully
- */
-typedef int(OptionsRecordCallbackFunction)(void* handle, SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data);
-
-/**
- * Callback function invoked when a new Data Record with associated Fixed Values arrives.
- * @param handle handle passed to the callback function to differentiate different instances and/or operation modes
- * @param sourceId SourceID of the exporter that sent this Record
- * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
- * @param length Length of the data block supplied
- * @param data Pointer to a data block containing all variable fields
- * @return 0 if packet handled successfully
- */
-typedef int(DataDataRecordCallbackFunction)(void* handle, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
-
-/**
- * Collection of callback functions used for passing Templates and Data Records between modules.
- */
-typedef struct {
-	void* handle; /**< handle passed to the callback functions to differentiate different instances and/or operation modes */
-
-	TemplateCallbackFunction* templateCallbackFunction;
-	OptionsTemplateCallbackFunction* optionsTemplateCallbackFunction;
-	DataTemplateCallbackFunction* dataTemplateCallbackFunction;
-
-	DataRecordCallbackFunction* dataRecordCallbackFunction;
-	OptionsRecordCallbackFunction* optionsRecordCallbackFunction;
-	DataDataRecordCallbackFunction* dataDataRecordCallbackFunction;
-
-	TemplateDestructionCallbackFunction* templateDestructionCallbackFunction;
-	OptionsTemplateDestructionCallbackFunction* optionsTemplateDestructionCallbackFunction;
-	DataTemplateDestructionCallbackFunction* dataTemplateDestructionCallbackFunction;
-} CallbackInfo;
-
-
-/**
- * Contains information about parsing process
- * created by @c createIpfixParser()
- */
-typedef struct {
-	int callbackCount;          /**< Length of callbackInfo array */
-	CallbackInfo* callbackInfo; /**< Array of callback functions to invoke when new messages arrive */
-
-	void* templateBuffer;       /**< TemplateBuffer* structure */
-} IpfixParser;
-
-        
-/**
- * Callback function invoked when a new packet arrives.
- * @param ipfixParser parser containing callbackfunction invoked while parsing message.
- * @param message Raw message data
- * @param len Length of message
- */
-typedef int(ProcessPacketCallbackFunction)(IpfixParser* ipfixParser, byte* message, uint16_t len,
-                                           SourceID* exporter);
-
-/**
- * Controls parsing of incoming packets.
- * Create witch @c createPacketProcessor()
- */
-typedef struct {
-	ProcessPacketCallbackFunction* processPacketCallbackFunction; /**< Callback function invoked when new packet arrives. */
-	IpfixParser* ipfixParser; /**< Contains information about parsing process */
-
-	pthread_mutex_t mutex; /**< Used to give only one IpfixReceiver access to the IpfixPacketProcessor */
-} IpfixPacketProcessor;
-
-
-/**
- * Represents a collector
- */
-typedef struct {
-	int receiverCount;
-	IpfixReceiver** ipfixReceivers;
-
-	int processorCount;
-	IpfixPacketProcessor* packetProcessors;
-} IpfixCollector;
-
-/***** Prototypes ***********************************************************/
-
-
-/* ------------------------------- Collector && Collector-Stuff --------------------------------- */
-
-int initializeIpfixCollectors();
-int deinitializeIpfixCollectors();
-IpfixCollector* createIpfixCollector();
-void destroyIpfixCollector(IpfixCollector* ipfixCollector);
-int startIpfixCollector(IpfixCollector*);
-int stopIpfixCollector(IpfixCollector*);
-
-/* ---------------------------------------------- Processor --------------------------------------- */
-
-IpfixPacketProcessor* createIpfixPacketProcessor();
-void destroyIpfixPacketProcessor(IpfixPacketProcessor* packetProcessor);
-
-/* --------------------------------------- Parser && Parsing Stuff  ------------------------------- */
-
-IpfixParser* createIpfixParser();
-void destroyIpfixParser(IpfixParser* ipfixParser);
-
+};
 
 void printFieldData(FieldType type, FieldData* pattern);
 
 FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type);
+FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid);
 FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type);
+FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid);
 FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
-
-/* --------------------------------------- Connectors --------------------------------------------- */
-
-void addIpfixParserCallbacks(IpfixParser* ipfixParser, CallbackInfo handles);
-void setIpfixParser(IpfixPacketProcessor* packetProcessor, IpfixParser* ipfixParser);
-
-void addIpfixPacketProcessor(IpfixCollector* ipfixCollector, IpfixPacketProcessor* packetProcessor);
-void addIpfixReceiver(IpfixCollector* ipfixCollector, IpfixReceiver* ipfixReceiver);
-
-#ifdef __cplusplus
-}
-#endif
-
+FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid);
 
 #endif

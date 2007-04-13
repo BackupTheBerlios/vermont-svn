@@ -1,78 +1,81 @@
-#ifndef RULES_H
-#define RULES_H
+/*
+ * IPFIX Concentrator Module Library
+ * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *
+ */
+
+#ifndef RULE_H
+#define RULE_H
 
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include "rcvIpfix.h"
+#include "IpfixReceiver.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define MAX_RULE_FIELDS 255
 
-#define FIELD_MODIFIER_DISCARD     0
-#define FIELD_MODIFIER_KEEP        1
-#define FIELD_MODIFIER_AGGREGATE   2
-#define FIELD_MODIFIER_MASK_START  126
-#define FIELD_MODIFIER_MASK_END    254
-
-#define MAX_RULE_FIELDS  255
-#define MAX_RULES        255
-
-typedef uint8_t FieldModifier;
-
-/**
- * Single field of an aggregation rule.
- */
-typedef struct {
-	FieldType type;         /**< field type this RuleField refers to */
-	FieldData* pattern;     /**< pattern to match fields against to determine applicability of a rule. A pattern of NULL means no pattern needs to be matched for this field */
-	FieldModifier modifier; /**< modifier to apply to the corresponding field if this rule is matched */
-} RuleField;
+class Hashtable;
 
 /**
  * Single aggregation rule
  */
-typedef struct {
-	uint16_t id;
-	uint16_t preceding;
-	int fieldCount;
-	RuleField* field[MAX_RULE_FIELDS];
-	
-	void* hashtable;
-} Rule;
+class Rule {
+	public:
 
-/**
- * Set of aggregation rules
- */
-typedef struct {
-	int count;
-	Rule* rule[MAX_RULES];
-} Rules;
+		/**
+		 * Single field of an aggregation rule.
+		 */
+		class Field {
+			public:
+				Field() {
+					type.id = 0;
+					type.length = 0;
+					type.eid = 0;
+					pattern = NULL;
+					modifier = Rule::Field::DISCARD;
+				}
 
-Rules* parseRulesFromFile(char* fname);
+				~Field() {
+					free(pattern);
+				}
 
-RuleField* mallocRuleField();
-void freeRuleField(RuleField* ruleField);
+				/*
+				 * Rule::Field Modifier can be DISCARD (throw away this field), KEEP (keep this field), AGGREGATE (create one aggregate flow per different field value) or between MASK_START and MASK_END (to determine how many bits of the IP Address to keep)
+				 */
+				enum Modifier {DISCARD = 0, KEEP = 1, AGGREGATE = 2, MASK_START = 126, MASK_END = 254};
 
-Rule* mallocRule();
-void freeRule(Rule* rule);
-
-int parseTcpFlags(char* s, FieldData** fdata, FieldLength* length);
-int parsePortPattern(char* s, FieldData** fdata, FieldLength* length);
-int parseIPv4Pattern(char* s, FieldData** fdata, FieldLength* length);
-int parseProtoPattern(char* s, FieldData** fdata, FieldLength* length);
-
-void destroyRules(Rules* rules);
-void printRule(Rule* rule);
-int templateDataMatchesRule(TemplateInfo* info, FieldData* data, Rule* rule);
-int dataTemplateDataMatchesRule(DataTemplateInfo* info, FieldData* data, Rule* rule);
+				FieldType type; /**< field type this Rule::Field refers to */
+				FieldData* pattern; /**< pattern to match fields against to determine applicability of a rule. A pattern of NULL means no pattern needs to be matched for this field */
+				Rule::Field::Modifier modifier; /**< modifier to apply to the corresponding field if this rule is matched */
+		};
 
 
-#ifdef __cplusplus
-}
-#endif
+		Rule();
+		~Rule();
+		void print();
+		int templateDataMatches(TemplateInfo* info, FieldData* data);
+		int dataTemplateDataMatches(DataTemplateInfo* info, FieldData* data);
 
+		uint16_t id;
+		uint16_t preceding;
+		int fieldCount;
+		Rule::Field* field[MAX_RULE_FIELDS];
+		Hashtable* hashtable;
+};
 
 #endif

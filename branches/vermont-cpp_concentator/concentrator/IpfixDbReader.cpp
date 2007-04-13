@@ -1,54 +1,44 @@
+/*
+ * IPFIX Database Reader/Writer
+ * Copyright (C) 2005 Lothar Braun <braunl@informatik.uni-tuebingen.de>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *
+ */
+
+/* Some constants that are common to IpfixDbWriter and IpfixDbReader */
 #ifdef DB_SUPPORT_ENABLED
 
+#include <stdexcept>
 #include <string.h>
 #include <stdlib.h>
-#include "IpfixDbReader.h"
+#include "IpfixDbReader.hpp"
 #include "msg.h"
-
-
-columnDB tabs[] = {		 
-	{"dstIP", IPFIX_TYPEID_destinationIPv4Address,4},
-	{"srcIP", IPFIX_TYPEID_sourceIPv4Address, 4},	
-	{"srcPort", IPFIX_TYPEID_sourceTransportPort, 2},	
-	{"dstPort", IPFIX_TYPEID_destinationTransportPort, 2},
-	{"proto",IPFIX_TYPEID_protocolIdentifier , 1},
-	{"dstTos", IPFIX_TYPEID_classOfServiceIPv4, 1},
-	{"bytes", IPFIX_TYPEID_octetDeltaCount,  8},
-	{"pkts", IPFIX_TYPEID_packetDeltaCount, 8},
-	{"firstSwitched", IPFIX_TYPEID_flowStartSeconds, 4},
-	{"lastSwitched", IPFIX_TYPEID_flowEndSeconds, 4},
-	{"END"}
-} ;
-
 
 /***** Internal Functions ****************************************************/
 
 void copyUintNetByteOrder(FieldData* dest, char* src, FieldType type);
-int getTables(IpfixDbReader* ipfixDbReader);
-
-columnDB* getColumnByName(const char* name);
-int getColumns(IpfixDbReader* ipfixDbReader, int n);
-
-void* readFromDB(void* ipfixDbReader_);
-
-int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataTemplateInfo, int table_index);
-int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo, int n);
-int dbReaderDestroyTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo);
-
-int connectToDb(IpfixDbReader* ipfixDbReader,
-		const char* hostName, const char* dbName, 
-		const char* username, const char* password,
-		unsigned int port, uint16_t observationDomainId);
-
 
 /**
  * First send a a new template, then send the dataTemplates for all stored
  * tables.
  */
-void* readFromDB(void* ipfixDbReader_)
+void* IpfixDbReader::readFromDB(void* ipfixDbReader_)
 {
-	int i;
 	IpfixDbReader* ipfixDbReader = (IpfixDbReader*)ipfixDbReader_;
+	int i;
 
 	DataTemplateInfo* dataTemplateInfo = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
 	DbData* dbData = ipfixDbReader->dbReader->dbData;
@@ -57,13 +47,13 @@ void* readFromDB(void* ipfixDbReader_)
 	pthread_mutex_lock(&ipfixDbReader->mutex);
 	msg(MSG_DIALOG, "Start sending tables");
 	for(i = 0; i < dbData->tableCount && i < MAX_TABLES; i++) {
-		if(dbReaderSendNewTemplate(ipfixDbReader, dataTemplateInfo, i) != 0)
+		if(ipfixDbReader->dbReaderSendNewTemplate(dataTemplateInfo, i) != 0)
 		{
 		    msg(MSG_ERROR, "IpfixDbReader: Template error, skip table");
 		    continue;
 		}
-		dbReaderSendTable(ipfixDbReader, dataTemplateInfo, i);
-		dbReaderDestroyTemplate(ipfixDbReader, dataTemplateInfo);
+		ipfixDbReader->dbReaderSendTable(dataTemplateInfo, i);
+		ipfixDbReader->dbReaderDestroyTemplate(dataTemplateInfo);
 		//here we can make a pause if required
 		pthread_mutex_unlock(&ipfixDbReader->mutex);
 		pthread_mutex_lock(&ipfixDbReader->mutex);
@@ -77,12 +67,11 @@ void* readFromDB(void* ipfixDbReader_)
  * Constructs a template from the table data and sends it to all connected
  * modules.
  */
-int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataTemplateInfo, int table_index)
+int IpfixDbReader::dbReaderSendNewTemplate(DataTemplateInfo* dataTemplateInfo, int table_index)
 {
-	int i,n;
+	int i;
 	int fieldLength  = 0;
 
-	DbReader* dbReader = ipfixDbReader->dbReader;
 	DbData* dbData = dbReader->dbData;
 	
 	dataTemplateInfo->id =0;
@@ -95,14 +84,14 @@ int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataT
 	dataTemplateInfo->userData = NULL;
 		
 	/**get columnsname of the table*/
-	if(getColumns(ipfixDbReader, table_index) != 0) {
+	if(getColumns(table_index) != 0) {
 		msg(MSG_ERROR,"IpfixDbReader: Could not get columns for template");
 		return 1;
 	}
 
 	for(i = 0; i < dbData->colCount; i++) {			
 		dataTemplateInfo->fieldCount++;
-		dataTemplateInfo->fieldInfo = realloc(dataTemplateInfo->fieldInfo,
+		dataTemplateInfo->fieldInfo = (FieldInfo*)realloc(dataTemplateInfo->fieldInfo,
 						      sizeof(FieldInfo)*dataTemplateInfo->fieldCount);
 		FieldInfo* fi = &dataTemplateInfo->fieldInfo[dataTemplateInfo->fieldCount - 1];	
 		fi->type.id = dbData->columns[i]->ipfixId;
@@ -112,13 +101,10 @@ int dbReaderSendNewTemplate(IpfixDbReader* ipfixDbReader,DataTemplateInfo* dataT
 		fieldLength = fieldLength + fi->type.length; 
 	}
 
-	for (n = 0; n != dbReader->callbackCount; n++) {
-		CallbackInfo* ci = &dbReader->callbackInfo[n];
-		if (ci->dataTemplateCallbackFunction) {
-			ci->dataTemplateCallbackFunction(ci->handle, &ipfixDbReader->srcId,
-							 dataTemplateInfo);
-			msg(MSG_DEBUG,"IpfixDbReader sent template for table %s", dbData->tableNames[table_index]);
-		}
+	/* Pass Data Template to flowSinks */
+	for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+		(*i)->onDataTemplate(&srcId, dataTemplateInfo);
+		msg(MSG_DEBUG,"IpfixDbReader sent template for table %s", dbData->tableNames[table_index]);
 	}
 	return 0;
 }
@@ -151,11 +137,10 @@ void copyUintNetByteOrder(FieldData* dest, char* src, FieldType type) {
  * strings, therefore they must change into IPFIX format 
 */
 
-int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo, int table_index)
+int IpfixDbReader::dbReaderSendTable(DataTemplateInfo* dataTemplateInfo, int table_index)
 {
        	MYSQL_RES* dbResult = NULL;
 	MYSQL_ROW dbRow = NULL;
-	DbReader* dbReader = ipfixDbReader->dbReader;
 	DbData* dbData = dbReader->dbData;
 	int i;
 	FieldData* data = (FieldData*)malloc(MAX_MSG_LEN);
@@ -167,17 +152,17 @@ int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTempla
 	
 
 	char select[STARTLEN] = "SELECT * FROM ";
-	strncat(select, ipfixDbReader->dbReader->dbData->tableNames[table_index],TABLE_WIDTH);
+	strncat(select, dbReader->dbData->tableNames[table_index],TABLE_WIDTH);
 	strcat(select," ORDER BY lastSwitched");
 	/** get all data from database*/
-	if(mysql_query(ipfixDbReader->conn, select) != 0) {
+	if(mysql_query(conn, select) != 0) {
 		msg(MSG_ERROR,"IpfixDbReader: Select on table failed. Error: %s",
-		    mysql_error(ipfixDbReader->conn));
+		    mysql_error(conn));
 		free(data);
 		return 1;
 	}
 
-	dbResult = mysql_store_result(ipfixDbReader->conn);
+	dbResult = mysql_store_result(conn);
 	msg(MSG_DEBUG,"IpfixDbReader starts sending records from table %s", dbData->tableNames[table_index]);
 	while((dbRow = mysql_fetch_row(dbResult))) {
 		if (delta == 0) {
@@ -225,25 +210,17 @@ int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTempla
 		/** according to flowstarttime wait for sending the record*/
 		if(flowTime != lastFlowTime) {
 			time_t t = time(NULL);
-			if (t > flowTime) {
+			if (t > (int)flowTime) {
 				msg(MSG_ERROR, "IpfixDbReader: Sending flows too slowly");
 			} else {
 				sleep (flowTime - t);
 			}
 			lastFlowTime = flowTime;
 		}
-		for (i = 0; i != dbReader->callbackCount; ++i) {
-			CallbackInfo* ci = &dbReader->callbackInfo[i];
-			if (ci->dataDataRecordCallbackFunction) {
-				ci->dataDataRecordCallbackFunction(ci->handle,
-								   &ipfixDbReader->srcId,
-								   dataTemplateInfo,
-								   dataLength,
-								   data);
-				msg(MSG_INFO,"IpfixDbReader sent record");
-			}
+		for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+			(*i)->onDataDataRecord(&srcId, dataTemplateInfo, dataLength, data);
+			msg(MSG_INFO,"IpfixDbReader sent record");
 		}
-
 	}
 	mysql_free_result(dbResult);
 	free(data);
@@ -257,18 +234,11 @@ int dbReaderSendTable(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTempla
 /**
  * get all tableNames in database that matches with the wildcard "h%"
  **/
-int dbReaderDestroyTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* dataTemplateInfo)
+int IpfixDbReader::dbReaderDestroyTemplate(DataTemplateInfo* dataTemplateInfo)
 {
-	int n;
-	DbReader* dbReader = ipfixDbReader->dbReader;
-
-	for (n = 0; n != dbReader->callbackCount; n++) {
-		CallbackInfo* ci = &dbReader->callbackInfo[n];
-		if (ci->dataTemplateDestructionCallbackFunction) {
-			ci->dataTemplateDestructionCallbackFunction(ci->handle, &ipfixDbReader->srcId,
-							 dataTemplateInfo);
-			msg(MSG_DEBUG,"IpfixDbReader destroyed template");
-		}
+	for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+		(*i)->onDataTemplateDestruction(&srcId, dataTemplateInfo);
+		msg(MSG_DEBUG,"IpfixDbReader destroyed template");
 	}
 
 	free(dataTemplateInfo->fieldInfo);
@@ -281,21 +251,21 @@ int dbReaderDestroyTemplate(IpfixDbReader* ipfixDbReader, DataTemplateInfo* data
 /**
  * get all tableNames in database that matches with the wildcard "h%"
  **/
-int getTables(IpfixDbReader* ipfixDbReader)
+int IpfixDbReader::getTables()
 {
-	DbData* dbData = ipfixDbReader->dbReader->dbData;
+	DbData* dbData = dbReader->dbData;
 	int i = 0;
 	char* wild = "h%";
 	MYSQL_RES* dbResult = NULL;
 	MYSQL_ROW dbRow = NULL;
 	
-	dbResult = mysql_list_tables(ipfixDbReader->conn, wild);
+	dbResult = mysql_list_tables(conn, wild);
 	if(dbResult == 0) {
-		msg(MSG_FATAL,"There are no flow tables in database %s", ipfixDbReader->dbName);	
+		msg(MSG_FATAL,"There are no flow tables in database %s", dbName);	
 		return 1;
 	}
 	
-	if(mysql_num_rows(dbResult) > MAX_TABLES) {
+	if((int)mysql_num_rows(dbResult) > MAX_TABLES) {
 		msg(MSG_ERROR,"There are too many flow tables in the database. Only the first MAX_TABLES=%i tables can be read.", MAX_TABLES);
 	}
 
@@ -312,8 +282,22 @@ int getTables(IpfixDbReader* ipfixDbReader)
 	return 0;
 }
 
-columnDB* getColumnByName(const char* name)
+IpfixDbReader::columnDB* IpfixDbReader::getColumnByName(const char* name)
 {
+	static IpfixDbReader::columnDB tabs[] = {		 
+		{"dstIP", IPFIX_TYPEID_destinationIPv4Address,4},
+		{"srcIP", IPFIX_TYPEID_sourceIPv4Address, 4},	
+		{"srcPort", IPFIX_TYPEID_sourceTransportPort, 2},	
+		{"dstPort", IPFIX_TYPEID_destinationTransportPort, 2},
+		{"proto",IPFIX_TYPEID_protocolIdentifier , 1},
+		{"dstTos", IPFIX_TYPEID_classOfServiceIPv4, 1},
+		{"bytes", IPFIX_TYPEID_octetDeltaCount,  8},
+		{"pkts", IPFIX_TYPEID_packetDeltaCount, 8},
+		{"firstSwitched", IPFIX_TYPEID_flowStartSeconds, 4},
+		{"lastSwitched", IPFIX_TYPEID_flowEndSeconds, 4},
+		{"END"}
+	};
+
 	int i;
 	for (i = 0; strcmp(tabs[i].cname, "END"); ++i) {
 		if (!strcmp(tabs[i].cname, name)) {
@@ -326,22 +310,22 @@ columnDB* getColumnByName(const char* name)
 /**
  * Get the names of columns
  */
-int getColumns(IpfixDbReader* ipfixDbReader, int table_index)
+int IpfixDbReader::getColumns(int table_index)
 {
-	DbData* dbData = ipfixDbReader->dbReader->dbData;
+	DbData* dbData = dbReader->dbData;
 	MYSQL_RES* dbResult = NULL;
 	MYSQL_ROW dbRow = NULL;
 	
 	char showcolStr[STARTLEN] = "SHOW COLUMNS FROM ";
 	/* get column names from table table_index */
 	strncat(showcolStr, dbData->tableNames[table_index],strlen(dbData->tableNames[table_index])+1);
-	if(mysql_query(ipfixDbReader->conn, showcolStr) != 0) {	
+	if(mysql_query(conn, showcolStr) != 0) {	
 		msg(MSG_ERROR,"Show columns on table %s failed. Error: %s",
-		    mysql_error(ipfixDbReader->conn));
+		    mysql_error(conn));
 		return 1;
 	}
 	
-	dbResult = mysql_store_result(ipfixDbReader->conn);
+	dbResult = mysql_store_result(conn);
 	
 	if(dbResult == 0) {
 		msg(MSG_FATAL,"There are no Columns in the table");	
@@ -370,45 +354,42 @@ int getColumns(IpfixDbReader* ipfixDbReader, int table_index)
 }
 
 
-int connectToDb(IpfixDbReader* ipfixDbReader,
+int IpfixDbReader::connectToDb(
 		const char* hostName, const char* dbName, 
 		const char* userName, const char* password,
 		unsigned int port, uint16_t observationDomainId)
 
 {
 	/** get the mysl init handle*/
-	ipfixDbReader->conn = mysql_init(0); 
-	if(ipfixDbReader->conn == 0) {
+	conn = mysql_init(0); 
+	if(conn == 0) {
 		msg(MSG_FATAL,"Get MySQL connect handle failed. Error: %s",
-		    mysql_error(ipfixDbReader->conn));
+		    mysql_error(conn));
 		return 1;
 	} else {
 		msg(MSG_DEBUG,"mysql init successfull");
 	}
 	/**Initialize structure members IpfixDbWriter*/
-	ipfixDbReader->hostName = hostName;
-	ipfixDbReader->dbName = dbName;
-	ipfixDbReader->userName = userName;
-	ipfixDbReader->password = password;
-	ipfixDbReader->portNum = port;
-	ipfixDbReader->socketName = 0;	  		
-	ipfixDbReader->flags = 0;
-	ipfixDbReader->srcId.observationDomainId = observationDomainId;
-	/**Initialize structure members DbReader*/
-	ipfixDbReader->dbReader->callbackInfo = NULL;
-	ipfixDbReader->dbReader->callbackCount = 0;
+	this->hostName = hostName;
+	this->dbName = dbName;
+	this->userName = userName;
+	this->password = password;
+	this->portNum = port;
+	this->socketName = 0;	  		
+	this->flags = 0;
+	srcId.observationDomainId = observationDomainId;
 	/**Initialize structure members DbData*/
-	ipfixDbReader->dbReader->dbData->colCount = 0;
-	ipfixDbReader->dbReader->dbData->tableCount = 0;
+	dbReader->dbData->colCount = 0;
+	dbReader->dbData->tableCount = 0;
 	
 	/**Connect to Database*/
-	if (!mysql_real_connect(ipfixDbReader->conn,
-				ipfixDbReader->hostName,
-				ipfixDbReader->userName,ipfixDbReader->password,
-				0, ipfixDbReader->portNum, ipfixDbReader->socketName,
-				ipfixDbReader->flags)) {
+	if (!mysql_real_connect(conn,
+				hostName,
+				userName,password,
+				0, portNum, socketName,
+				flags)) {
 		msg(MSG_FATAL,"Connection to database failed. Error: %s",
-		    mysql_error(ipfixDbReader->conn));
+		    mysql_error(conn));
 		return 1;
 	}
 
@@ -417,32 +398,12 @@ int connectToDb(IpfixDbReader* ipfixDbReader,
 
 /***** Exported Functions ****************************************************/
 
-
-/**
- * Initializes internal structures.
- * To be called on application startup
- * @return 0 on success
- */
-int initializeIpfixDbReaders() {
-	return 0;
-}
-
-
-/**
- * Deinitializes internal structures.
- * To be called on application shutdown
- * @return 0 on success
- */
-int deinitializeIpfixDbReaders() {
-	return 0;
-}
-
 /**
  * Starts or resumes database
  * @param ipfixDbReader handle obtained by calling @c createipfixDbReader()
  */
-int startIpfixDbReader(IpfixDbReader* ipfixDbReader) {
-	pthread_mutex_unlock(&ipfixDbReader->mutex);
+int IpfixDbReader::start() {
+	pthread_mutex_unlock(&mutex);
 	return 0;
 }
 
@@ -450,8 +411,8 @@ int startIpfixDbReader(IpfixDbReader* ipfixDbReader) {
  * Temporarily pauses database
  * @param ipfixDbReader handle obtained by calling @c createipfixDbReader()
  */
-int stopIpfixDbReader(IpfixDbReader* ipfixDbReader) {
-	pthread_mutex_lock(&ipfixDbReader->mutex);
+int IpfixDbReader::stop() {
+	pthread_mutex_lock(&mutex);
 	return 0;
 }
 
@@ -459,108 +420,93 @@ int stopIpfixDbReader(IpfixDbReader* ipfixDbReader) {
  * Frees memory used by an ipfixDbReader
  * @param ipfixDbWriter handle obtained by calling @c createipfixDbReader()
  */
-int destroyIpfixDbReader(IpfixDbReader* ipfixDbReader) {
-	mysql_close(ipfixDbReader->conn);
-	if (!pthread_mutex_destroy(&ipfixDbReader->mutex)) {
+IpfixDbReader::~IpfixDbReader() {
+	mysql_close(conn);
+	if (!pthread_mutex_destroy(&mutex)) {
 		msg(MSG_ERROR, "Could not destroy mutex");
 	}
-	free(ipfixDbReader->dbReader->dbData);
-	free(ipfixDbReader->dbReader);
-	free(ipfixDbReader);
-
-	return 0;
+	free(dbReader->dbData);
+	free(dbReader);
 }
 
 /**
  * Creates a new ipfixDbReader. Do not forget to call @c startipfixDbReader() to begin reading from Database
  * @return handle to use when calling @c destroyipfixDbRreader()
  */
-IpfixDbReader* createIpfixDbReader(const char* hostName, const char* dbName, 
+IpfixDbReader::IpfixDbReader(const char* hostName, const char* dbName, 
 				   const char* userName, const char* password,
 				   unsigned int port, uint16_t observationDomainId)
 {
-	IpfixDbReader* ipfixDbReader = (IpfixDbReader*)malloc(sizeof(IpfixDbReader));
-	if (!ipfixDbReader) {
-		msg(MSG_ERROR, "Could not allocate IpfixDbReader");
-		goto out0;
-	}
+	DbReader* dbReader;
+	DbData* dbData;
 
-	if (pthread_mutex_init(&ipfixDbReader->mutex, NULL)) {
+	if (pthread_mutex_init(&mutex, NULL)) {
 		msg(MSG_FATAL, "Could not init mutex");
 		goto out1;
 	}
 
-        if (pthread_mutex_lock(&ipfixDbReader->mutex)) {
+        if (pthread_mutex_lock(&mutex)) {
                 msg(MSG_FATAL, "Could not lock mutex");
                 goto out1;
         }
 
-	DbReader* dbReader = (DbReader*)malloc(sizeof(DbReader));
-	if (!ipfixDbReader) {
+	dbReader = (DbReader*)malloc(sizeof(DbReader));
+	if (!dbReader) {
 		msg(MSG_ERROR, "Could not allocate DbReader");
 		goto out1;
 	}
 
-	DbData* dbData = (DbData*)malloc(sizeof(DbData));
+	dbData = (DbData*)malloc(sizeof(DbData));
 	if (!dbData) {
 		msg(MSG_ERROR, "Could not allocate dbData");
 		goto out2;
 	}
 	
-	ipfixDbReader->dbReader = dbReader;
+	dbReader = dbReader;
 	dbReader->dbData = dbData;
-	if (connectToDb(ipfixDbReader, hostName, dbName, userName,
+	if (connectToDb(hostName, dbName, userName,
 			password, port, observationDomainId)) {
 		goto out3;
 	}
 	msg(MSG_DEBUG,"Connected to database");
 	
 	/** use database  with db_name**/	
-	if(mysql_select_db(ipfixDbReader->conn, ipfixDbReader->dbName) !=0) {
-		msg(MSG_FATAL,"Database %s not selectable", ipfixDbReader->dbName);	
+	if(mysql_select_db(conn, dbName) !=0) {
+		msg(MSG_FATAL,"Database %s not selectable", dbName);	
 		goto out3;
 	} else {
-		msg(MSG_DEBUG,"Database %s selected", ipfixDbReader->dbName);
+		msg(MSG_DEBUG,"Database %s selected", dbName);
 	}
 	/** get tableNames of the database*/
-	if(getTables(ipfixDbReader) != 0) {
+	if(getTables() != 0) {
 		msg(MSG_ERROR,"Error in function getTables");
 		goto out3;
 	}
 	/**initialize columns**/
 	dbData->colCount = 0;
 
-	if (pthread_create(&ipfixDbReader->thread, 0, readFromDB, ipfixDbReader)) {
+	if (pthread_create(&thread, 0, readFromDB, this)) {
 		msg(MSG_FATAL, "Could not create dbRead thread");
                 goto out3;
 	}
 	
-	return ipfixDbReader;
+	return;
 
 out3:
 	free(dbData);
 out2:
 	free(dbReader);
 out1:
-	free(ipfixDbReader);
-out0:	
-	return NULL;
+	throw std::runtime_error("IpfixDbReader creation failed");
+	return;
 }
 
-
 /**
- * Adds a set of callback functions to the list of functions to call
- * when Message from database is read.
- * @param ipfixDbReader IpfixDbReader to set the callback function for
- * @param handles set of callback functions
+ * Adds a set of callback functions to the list of functions to call when Templates or Records have to be sent
+ * @param flowSink the destination module
  */
-void addIpfixDbReaderCallbacks(IpfixDbReader* ipfixDbReader, CallbackInfo handles) 
-{
-	DbReader* dbReader = ipfixDbReader->dbReader;
-	int n = ++dbReader->callbackCount;
-	dbReader->callbackInfo = (CallbackInfo*)realloc(dbReader->callbackInfo, 
-							n * sizeof(CallbackInfo));
-	memcpy(&dbReader->callbackInfo[n-1], &handles, sizeof(CallbackInfo));
+void IpfixDbReader::addFlowSink(FlowSink* flowSink) {
+	flowSinks.push_back(flowSink);
 }
 
 #endif

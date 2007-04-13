@@ -11,20 +11,17 @@
 /* be sure we get the htonl et al inlined */
 #include <netinet/in.h>
 
-#include "aggregator.h"
-#include "rcvIpfix.h"
+#include "IpfixAggregator.hpp"
+#include "IpfixParser.hpp"
 
 #include "sampler/packet_hook.h"
-#include "sampler_hook_entry.h"
+#include "sampler_hook_entry.hpp"
 
-#include "ipfix.h"
-#include "printIpfix.h"
+#include "ipfix.hpp"
+#include "IpfixPrinter.hpp"
+#include "FlowSink.hpp"
 
 #include "msg.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 static FieldInfo ip_traffic_fi[] = {
 	/* { { ID, len, enterprise}, offset} */
@@ -77,27 +74,31 @@ static FieldInfo tcp_traffic_fi[] = {
 };
 
 static TemplateInfo ip_traffic_template = {
-	.fieldCount = 7,
-	.fieldInfo  = ip_traffic_fi,
-	.userData   = NULL
+	/*.templateId =*/ 0,
+	/*.fieldCount =*/ 7,
+	/*.fieldInfo  =*/ ip_traffic_fi,
+	/*.userData   =*/ NULL
 };
 
 static TemplateInfo icmp_traffic_template = {
-	.fieldCount = 8,
-	.fieldInfo  = icmp_traffic_fi,
-	.userData   = NULL
+	/*.templateId =*/ 0,
+	/*.fieldCount =*/ 8,
+	/*.fieldInfo  =*/ icmp_traffic_fi,
+	/*.userData   =*/ NULL
 };
 
 static TemplateInfo udp_traffic_template = {
-	.fieldCount = 9,
-	.fieldInfo  = udp_traffic_fi,
-	.userData   = NULL
+	/*.templateId =*/ 0,
+	/*.fieldCount =*/ 9,
+	/*.fieldInfo  =*/ udp_traffic_fi,
+	/*.userData   =*/ NULL
 };
 
 static TemplateInfo tcp_traffic_template = {
-	.fieldCount = 10,
-	.fieldInfo  = tcp_traffic_fi,
-	.userData   = NULL
+	/*.templateId =*/ 0,
+	/*.fieldCount =*/ 10,
+	/*.fieldInfo  =*/ tcp_traffic_fi,
+	/*.userData   =*/ NULL
 };
 
 /*
@@ -106,11 +107,10 @@ static TemplateInfo tcp_traffic_template = {
  this is a mess and not thread safe
  */
 
-void sampler_hook_entry(void *ctx, void *data)
+void sampler_hook_entry(FlowSink* flowSink, void* data)
 {
 	int transport_offset;
 	struct packet_hook *ph=(struct packet_hook *)data;
-        void *aggregator=ctx;
 	FieldData *fdata=(FieldData *)ph->ip_header;
 	uint32_t pad1;
 	uint8_t pad2;
@@ -125,7 +125,7 @@ void sampler_hook_entry(void *ctx, void *data)
 
 	// Check if transport header is available
 	if(ph->transport_header == NULL) {
-	    aggregateDataRecord(aggregator, NULL, &ip_traffic_template, ph->length, fdata);
+	    flowSink->onDataRecord(NULL, &ip_traffic_template, ph->length, fdata);
 	}
 	else
 	{
@@ -138,9 +138,9 @@ void sampler_hook_entry(void *ctx, void *data)
 		       - calculate the offset of transport header to ip header
 		       - use this offset and add to src/dst_port offset
 		     */
-		    transport_offset=abs(ph->transport_header - ph->ip_header);
+		    transport_offset=abs((char*)ph->transport_header - (char*)ph->ip_header);
 		    icmp_traffic_template.fieldInfo[0].offset += transport_offset;
-		    aggregateDataRecord(aggregator, NULL, &icmp_traffic_template, ph->length, fdata);
+		    flowSink->onDataRecord(NULL, &icmp_traffic_template, ph->length, fdata);
 		    /* reset offset for typecode to starting value */
 		    icmp_traffic_template.fieldInfo[0].offset = 0;
 		    break;
@@ -151,10 +151,10 @@ void sampler_hook_entry(void *ctx, void *data)
 		       - calculate the offset of transport header to ip header
 		       - use this offset and add to src/dst_port offset
 		     */
-		    transport_offset=abs(ph->transport_header - ph->ip_header);
+		    transport_offset=abs((char*)ph->transport_header - (char*)ph->ip_header);
 		    udp_traffic_template.fieldInfo[0].offset += transport_offset;
 		    udp_traffic_template.fieldInfo[1].offset += transport_offset;
-		    aggregateDataRecord(aggregator, NULL, &udp_traffic_template, ph->length, fdata);
+		    flowSink->onDataRecord(NULL, &udp_traffic_template, ph->length, fdata);
 		    /* reset offsets for srcport/dstport to starting values */
 		    udp_traffic_template.fieldInfo[0].offset = 0;
 		    udp_traffic_template.fieldInfo[1].offset = 2;
@@ -166,18 +166,18 @@ void sampler_hook_entry(void *ctx, void *data)
 		       - calculate the offset of transport header to ip header
 		       - use this offset and add to src/dst_port offset
 		     */
-		    transport_offset=abs(ph->transport_header - ph->ip_header);
+		    transport_offset=abs((char*)ph->transport_header - (char*)ph->ip_header);
 		    tcp_traffic_template.fieldInfo[0].offset += transport_offset;
 		    tcp_traffic_template.fieldInfo[1].offset += transport_offset;
 		    tcp_traffic_template.fieldInfo[2].offset += transport_offset;
-		    aggregateDataRecord(aggregator, NULL, &tcp_traffic_template, ph->length, fdata);
+		    flowSink->onDataRecord(NULL, &tcp_traffic_template, ph->length, fdata);
 		    /* reset offsets for srcport/dstport to starting values */
 		    tcp_traffic_template.fieldInfo[0].offset = 13;
 		    tcp_traffic_template.fieldInfo[1].offset = 0;
 		    tcp_traffic_template.fieldInfo[2].offset = 2;
 		    break;
 		default:
-		    aggregateDataRecord(aggregator, NULL, &ip_traffic_template, ph->length, fdata);
+		    flowSink->onDataRecord(NULL, &ip_traffic_template, ph->length, fdata);
 	    }
 	}
 
@@ -187,6 +187,3 @@ void sampler_hook_entry(void *ctx, void *data)
 
 }
 
-#ifdef __cplusplus
-}
-#endif

@@ -1,45 +1,75 @@
+/*
+ * IPFIX Concentrator Module Library
+ * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *
+ */
+
 /** \file
  * Separate Program to test the collector
  * Dumps received flows to stdout
  */
 
 #include <netinet/in.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
-#include "rcvIpfix.h"
-#include "printIpfix.h"
-#include "common.h"
+#include "IpfixReceiver.hpp"
+#include "IpfixPrinter.hpp"
+#include "common.hpp"
 
-void sigint() {
-	}
+#define DEFAULT_LISTEN_PORT 1500
+
+void sigint(int) {
+}
 
 int main(int argc, char *argv[]) {
+
+	int lport = DEFAULT_LISTEN_PORT;
+
 	signal(SIGINT, sigint);
 
-	initializeIpfixPrinters();
+	if(argv[1]) {
+		lport=atoi(argv[1]);
+	}
 
-	initializeIpfixReceivers();
+	IpfixPrinter ipfixPrinter;
+	ipfixPrinter.start();
 
-	IpfixPrinter* ipfixPrinter = createIpfixPrinter();
-	startIpfixPrinter(ipfixPrinter);
+	IpfixReceiver ipfixReceiver(lport);
 
-	IpfixReceiver* ipfixReceiver = createIpfixReceiver(1501);
-	addIpfixReceiverCallbacks(ipfixReceiver, getIpfixPrinterCallbackInfo(ipfixPrinter));
-	startIpfixReceiver(ipfixReceiver);
+	if (argc > 2) {
+		debugf("Adding %s to list of authorized hosts", argv[2]);
+		ipfixReceiver.addAuthorizedHost(argv[2]);
+	}
 
-	debug("Listening on Port 1501. Hit Ctrl+C to quit");
+	ipfixReceiver.addFlowSink(&ipfixPrinter);
+	ipfixReceiver.start();
+
+	debugf("Listening on %d. Hit Ctrl+C to quit", lport);
 	pause();
 	debug("Stopping threads and tidying up.");
-	
-	stopIpfixReceiver(ipfixReceiver);
-	destroyIpfixReceiver(ipfixReceiver);
- 	deinitializeIpfixReceivers();	
 
-	stopIpfixPrinter(ipfixPrinter);
-	destroyIpfixPrinter(ipfixPrinter);
-	deinitializeIpfixPrinters();
+	debug("stopping collector");
+	ipfixReceiver.stop();
+
+	debug("stopping printer");
+	ipfixPrinter.stop();
 
 	return 0;
-	}
+}
 

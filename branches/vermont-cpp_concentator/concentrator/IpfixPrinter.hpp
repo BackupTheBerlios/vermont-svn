@@ -1,50 +1,55 @@
+/*
+ * IPFIX Concentrator Module Library
+ * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *
+ */
+
 #ifndef PRINTIPFIX_H
 #define PRINTIPFIX_H
 
-#include "rcvIpfix.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-/***** Constants ************************************************************/
+#include "IpfixParser.hpp"
 
 /**
- * Represents an IpfixPrinter.
- * Create with @c createIpfixPrinter()
+ * IPFIX Printer module.
+ *
+ * Prints received flows to stdout 
  */
-typedef struct {
-	int dummy;
-} IpfixPrinter;
+class IpfixPrinter : public FlowSink {
+	public:
+		IpfixPrinter();
+		~IpfixPrinter();
 
-/***** Prototypes ***********************************************************/
+		void start();
+		void stop();
 
-int initializeIpfixPrinters();
-int deinitializeIpfixPrinters();
+		int onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
+		int onDataDataRecord(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+		int onDataTemplateDestruction(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
 
-IpfixPrinter* createIpfixPrinter();
-void destroyIpfixPrinter(IpfixPrinter* ipfixPrinter);
+		int onOptionsTemplate(SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo);
+		int onOptionsRecord(SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data);
+		int onOptionsTemplateDestruction(SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo);
 
-void startIpfixPrinter(IpfixPrinter* ipfixPrinter);
-void stopIpfixPrinter(IpfixPrinter* ipfixPrinter);
+		int onTemplate(SourceID* sourceID, TemplateInfo* templateInfo);
+		int onDataRecord(SourceID* sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
+		int onTemplateDestruction(SourceID* sourceID, TemplateInfo* templateInfo);
 
-int printDataTemplate(void* ipfixPrinter, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
-int printDataDataRecord(void* ipfixPrinter, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
-int printDataTemplateDestruction(void* ipfixPrinter, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
-
-int printOptionsTemplate(void* ipfixPrinter, SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo);
-int printOptionsRecord(void* ipfixPrinter, SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data);
-int printOptionsTemplateDestruction(void* ipfixPrinter, SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo);
-
-int printTemplate(void* ipfixPrinter, SourceID* sourceID, TemplateInfo* templateInfo);
-int printDataRecord(void* ipfixPrinter, SourceID* sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
-int printTemplateDestruction(void* ipfixPrinter, SourceID* sourceID, TemplateInfo* templateInfo);
-
-CallbackInfo getIpfixPrinterCallbackInfo(IpfixPrinter* ipfixPrinter);
-
-#ifdef __cplusplus
-}
-#endif
+	protected:
+		void* lastTemplate;
+};
 
 #endif

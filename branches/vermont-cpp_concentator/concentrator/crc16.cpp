@@ -1,3 +1,23 @@
+/*
+ * IPFIX Concentrator Module Library
+ * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *
+ */
+
 /** @file
  * CRC16 calculation.
  *
@@ -6,7 +26,7 @@
  *
  */
 
-#include "crc16.h"
+#include "crc16.hpp"
 
 /* CRC16 table calculated by Mark G. Mendel. From xmodem.h, public domain */
 static const uint16_t table[] = {
@@ -53,7 +73,7 @@ static const uint16_t table[] = {
  * @return the CRC16 value
  */
 
-uint16_t crc16(uint16_t seed, uint16_t length, void* data)
+uint16_t crc16(uint16_t seed, uint16_t length, char* data)
 {
 	uint16_t i = seed;
 

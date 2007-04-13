@@ -1,13 +1,27 @@
-/** @file
- * IPFIX Exporter interface.
+/*
+ * IPFIX Concentrator Module Library
+ * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
  *
- * Interface for feeding generated Templates and Data Records to "ipfixlolib"
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
+#include <stdexcept>
 #include <string.h>
-#include "sndIpfix.h"
-#include "ipfix.h"
+#include "IpfixSender.hpp"
+#include "ipfix.hpp"
 
 #include "msg.h"
 
@@ -19,33 +33,6 @@
 /* go back to SENDER_TEMPLATE_ID_LOW if _HI is reached */
 #define SENDER_TEMPLATE_ID_HI 60000
 
-/***** Global Variables ******************************************************/
-
-static uint8_t ringbufferPos = 0; /**< Pointer to next free slot in @c conversionRingbuffer. */
-static uint8_t conversionRingbuffer[1 << (8 * sizeof(ringbufferPos))]; /**< Ringbuffer used to store converted imasks between @c ipfix_put_data_field() and @c ipfix_send() */
-
-/***** Internal Functions ****************************************************/
-
-/***** Exported Functions ****************************************************/
-
-/**
- * Initializes internal structures.
- * To be called on application startup
- * @return 0 on success
- */
-int initializeIpfixSenders() {
-	return 0;
-}
-
-/**
- * Deinitializes internal structures.
- * To be called on application shutdown
- * @return 0 on success
- */
-int deinitializeIpfixSenders() {
-	return 0;
-}
-
 /**
  * Creates a new IPFIX Exporter. Do not forget to call @c startIpfixSender() to begin sending
  * @param sourceID Source ID this exporter will report
@@ -53,64 +40,58 @@ int deinitializeIpfixSenders() {
  * @param port destination collector's port
  * @return handle to use when calling @c destroyIpfixSender()
  */
-IpfixSender* createIpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port) {
-	IpfixSender* ipfixSender = (IpfixSender*)malloc(sizeof(IpfixSender));
-	ipfix_exporter** exporterP = &ipfixSender->ipfixExporter;
-	strcpy(ipfixSender->ip, ip);
-	ipfixSender->port = port;
-	ipfixSender->sentRecords = 0;
+IpfixSender::IpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port) {
+	ipfix_exporter** exporterP = &this->ipfixExporter;
+	strcpy(this->ip, ip);
+	this->port = port;
+	sentRecords = 0;
 
-	ipfixSender->lastTemplateId = SENDER_TEMPLATE_ID_LOW;
+	lastTemplateId = SENDER_TEMPLATE_ID_LOW;
 	if(ipfix_init_exporter(observationDomainId, exporterP) != 0) {
 		msg(MSG_FATAL, "sndIpfix: ipfix_init_exporter failed");
 		goto out;
 	}
 
-	if(ipfixSenderAddCollector(ipfixSender, ipfixSender->ip, ipfixSender->port) != 0) {
+	if(addCollector(ip, port) != 0) {
 		goto out1;
 	}
 	
         msg(MSG_DEBUG, "IpfixSender: running");
 
-	return ipfixSender;
+	return;
 	
 out1:
 	ipfix_deinit_exporter(*exporterP);
 out:
-	free(ipfixSender);
-	return NULL;	
+	throw std::runtime_error("IpfixSender creation failed");
+	return;	
 }
 
 /**
  * Removes a collector from the list of Collectors to send Records to
- * @param ipfixSender handle obtained by calling @c createIpfixSender()
  */
-void destroyIpfixSender(IpfixSender* ipfixSender) {
-	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
+IpfixSender::~IpfixSender() {
+	ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
 
-	if (ipfix_remove_collector(exporter, ipfixSender->ip, ipfixSender->port) != 0) {
+	if (ipfix_remove_collector(exporter, ip, port) != 0) {
 		msg(MSG_FATAL, "sndIpfix: ipfix_remove_collector failed");
 	}
 	ipfix_deinit_exporter(exporter);
-	free(ipfixSender);
 }
 
 /**
  * Starts or resumes sending messages
- * @param ipfixSender handle to the Exporter
  */
-void startIpfixSender(IpfixSender* ipfixSender) {
+void IpfixSender::start() {
 	/* unimplemented, we can't be paused - TODO: or should we? */
 }
 
 /**
  * Temporarily pauses sending messages
- * @param ipfixSender handle to the Exporter
  */
-void stopIpfixSender(IpfixSender* ipfixSender) {
+void IpfixSender::stop() {
 	/* unimplemented, we can't be paused - TODO: or should we? */
 }
-
 
 /**
  * Add another IPFIX collector to export the stream to
@@ -120,9 +101,9 @@ void stopIpfixSender(IpfixSender* ipfixSender) {
  * @param port port number
  * FIXME: support for other than UDP
  */
-int ipfixSenderAddCollector(IpfixSender *ips, const char *ip, uint16_t port)
+int IpfixSender::addCollector(const char *ip, uint16_t port)
 {
-	ipfix_exporter *ex = (ipfix_exporter *)ips->ipfixExporter;
+	ipfix_exporter *ex = (ipfix_exporter *)ipfixExporter;
 
 	if(ipfix_add_collector(ex, ip, port, UDP) != 0) {
 		msg(MSG_FATAL, "IpfixSender: ipfix_add_collector of %s:%d failed", ip, port);
@@ -136,25 +117,23 @@ int ipfixSenderAddCollector(IpfixSender *ips, const char *ip, uint16_t port)
 
 /**
  * Announces a new Template
- * @param ipfixSender_ handle to the Exporter
  * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int sndNewDataTemplate(void* ipfixSender_, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo) {
+int IpfixSender::onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo) {
 	uint16_t my_template_id;
 	uint16_t my_preceding;
-	IpfixSender* ipfixSender = ipfixSender_;
-	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
+	ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
 	if (!exporter) {
 		msg(MSG_ERROR, "sndIpfix: Exporter not set");
 		return -1;
 	}
 
-	my_template_id = dataTemplateInfo->id?dataTemplateInfo->id:++ipfixSender->lastTemplateId;
+	my_template_id = dataTemplateInfo->id?dataTemplateInfo->id:++lastTemplateId;
 	my_preceding = dataTemplateInfo->preceding;
-	if (ipfixSender->lastTemplateId >= SENDER_TEMPLATE_ID_HI) {
+	if (lastTemplateId >= SENDER_TEMPLATE_ID_HI) {
 		/* FIXME: Does not always work, e.g. if more than 50000 new Templates per minute are created */
-		ipfixSender->lastTemplateId = SENDER_TEMPLATE_ID_LOW;
+		lastTemplateId = SENDER_TEMPLATE_ID_LOW;
 	}
 
 	/* put Template ID in Template's userData */
@@ -234,7 +213,7 @@ int sndNewDataTemplate(void* ipfixSender_, SourceID* sourceID, DataTemplateInfo*
 
 	DPRINTF("%d data length\n", dataLength);
 
-	char* data = (char*)dataLength?malloc(dataLength):0; // electric fence does not like 0-byte mallocs
+	char* data = (char*)dataLength?(char*)malloc(dataLength):0; // electric fence does not like 0-byte mallocs
 	memcpy(data, dataTemplateInfo->data, dataLength);
 
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
@@ -273,14 +252,12 @@ int sndNewDataTemplate(void* ipfixSender_, SourceID* sourceID, DataTemplateInfo*
 
 /**
  * Invalidates a template; Does NOT free dataTemplateInfo
- * @param ipfixSender_ handle to the Exporter
  * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int sndDestroyDataTemplate(void* ipfixSender_, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo) 
+int IpfixSender::onDataTemplateDestruction(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo) 
 {
-	IpfixSender* ipfixSender = ipfixSender_;
-	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
+	ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
 
 	if (!exporter) {
 		msg(MSG_ERROR, "sndIpfix: Exporter not set");
@@ -306,15 +283,13 @@ int sndDestroyDataTemplate(void* ipfixSender_, SourceID* sourceID, DataTemplateI
 
 /**
  * Put new Data Record in outbound exporter queue
- * @param ipfixSender_ handle to the Exporter
  * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int sndDataDataRecord(void* ipfixSender_, SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
-	IpfixSender* ipfixSender = ipfixSender_;
-	ipfix_exporter* exporter = (ipfix_exporter*)ipfixSender->ipfixExporter;
+int IpfixSender::onDataDataRecord(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
+	ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
 
 	if (!exporter) {
 		msg(MSG_ERROR, "sndIpfix: Exporter not set");
@@ -362,28 +337,16 @@ int sndDataDataRecord(void* ipfixSender_, SourceID* sourceID, DataTemplateInfo* 
 		return -1;
 	}
 
-	ipfixSender->sentRecords++;
+	sentRecords++;
 
 	return 0;
-}
-
-CallbackInfo getIpfixSenderCallbackInfo(IpfixSender* ipfixSender) {
-	CallbackInfo ci;
-	bzero(&ci, sizeof(CallbackInfo));
-	ci.handle = ipfixSender;
-	ci.dataTemplateCallbackFunction = sndNewDataTemplate;
-	ci.dataDataRecordCallbackFunction = sndDataDataRecord;
-	ci.dataTemplateDestructionCallbackFunction = sndDestroyDataTemplate;
-	return ci;
 }
 
 /**
  * Called by the logger timer thread. Dumps info using msg_stat
  */
-void statsIpfixSender(void* ipfixSender_)
+void IpfixSender::stats()
 {
-	IpfixSender* ipfixSender = (IpfixSender*)ipfixSender_;
-
-	msg_stat("Concentrator: IpfixSender: %6d records sent", ipfixSender->sentRecords);
-	ipfixSender->sentRecords = 0;
+	msg_stat("Concentrator: IpfixSender: %6d records sent", sentRecords);
+	sentRecords = 0;
 }

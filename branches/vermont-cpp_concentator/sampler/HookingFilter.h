@@ -13,11 +13,13 @@
 
 #include "PacketProcessor.h"
 
+class FlowSink;
+
 class HookingFilter : public PacketProcessor {
 
 public:
 
-	HookingFilter(void (*hook)(void*, void *)) {
+	HookingFilter(void (*hook)(FlowSink*, void *)) {
                 f=hook;
 	}
 
@@ -28,11 +30,11 @@ public:
          the hook function may need additional context.
          in our case we need the instance of the aggregator that gets data
          */
-        void setContext(void *c) {
+        void setContext(FlowSink *c) {
 		ctx=c;
 	}
 
-	void setHook(void (*hook)(void *, void *)) {
+	void setHook(void (*hook)(FlowSink *, void *)) {
                 f=hook;
 	}
 
@@ -44,10 +46,10 @@ protected:
 	 this is called "f" because our mentor created that name accidently
 	 so it was meant to stay, because everyone knew what it represents
          */
-	void (*f)(void *,void *);
+	void (*f)(FlowSink *,void *);
 
 	/* we may need a context */
-        void *ctx;
+        FlowSink *ctx;
 
 };
 

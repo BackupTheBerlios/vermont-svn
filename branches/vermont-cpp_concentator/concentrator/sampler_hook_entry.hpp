@@ -6,12 +6,7 @@
 
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class FlowSink;
 
-void sampler_hook_entry(void *ctx, void *data);
+void sampler_hook_entry(FlowSink* flowSink, void *data);
 
-#ifdef __cplusplus
-}
-#endif
