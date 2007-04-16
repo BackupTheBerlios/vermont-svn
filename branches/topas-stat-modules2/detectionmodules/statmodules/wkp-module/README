@@ -34,8 +34,11 @@ I - Configuration
 
 The module's XML configuration file must provide the following two sections:
 - <preferences>: user's preferences about the module
-- <test-params>: statistical tests parameters
+- <cusum-test-params>: parameters for the cusum test
+- <wkp-test-params>: parameters for the statistical wkp-tests
 
+
+-------------
 <preferences>
 -------------
 
@@ -228,8 +231,29 @@ message) if omitted.
 2 - pause, if all tests detect an attack
 
 
+-------------------
+<cusum-test-params>
+-------------------
+
+<cusum_test>:
+
+This parameter tells the module whether the cusum-test shall be performed or not.
+Possible values: true (perform it) or false (dont perform it). If not set, true
+assumed (after some warning message).
+
+
+<amplitude_percentage>:
+
+This parameter represents the increase in the mean after an attack occured. It will be multiplied with the current mean of normal behaviour (alpha) to calculate the threshold at which an alarm shall be raised. Possible values are float decimal and if omitted, 1.5 will be used as default value.
+
+<learning_phase_for_alpha>
+
+This parameter expects an positive integer value which indicates the number of samples to be collected for each endpoint, before the initial mean value alpha is calculated. Only after alpha was calculated, the cusum-test can start for that endpoint. The higher the value for this parameter, the more precise alpha will be. If omitted, 10 will be assumed. This value may not be negative or zero!
+
+
+-----------------
 <wkp-test-params>
--------------
+-----------------
 
 <wilcoxon_test>, <kolmogorov_test>, <pearson_chi-square_test>:
 

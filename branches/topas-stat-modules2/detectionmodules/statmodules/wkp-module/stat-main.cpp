@@ -34,24 +34,6 @@ Bisher: Ports werden aggregiert, d. h. Informationen darüber, ob der Port ein Qu
 Besser: Diese Informationen erhalten?
 Stand:
 
-TODO(3)
-pause_update_when_attack bei mehreren Metriken
---------------------------------------------------------
-Bisher:
-Pause_update_when_attack greift nur, wenn alle drei Tests im letzten Durchlauf einen Angriff erkannten. Wenn man z. B. nur den KS-Test aktiviert, so greift pause_update_when_attack nie! (Siehe update()-Funktion);
-
-Besser:
-Soll konfigurierbar sein, mit folgenden zwei Modi:
-"0" - Niemals pausieren
-"1" - Sobald ein Test Alarm schlägt, Update pausieren
-"2" - Nur wenn alle aktivierten Tests Alarm schlagen Update pausieren
-
-Stand:
-Fertig. last_test-flags nun für jeden Endpunkt einzeln (im Samples-Kontainer) und
-in stat_test() werden diese gesetzt (da mehrere Metriken getestet werden können,
-mussten Hilfsvariablen herhalten, die sich merken, ob mind. für eine Metrik ein
-Angriff erkannt wurde)
-
 TODO(4)
 Initialisierung sparen, falls bestimmte Tests inaktiv
 ------------------------------------------------------
@@ -72,6 +54,7 @@ Stand: Initialisierung überlegen (welche Parameter?)
 #include "wmw-test.h"
 #include "ks-test.h"
 #include "pcs-test.h"
+#include "cusum-test.h"
 
 // ==================== CONSTRUCTOR FOR CLASS Stat ====================
 
@@ -129,16 +112,16 @@ void Stat::init(const std::string & configfile) {
     exit(0);
   }
 
-  if (!config->nodeExists("wkp-test-params")) {
+  if (!config->nodeExists("cusum-test-params")) {
     std::cerr
-      << "ERROR: No wkp-test-params node defined in XML config file!\n"
+      << "ERROR: No cusum-test-params node defined in XML config file!\n"
       << "Define one, fill it with some parameters and restart.\nExiting.\n";
     exit(0);
   }
 
-  if (!config->nodeExists("cusum-test-params")) {
+  if (!config->nodeExists("wkp-test-params")) {
     std::cerr
-      << "ERROR: No cusum-test-params node defined in XML config file!\n"
+      << "ERROR: No wkp-test-params node defined in XML config file!\n"
       << "Define one, fill it with some parameters and restart.\nExiting.\n";
     exit(0);
   }
@@ -1249,7 +1232,95 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
 
 //TODO(5)
 void Stat::init_cusum_test(XMLConfObj * config) {
-  // extract cusum test parameters
+  std::stringstream Warning, Warning1, Warning2, Warning3, Warning4, Warning5, Error;
+  Warning
+    << "WARNING: No cusum_test parameter "
+    << "defined in XML config file!\n\"true\" assumed.\n";
+  Warning1
+    << "WARNING: No value for cusum_test parameter "
+    << "defined in XML config file!\n\"true\" assumed.\n";
+  Warning2
+    << "WARNING: No amplitude_percentage parameter "
+    << "defined in XML config file!\n"
+    << "\"" << DEFAULT_amplitude_percentage << "\" assumed.\n";
+  Warning3
+    << "WARNING: No value for amplitude_percentage parameter "
+    << "defined in XML config file!\n"
+    << "\"" << DEFAULT_amplitude_percentage << "\" assumed.\n";
+  Warning4
+    << "WARNING: No learning_phase_for_alpha parameter "
+    << "defined in XML config file!\n"
+    << "\"" << DEFAULT_learning_phase_for_alpha << "\" assumed.\n";
+  Warning5
+    << "WARNING: No value for learning_phase_for_alpha parameter "
+    << "defined in XML config file!\n"
+    << "\"" << DEFAULT_learning_phase_for_alpha << "\" assumed.\n";
+  Error
+    << "ERROR: Value for learning_phase_for_alpha parameter "
+    << "is zero or negative.\nPlease define a positive value and restart!\n"
+    << " Exiting.\n";
+
+  // cusum_test
+  if (!config->nodeExists("cusum_test")) {
+    std::cerr << Warning.str();
+    if (warning_verbosity==1)
+      outfile << Warning.str() << std::flush;
+    enable_cusum_test = true;
+  }
+  else if (!(config->getValue("cusum_test")).empty()) {
+    enable_cusum_test = ( 0 == strcasecmp("true", config->getValue("cusum_test").c_str()) ) ? true:false;
+  }
+  else {
+    std::cerr << Warning1.str();
+    if (warning_verbosity==1)
+      outfile << Warning1.str() << std::flush;
+    enable_cusum_test = true;
+  }
+
+  // the other parameters need only to be initialized,
+  // if the cusum-test is enabled
+  if (enable_cusum_test == true) {
+    // amplitude_percentage
+    if (!config->nodeExists("amplitude_percentage")) {
+      std::cerr << Warning2.str();
+      if (warning_verbosity==1)
+        outfile << Warning2.str() << std::flush;
+      amplitude_percentage = DEFAULT_amplitude_percentage;
+    }
+    else if (!(config->getValue("amplitude_percentage")).empty())
+      amplitude_percentage = atof(config->getValue("amplitude_percentage").c_str());
+    else {
+      std::cerr << Warning3.str();
+      if (warning_verbosity==1)
+        outfile << Warning3.str() << std::flush;
+      amplitude_percentage = DEFAULT_amplitude_percentage;
+    }
+
+    // learning_phase_for_alpha
+    if (!config->nodeExists("learning_phase_for_alpha")) {
+      std::cerr << Warning4.str();
+      if (warning_verbosity==1)
+        outfile << Warning4.str() << std::flush;
+      learning_phase_for_alpha = DEFAULT_learning_phase_for_alpha;
+    }
+    else if (!(config->getValue("learning_phase_for_alpha")).empty()) {
+      if ( atoi(config->getValue("learning_phase_for_alpha").c_str()) > 0)
+        learning_phase_for_alpha = atoi(config->getValue("learning_phase_for_alpha").c_str());
+      else {
+        std::cerr << Error.str();
+        if (warning_verbosity==1)
+          outfile << Error.str() << std::flush;
+        exit(0);
+      }
+    }
+    else {
+      std::cerr << Warning5.str();
+      if (warning_verbosity==1)
+        outfile << Warning5.str() << std::flush;
+      learning_phase_for_alpha = DEFAULT_learning_phase_for_alpha;
+    }
+  }
+
   return;
 }
 
@@ -1472,7 +1543,6 @@ void Stat::test(StatStore * store) {
 
   // Getting whole Data from store
   std::map<EndPoint,Info> Data = store->getData();
-  std::map<EndPoint,Info> PreviousData = store->getPreviousData();
 
   // Dumping empty records:
   if (Data.empty()==true) {
@@ -1488,24 +1558,29 @@ void Stat::test(StatStore * store) {
     << " ##########" << std::endl
     << "####################################################" << std::endl;
 
-  // 1) LEARN/UPDATE PHASE
-
-  // Parsing data to see whether the recorded EndPoints already exist
-  // in our  "std::map<EndPoint, Samples> SampleData" sample container.
-  // If not, then we add it as a new pair <EndPoint, Samples>.
-  // If yes, then we update the corresponding Samples using
-  // std::vector<int64_t> extracted data.
-
-  outfile << "#### LEARN/UPDATE PHASE" << std::endl;
-
   std::map<EndPoint,Info>::iterator Data_it = Data.begin();
 
-  // Needed for extraction of packets(t)-packets(t-1) and bytes(t)-bytes(t-1)
-  // Holds information about the Info used in the last call to test()
+  // is at least one of the wkp-tests activated?
+  bool enable_wkp_test = (enable_wmw_test == true || enable_ks_test == true || enable_pcs_test == true)?true:false;
+
+  std::map<EndPoint,Info> PreviousData = store->getPreviousData();
+    // Needed for extraction of packets(t)-packets(t-1) and bytes(t)-bytes(t-1)
+    // Holds information about the Info used in the last call to test()
   Info prev;
+
+  // 1) LEARN/UPDATE PHASE
+  // Parsing data to see whether the recorded EndPoints already exist
+  // in our  "std::map<EndPoint, Samples> SampleData" respective
+  // "std::map<EndPoint, CusumParams> CusumData" container.
+  // If not, then we add it as a new pair <EndPoint, *>.
+  // If yes, then we update the corresponding entry using
+  // std::vector<int64_t> extracted data.
+  outfile << "#### LEARN/UPDATE PHASE" << std::endl;
 
   // for every EndPoint, extract the data
   while (Data_it != Data.end()) {
+
+    outfile << "[[ " << Data_it->first << " ]]" << std::endl;
 
     prev = PreviousData[Data_it->first];
     // it doesn't matter much if Data_it->first is an EndPoint that exists
@@ -1513,42 +1588,90 @@ void Stat::test(StatStore * store) {
     // PreviousData[Data_it->first] will automaticaly be an Info structure
     // with all fields set to 0.
 
-    std::map<EndPoint, Samples>::iterator SampleData_it =
-      SampleData.find(Data_it->first);
+    // Do stuff for wkp-tests
+    if (enable_wkp_test == true) {
 
-    outfile << "[[ " << Data_it->first << " ]]" << std::endl;
+      std::map<EndPoint, Samples>::iterator SampleData_it =
+        SampleData.find(Data_it->first);
 
-    if (SampleData_it == SampleData.end()) {
+      if (SampleData_it == SampleData.end()) {
 
-      // We didn't find the recorded EndPoint Data_it->first
-      // in our sample container "SampleData"; that means it's a new one,
-      // so we just add it in "SampleData"; there will not be jeopardy
-      // of memory exhaustion through endless growth of the "SampleData" map
-      // as limits are implemented in the StatStore class (EndPointListMaxSize)
+        // We didn't find the recorded EndPoint Data_it->first
+        // in our sample container "SampleData"; that means it's a new one,
+        // so we just add it in "SampleData"; there will not be jeopardy
+        // of memory exhaustion through endless growth of the "SampleData" map
+        // as limits are implemented in the StatStore class (EndPointListMaxSize)
 
-      Samples S;
-      // extract_data has enum Metric as output
-      (S.Old).push_back(extract_data(Data_it->second, prev));
-      SampleData[Data_it->first] = S;
-      if (output_verbosity >= 3) {
-	      outfile << "New monitored EndPoint added" << std::endl;
-	      if (output_verbosity >= 4) {
-          outfile << "with first element of sample_old: " << S.Old.back() << std::endl;
-	      }
+        Samples S;
+        // extract_data has vector<int64_t> as output
+        (S.Old).push_back(extract_data(Data_it->second, prev));
+        SampleData[Data_it->first] = S;
+        if (output_verbosity >= 3) {
+          outfile << "(WKP): New monitored EndPoint added" << std::endl;
+          if (output_verbosity >= 4) {
+            outfile << "with first element of sample_old: " << S.Old.back() << std::endl;
+          }
+        }
+
       }
-
+      else {
+        // We found the recorded EndPoint Data_it->first
+        // in our sample container "SampleData"; so we update the samples
+        // (SampleData_it->second).Old and (SampleData_it->second).New
+        // thanks to the recorded new value in Data_it->second:
+        update ( SampleData_it->second, extract_data(Data_it->second, prev) );
+      }
     }
-    else {
-      // We found the recorded EndPoint Data_it->first
-      // in our sample container "SampleData"; so we update the samples
-      // (SampleData_it->second).Old and (SampleData_it->second).New
-      // thanks to the recorded new value in Data_it->second:
-      update ( SampleData_it->second, extract_data(Data_it->second, prev) );
+
+    // Do stuff for cusum-test
+    if (enable_cusum_test == true) {
+
+      std::map<EndPoint, CusumParams>::iterator CusumData_it = CusumData.find(Data_it->first);
+
+      if (CusumData_it == CusumData.end()) {
+
+        // We didn't find the recorded EndPoint Data_it->first
+        // in our cusum container "CusumData"; that means it's a new one,
+        // so we just add it in "CusumData"; there will not be jeopardy
+        // of memory exhaustion through endless growth of the "CusumData" map
+        // as limits are implemented in the StatStore class (EndPointListMaxSize)
+
+        CusumParams C;
+        // initialize the vectors of C
+        // as several metrics could be monitored, we need vectors instead of
+        // single values here
+        for (int i = 0; i != monitored_values.size(); i++) {
+          (C.sum).push_back(0);
+          (C.alpha).push_back(0.0);
+          (C.g).push_back(0.0);
+          (C.X).push_back(0);
+        }
+
+        // extract_data
+        std::vector<int64_t> v = extract_data(Data_it->second, prev);
+
+        // add first value of each metric to the sum, which is needed
+        // only to calculate the initial alpha after learning_phase_for_alpha
+        // is over
+        for (int i = 0; i != v.size(); i++)
+          C.sum.at(i) += v.at(i);
+
+        C.learning_phase_nr = 1;
+
+        CusumData[Data_it->first] = C;
+        if (output_verbosity >= 3)
+          outfile << "(CUSUM): New monitored EndPoint added" << std::endl;
+      }
+      else {
+        // We found the recorded EndPoint Data_it->first
+        // in our cusum container "CusumData"; so we update alpha
+        // thanks to the recorded new values in Data_it->second:
+        update_c ( CusumData_it->second, extract_data(Data_it->second, prev) );
+      }
 
     }
 
     Data_it++;
-
   }
 
   outfile << std::endl << std::flush;
@@ -1556,16 +1679,32 @@ void Stat::test(StatStore * store) {
   // 1.5) MAP PRINTING (OPTIONAL, DEPENDS ON VERBOSITY SETTINGS)
   if (output_verbosity >= 4) {
     outfile << "#### STATE OF ALL MONITORED ENDPOINTS (" << SampleData.size() << "):" << std::endl;
-    std::map<EndPoint,Samples>::iterator SampleData_it =
-      SampleData.begin();
-    while (SampleData_it != SampleData.end()) {
-      outfile
-        << "[[ " << SampleData_it->first << " ]]\n"
-        << " sample_old (" << (SampleData_it->second).Old.size()  << ") : "
-        << (SampleData_it->second).Old << "\n"
-        << " sample_new (" << (SampleData_it->second).New.size() << ") : "
-        << (SampleData_it->second).New << "\n";
-      SampleData_it++;
+
+    if (enable_wkp_test == true) {
+      outfile << "### WKP OVERVIEW" << std::endl;
+      std::map<EndPoint,Samples>::iterator SampleData_it =
+        SampleData.begin();
+      while (SampleData_it != SampleData.end()) {
+        outfile
+          << "[[ " << SampleData_it->first << " ]]\n"
+          << " sample_old (" << (SampleData_it->second).Old.size()  << ") : "
+          << (SampleData_it->second).Old << "\n"
+          << " sample_new (" << (SampleData_it->second).New.size() << ") : "
+          << (SampleData_it->second).New << "\n";
+        SampleData_it++;
+      }
+    }
+    if (enable_cusum_test == true) {
+      outfile << "### CUSUM OVERVIEW" << std::endl;
+      std::map<EndPoint,CusumParams>::iterator CusumData_it =
+        CusumData.begin();
+      while (CusumData_it != CusumData.end()) {
+        // TODO: Mehr Zeug ausgeben (alphas, gs usw.)
+        outfile
+          << "[[ " << CusumData_it->first << " ]]\n"
+          << "   !!! Cusum-Parameter ausgeben !!!\n";
+        CusumData_it++;
+      }
     }
   }
 
@@ -1583,19 +1722,38 @@ void Stat::test(StatStore * store) {
 
   if (MakeStatTest == true) {
 
-    // We begin testing as soon as possible, i.e. as soon as a sample
-    // is big enough to test, i.e. when its learning phase is over.
-    // The other samples in the "SampleData" map are let learning.
+    // We begin testing as soon as possible, i.e.
+    // for WKP:
+      // as soon as a sample is big enough to test, i.e. when its
+      // learning phase is over.
+    // for CUSUM:
+      // as soon as we have enough values for calculating the initial
+      // values of alpha
+    // The other endpoints in the "SampleData" and "CusumData"
+    // maps are let learning.
 
-    std::map<EndPoint,Samples>::iterator SampleData_it = SampleData.begin();
-
-    while (SampleData_it != SampleData.end()) {
-      if ( ((SampleData_it->second).New).size() == sample_new_size ) {
-        // i.e., learning phase over
-        outfile << "\n#### STATISTICAL TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
-        stat_test ( SampleData_it->second );
+    if (enable_wkp_test == true) {
+      std::map<EndPoint,Samples>::iterator SampleData_it = SampleData.begin();
+      while (SampleData_it != SampleData.end()) {
+        if ( ((SampleData_it->second).New).size() == sample_new_size ) {
+          // i.e., learning phase over
+          outfile << "\n#### WKP TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
+          stat_test ( SampleData_it->second );
+        }
+        SampleData_it++;
       }
-      SampleData_it++;
+    }
+
+    if (enable_cusum_test == true) {
+      std::map<EndPoint,CusumParams>::iterator CusumData_it = CusumData.begin();
+      while (CusumData_it != CusumData.end()) {
+        if ( (CusumData_it->second).ready_to_test == true ) {
+          // i.e. learning phase for alpha is over and it has an initial value
+          outfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
+          cusum_test ( CusumData_it->second );
+        }
+        CusumData_it++;
+      }
     }
 
   }
@@ -1741,7 +1899,7 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
     S.Old.push_back(new_value);
 
     if (output_verbosity >= 3) {
-      outfile << "Learning phase for sample_old ..." << std::endl;
+      outfile << "(WKP): Learning phase for sample_old ..." << std::endl;
       if (output_verbosity >= 4) {
         outfile << "  sample_old: " << S.Old << std::endl;
         outfile << "  sample_new: " << S.New << std::endl;
@@ -1755,7 +1913,7 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
     S.New.push_back(new_value);
 
     if (output_verbosity >= 3) {
-      outfile << "Learning phase for sample_new..." << std::endl;
+      outfile << "(WKP): Learning phase for sample_new..." << std::endl;
       if (output_verbosity >= 4) {
         outfile << "  sample_old: " << S.Old << std::endl;
         outfile << "  sample_new: " << S.New << std::endl;
@@ -1783,7 +1941,7 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
     S.New.push_back(new_value);
 
     if (output_verbosity >= 3) {
-      outfile << "Update done (for new sample only)" << std::endl;
+      outfile << "(WKP): Update done (for new sample only)" << std::endl;
       if (output_verbosity >= 4) {
         outfile << "  sample_old: " << S.Old << std::endl;
         outfile << "  sample_new: " << S.New << std::endl;
@@ -1799,7 +1957,7 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
     S.New.push_back(new_value);
 
     if (output_verbosity >= 3) {
-      outfile << "Update done (for both samples)" << std::endl;
+      outfile << "(WKP): Update done (for both samples)" << std::endl;
       if (output_verbosity >= 4) {
         outfile << "  sample_old: " << S.Old << std::endl;
         outfile << "  sample_new: " << S.New << std::endl;
@@ -1811,9 +1969,86 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
   return;
 }
 
-// ------- FUNCTIONS USED TO CONDUCT STATISTICAL TESTS ON THE SAMPLES ---------
 
-// statistical test function
+// and the update funciotn for the cusum-test
+void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) {
+
+  // Learning phase for alpha?
+  // that means, we dont have enough values to calculate alpha
+  // until now (and so cannot perform the cusum test)
+  if (C.ready_to_test == false) {
+    if (C.learning_phase_nr < learning_phase_for_alpha) {
+
+      // update the sum of the values of each metric
+      // (needed to calculate the initial alpha)
+      for (int i = 0; i != C.sum.size(); i++)
+        C.sum.at(i) += new_value.at(i);
+
+      if (output_verbosity >= 3)
+        outfile
+          << "(CUSUM): Learning phase for alpha ..." << std::endl;
+
+      C.learning_phase_nr++;
+
+      return;
+    }
+
+    // Enough values? Calculate initial alpha per simple average
+    // and set ready_to_test-flag to true (so we never visit this
+    // code here again for the current endpoint)
+    if (C.learning_phase_nr == learning_phase_for_alpha) {
+
+      if (output_verbosity >= 3)
+        outfile << "(CUSUM): Learning phase is over --> Calculated initial alphas: (";
+      // alpha = sum(values) / #(values)
+      for (int i = 0; i != C.alpha.size(); i++) {
+        C.alpha.at(i) = C.sum.at(i) / learning_phase_for_alpha;
+        if (output_verbosity >= 3)
+          outfile << C.alpha.at(i) << ", ";
+      }
+      if (output_verbosity >= 3)
+          outfile << ")";
+
+      C.ready_to_test = true;
+      return;
+    }
+  }
+
+  // pausing update for alpha, if last cusum-test
+  // was an attack
+  if ( pause_update_when_attack > 0
+    && C.last_cusum_test_was_attack == true) {
+    if (output_verbosity >= 3)
+      outfile << "(CUSUM): Pausing update for alpha" << std::endl;
+    return;
+  }
+
+  // Otherwise update all alphas per EWMA
+
+  // smoothing constant
+  float gamma = 0.15; // TODO: make it a parameter?
+
+  for (int i = 0; i != C.alpha.size(); i++) {
+    C.alpha.at(i) = C.alpha.at(i) * (1 - gamma) + new_value.at(i) * gamma;
+    // TODO (folgende Zeile soll den für den cusum-test benötigten
+    // aktuellen Wert setzen)
+    C.X.at(i) = new_value.at(i);
+  }
+
+  if (output_verbosity >= 3) {
+    outfile << "(CUSUM): Update done for alpha: (";
+    for (int i = 0; i != C.alpha.size(); i++) {
+        outfile << C.alpha.at(i) << ", ";
+    outfile << ")";
+  }
+
+  outfile << std::flush;
+  return;
+}
+
+// ------- FUNCTIONS USED TO CONDUCT TESTS ON THE SAMPLES ---------
+
+// statistical test function / wkp-tests
 // (optional, depending on how often the user wishes to do it)
 void Stat::stat_test (Samples & S) {
 
@@ -1836,7 +2071,7 @@ void Stat::stat_test (Samples & S) {
   while (it != monitored_values.end()) {
 
     if (output_verbosity >= 4)
-      outfile << "### Performing Statistical Tests for metric " << getMetricName(*it) << ":\n";
+      outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
 
     sample_old_single_metric = getSingleMetric(S.Old, *it, index);
     sample_new_single_metric = getSingleMetric(S.New, *it, index);
@@ -1878,6 +2113,73 @@ void Stat::stat_test (Samples & S) {
   outfile << std::flush;
   return;
 
+}
+
+// statistical test function / cusum-test
+// (optional, depending on how often the user wishes to do it)
+void Stat::cusum_test(CusumParams & C) {
+
+  // as the tests can be performed for several metrics, we have to
+  // store, if at least one metric raised an alarm and if so, set
+  // the last_cusum_test_was_attack-flag to true
+  bool was_attack = false;
+  // index, as we cant use the iterator for dereferencing the elements of
+  // CusumParams
+  int i = 0;
+  //adaptive threshold, calculated by amplitude_percentage * alpha / 2
+  float N = 0.0;
+  // beta = alpha + fi*alpha/2 with fi = amplitude_percentage
+  float beta = 0.0;
+
+  for (std::vector<Metric>::iterator it = monitored_values.begin(); it != monitored_values.end(); it++) {
+
+    if (output_verbosity >= 4)
+      outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+
+    // calculate current threshold
+    N = amplitude_percentage * C.alpha.at(i) / 2;
+    // calculate current beta
+    beta = C.alpha.at(i) + N;
+
+    if (output_verbosity >= 4) {
+      outfile << " Cusum test returned:\n"
+              << "  Threshold: " << N << std::endl;
+      outfile << "  reject H0 (no attack) if current value of statistic g > "
+              << N << std::endl;
+    }
+
+    // perform the test and if g > N raise an alarm
+    if ( cusum(C.X.at(i), beta, C.g.at(i)) > N ) {
+
+      if (report_only_first_attack == false
+        || C.last_cusum_test_was_attack == false) {
+        outfile
+          << "    ATTACK! ATTACK! ATTACK!\n"
+          << "    Cusum test says we're under attack!\n"
+          << "    ALARM! ALARM! Women und children first!" << std::endl;
+        std::cout
+          << "  ATTACK! ATTACK! ATTACK!\n"
+          << "  Cusum test says we're under attack!\n"
+          << "  ALARM! ALARM! Women und children first!" << std::endl;
+        #ifdef IDMEF_SUPPORT_ENABLED
+          idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
+          sendIdmefMessage("DDoS", idmefMessage);
+          idmefMessage = getNewIdmefMessage();
+        #endif
+      }
+
+      was_attack = true;
+
+    }
+
+    i++;
+  }
+
+  if (was_attack == true)
+    C.last_cusum_test_was_attack = true;
+
+  outfile << std::flush;
+  return;
 }
 
 // functions called by the stat_test()-function

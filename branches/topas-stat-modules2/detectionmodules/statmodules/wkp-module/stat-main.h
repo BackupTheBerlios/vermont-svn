@@ -38,6 +38,8 @@
 #define DEFAULT_noise_threshold_packets 0
 #define DEFAULT_noise_threshold_bytes 0
 #define DEFAULT_endpointlist_maxsize 500
+#define DEFAULT_amplitude_percentage 1.5
+#define DEFAULT_learning_phase_for_alpha 10
 #define DEFAULT_sample_old_size 111
 #define DEFAULT_sample_new_size 11
 #define DEFAULT_stat_test_frequency 1
@@ -64,8 +66,11 @@ enum Metric {
 
 // we use this structure as value field in std::map< key, value >
 // it contains a list of the old and the new metrics.
-// Letting Old and New be lists of struct Values enables us
+// Letting Old and New be lists of vector<int64_t> enables us
 // to store values for multiple monitored values
+// It also holds last-test-was-an-attack flags: they are useful
+// to keep for every endpoint in mind results of tests if
+// report_only_first_attack==true
 
 struct Samples {
 
@@ -73,8 +78,6 @@ public:
   std::list<std::vector<int64_t> > Old;
   std::list<std::vector<int64_t> > New;
 
-  // last-test-was-an-attack flags: useful to keep for every endpoint
-  // in mind results of tests if report_only_first_attack==true
   bool last_wmw_test_was_attack;
   bool last_ks_test_was_attack;
   bool last_pcs_test_was_attack;
@@ -84,6 +87,41 @@ public:
     last_wmw_test_was_attack = false;
     last_ks_test_was_attack = false;
     last_pcs_test_was_attack = false;
+  }
+
+};
+
+// ======================== STRUCT CusumParams ========================
+
+// we use this structure as value field in std::map< key, value > to
+// store the cusum test parameters for each endpoint.
+// As several metrics could be monitored, we need vectors instead of
+// single values here.
+
+struct CusumParams {
+
+public:
+  // the current sum of the first x values for each metric
+  // needed to calculate the initial alphas
+  std::vector<int64_t> sum;
+  // to identify the end of the learning phase
+  int learning_phase_nr;
+  // the means of every metric
+  std::vector<double> alpha;
+  // current values of the test statistic of each metric
+  std::vector<double> g;
+  // last observed value for each metric
+  // needed for the cusum test
+  std::vector<int> X;
+
+  bool last_cusum_test_was_attack;
+  bool ready_to_test;
+
+  CusumParams()
+  {
+    last_cusum_test_was_attack = false;
+    ready_to_test = false;
+    learning_phase_nr = 0;
   }
 
 };
@@ -161,26 +199,24 @@ class Stat : public DetectionBase<StatStore> {
   std::vector<int64_t> extract_data (const Info &, const Info &);
   void update(Samples &, const std::vector<int64_t> &);
   void stat_test(Samples &);
+  void update_c(CusumParams &, const std::vector<int64_t> &);
+  void cusum_test(CusumParams &);
 
-  // this function is called by stat_test() to extract a single metric to test
-  // from a std::vector<int64_t>
+  // this function is called by stat_test() and cusum_test() to extract a
+  // single metric to test from a std::vector<int64_t>
   std::list<int64_t> getSingleMetric(const std::list<std::vector<int64_t> > &, const enum Metric &, const short &);
   std::string getMetricName(const enum Metric &);
 
-  // and the following functions are called by the stat_test()-function
+  // the following functions are called by the stat_test()-function
   void stat_test_wmw(std::list<int64_t> &, std::list<int64_t> &, bool &);
   void stat_test_ks (std::list<int64_t> &, std::list<int64_t> &, bool &);
   void stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &, bool &);
 
-
   // here is the sample container for the wkp-tests:
   std::map<EndPoint, Samples> SampleData;
-  // TODO
+
   // another container for the cusum-test
-  // maybe sth. like:
-  // std::map<EndPoint, std::vector<int> > CusumData;
-  // where the vector<int> contains the cusum-parameters
-  // for each endpoint
+  std::map<EndPoint, CusumParams> CusumData;
 
   // source id's to accept
   std::vector<int> accept_source_ids;
@@ -207,6 +243,12 @@ class Stat : public DetectionBase<StatStore> {
 
 
   // test parameters (defined in the XML config file):
+
+  // for cusum-test
+  bool enable_cusum_test;
+  float amplitude_percentage;
+  int learning_phase_for_alpha;
+  // for wkp-tests
   bool enable_wmw_test;
   bool enable_ks_test;
   bool enable_pcs_test;

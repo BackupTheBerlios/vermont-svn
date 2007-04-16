@@ -36,6 +36,8 @@
 	</preferences>
   <cusum-test-params>
     <cusum_test>true</cusum_test>
+    <amplitude_percentage>1.33</amplitude_percentage>
+    <learning_phase_for_alpha>3</learning_phase_for_alpha>
   </cusum-test-params>
 	<wkp-test-params>
 		<wilcoxon_test>true</wilcoxon_test>
