@@ -136,6 +136,7 @@ class EndPoint {
 std::ostream & operator << (std::ostream &, const std::list<int64_t> &);
 std::ostream & operator << (std::ostream &, const std::vector<unsigned> &);
 std::ostream & operator << (std::ostream &, const std::vector<int64_t> &);
+std::ostream & operator << (std::ostream &, const std::vector<double> &);
 std::ostream & operator << (std::ostream &, const std::list<std::vector<int64_t> > &);
 std::ostream & operator << (std::ostream &, const std::map<EndPoint,Info> &);
 

@@ -40,6 +40,7 @@
 #define DEFAULT_endpointlist_maxsize 500
 #define DEFAULT_amplitude_percentage 1.5
 #define DEFAULT_learning_phase_for_alpha 10
+#define DEFAULT_smoothing_constant 0.15
 #define DEFAULT_sample_old_size 111
 #define DEFAULT_sample_new_size 11
 #define DEFAULT_stat_test_frequency 1
@@ -110,9 +111,12 @@ public:
   std::vector<double> alpha;
   // current values of the test statistic of each metric
   std::vector<double> g;
-  // last observed value for each metric
+  // current observed value for each metric
   // needed for the cusum test
-  std::vector<int> X;
+  std::vector<int> X_curr;
+  // last observed value for each metric
+  // needed to update alpha
+  std::vector<int> X_last;
 
   bool last_cusum_test_was_attack;
   bool ready_to_test;
@@ -248,6 +252,7 @@ class Stat : public DetectionBase<StatStore> {
   bool enable_cusum_test;
   float amplitude_percentage;
   int learning_phase_for_alpha;
+  float smoothing_constant;
   // for wkp-tests
   bool enable_wmw_test;
   bool enable_ks_test;

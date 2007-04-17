@@ -231,6 +231,7 @@ message) if omitted.
 2 - pause, if all tests detect an attack
 
 
+
 -------------------
 <cusum-test-params>
 -------------------
@@ -246,9 +247,19 @@ assumed (after some warning message).
 
 This parameter represents the increase in the mean after an attack occured. It will be multiplied with the current mean of normal behaviour (alpha) to calculate the threshold at which an alarm shall be raised. Possible values are float decimal and if omitted, 1.5 will be used as default value.
 
+
 <learning_phase_for_alpha>
 
 This parameter expects an positive integer value which indicates the number of samples to be collected for each endpoint, before the initial mean value alpha is calculated. Only after alpha was calculated, the cusum-test can start for that endpoint. The higher the value for this parameter, the more precise alpha will be. If omitted, 10 will be assumed. This value may not be negative or zero!
+
+
+<smoothing_constant>
+
+This parameter expects floating point values greater than zero and represents the smoothing constant for the exponentially weighted moving average function used to smooth the mean value alpha. Alpha will be calculated via
+alpha(n) = alpha(n-1) * (1 - smoothing_constant) + X(n-1) * smoothing_constant
+That means: the greater the value of the smoothing constant, the more weight will be given to the last value of the metric and the less weight will be given to the last mean alpha. It is wise to use small values for the smoothing constant so that the last observed value has only little impact on the new mean.
+If omitted, 0.15 will be used as default value for the smoothing constant.
+
 
 
 -----------------

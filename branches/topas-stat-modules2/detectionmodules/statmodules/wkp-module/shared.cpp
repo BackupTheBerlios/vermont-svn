@@ -68,12 +68,20 @@ std::ostream & operator << (std::ostream & os, const std::vector<unsigned> & V) 
 
 std::ostream & operator << (std::ostream & os, const std::vector<int64_t> & V) {
   std::vector<int64_t>::const_iterator it = V.begin();
-  os << "(";
-  // there is at least one element in V, so there will be no problem
-  // dereferencing "it" without check
-  os << *it; it++;
+  os << "( ";
   while (it != V.end()) {
-    os << ", " << *it;
+    os << *it << " ";
+    it++;
+  }
+  os << ")";
+  return os;
+}
+
+std::ostream & operator << (std::ostream & os, const std::vector<double> & V) {
+std::vector<double>::const_iterator it = V.begin();
+  os << "( ";
+  while (it != V.end()) {
+    os << *it << " ";
     it++;
   }
   os << ")";
@@ -81,7 +89,7 @@ std::ostream & operator << (std::ostream & os, const std::vector<int64_t> & V) {
 }
 
 std::ostream & operator << (std::ostream & os, const std::list<std::vector<int64_t> > & L) {
-  // here we need a ckeck as L for sample_new is initially empty
+  // We need a ckeck as L for sample_new is initially empty
   if (L.size() > 0) {
     std::list<std::vector<int64_t> >::const_iterator it = L.begin();
     os << *it; it++;
