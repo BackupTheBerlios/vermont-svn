@@ -4,7 +4,7 @@
 #include <sampler/ExporterSink.h>
 
 ExporterConfiguration::ExporterConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
-	: Configuration(document, startPoint), maxPacketSize(0), exportDelay(0), templateRefreshTime(0), templateRefreshRate(0), 
+	: Configuration(document, startPoint), maxPacketSize(0), exportDelay(0), templateRefreshTime(0), templateRefreshRate(0), dataLifetime(0),
 	exporterSink(0), ipfixSender(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
@@ -37,6 +37,8 @@ void ExporterConfiguration::configure()
 			readPacketRestrictions(i);
 		} else if (tagMatches(i, "udpTemplateManagement")) {
 			readUdpTemplateManagement(i);
+		} else if (tagMatches(i, "sctpManagement")) {
+			readSctpManagement(i);
 		} else if (tagMatches(i, "collector")) {
 			readCollector(i);
 		}
@@ -67,6 +69,17 @@ void ExporterConfiguration::readUdpTemplateManagement(xmlNodePtr p)
 		} else if (tagMatches(i, "templateRefreshRate")) {
 			templateRefreshRate = (unsigned)atoi(getContent(i).c_str());
 		}
+		i = i->next;
+	}
+}
+
+void ExporterConfiguration::readSctpManagement(xmlNodePtr p)
+{
+	xmlNodePtr i = p->xmlChildrenNode;
+	while (NULL != i) {
+		if (tagMatches(i, "dataLifetime")) {
+			dataLifetime = getTimeInMsecs(i);
+		} 
 		i = i->next;
 	}
 }
@@ -150,7 +163,7 @@ void ExporterConfiguration::createIpfixSender(uint16_t observationDomainId)
 	ipfixSender = ::createIpfixSender(observationDomainId,
 					  collectors[0]->ipAddress.c_str(),
 					  collectors[0]->port,
-					  collectors[0]->protocolType.c_str());
+					  collectors[0]->protocolType.c_str() );
 	if (!ipfixSender) {
 		throw std::runtime_error("Could not create IpfixSender!");
 	}
@@ -159,9 +172,17 @@ void ExporterConfiguration::createIpfixSender(uint16_t observationDomainId)
 	{
 	    msg(MSG_ERROR, "Exporter: maxPacketSize and/or exportDelay not yet supported by IpfixSender. Ignored.");
 	}
-	if(templateRefreshTime || templateRefreshRate)
+	if(templateRefreshRate)
 	{
-	    msg(MSG_ERROR, "Exporter: Configuration of templateRefreshRate/Time not yet supported.");
+	    msg(MSG_ERROR, "Exporter: Configuration of templateRefreshRate not yet supported.");
+	}
+	if(templateRefreshTime > 0){
+		ipfix_set_template_transmission_timer(ipfixSender->ipfixExporter, templateRefreshTime);
+		msg(MSG_DEBUG, "Exporter: templateRefreshTime set to %d",templateRefreshTime );
+	}
+	if(dataLifetime > 0){
+		ipfix_set_sctp_lifetime(ipfixSender->ipfixExporter, dataLifetime);
+		msg(MSG_DEBUG, "Exporter: SCTP dataLifetime set to %d",dataLifetime );
 	}
 	for (unsigned i = 1; i != collectors.size(); ++i) {
 		if (ipfixSenderAddCollector(ipfixSender,

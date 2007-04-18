@@ -74,7 +74,7 @@ extern "C" {
  * 30 seconds:
  * can be specified by user
  */
-#define IPFIX_DEFAULT_TEMPLATE_TIMER 20
+#define IPFIX_DEFAULT_TEMPLATE_TIMER 30
 
 #define TRUE 1
 #define FALSE 0
@@ -256,7 +256,7 @@ typedef struct {
 	char ipv4address[16];
 	int port_number;
 	enum ipfix_transport_protocol protocol;
-	// warning! To use SCTP, we will need several ports!
+	// warning! To use SCTP, we will need several ports! ALEX: Only one Port needed for SCTP 
 	int data_socket; // socket data is sent to
 	int template_socket; // socket, templates are sent to
 } ipfix_receiving_collector;
@@ -291,7 +291,8 @@ typedef struct {
 	uint32_t last_template_transmission_time;
 	// time, after templates are transmitted again
 	uint32_t template_transmission_timer;
-
+	// lifetime of an SCTP data packet
+	uint32_t sctp_lifetime;
 	int ipfix_lo_template_maxsize;
 	int ipfix_lo_template_current_count;
 	ipfix_lo_template *template_arr;
@@ -323,6 +324,9 @@ int ipfix_delete_data_fields_upto_marker(ipfix_exporter *exporter);
 int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void* data, uint16_t data_length);
 int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template* templ);
 int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id);
+int ipfix_set_template_transmission_timer(ipfix_exporter *exporter, uint32_t timer);
+// Sets a packet lifetime for SCTP data packets (unreliable packets)
+int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime);
 
 int ipfix_send(ipfix_exporter *exporter);
 

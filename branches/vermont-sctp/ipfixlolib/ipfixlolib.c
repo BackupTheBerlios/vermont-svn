@@ -152,10 +152,10 @@ static int init_send_sctp_socket(const char *serv_ip4_addr, int serv_port){
 
  	struct sctp_initmsg init_info;
  	uint leng = sizeof(struct sctp_initmsg);
-/* 	if( (getsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &init, &leng)) < 0){
+ 	if( (getsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &init_info, &leng)) < 0){
  		perror("ERROR GETTING SOCKOPTIONS!!! ");
- 	}else {printf("SOCKOPTIONS: Number of in/outstreams = %d/%d\n", init.sinit_num_ostreams, init.sinit_max_instreams);}
-*/
+ 	}else {printf("SOCKOPTIONS: Number of in/outstreams = %d/%d\n", init_info.sinit_num_ostreams, init_info.sinit_max_instreams);}
+/*
 	struct sctp_initmsg m;
 	m.sinit_num_ostreams = 2;
 	m.sinit_max_instreams = 2;
@@ -166,7 +166,7 @@ static int init_send_sctp_socket(const char *serv_ip4_addr, int serv_port){
 	if( (getsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &init_info, &leng)) < 0){
  		perror("ERROR GETTING SOCKOPTIONS!!! ");
  	}else {msg(MSG_DEBUG,"SOCKOPTIONS: Max number of in/outstreams = %d/%d", init_info.sinit_num_ostreams, init_info.sinit_max_instreams);}
-	//END SCTP options
+*/	//END SCTP options
 
 	// connect to server
 	msg(MSG_DEBUG, "SCTP connecting to %s:%i ...",serv_ip4_addr,serv_port );
@@ -180,12 +180,21 @@ static int init_send_sctp_socket(const char *serv_ip4_addr, int serv_port){
 	return s;
 }
 
+/*
+ * modification of the original sctp_sendmsg to handle iovec structs
+ * Parameters:
+ * s : socket
+ * *vector : iovec struct containing the buffer to send
+ * v_len : lenght of the buffer
+ * *to : address where data is going to be sent
+ * tolen : length of the address
+ * ppid, flags, stream_no, timetolive, context : sctp parameters
+ */
 int sctp_sendmsgv(int s, struct iovec *vector, int v_len, struct sockaddr *to,
 		socklen_t tolen, uint32_t ppid, uint32_t flags,
 	     	uint16_t stream_no, uint32_t timetolive, uint32_t context){
 
 	struct msghdr outmsg;
-// 	struct iovec iov;
 	char outcmsg[CMSG_SPACE(sizeof(struct sctp_sndrcvinfo))];
 	struct cmsghdr *cmsg;
 	struct sctp_sndrcvinfo *sinfo;
@@ -193,8 +202,6 @@ int sctp_sendmsgv(int s, struct iovec *vector, int v_len, struct sockaddr *to,
 	outmsg.msg_name = to;
 	outmsg.msg_namelen = tolen;
 	outmsg.msg_iov = vector;
-// 	iov.iov_base = (void *)msg;
-// 	iov.iov_len = len;
 	outmsg.msg_iovlen = v_len;
 
 	outmsg.msg_control = outcmsg;
@@ -362,7 +369,6 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int
                 return -1;
         }
         DPRINTF("ipfix_add_collector searching\n");
-
         while (searching && ( i< exporter->collector_max_num) ) {
 
                 DPRINTF("ipfix_add_collector searching %i, i %i \n", searching, i);
@@ -920,7 +926,8 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 						sizeof(addr),
 						0,0,
 						0,//Stream Number
-						0,0
+						0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
+						0
 						);
 					break;
 
@@ -995,7 +1002,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 #endif
  				struct sockaddr_in addr;
  				memset(&addr, 0, sizeof(addr));
-				switch(exporter->collector_arr[i].protocol){ 
+				switch(exporter->collector_arr[i].protocol){
 				case UDP:
 					ret=writev( exporter->collector_arr[i].data_socket,
 						exporter->data_sendbuffer->entries,
@@ -1018,8 +1025,9 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						(struct sockaddr*)&addr,
 						sizeof(addr),
 						0,0,
-						1,//Stream Number
-						0,0
+						0,//Stream Number
+						exporter->sctp_lifetime,//packet lifetime in ms(0 = reliable )
+						0
 						);
 					break;
 				default:
@@ -1052,7 +1060,6 @@ static int ipfix_send_data(ipfix_exporter* exporter)
  */
 int ipfix_send(ipfix_exporter *exporter)
 {
-
         int ret_templates, ret_data;
         int ret = 0;
 
@@ -1626,6 +1633,29 @@ int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template *templ
         return 0;
 }
 
+// Set up time after that Templates are going to be resent
+int ipfix_set_template_transmission_timer(ipfix_exporter *exporter, uint32_t timer){
+	
+	if(timer < 0){
+		msg(MSG_ERROR, "IPFIX: invalid template retransmission timeout %d ", timer);
+                return -1;
+        }else{
+		exporter->template_transmission_timer = timer;
+		return 0;
+	}
+}
+
+// Set up SCTP packet lifetime
+int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime){
+	
+	if(lifetime < 0){
+		msg(MSG_ERROR, "IPFIX: invalid SCTP packet lifetime %d ", lifetime);
+                return -1;
+        }else{
+		exporter->sctp_lifetime = lifetime;
+		return 0;
+	}
+}
 
 /* check if the enterprise bit in an ID is set */
 int ipfix_enterprise_flag_set(uint16_t id)

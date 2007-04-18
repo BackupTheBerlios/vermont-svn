@@ -3,7 +3,7 @@
 
 
 #include "ipfix_configuration.h"
-
+#include "ipfixlolib/ipfixlolib.h"
 
 #include <concentrator/sndIpfix.h>
 
@@ -41,13 +41,15 @@ private:
 
 	void readPacketRestrictions(xmlNodePtr p);
 	void readUdpTemplateManagement(xmlNodePtr p);
+	void readSctpManagement(xmlNodePtr p);
 	void readCollector(xmlNodePtr i);
 
 	uint16_t maxPacketSize;
 	unsigned exportDelay;
 	unsigned templateRefreshTime;
 	unsigned templateRefreshRate;
-	
+	unsigned dataLifetime;
+
 	std::vector<Collector*> collectors;
 
 	ExporterSink* exporterSink;
