@@ -35,6 +35,7 @@
   <cusum-test-params>
     <cusum_test>true</cusum_test>
     <amplitude_percentage>1.33</amplitude_percentage>
+    <repetition_factor>3</repetition_factor>
     <learning_phase_for_alpha>3</learning_phase_for_alpha>
     <smoothing_constant>0.115</smoothing_constant>
   </cusum-test-params>

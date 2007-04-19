@@ -43,11 +43,6 @@ Funktioniert. Parameter sind
 - Ein wenig unschön ist noch das Zusammenspiel mit report_only_first_attack, da man
 anhand der Ausgabe dann nicht mehr erkennt, wann ein Angriff vorüber ist (außer dass die Aktualisierung alphas dann nicht mehr pausuert wird). Vielleicht eine Art "attack still in progress"-Nachricht einbauen.
 
-- Muss alpha aktualisiert werden?
-In der Literatur wird alpha erlernt und dann konstant belassen. Gleiches gilt auch für beta, welches einmalig berechnet wird, sobald alpha berechnet wurde.
-
-- Unsere X variieren zu sehr, ihr Mittelwert sollte nahezu 0 sein und anschließend durch beta leicht negativiert werden (Xn - beta). Würde es in diesem Zusammenhang etwas bringen, X vorher durch alpha zu teilen uns somit zu normalisieren?
-
 */
 
 
@@ -215,7 +210,7 @@ void Stat::init(const std::string & configfile) {
 
   // no need for further initialization of wkp-params if
   // none of the three tests is enabled
-  bool enable_wkp_test = (enable_wmw_test == true || enable_ks_test == true || enable_pcs_test == true)?true:false;
+  enable_wkp_test = (enable_wmw_test == true || enable_ks_test == true || enable_pcs_test == true)?true:false;
 
   if (enable_wkp_test == true) {
 
@@ -1258,7 +1253,7 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
 }
 
 void Stat::init_cusum_test(XMLConfObj * config) {
-  std::stringstream Warning, Warning1, Warning2, Warning3, Warning4, Warning5, Warning6, Warning7, Error1, Error2;
+  std::stringstream Warning, Warning1, Warning2, Warning3, Warning4, Warning5, Warning6, Warning7, Warning8, Warning9, Error1, Error2, Error3;
   Warning
     << "WARNING: No cusum_test parameter "
     << "defined in XML config file!\n  \"true\" assumed.\n";
@@ -1296,6 +1291,18 @@ void Stat::init_cusum_test(XMLConfObj * config) {
   Error2
     << "ERROR: Value for smoothing_constant parameter "
     << "is zero or negative.\n  Please define a positive value and restart!\n"
+    << "  Exiting.\n";
+  Warning8
+    << "WARNING: No repetition_factor parameter "
+    << "defined in XML config file!\n"
+    << "  \"" << DEFAULT_repetition_factor << "\" assumed.\n";
+  Warning9
+    << "WARNING: No value for repetition_factor parameter "
+    << "defined in XML config file!\n"
+    << "  \"" << DEFAULT_repetition_factor << "\" assumed.\n";
+  Error3
+    << "ERROR: Value for repetition_factor parameter "
+    << "is zero or negative.\n  Please define a positive integer value and restart!\n"
     << "  Exiting.\n";
 
   // cusum_test
@@ -1380,6 +1387,30 @@ void Stat::init_cusum_test(XMLConfObj * config) {
       if (warning_verbosity==1)
         outfile << Warning7.str() << std::flush;
       smoothing_constant = DEFAULT_smoothing_constant;
+    }
+
+    // repetition factor
+    if (!config->nodeExists("repetition_factor")) {
+      std::cerr << Warning8.str();
+      if (warning_verbosity==1)
+        outfile << Warning8.str() << std::flush;
+      repetition_factor = DEFAULT_repetition_factor;
+    }
+    else if (!(config->getValue("repetition_factor")).empty()) {
+      if ( atoi(config->getValue("repetition_factor").c_str()) > 0)
+        repetition_factor = atoi(config->getValue("repetition_factor").c_str());
+      else {
+        std::cerr << Error3.str();
+        if (warning_verbosity==1)
+          outfile << Error3.str() << std::flush;
+        exit(0);
+      }
+    }
+    else {
+      std::cerr << Warning9.str();
+      if (warning_verbosity==1)
+        outfile << Warning9.str() << std::flush;
+      repetition_factor = DEFAULT_repetition_factor;
     }
 
   }
@@ -1623,9 +1654,6 @@ void Stat::test(StatStore * store) {
 
   std::map<EndPoint,Info>::iterator Data_it = Data.begin();
 
-  // is at least one of the wkp-tests activated?
-  bool enable_wkp_test = (enable_wmw_test == true || enable_ks_test == true || enable_pcs_test == true)?true:false;
-
   std::map<EndPoint,Info> PreviousData = store->getPreviousData();
     // Needed for extraction of packets(t)-packets(t-1) and bytes(t)-bytes(t-1)
     // Holds information about the Info used in the last call to test()
@@ -1651,7 +1679,7 @@ void Stat::test(StatStore * store) {
     // PreviousData[Data_it->first] will automaticaly be an Info structure
     // with all fields set to 0.
 
-    // Do stuff for wkp-tests
+    // Do stuff for wkp-tests (if at least one of them is enabled)
     if (enable_wkp_test == true) {
 
       std::map<EndPoint, Samples>::iterator SampleData_it =
@@ -1686,7 +1714,7 @@ void Stat::test(StatStore * store) {
       }
     }
 
-    // Do stuff for cusum-test
+    // Do stuff for cusum-test (if enabled)
     if (enable_cusum_test == true) {
 
       std::map<EndPoint, CusumParams>::iterator CusumData_it = CusumData.find(Data_it->first);
@@ -1701,8 +1729,6 @@ void Stat::test(StatStore * store) {
 
         CusumParams C;
         // initialize the vectors of C
-        // as several metrics could be monitored, we need vectors instead of
-        // single values here
         for (int i = 0; i != monitored_values.size(); i++) {
           (C.sum).push_back(0);
           (C.alpha).push_back(0.0);
@@ -1730,9 +1756,6 @@ void Stat::test(StatStore * store) {
         // We found the recorded EndPoint Data_it->first
         // in our cusum container "CusumData"; so we update alpha
         // thanks to the recorded new values in Data_it->second:
-
-        // TODO(3): Muss alpha wirklich aktualisiert werden?
-        //if ( (CusumData_it->second).ready_to_test == false )
         update_c ( CusumData_it->second, extract_data(Data_it->second, prev) );
       }
 
@@ -2079,6 +2102,8 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
 
       for (int i = 0; i != C.alpha.size(); i++) {
         // alpha = sum(values) / #(values)
+        // Note: learning_phase_for_alpha is never 0, because
+        // this is handled in init_cusum_test()
         C.alpha.at(i) = C.sum.at(i) / learning_phase_for_alpha;
         // Set last value (needed to update alpha in the next test-run)
         C.X_last.at(i) = new_value.at(i);
@@ -2093,11 +2118,6 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
     }
   }
 
-  // TODO(3)
-  // sind folgende Zeilen überhaupt nötig? Alpha sollte
-  // eigentlich nicht aktualisiert werden ...
-  // Damit würden auch X_last und die smoothing_constant überflüssig ...
-
   // pausing update for alpha, if last cusum-test
   // was an attack
   if ( pause_update_when_attack > 0
@@ -2109,7 +2129,7 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
 
   // Otherwise update all alphas per EWMA
   for (int i = 0; i != C.alpha.size(); i++) {
-    C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + C.X_last.at(i) * smoothing_constant;
+    C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
     // update values for X
     C.X_last.at(i) = C.X_curr.at(i);
     C.X_curr.at(i) = new_value.at(i);
@@ -2202,20 +2222,19 @@ void Stat::cusum_test(CusumParams & C) {
   // index, as we cant use the iterator for dereferencing the elements of
   // CusumParams
   int i = 0;
-  //adaptive threshold, calculated by amplitude_percentage * alpha / 2
-  float N = 0.0;
-  // beta = alpha + fi*alpha/2 with fi = amplitude_percentage
-  float beta = 0.0;
+  // current adapted threshold
+  double N = 0.0;
+  // beta, needed to make (Xn - beta) slightly negative in the mean
+  double beta = 0.0;
 
   for (std::vector<Metric>::iterator it = monitored_values.begin(); it != monitored_values.end(); it++) {
 
     if (output_verbosity >= 4)
       outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
 
-    // calculate current threshold
-    N = amplitude_percentage * C.alpha.at(i) / 2;
-    // calculate current beta
-    beta = C.alpha.at(i) + N;
+    // Calculate N and beta
+    N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
+    beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
 
     if (output_verbosity >= 4) {
       outfile << " Cusum test returned:\n"

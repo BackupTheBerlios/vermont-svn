@@ -39,6 +39,7 @@
 #define DEFAULT_noise_threshold_bytes 0
 #define DEFAULT_endpointlist_maxsize 500
 #define DEFAULT_amplitude_percentage 1.5
+#define DEFAULT_repetition_factor 2
 #define DEFAULT_learning_phase_for_alpha 10
 #define DEFAULT_smoothing_constant 0.15
 #define DEFAULT_sample_old_size 111
@@ -250,13 +251,16 @@ class Stat : public DetectionBase<StatStore> {
 
   // for cusum-test
   bool enable_cusum_test;
-  float amplitude_percentage;
+  double amplitude_percentage;
+  int repetition_factor;
   int learning_phase_for_alpha;
-  float smoothing_constant;
+  double smoothing_constant;
+
   // for wkp-tests
   bool enable_wmw_test;
   bool enable_ks_test;
   bool enable_pcs_test;
+  bool enable_wkp_test; // summarizes the above three
   int sample_old_size;
   int sample_new_size;
   bool two_sided;
