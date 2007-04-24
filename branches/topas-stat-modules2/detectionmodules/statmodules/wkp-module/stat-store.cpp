@@ -19,6 +19,7 @@
 /**************************************************************************/
 
 #include "stat-store.h"
+#include <fstream>
 
 
 // ==================== STORAGE CLASS StatStore ====================
@@ -350,6 +351,21 @@ void StatStore::recordEnd() {
   }
 
   return;
+}
+
+
+void StatStore::writeToFile() {
+
+  std::ofstream file("data.txt", std::ios_base::app);
+  if (file.is_open() == true) {
+    file << Data << "---" << "\n";
+    file.close();
+    return;
+  }
+  else {
+    std::cerr << "ERROR: Couldnt open file @ StatStore::writeToFile()!\nExiting.\n";
+    exit(0);
+  }
 }
 
 

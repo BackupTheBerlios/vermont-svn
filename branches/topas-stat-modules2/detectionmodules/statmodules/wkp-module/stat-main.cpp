@@ -37,7 +37,8 @@ CUSUM
 -----------------------------------------------------
 Funktioniert. Parameter sind
   - Lernphase für initiales alpha
-  - amplitude percentage zur Berechnung des Schwellwertes
+  - amplitude_percentage zur Berechnung des "Schwellwertes"
+  - repetition_factor zur Erhöhung der Robustheit
   - smoothing constant zur Aktualisierung von alpha per EWMA
 
 - Ein wenig unschön ist noch das Zusammenspiel mit report_only_first_attack, da man
@@ -1646,6 +1647,10 @@ void Stat::test(StatStore * store) {
     return;
   }
 
+  // write data to file (for testing purposes)
+  store->writeToFile();
+
+/*
   outfile
     << "####################################################" << std::endl
     << "########## Stat::test(...)-call number: " << test_counter
@@ -1857,6 +1862,8 @@ void Stat::test(StatStore * store) {
   }
 
   test_counter++;
+
+*/
 
   /* don't forget to free the store-object! */
   delete store;

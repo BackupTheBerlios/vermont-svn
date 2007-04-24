@@ -35,14 +35,14 @@ std::string EndPoint::toString() const
 
 std::ostream& operator << (std::ostream& ost, const EndPoint& e)
 {
-        ost << e.ipAddr[0] << "." << e.ipAddr[1] << "." << e.ipAddr[2] << "." << e.ipAddr[3] << ":" << e.portNr << " | " << (uint16_t) e.protocolID;
+        ost << e.ipAddr[0] << "." << e.ipAddr[1] << "." << e.ipAddr[2] << "." << e.ipAddr[3] << ":" << e.portNr << "|" << (uint16_t) e.protocolID;
         return ost;
 }
 
 std::ostream & operator << (std::ostream & os, const std::map<EndPoint,Info> & m) {
   std::map<EndPoint,Info>::const_iterator it = m.begin();
   while (it != m.end()){
-    os << it->first << " --- packets_in: " << it->second.packets_in << ", packets_out: " << it->second.packets_out << ", bytes_in: " << it->second.bytes_in << ", bytes_out: " << it->second.bytes_out << ", records_in: " << it->second.records_in << ", records_out: " << it->second.records_out << std::endl;
+    os << it->first << " " << it->second.packets_in << " " << it->second.packets_out << " " << it->second.bytes_in << " " << it->second.bytes_out << " " << it->second.records_in << " " << it->second.records_out << "\n";
     it++;
   }
   return os;

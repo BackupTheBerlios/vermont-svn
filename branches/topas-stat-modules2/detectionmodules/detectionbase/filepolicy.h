@@ -42,8 +42,8 @@
  * Uses signals, semaphores and a shared memory block
  * to communicate with the collector.
  * Collector writes its data into files on a filesystem
- * (ramdisk). 
- */ 
+ * (ramdisk).
+ */
 class SemShmNotifier : public InputNotificationBase {
 public:
         SemShmNotifier();
@@ -89,6 +89,7 @@ public:
 	 * TODO: REMOVE THIS TESTING WORKAROUND!
 	 */
 	bool useFiles() { return useFiles_; }
+
 private:
         key_t semKey, shmKey;
         int semId;
@@ -96,7 +97,7 @@ private:
 
         std::string packetDir;
 
-	bool useFiles_;
+        bool useFiles_;
 };
 
 
@@ -112,132 +113,128 @@ template <
 >
 class PacketReader {
 public:
-        PacketReader()
-                : packetProcessor(NULL), data(NULL)
-        {
-		Metering::setDirectoryName("metering/");
-		metering = new Metering("packetreader");
-                data = new byte[config_space::MAX_IPFIX_PACKET_LENGTH];
+        PacketReader() : packetProcessor(NULL), data(NULL) {
+          Metering::setDirectoryName("metering/");
+          metering = new Metering("packetreader");
+          data = new byte[config_space::MAX_IPFIX_PACKET_LENGTH];
 
-                /* build CallbackInfo */
-                CallbackInfo cbi;
+          /* build CallbackInfo */
+          CallbackInfo cbi;
 
-                cbi.handle = this;
-                
-                cbi.templateCallbackFunction = newTemplateArrived<PacketReader, Buffer>;
-                cbi.optionsTemplateCallbackFunction = newOptionsTemplateArrived<PacketReader, Buffer>;
-                cbi.dataTemplateCallbackFunction = newDataTemplateArrived<PacketReader, Buffer>;
-                
-                cbi.dataRecordCallbackFunction = newDataRecordArrived<PacketReader, Buffer>;
-                cbi.optionsRecordCallbackFunction = newOptionRecordArrived<PacketReader, Buffer>;
-                cbi.dataDataRecordCallbackFunction = newDataRecordFixedFieldsArrived<PacketReader, Buffer>;
-                
-                cbi.templateDestructionCallbackFunction = templateDestroyed<PacketReader, Buffer>;
-                cbi.optionsTemplateDestructionCallbackFunction = optionsTemplateDestroyed<PacketReader, Buffer>;
-                cbi.dataTemplateDestructionCallbackFunction = dataTemplateDestroyed<PacketReader, Buffer>;
-                /*
-                  create an packetProcessor and ipfixParser
-                  we don't need an receiver because we do the "receiving" work by hand
-                */
-                IpfixParser* ipfixParser = createIpfixParser();
-                addIpfixParserCallbacks(ipfixParser, cbi);
-                                
-                packetProcessor = createIpfixPacketProcessor();
-                setIpfixParser(packetProcessor, ipfixParser);
+          cbi.handle = this;
+
+          cbi.templateCallbackFunction = newTemplateArrived<PacketReader, Buffer>;
+          cbi.optionsTemplateCallbackFunction = newOptionsTemplateArrived<PacketReader, Buffer>;
+          cbi.dataTemplateCallbackFunction = newDataTemplateArrived<PacketReader, Buffer>;
+
+          cbi.dataRecordCallbackFunction = newDataRecordArrived<PacketReader, Buffer>;
+          cbi.optionsRecordCallbackFunction = newOptionRecordArrived<PacketReader, Buffer>;
+          cbi.dataDataRecordCallbackFunction = newDataRecordFixedFieldsArrived<PacketReader, Buffer>;
+
+          cbi.templateDestructionCallbackFunction = templateDestroyed<PacketReader, Buffer>;
+          cbi.optionsTemplateDestructionCallbackFunction = optionsTemplateDestroyed<PacketReader, Buffer>;
+          cbi.dataTemplateDestructionCallbackFunction = dataTemplateDestroyed<PacketReader, Buffer>;
+          /*
+            create an packetProcessor and ipfixParser
+            we don't need an receiver because we do the "receiving" work by hand
+          */
+          IpfixParser* ipfixParser = createIpfixParser();
+          addIpfixParserCallbacks(ipfixParser, cbi);
+
+          packetProcessor = createIpfixPacketProcessor();
+          setIpfixParser(packetProcessor, ipfixParser);
         }
 
-        ~PacketReader() 
-        {
-                if (packetProcessor)
-                        destroyIpfixPacketProcessor(packetProcessor);
-                delete data;
-		delete metering;
+        ~PacketReader() {
+          if (packetProcessor)
+                  destroyIpfixPacketProcessor(packetProcessor);
+          delete data;
+		      delete metering;
         }
 
 
         void import(Notifier& notifier) {
-                static FILE* fd;
-                static shared::FileCounter i;
+          static FILE* fd;
+          static shared::FileCounter i;
 
-                static int filesize = strlen(notifier.getPacketDir().c_str()) + 30;
-                static char* filename = new char[filesize];
-		static uint16_t len = 0;
+          static int filesize = strlen(notifier.getPacketDir().c_str()) + 30;
+          static char* filename = new char[filesize];
+		      static uint16_t len = 0;
 
-                for ( i = notifier.getFrom(); i != notifier.getTo(); ++i) {
-			if (notifier.useFiles()) {
-				snprintf(filename, filesize, "%s%i", notifier.getPacketDir().c_str(), (int)i);
-				if (NULL == (fd = fopen(filename, "rb"))) {
-					std::cerr << "Detection modul: Could not open file"
-						  << filename << ": " << strerror(errno) 
-						  << std::endl;
-				}
-				
-				read(fileno(fd), &len, sizeof(uint16_t));
-				read(fileno(fd), data, len);
-				if (isSourceIdInList(*(uint16_t*)(data + 12))) {
-					packetProcessor->processPacketCallbackFunction(packetProcessor->ipfixParser, data, len);
-				}
-				metering->addValue();
-				if (EOF == fclose(fd)) {
-					std::cerr << "Detection Modul: Could not close "
-						  << filename << ": " << strerror(errno)
-						  << std::endl;
-				}
-			} else {
-				len = IpfixShm::readPacket(&data);
-                                metering->addValue();
-				if (isSourceIdInList(*(uint16_t*)(data+12))) {
-					packetProcessor->processPacketCallbackFunction(packetProcessor->ipfixParser, data, len);
-				}
-			}
-                }
+          for ( i = notifier.getFrom(); i != notifier.getTo(); ++i) {
+			      if (notifier.useFiles()) {
+				      snprintf(filename, filesize, "%s%i", notifier.getPacketDir().c_str(), (int)i);
+				      if (NULL == (fd = fopen(filename, "rb"))) {
+					      std::cerr << "Detection modul: Could not open file"
+						    << filename << ": " << strerror(errno)
+						    << std::endl;
+				      }
+
+              read(fileno(fd), &len, sizeof(uint16_t));
+              read(fileno(fd), data, len);
+              if (isSourceIdInList(*(uint16_t*)(data + 12))) {
+                packetProcessor->processPacketCallbackFunction(packetProcessor->ipfixParser, data, len);
+              }
+              metering->addValue();
+              if (EOF == fclose(fd)) {
+                std::cerr << "Detection Modul: Could not close "
+                << filename << ": " << strerror(errno)
+                << std::endl;
+              }
+		      	}
+            else {
+				      len = IpfixShm::readPacket(&data);
+              metering->addValue();
+				      if (isSourceIdInList(*(uint16_t*)(data+12))) {
+					      packetProcessor->processPacketCallbackFunction(packetProcessor->ipfixParser, data, len);
+				      }
+			      }
+          }
         }
 
 
 
-        void subscribeId(int id) 
-        {
-                idList.push_back(id);
+        void subscribeId(int id) {
+          idList.push_back(id);
         }
 
-	void subscribeSourceId(uint16_t id) {
-		sourceIdList.push_back(id);
-	}
+        void subscribeSourceId(uint16_t id) {
+          sourceIdList.push_back(id);
+        }
 
 protected:
         std::vector<int> idList;
-	std::vector<uint16_t> sourceIdList;
+	      std::vector<uint16_t> sourceIdList;
         IpfixPacketProcessor* packetProcessor;
-	Mutex recordMutex;
+	      Mutex recordMutex;
         byte* data;
-	Metering* metering;
+	      Metering* metering;
 
-	virtual Buffer* getBuffer() = 0;
+	      virtual Buffer* getBuffer() = 0;
 
 
-        bool isIdInList(int id) const
-        {
-                /* TODO: think about hashing */
-                for (std::vector<int>::const_iterator i = idList.begin(); i != idList.end(); ++i) {
-                        if ((*i) == id)
-                                return true;
-                }
-                
-                return false;
+        bool isIdInList(int id) const {
+          /* TODO: think about hashing */
+          for (std::vector<int>::const_iterator i = idList.begin(); i != idList.end(); ++i) {
+                  if ((*i) == id)
+                          return true;
+          }
+
+          return false;
         }
 
-	bool isSourceIdInList(uint16_t id) const
-	{
-		if (sourceIdList.empty())
-			return true;
+        bool isSourceIdInList(uint16_t id) const {
+          if (sourceIdList.empty())
+            return true;
 
-		for (std::vector<uint16_t>::const_iterator i = sourceIdList.begin(); i != sourceIdList.end(); ++i) {
-			if ((*i) == id) {
-				return true;
-			}
-		}
-		return false;
-	}
+          for (std::vector<uint16_t>::const_iterator i = sourceIdList.begin(); i != sourceIdList.end(); ++i) {
+            if ((*i) == id) {
+              return true;
+            }
+          }
+          return false;
+        }
+
 
         friend int newTemplateArrived<PacketReader, Buffer>(void* handle,  SourceID sourceID, TemplateInfo* ti);
         friend int newDataRecordArrived<PacketReader, Buffer>(void* handle, SourceID sourceID, TemplateInfo* ti,
@@ -256,11 +253,11 @@ protected:
 
 
 
-/** 
+/**
  * Extracts IPFIX packets from files and imports them direcly into a storage
  * class. All data is buffered into one storage class till the data is fetched
  * using @c getStorage().
- */ 
+ */
 template <
 	class Notifier,
 	class Storage
@@ -272,7 +269,7 @@ public:
 	}
 
 	~BufferedFilesInputPolicy() {
-		if (buffer) 
+		if (buffer)
 			delete buffer;
 	}
 
@@ -295,7 +292,7 @@ public:
                 packetLock.unlock();
                 return ret;
         }
-		
+
 private:
 	Storage* buffer;
 	Mutex packetLock;
@@ -305,10 +302,10 @@ private:
 
 
 
-/** 
- * Extracts IPFIX packets from files and imports them into a storage class. 
+/**
+ * Extracts IPFIX packets from files and imports them into a storage class.
  * Each IPFIX record is seperately stored within an instance of the Storage class.
- */ 
+ */
 template <
 	class Notifier,
 	class Storage
@@ -339,7 +336,7 @@ public:
 		PacketReader<Notifier, Storage>::recordMutex.unlock();
 		return ret;
         }
-		
+
 private:
 	Storage* getBuffer() {
 		Storage* ret = new Storage();

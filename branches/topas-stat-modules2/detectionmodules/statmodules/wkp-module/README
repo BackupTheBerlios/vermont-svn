@@ -250,7 +250,7 @@ This parameter represents the relative increase in the mean after an attack occu
 
 <repetition_factor>:
 
-This parameter defines, how often the test-statistic g may make the jump mentioned above until an alarm is raised. Thus, this parameter is somehow related to the amplitude_percentage. But whilst the amplitude_percentage represents the "sensitivity" of the increase of the test-statistic g, this parameter helps you in controlling your false alarm rate by making the test less sensitive to outliers and by this means more robust. It expects integer values and may not be 0 or negative. A good choice would be 2 or 3. If omitted, 2 will be used as default;
+This parameter defines, how often the test-statistic g may make the jump mentioned above consecutively until an alarm is raised. Thus, this parameter is somehow related to the amplitude_percentage. But whilst the amplitude_percentage represents the "sensitivity" of the increase of the test-statistic g (that means, how large the values of X must be to make g positive), this parameter helps you in controlling your false alarm rate by making the test less sensitive to outliers and by this means more robust. It expects integer values and may not be 0 or negative. A good choice would be 2 or 3. If omitted, 2 will be used as default;
 
 
 <learning_phase_for_alpha>:

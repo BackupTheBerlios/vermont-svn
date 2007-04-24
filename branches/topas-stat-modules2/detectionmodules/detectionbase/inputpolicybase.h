@@ -65,15 +65,15 @@ template <
         class Notifier,
         class Storage
 >
-class InputPolicyBase 
+class InputPolicyBase
 {
 public:
-        InputPolicyBase() 
+        InputPolicyBase()
         {
         }
-        ~InputPolicyBase() 
+        ~InputPolicyBase()
         {
-	}
+	      }
 
         /**
          * Blocks until new data is ready for import.
@@ -88,9 +88,9 @@ public:
         /**
          * Imports data into Storage.
          */
-        void importToStorage() 
+        void importToStorage()
         {
-                
+
         }
 
         /**
@@ -104,7 +104,7 @@ public:
 	/**
 	 * Returns notifier element.
 	 */
-        Notifier& getNotifier() 
+        Notifier& getNotifier()
         {
                 return notifier;
         }

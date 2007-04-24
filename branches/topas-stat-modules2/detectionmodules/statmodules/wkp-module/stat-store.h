@@ -70,6 +70,9 @@ class StatStore : public DataStore {
   std::map<EndPoint,Info> getData() const {return Data;}
   std::map<EndPoint,Info> getPreviousData() const {return PreviousData;}
 
+  // writes the Data in a file (for testing purposes)
+  void writeToFile();
+
 
  private:
 
