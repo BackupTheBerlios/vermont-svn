@@ -6,7 +6,6 @@ IpfixPrinter.cpp IpfixPrinter.hpp \
 IpfixParser.cpp IpfixParser.hpp \
 IpfixPacketProcessor.cpp IpfixPacketProcessor.hpp \
 IpfixCollector.cpp IpfixCollector.hpp \
-sampler_hook_entry.cpp sampler_hook_entry.hpp \
 Rules.cpp Rules.hpp Rule.cpp Rule.hpp \
 IpfixSender.cpp IpfixSender.hpp TemplateBuffer.cpp TemplateBuffer.hpp \
 IpfixDbReader.hpp IpfixDbReader.cpp IpfixDbWriter.hpp IpfixDbWriter.cpp
