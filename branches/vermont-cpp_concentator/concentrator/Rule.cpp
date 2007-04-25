@@ -98,7 +98,7 @@ void Rule::print() {
 	printf("\n");
 }
 
-uint8_t getIPv4IMask(FieldType* type, FieldData* data) {
+uint8_t getIPv4IMask(IpfixRecord::FieldInfo::Type* type, IpfixRecord::Data* data) {
 	if (type->length > 4) return data[4];
 	if (type->length == 4) return 0;
 	if (type->length == 3) return 8;
@@ -110,7 +110,7 @@ uint8_t getIPv4IMask(FieldType* type, FieldData* data) {
 	return 0;
 }
 
-uint32_t getIPv4Address(FieldType* type, FieldData* data) {
+uint32_t getIPv4Address(IpfixRecord::FieldInfo::Type* type, IpfixRecord::Data* data) {
 	uint32_t addr = 0;
 	if (type->length >= 1) addr |= data[0] << 24;
 	if (type->length >= 2) addr |= data[1] << 16;
@@ -123,7 +123,7 @@ uint32_t getIPv4Address(FieldType* type, FieldData* data) {
  * Checks if a given "PortRanges" Field matches a "PortRanges" Pattern
  * @c return 1 if field matches
  */
-int matchesPortPattern(FieldType* dataType, FieldData* data, FieldType* patternType, FieldData* pattern) {
+int matchesPortPattern(IpfixRecord::FieldInfo::Type* dataType, IpfixRecord::Data* data, IpfixRecord::FieldInfo::Type* patternType, IpfixRecord::Data* pattern) {
 	int i;
 	int j;
 
@@ -179,7 +179,7 @@ int matchesPortPattern(FieldType* dataType, FieldData* data, FieldType* patternT
  * Checks if a given IPv4 Field matches a IPv4 Pattern
  * @c return 1 if field matches
  */
-int matchesIPv4Pattern(FieldType* dataType, FieldData* data, FieldType* patternType, FieldData* pattern) {
+int matchesIPv4Pattern(IpfixRecord::FieldInfo::Type* dataType, IpfixRecord::Data* data, IpfixRecord::FieldInfo::Type* patternType, IpfixRecord::Data* pattern) {
 	/* Get (inverse!) Network Masks */
 	int dmaski = getIPv4IMask(dataType, data);
 	int pmaski = getIPv4IMask(patternType, pattern);
@@ -197,7 +197,7 @@ int matchesIPv4Pattern(FieldType* dataType, FieldData* data, FieldType* patternT
  * Checks if a given Field matches a Pattern when compared byte for byte
  * @c return 1 if field matches
  */
-int matchesRawPattern(FieldType* dataType, FieldData* data, FieldType* patternType, FieldData* pattern) {
+int matchesRawPattern(IpfixRecord::FieldInfo::Type* dataType, IpfixRecord::Data* data, IpfixRecord::FieldInfo::Type* patternType, IpfixRecord::Data* pattern) {
 	int i;
 
 	/* Byte-wise comparison, so lengths must be equal */
@@ -212,7 +212,7 @@ int matchesRawPattern(FieldType* dataType, FieldData* data, FieldType* patternTy
  * Checks if a data block matches a given pattern
  * @return 1 if pattern is matched
  */
-int matchesPattern(FieldType* dataType, FieldData* data, FieldType* patternType, FieldData* pattern) {
+int matchesPattern(IpfixRecord::FieldInfo::Type* dataType, IpfixRecord::Data* data, IpfixRecord::FieldInfo::Type* patternType, IpfixRecord::Data* pattern) {
 	/* an inexistent pattern is always matched */
 	if (pattern == NULL) return 1;
 
@@ -240,9 +240,9 @@ int matchesPattern(FieldType* dataType, FieldData* data, FieldType* patternType,
  * we will also have to check if the flow's mask is no broader than the ruleField's
  * @return 0 if the field had an associated mask that did not match
  */
-int checkAssociatedMask(TemplateInfo* info, FieldData* data, Rule::Field* ruleField) {
+int checkAssociatedMask(IpfixRecord::TemplateInfo* info, IpfixRecord::Data* data, Rule::Field* ruleField) {
 	if ((ruleField->type.id == IPFIX_TYPEID_sourceIPv4Address) && (ruleField->pattern) && (ruleField->type.length == 5)) {
-		FieldInfo* maskInfo = getTemplateFieldInfo(info, IPFIX_TYPEID_sourceIPv4Mask, 0);
+		IpfixRecord::FieldInfo* maskInfo = getTemplateFieldInfo(info, IPFIX_TYPEID_sourceIPv4Mask, 0);
 		if (!maskInfo) return 1;
 
 		uint8_t pmask = 32 - getIPv4IMask(&ruleField->type, ruleField->pattern);
@@ -250,7 +250,7 @@ int checkAssociatedMask(TemplateInfo* info, FieldData* data, Rule::Field* ruleFi
 		return (dmask >= pmask);
 	}
 	if ((ruleField->type.id == IPFIX_TYPEID_destinationIPv4Address) && (ruleField->pattern) && (ruleField->type.length == 5)) {
-		FieldInfo* maskInfo = getTemplateFieldInfo(info, IPFIX_TYPEID_destinationIPv4Mask, 0);
+		IpfixRecord::FieldInfo* maskInfo = getTemplateFieldInfo(info, IPFIX_TYPEID_destinationIPv4Mask, 0);
 		if (!maskInfo) return 1;
 
 		uint8_t pmask = 32 - getIPv4IMask(&ruleField->type, ruleField->pattern);
@@ -266,9 +266,9 @@ int checkAssociatedMask(TemplateInfo* info, FieldData* data, Rule::Field* ruleFi
  * we will also have to check if the flow's mask is no broader than the ruleField's
  * @return 0 if the field had an associated mask that did not match
  */
-int checkAssociatedMask2(DataTemplateInfo* info, FieldData* data, Rule::Field* ruleField) {
+int checkAssociatedMask2(IpfixRecord::DataTemplateInfo* info, IpfixRecord::Data* data, Rule::Field* ruleField) {
 	if ((ruleField->type.id == IPFIX_TYPEID_sourceIPv4Address) && (ruleField->pattern) && (ruleField->type.length == 5)) {
-		FieldInfo* maskInfo = getDataTemplateFieldInfo(info, IPFIX_TYPEID_sourceIPv4Mask, 0);
+		IpfixRecord::FieldInfo* maskInfo = getDataTemplateFieldInfo(info, IPFIX_TYPEID_sourceIPv4Mask, 0);
 		if (!maskInfo) return 1;
 
 		uint8_t pmask = 32 - getIPv4IMask(&ruleField->type, ruleField->pattern);
@@ -276,7 +276,7 @@ int checkAssociatedMask2(DataTemplateInfo* info, FieldData* data, Rule::Field* r
 		return (dmask >= pmask);
 	}
 	if ((ruleField->type.id == IPFIX_TYPEID_destinationIPv4Address) && (ruleField->pattern) && (ruleField->type.length == 5)) {
-		FieldInfo* maskInfo = getDataTemplateFieldInfo(info, IPFIX_TYPEID_destinationIPv4Mask, 0);
+		IpfixRecord::FieldInfo* maskInfo = getDataTemplateFieldInfo(info, IPFIX_TYPEID_destinationIPv4Mask, 0);
 		if (!maskInfo) return 1;
 
 		uint8_t pmask = 32 - getIPv4IMask(&ruleField->type, ruleField->pattern);
@@ -292,9 +292,9 @@ int checkAssociatedMask2(DataTemplateInfo* info, FieldData* data, Rule::Field* r
  * we will also have to check if the flow's mask is no broader than the ruleField's
  * @return 0 if the field had an associated mask that did not match
  */
-int checkAssociatedMask3(DataTemplateInfo* info, FieldData* data, Rule::Field* ruleField) {
+int checkAssociatedMask3(IpfixRecord::DataTemplateInfo* info, IpfixRecord::Data* data, Rule::Field* ruleField) {
 	if ((ruleField->type.id == IPFIX_TYPEID_sourceIPv4Address) && (ruleField->pattern) && (ruleField->type.length == 5)) {
-		FieldInfo* maskInfo = getDataTemplateDataInfo(info, IPFIX_TYPEID_sourceIPv4Mask, 0);
+		IpfixRecord::FieldInfo* maskInfo = getDataTemplateDataInfo(info, IPFIX_TYPEID_sourceIPv4Mask, 0);
 		if (!maskInfo) return 1;
 
 		uint8_t pmask = 32 - getIPv4IMask(&ruleField->type, ruleField->pattern);
@@ -302,7 +302,7 @@ int checkAssociatedMask3(DataTemplateInfo* info, FieldData* data, Rule::Field* r
 		return (dmask >= pmask);
 	}
 	if ((ruleField->type.id == IPFIX_TYPEID_destinationIPv4Address) && (ruleField->pattern) && (ruleField->type.length == 5)) {
-		FieldInfo* maskInfo = getDataTemplateDataInfo(info, IPFIX_TYPEID_destinationIPv4Mask, 0);
+		IpfixRecord::FieldInfo* maskInfo = getDataTemplateDataInfo(info, IPFIX_TYPEID_destinationIPv4Mask, 0);
 		if (!maskInfo) return 1;
 
 		uint8_t pmask = 32 - getIPv4IMask(&ruleField->type, ruleField->pattern);
@@ -316,9 +316,9 @@ int checkAssociatedMask3(DataTemplateInfo* info, FieldData* data, Rule::Field* r
  * Checks if a given flow matches a rule
  * @return 1 if rule is matched, 0 otherwise
  */
-int Rule::templateDataMatches(TemplateInfo* info, FieldData* data) {
+int Rule::templateDataMatches(IpfixRecord::TemplateInfo* info, IpfixRecord::Data* data) {
 	int i;
-	FieldInfo* fieldInfo;
+	IpfixRecord::FieldInfo* fieldInfo;
 
 	for (i = 0; i < fieldCount; i++) {
 		Rule::Field* ruleField = field[i];
@@ -354,9 +354,9 @@ int Rule::templateDataMatches(TemplateInfo* info, FieldData* data) {
  * Checks if a given flow matches a rule
  * @return 1 if rule is matched, 0 otherwise
  */
-int Rule::dataTemplateDataMatches(DataTemplateInfo* info, FieldData* data) {
+int Rule::dataTemplateDataMatches(IpfixRecord::DataTemplateInfo* info, IpfixRecord::Data* data) {
 	int i;
-	FieldInfo* fieldInfo;
+	IpfixRecord::FieldInfo* fieldInfo;
 
 	/* for all patterns of this rule, check if they are matched */
         for(i = 0; i < fieldCount; i++) {

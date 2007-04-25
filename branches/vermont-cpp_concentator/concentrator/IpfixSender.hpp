@@ -39,9 +39,9 @@ class IpfixSender : public FlowSink {
 
 		int addCollector(const char *ip, uint16_t port);
 
-		int onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
-		int onDataTemplateDestruction(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
-		int onDataDataRecord(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
+		int onDataTemplate(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo);
+		int onDataTemplateDestruction(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo);
+		int onDataDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo, uint16_t length, IpfixRecord::Data* data);
 
 		void stats();
 

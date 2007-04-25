@@ -36,17 +36,17 @@ class IpfixPrinter : public FlowSink {
 		void start();
 		void stop();
 
-		int onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
-		int onDataDataRecord(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data);
-		int onDataTemplateDestruction(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo);
+		int onDataTemplate(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo);
+		int onDataDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo, uint16_t length, IpfixRecord::Data* data);
+		int onDataTemplateDestruction(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo);
 
-		int onOptionsTemplate(SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo);
-		int onOptionsRecord(SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data);
-		int onOptionsTemplateDestruction(SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo);
+		int onOptionsTemplate(IpfixRecord::SourceID* sourceID, IpfixRecord::OptionsTemplateInfo* optionsTemplateInfo);
+		int onOptionsRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, IpfixRecord::Data* data);
+		int onOptionsTemplateDestruction(IpfixRecord::SourceID* sourceID, IpfixRecord::OptionsTemplateInfo* optionsTemplateInfo);
 
-		int onTemplate(SourceID* sourceID, TemplateInfo* templateInfo);
-		int onDataRecord(SourceID* sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data);
-		int onTemplateDestruction(SourceID* sourceID, TemplateInfo* templateInfo);
+		int onTemplate(IpfixRecord::SourceID* sourceID, IpfixRecord::TemplateInfo* templateInfo);
+		int onDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::TemplateInfo* templateInfo, uint16_t length, IpfixRecord::Data* data);
+		int onTemplateDestruction(IpfixRecord::SourceID* sourceID, IpfixRecord::TemplateInfo* templateInfo);
 
 	protected:
 		void* lastTemplate;

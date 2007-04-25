@@ -47,7 +47,7 @@
  * Processes an IPFIX template set.
  * Called by processMessage
  */
-void IpfixParser::processTemplateSet(SourceID* sourceId, IpfixSetHeader* set) {
+void IpfixParser::processTemplateSet(IpfixRecord::SourceID* sourceId, IpfixSetHeader* set) {
 	uint8_t* endOfSet = (uint8_t*)set + ntohs(set->length);
 	uint8_t* record = (uint8_t*)&set->data;
 
@@ -61,8 +61,8 @@ void IpfixParser::processTemplateSet(SourceID* sourceId, IpfixSetHeader* set) {
 			continue;
 		}
 		TemplateBuffer::BufferedTemplate* bt = (TemplateBuffer::BufferedTemplate*)malloc(sizeof(TemplateBuffer::BufferedTemplate));
-		TemplateInfo* ti = (TemplateInfo*)malloc(sizeof(TemplateInfo));
-		memcpy(&bt->sourceID, sourceId, sizeof(SourceID));
+		IpfixRecord::TemplateInfo* ti = (IpfixRecord::TemplateInfo*)malloc(sizeof(IpfixRecord::TemplateInfo));
+		memcpy(&bt->sourceID, sourceId, sizeof(IpfixRecord::SourceID));
 		bt->templateID = ntohs(th->templateId);
 		bt->recordLength = 0;
 		bt->setID = ntohs(set->id);
@@ -70,7 +70,7 @@ void IpfixParser::processTemplateSet(SourceID* sourceId, IpfixSetHeader* set) {
 		ti->userData = 0;
 		ti->templateId = ntohs(th->templateId);
 		ti->fieldCount = ntohs(th->fieldCount);
-		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
+		ti->fieldInfo = (IpfixRecord::FieldInfo*)malloc(ti->fieldCount * sizeof(IpfixRecord::FieldInfo));
 		int isLengthVarying = 0;
 		uint16_t fieldNo;
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
@@ -109,7 +109,7 @@ void IpfixParser::processTemplateSet(SourceID* sourceId, IpfixSetHeader* set) {
  * Processes an IPFIX Options Template Set.
  * Called by processMessage
  */
-void IpfixParser::processOptionsTemplateSet(SourceID* sourceId, IpfixSetHeader* set) {
+void IpfixParser::processOptionsTemplateSet(IpfixRecord::SourceID* sourceId, IpfixSetHeader* set) {
 	uint8_t* endOfSet = (uint8_t*)set + ntohs(set->length);
 	uint8_t* record = (uint8_t*)&set->data;
 
@@ -123,8 +123,8 @@ void IpfixParser::processOptionsTemplateSet(SourceID* sourceId, IpfixSetHeader* 
 			continue;
 		}
 		TemplateBuffer::BufferedTemplate* bt = (TemplateBuffer::BufferedTemplate*)malloc(sizeof(TemplateBuffer::BufferedTemplate));
-		OptionsTemplateInfo* ti = (OptionsTemplateInfo*)malloc(sizeof(OptionsTemplateInfo));
-		memcpy(&bt->sourceID, sourceId, sizeof(SourceID));
+		IpfixRecord::OptionsTemplateInfo* ti = (IpfixRecord::OptionsTemplateInfo*)malloc(sizeof(IpfixRecord::OptionsTemplateInfo));
+		memcpy(&bt->sourceID, sourceId, sizeof(IpfixRecord::SourceID));
 		bt->templateID = ntohs(th->templateId);
 		bt->recordLength = 0;
 		bt->setID = ntohs(set->id);
@@ -132,9 +132,9 @@ void IpfixParser::processOptionsTemplateSet(SourceID* sourceId, IpfixSetHeader* 
 		ti->userData = 0;
 		ti->templateId = ntohs(th->templateId);
 		ti->scopeCount = ntohs(th->scopeCount);
-		ti->scopeInfo = (FieldInfo*)malloc(ti->scopeCount * sizeof(FieldInfo));
+		ti->scopeInfo = (IpfixRecord::FieldInfo*)malloc(ti->scopeCount * sizeof(IpfixRecord::FieldInfo));
 		ti->fieldCount = ntohs(th->fieldCount)-ntohs(th->scopeCount);
-		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
+		ti->fieldInfo = (IpfixRecord::FieldInfo*)malloc(ti->fieldCount * sizeof(IpfixRecord::FieldInfo));
 		int isLengthVarying = 0;
 		uint16_t scopeNo;
 		for (scopeNo = 0; scopeNo < ti->scopeCount; scopeNo++) {
@@ -192,7 +192,7 @@ void IpfixParser::processOptionsTemplateSet(SourceID* sourceId, IpfixSetHeader* 
  * Processes an IPFIX DataTemplate set.
  * Called by processMessage
  */
-void IpfixParser::processDataTemplateSet(SourceID* sourceId, IpfixSetHeader* set) {
+void IpfixParser::processDataTemplateSet(IpfixRecord::SourceID* sourceId, IpfixSetHeader* set) {
 	uint8_t* endOfSet = (uint8_t*)set + ntohs(set->length);
 	uint8_t* record = (uint8_t*)&set->data;
 
@@ -206,8 +206,8 @@ void IpfixParser::processDataTemplateSet(SourceID* sourceId, IpfixSetHeader* set
 			continue;
 		}
 		TemplateBuffer::BufferedTemplate* bt = (TemplateBuffer::BufferedTemplate*)malloc(sizeof(TemplateBuffer::BufferedTemplate));
-		DataTemplateInfo* ti = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
-		memcpy(&bt->sourceID, sourceId, sizeof(SourceID));
+		IpfixRecord::DataTemplateInfo* ti = (IpfixRecord::DataTemplateInfo*)malloc(sizeof(IpfixRecord::DataTemplateInfo));
+		memcpy(&bt->sourceID, sourceId, sizeof(IpfixRecord::SourceID));
 		bt->templateID = ntohs(th->templateId);
 		bt->recordLength = 0;
 		bt->setID = ntohs(set->id);
@@ -217,7 +217,7 @@ void IpfixParser::processDataTemplateSet(SourceID* sourceId, IpfixSetHeader* set
 		ti->preceding = ntohs(th->precedingRule);
 		ti->fieldCount = ntohs(th->fieldCount);
 		ti->dataCount = ntohs(th->dataCount);
-		ti->fieldInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
+		ti->fieldInfo = (IpfixRecord::FieldInfo*)malloc(ti->fieldCount * sizeof(IpfixRecord::FieldInfo));
 		int isLengthVarying = 0;
 		uint16_t fieldNo;
 		for (fieldNo = 0; fieldNo < ti->fieldCount; fieldNo++) {
@@ -243,7 +243,7 @@ void IpfixParser::processDataTemplateSet(SourceID* sourceId, IpfixSetHeader* set
 			}
 		}
 
-		ti->dataInfo = (FieldInfo*)malloc(ti->fieldCount * sizeof(FieldInfo));
+		ti->dataInfo = (IpfixRecord::FieldInfo*)malloc(ti->fieldCount * sizeof(IpfixRecord::FieldInfo));
 		for (fieldNo = 0; fieldNo < ti->dataCount; fieldNo++) {
 			ti->dataInfo[fieldNo].type.id = ntohs(*(uint16_t*)((uint8_t*)record+0));
 			ti->dataInfo[fieldNo].type.length = ntohs(*(uint16_t*)((uint8_t*)record+2));
@@ -295,7 +295,7 @@ void IpfixParser::processDataTemplateSet(SourceID* sourceId, IpfixSetHeader* set
  * Processes an IPFIX data set.
  * Called by processMessage
  */
-void IpfixParser::processDataSet(SourceID* sourceId, IpfixSetHeader* set) {
+void IpfixParser::processDataSet(IpfixRecord::SourceID* sourceId, IpfixSetHeader* set) {
 	TemplateBuffer::BufferedTemplate* bt = templateBuffer->getBufferedTemplate(sourceId, ntohs(set->id));
 
 	if (bt == 0) {
@@ -310,7 +310,7 @@ void IpfixParser::processDataSet(SourceID* sourceId, IpfixSetHeader* set) {
 	if (bt->setID == IPFIX_SetId_Template) {
 #endif
 
-		TemplateInfo* ti = bt->templateInfo;
+		IpfixRecord::TemplateInfo* ti = bt->templateInfo;
         
 		uint16_t length = ntohs(set->length)-((uint8_t*)(&set->data)-(uint8_t*)set);
 
@@ -366,7 +366,7 @@ void IpfixParser::processDataSet(SourceID* sourceId, IpfixSetHeader* set) {
 	} else {
 		if (bt->setID == IPFIX_SetId_OptionsTemplate) {
 
-			OptionsTemplateInfo* ti = bt->optionsTemplateInfo;
+			IpfixRecord::OptionsTemplateInfo* ti = bt->optionsTemplateInfo;
 
 			uint16_t length = ntohs(set->length)-((uint8_t*)(&set->data)-(uint8_t*)set);
 			uint8_t* record = &set->data;
@@ -424,7 +424,7 @@ void IpfixParser::processDataSet(SourceID* sourceId, IpfixSetHeader* set) {
 			}
 		} else {
 			if (bt->setID == IPFIX_SetId_DataTemplate) {
-				DataTemplateInfo* ti = bt->dataTemplateInfo;
+				IpfixRecord::DataTemplateInfo* ti = bt->dataTemplateInfo;
 
 				uint16_t length = ntohs(set->length)-((uint8_t*)(&set->data)-(uint8_t*)set);
 				uint8_t* record = &set->data;
@@ -476,7 +476,7 @@ void IpfixParser::processDataSet(SourceID* sourceId, IpfixSetHeader* set) {
  * Process a NetflowV9 Packet
  * @return 0 on success
  */
-int IpfixParser::processNetflowV9Packet(uint8_t* message, uint16_t length, SourceID* sourceId) {
+int IpfixParser::processNetflowV9Packet(uint8_t* message, uint16_t length, IpfixRecord::SourceID* sourceId) {
 	NetflowV9Header* header = (NetflowV9Header*)message;
 
 	/* pointer to first set */
@@ -505,7 +505,7 @@ int IpfixParser::processNetflowV9Packet(uint8_t* message, uint16_t length, Sourc
  * Process an IPFIX Packet
  * @return 0 on success
  */
-int IpfixParser::processIpfixPacket(uint8_t* message, uint16_t length, SourceID* sourceId) {
+int IpfixParser::processIpfixPacket(uint8_t* message, uint16_t length, IpfixRecord::SourceID* sourceId) {
 	IpfixHeader* header = (IpfixHeader*)message;
     sourceId->observationDomainId = ntohl(header->observationDomainId);
 
@@ -551,7 +551,7 @@ int IpfixParser::processIpfixPacket(uint8_t* message, uint16_t length, SourceID*
  * Process new Message
  * @return 0 on success
  */
-int IpfixParser::processMessage(uint8_t* message, uint16_t length, SourceID* sourceID)
+int IpfixParser::processMessage(uint8_t* message, uint16_t length, IpfixRecord::SourceID* sourceID)
 {
 	IpfixHeader* header = (IpfixHeader*)message;
 	if (ntohs(header->version) == 0x000a) {
@@ -569,7 +569,7 @@ int IpfixParser::processMessage(uint8_t* message, uint16_t length, SourceID* sou
 #endif
 }
 	
-static void printIPv4(FieldType type, FieldData* data) {
+static void printIPv4(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data) {
 	int octet1 = 0;
 	int octet2 = 0;
 	int octet3 = 0;
@@ -592,7 +592,7 @@ static void printIPv4(FieldType type, FieldData* data) {
 	}
 }
 
-static void printPort(FieldType type, FieldData* data) {
+static void printPort(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data) {
 	if (type.length == 0) {
 		printf("zero-length Port");
 		return;
@@ -620,7 +620,7 @@ static void printPort(FieldType type, FieldData* data) {
 	printf("Port with length %d unparseable", type.length);
 }
 
-void printProtocol(FieldType type, FieldData* data) {
+void printProtocol(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data) {
 	if (type.length != 1) {
 		printf("Protocol with length %d unparseable", type.length);
 		return;
@@ -644,7 +644,7 @@ void printProtocol(FieldType type, FieldData* data) {
 	}
 }
 
-static void printUint(FieldType type, FieldData* data) {
+static void printUint(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data) {
 	switch (type.length) {
 	case 1:
 		printf("%hhu",*(uint8_t*)data);
@@ -666,9 +666,9 @@ static void printUint(FieldType type, FieldData* data) {
 
 
 /**
- * Prints a string representation of FieldData to stdout.
+ * Prints a string representation of IpfixRecord::Data to stdout.
  */
-void printFieldData(FieldType type, FieldData* pattern) {
+void printFieldData(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* pattern) {
 	char* s;
 
 	switch (type.id) {
@@ -710,18 +710,18 @@ void printFieldData(FieldType type, FieldData* pattern) {
  * @param type Field id and eid to look for. Length is ignored.
  * @return NULL if not found
  */
-FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type) {
+IpfixRecord::FieldInfo* getTemplateFieldInfo(IpfixRecord::TemplateInfo* ti, IpfixRecord::FieldInfo::Type* type) {
 	return getTemplateFieldInfo(ti, type->id, type->eid);
 }
 
 /**
- * Gets a Template's FieldInfo by field id. Length is ignored.
+ * Gets a Template's IpfixRecord::FieldInfo by field id. Length is ignored.
  * @param ti Template to search in
- * @param fieldTypeId FieldType id to look for
- * @param fieldTypeEid FieldType eid to look for
+ * @param fieldTypeId FieldInfo::Type id to look for
+ * @param fieldTypeEid FieldInfo::Type eid to look for
  * @return NULL if not found
  */
-FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid) {
+IpfixRecord::FieldInfo* getTemplateFieldInfo(IpfixRecord::TemplateInfo* ti, IpfixRecord::FieldInfo::Type::Id fieldTypeId, IpfixRecord::FieldInfo::Type::EnterpriseNo fieldTypeEid) {
 	int i;
 
 	for (i = 0; i < ti->fieldCount; i++) {
@@ -740,7 +740,7 @@ FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, TypeId fieldTypeId, Enterprise
  * @param fieldTypeEid Field eid to look for
  * @return NULL if not found
  */
-FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid) {
+IpfixRecord::FieldInfo* getDataTemplateFieldInfo(IpfixRecord::DataTemplateInfo* ti, IpfixRecord::FieldInfo::Type::Id fieldTypeId, IpfixRecord::FieldInfo::Type::EnterpriseNo fieldTypeEid) {
 	int i;
 
 	for (i = 0; i < ti->fieldCount; i++) {
@@ -752,7 +752,7 @@ FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, TypeId fieldTypeId, En
 	return NULL;
 }
 
-FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type) {
+IpfixRecord::FieldInfo* getDataTemplateFieldInfo(IpfixRecord::DataTemplateInfo* ti, IpfixRecord::FieldInfo::Type* type) {
 	return getDataTemplateFieldInfo(ti, type->id, type->eid);
 }
 
@@ -763,7 +763,7 @@ FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type) {
  * @param fieldTypeEid Field eid to look for
  * @return NULL if not found
  */
-FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid) {
+IpfixRecord::FieldInfo* getDataTemplateDataInfo(IpfixRecord::DataTemplateInfo* ti, IpfixRecord::FieldInfo::Type::Id fieldTypeId, IpfixRecord::FieldInfo::Type::EnterpriseNo fieldTypeEid) {
 	int i;
 
 	for (i = 0; i < ti->dataCount; i++) {
@@ -775,7 +775,7 @@ FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, TypeId fieldTypeId, Ent
 	return NULL;		
 }
 
-FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type) {
+IpfixRecord::FieldInfo* getDataTemplateDataInfo(IpfixRecord::DataTemplateInfo* ti, IpfixRecord::FieldInfo::Type* type) {
 	return getDataTemplateDataInfo(ti, type->id, type->eid);
 }
 

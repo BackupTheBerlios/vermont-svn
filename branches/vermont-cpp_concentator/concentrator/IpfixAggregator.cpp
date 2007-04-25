@@ -116,7 +116,7 @@ void IpfixAggregator::stop() {
  * @param data raw data block containing the Record
  * @return 0 on success, non-zero on error
  */
-int IpfixAggregator::onDataRecord(SourceID* sourceID, TemplateInfo* ti, uint16_t length, FieldData* data)
+int IpfixAggregator::onDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::TemplateInfo* ti, uint16_t length, IpfixRecord::Data* data)
 {
 	int i;
 	DPRINTF("aggregateDataRecord: Got a Data Record\n");
@@ -147,7 +147,7 @@ int IpfixAggregator::onDataRecord(SourceID* sourceID, TemplateInfo* ti, uint16_t
  * @param data raw data block containing the Record
  * @return 0 on success, non-zero on error
  */
-int IpfixAggregator::onDataDataRecord(SourceID* sourceID, DataTemplateInfo* ti, uint16_t length, FieldData* data)
+int IpfixAggregator::onDataDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* ti, uint16_t length, IpfixRecord::Data* data)
 {
 	int i;
 	DPRINTF("aggregateDataDataRecord: Got a DataData Record\n");

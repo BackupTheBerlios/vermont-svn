@@ -22,80 +22,11 @@
 #define INCLUDE_FlowSink_hpp
 
 #include <stdint.h>
-
-#define MAX_ADDRESS_LEN 16
-
-struct ExporterAddress {
-	char ip[MAX_ADDRESS_LEN];
-	uint8_t len;
-};
-
-struct SourceID {
-	uint32_t observationDomainId;
-	ExporterAddress exporterAddress;
-};
-
-typedef uint16_t TemplateID;
-typedef uint16_t TypeId;
-typedef uint16_t FieldLength;
-typedef uint32_t EnterpriseNo;
-typedef uint8_t FieldData;
-
-/**
- * IPFIX field type and length.
- * if "id" is < 0x8000, i.e. no user-defined type, "eid" is 0
- */ 
-struct FieldType {
-	TypeId id; /**< type tag of this field, according to [INFO] */
-	FieldLength length; /**< length in bytes of this field */
-	int isVariableLength; /**< true if this field's length might change from record to record, false otherwise */
-	EnterpriseNo eid; /**< enterpriseNo for user-defined data types (i.e. type >= 0x8000) */	
-};
-
-/**
- * Information describing a single field in the fields passed via various callback functions.
- */
-struct FieldInfo {
-	FieldType type;
-	uint16_t offset; /**< offset in bytes from a data start pointer. For internal purposes 65535 is defined as yet unknown */
-};
-
-/**
- * Template description passed to the callback function when a new Template arrives.
- */
-struct TemplateInfo {
-	uint16_t templateId; /**< the template id assigned to this template or 0 if we don't know or don't care */
-	uint16_t fieldCount; /**< number of regular fields */
-	FieldInfo* fieldInfo; /**< array of FieldInfos describing each of these fields */
-	void* userData; /**< pointer to a field that can be used by higher-level modules */
-};
-
-/**
- * OptionsTemplate description passed to the callback function when a new OptionsTemplate arrives.
- * Note that - other than in [PROTO] - fieldCount specifies only the number of regular fields
- */
-struct OptionsTemplateInfo {
-	uint16_t templateId; /**< the template id assigned to this template or 0 if we don't know or don't care */
-	uint16_t scopeCount; /**< number of scope fields */
-	FieldInfo* scopeInfo; /**< array of FieldInfos describing each of these fields */
-	uint16_t fieldCount; /**< number of regular fields. This is NOT the number of all fields */
-	FieldInfo* fieldInfo; /**< array of FieldInfos describing each of these fields */
-	void* userData; /**< pointer to a field that can be used by higher-level modules */
-};
-
-/**
- * DataTemplate description passed to the callback function when a new DataTemplate arrives.
- */
-struct DataTemplateInfo {
-	uint16_t id; /**< the template id assigned to this template or 0 if we don't know or don't care */
-	uint16_t preceding; /**< the preceding rule field as defined in the draft */
-	uint16_t fieldCount; /**< number of regular fields */
-	FieldInfo* fieldInfo; /**< array of FieldInfos describing each of these fields */
-	uint16_t dataCount; /**< number of fixed-value fields */
-	FieldInfo* dataInfo; /**< array of FieldInfos describing each of these fields */
-	FieldData* data; /**< data start pointer for fixed-value fields */
-	void* userData; /**< pointer to a field that can be used by higher-level modules */
-};
+#include <memory>
+#include <stdexcept>
+#include "IpfixRecord.hpp"
+#include "../sampler/Thread.h"
+#include "../sampler/ConcurrentQueue.h"
 
 /*
  * IPFIX Flow Sink class
@@ -106,7 +37,8 @@ struct DataTemplateInfo {
 class FlowSink {
 
 	public:
-		virtual ~FlowSink() {}
+		FlowSink();
+		virtual ~FlowSink();
 
 		/**
 		 * Callback function invoked when a new Template arrives.
@@ -114,7 +46,7 @@ class FlowSink {
 		 * @param templateInfo Pointer to a structure defining this Template
 		 * @return 0 if packet handled successfully
 		 */
-		virtual int onTemplate(SourceID* sourceID, TemplateInfo* templateInfo) { return -1; };
+		virtual int onTemplate(IpfixRecord::SourceID* sourceID, IpfixRecord::TemplateInfo* templateInfo) { return -1; };
 
 		/**
 		 * Callback function invoked when a new DataTemplate arrives.
@@ -122,7 +54,7 @@ class FlowSink {
 		 * @param optionsTemplateInfo Pointer to a structure defining this Template
 		 * @return 0 if packet handled successfully
 		 */
-		virtual int onOptionsTemplate(SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo) { return -1; };
+		virtual int onOptionsTemplate(IpfixRecord::SourceID* sourceID, IpfixRecord::OptionsTemplateInfo* optionsTemplateInfo) { return -1; };
 
 		/**
 		 * Callback function invoked when a new DataTemplate arrives.
@@ -130,7 +62,7 @@ class FlowSink {
 		 * @param dataTemplateInfo Pointer to a structure defining this Template
 		 * @return 0 if packet handled successfully
 		 */
-		virtual int onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo) { return -1; };
+		virtual int onDataTemplate(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo) { return -1; };
 
 		/**
 		 * Callback function invoked when a new Data Record arrives.
@@ -140,7 +72,7 @@ class FlowSink {
 		 * @param data Pointer to a data block containing all fields
 		 * @return 0 if packet handled successfully
 		 */
-		virtual int onDataRecord(SourceID* sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data) { return -1; };
+		virtual int onDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::TemplateInfo* templateInfo, uint16_t length, IpfixRecord::Data* data) { return -1; };
 
 		/**
 		 * Callback function invoked when a new Options Record arrives.
@@ -150,7 +82,7 @@ class FlowSink {
 		 * @param data Pointer to a data block containing all fields
 		 * @return 0 if packet handled successfully
 		 */
-		virtual int onOptionsRecord(SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, FieldData* data) { return -1; };
+		virtual int onOptionsRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::OptionsTemplateInfo* optionsTemplateInfo, uint16_t length, IpfixRecord::Data* data) { return -1; };
 
 		/**
 		 * Callback function invoked when a new Data Record with associated Fixed Values arrives.
@@ -160,7 +92,7 @@ class FlowSink {
 		 * @param data Pointer to a data block containing all variable fields
 		 * @return 0 if packet handled successfully
 		 */
-		virtual int onDataDataRecord(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) { return -1; };
+		virtual int onDataDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo, uint16_t length, IpfixRecord::Data* data) { return -1; };
 
 		/**
 		 * Callback function invoked when a Template is being destroyed.
@@ -169,7 +101,7 @@ class FlowSink {
 		 * @param templateInfo Pointer to a structure defining this Template
 		 * @return 0 if packet handled successfully
 		 */
-		virtual int onTemplateDestruction(SourceID* sourceID, TemplateInfo* templateInfo) { return -1; };
+		virtual int onTemplateDestruction(IpfixRecord::SourceID* sourceID, IpfixRecord::TemplateInfo* templateInfo) { return -1; };
 
 		/**
 		 * Callback function invoked when a OptionsTemplate is being destroyed.
@@ -178,7 +110,7 @@ class FlowSink {
 		 * @param optionsTemplateInfo Pointer to a structure defining this OptionsTemplate
 		 * @return 0 if packet handled successfully
 		 */
-		virtual int onOptionsTemplateDestruction(SourceID* sourceID, OptionsTemplateInfo* optionsTemplateInfo) { return -1; };
+		virtual int onOptionsTemplateDestruction(IpfixRecord::SourceID* sourceID, IpfixRecord::OptionsTemplateInfo* optionsTemplateInfo) { return -1; };
 
 		/**
 		 * Callback function invoked when a DataTemplate is being destroyed.
@@ -187,7 +119,30 @@ class FlowSink {
 		 * @param dataTemplateInfo Pointer to a structure defining this DataTemplate
 		 * @return 0 if packet handled successfully
 		 */
-		virtual int onDataTemplateDestruction(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo) { return -1; };
+		virtual int onDataTemplateDestruction(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo) { return -1; };
+
+		/**
+		 * Push an IpfixRecord into the queue for later pickup by the FlowSink's thread
+		 */
+		void push(IpfixRecord* ipfixRecord);
+
+		/**
+		 * Start the FlowSink's flowSinkProcess thread
+		 */
+		bool runSink();
+
+		/**
+		 * Stop the FlowSink's flowSinkProcess thread
+		 */
+		bool terminateSink();
+
+	protected:
+	        static void* flowSinkProcess(void* flowSink);
+	        virtual void flowSinkProcess();
+
+		ConcurrentQueue<IpfixRecord> ipfixRecords;
+	        Thread thread;
+        	bool exitFlag;
 };
 
 #endif

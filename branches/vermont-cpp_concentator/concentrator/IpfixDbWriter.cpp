@@ -85,11 +85,11 @@ uint64_t getTableStartTime(uint64_t flowstartsec);
 uint64_t getTableEndTime(uint64_t StartTime);
 
 
-uint64_t getdata(FieldType type, FieldData* data);
-uint64_t getIPFIXValue(FieldType type, FieldData* data);
+uint64_t getdata(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data);
+uint64_t getIPFIXValue(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data);
 uint32_t getdefaultIPFIXdata(int ipfixtype);
 
-uint32_t getipv4address(FieldType type, FieldData* data);
+uint32_t getipv4address(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data);
 
 
 /**
@@ -210,7 +210,7 @@ int IpfixDbWriter::createDBTable(Table* table, char* tablename)
 /**
 *	function receive the DataRecord or DataDataRecord when callback is started
 */
-int  IpfixDbWriter::onDataDataRecord(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data)
+int  IpfixDbWriter::onDataDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo, uint16_t length, IpfixRecord::Data* data)
 {
 	Table *tabl = table;
 	Statement* statemen = tabl->statement;
@@ -252,9 +252,9 @@ int  IpfixDbWriter::onDataDataRecord(SourceID* sourceID, DataTemplateInfo* dataT
 /**
  *	function receive the  when callback is started
  */
-int IpfixDbWriter::onDataRecord(SourceID* sourceID, TemplateInfo* templateInfo, uint16_t length, FieldData* data)
+int IpfixDbWriter::onDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::TemplateInfo* templateInfo, uint16_t length, IpfixRecord::Data* data)
 {
-	DataTemplateInfo dataTemplateInfo;
+	IpfixRecord::DataTemplateInfo dataTemplateInfo;
 	
 	dataTemplateInfo.id = 0;
 	dataTemplateInfo.preceding = 0;
@@ -271,10 +271,10 @@ int IpfixDbWriter::onDataRecord(SourceID* sourceID, TemplateInfo* templateInfo, 
 }
 
 /**
-*	loop over the DataTemplateInfo (fieldinfo,datainfo) to get the IPFIX values to store in database
+*	loop over the IpfixRecord::DataTemplateInfo (fieldinfo,datainfo) to get the IPFIX values to store in database
 */
-char* IpfixDbWriter::getRecData(Table* table, SourceID* sourceID,
-		 DataTemplateInfo* dataTemplateInfo,uint16_t length, FieldData* data)
+char* IpfixDbWriter::getRecData(Table* table, IpfixRecord::SourceID* sourceID,
+		 IpfixRecord::DataTemplateInfo* dataTemplateInfo,uint16_t length, IpfixRecord::Data* data)
 {
 	int i ,j, k, n;
 	uint64_t intdata = 0;
@@ -558,7 +558,7 @@ uint64_t getTableEndTime(uint64_t startTime)
 *  	lookup in the ExporterTable, is there also nothing insert sourceID and expIp an return the generated
 *      ExporterID
 */
-int IpfixDbWriter::getExporterID(Table* table, SourceID* sourceID)
+int IpfixDbWriter::getExporterID(Table* table, IpfixRecord::SourceID* sourceID)
 {
 	int i;
         MYSQL_RES* dbResult;
@@ -678,7 +678,7 @@ int IpfixDbWriter::getExporterID(Table* table, SourceID* sourceID)
 /**
  *	Get data of the record is given by the IPFIX_TYPEID
 */
-uint64_t getdata(FieldType type, FieldData* data)
+uint64_t getdata(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data)
 {
 	if(type.id == IPFIX_TYPEID_sourceIPv4Address || type.id == IPFIX_TYPEID_destinationIPv4Address)
 		return getipv4address(type, data);
@@ -688,7 +688,7 @@ uint64_t getdata(FieldType type, FieldData* data)
 /**
  *	determine the ipv4address of the data record
  */
-uint32_t getipv4address( FieldType type, FieldData* data)
+uint32_t getipv4address( IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data)
 {
 
 	if (type.length > 5) {
@@ -713,7 +713,7 @@ uint32_t getipv4address( FieldType type, FieldData* data)
 /**
 *	get the IPFIX value 
 */
-uint64_t getIPFIXValue(FieldType type, FieldData* data)
+uint64_t getIPFIXValue(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data)
 {
 	switch (type.length) {
 		case 1:

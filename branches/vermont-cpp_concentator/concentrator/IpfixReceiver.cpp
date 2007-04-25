@@ -310,7 +310,7 @@ void IpfixReceiver::udpListener() {
 	struct sockaddr_in clientAddress;
 	socklen_t clientAddressLen;
 	uint8_t* data = (uint8_t*)malloc(sizeof(uint8_t)*MAX_MSG_LEN);
-	SourceID *sourceID = (SourceID*)malloc(sizeof(SourceID));
+	IpfixRecord::SourceID *sourceID = (IpfixRecord::SourceID*)malloc(sizeof(IpfixRecord::SourceID));
 	int n;
 	
 	while(!exit) {

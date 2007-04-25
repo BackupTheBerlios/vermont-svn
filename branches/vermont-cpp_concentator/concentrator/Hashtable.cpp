@@ -33,7 +33,7 @@
 /**
  * Initializes memory for a new bucket in @c ht containing @c data
  */
-Hashtable::Bucket* Hashtable::createBucket(FieldData* data) {
+Hashtable::Bucket* Hashtable::createBucket(IpfixRecord::Data* data) {
 	Hashtable::Bucket* bucket = new Hashtable::Bucket;
 	bucket->expireTime = time(0) + minBufferTime;
 	bucket->forceExpireTime = time(0) + maxBufferTime;
@@ -79,7 +79,7 @@ Hashtable::Hashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime)
 	recordsReceived = 0;
 	recordsSent = 0;
 
-	dataTemplate = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
+	dataTemplate = (IpfixRecord::DataTemplateInfo*)malloc(sizeof(IpfixRecord::DataTemplateInfo));
 	dataTemplate->id=rule->id;
 	dataTemplate->preceding=rule->preceding;
 	dataTemplate->fieldCount = 0;
@@ -98,20 +98,20 @@ Hashtable::Hashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime)
 		if (rf->pattern != NULL) {
 			/* create new fixed-data field containing pattern */
 			dataTemplate->dataCount++;
-			dataTemplate->dataInfo = (FieldInfo*)realloc(dataTemplate->dataInfo, sizeof(FieldInfo) * dataTemplate->dataCount);
-			FieldInfo* fi = &dataTemplate->dataInfo[dataTemplate->dataCount - 1];
+			dataTemplate->dataInfo = (IpfixRecord::FieldInfo*)realloc(dataTemplate->dataInfo, sizeof(IpfixRecord::FieldInfo) * dataTemplate->dataCount);
+			IpfixRecord::FieldInfo* fi = &dataTemplate->dataInfo[dataTemplate->dataCount - 1];
 			fi->type = rf->type;
 			fi->offset = dataLength;
 			dataLength += fi->type.length;
-			dataTemplate->data = (FieldData*)realloc(dataTemplate->data, dataLength);
+			dataTemplate->data = (IpfixRecord::Data*)realloc(dataTemplate->data, dataLength);
 			memcpy(dataTemplate->data + fi->offset, rf->pattern, fi->type.length);
 		}
 
 		if (rf->modifier != Rule::Field::DISCARD) {
 			/* define new data field with Rule::Field's type */
 			dataTemplate->fieldCount++;
-			dataTemplate->fieldInfo = (FieldInfo*)realloc(dataTemplate->fieldInfo, sizeof(FieldInfo) * dataTemplate->fieldCount);
-			FieldInfo* fi = &dataTemplate->fieldInfo[dataTemplate->fieldCount - 1];
+			dataTemplate->fieldInfo = (IpfixRecord::FieldInfo*)realloc(dataTemplate->fieldInfo, sizeof(IpfixRecord::FieldInfo) * dataTemplate->fieldCount);
+			IpfixRecord::FieldInfo* fi = &dataTemplate->fieldInfo[dataTemplate->fieldCount - 1];
 			fi->type = rf->type;
 			fi->offset = fieldLength;
 			fieldLength += fi->type.length;
@@ -238,7 +238,7 @@ uint32_t greaterUint32Nbo(uint32_t i, uint32_t j) {
  * Checks whether the given @c type is one of the types that has to be aggregated
  * @return 1 if flow is to be aggregated
  */
-int Hashtable::isToBeAggregated(FieldType type)
+int Hashtable::isToBeAggregated(IpfixRecord::FieldInfo::Type type)
 {
 	switch (type.id) {
 	case IPFIX_TYPEID_flowStartSysUpTime:
@@ -284,7 +284,7 @@ int Hashtable::isToBeAggregated(FieldType type)
 /**
  * Adds (or otherwise aggregates) @c deltaData to @c baseData
  */
-int Hashtable::aggregateField(FieldType* type, FieldData* baseData, FieldData* deltaData) {
+int Hashtable::aggregateField(IpfixRecord::FieldInfo::Type* type, IpfixRecord::Data* baseData, IpfixRecord::Data* deltaData) {
 	switch (type->id) {
 
 	case IPFIX_TYPEID_flowStartSysUpTime:
@@ -352,7 +352,7 @@ out:
 /**
  * Adds (or otherwise aggregates) pertinent fields of @c flow to @c baseFlow
  */
-int Hashtable::aggregateFlow(FieldData* baseFlow, FieldData* flow)
+int Hashtable::aggregateFlow(IpfixRecord::Data* baseFlow, IpfixRecord::Data* flow)
 {
 	int i;
 
@@ -367,7 +367,7 @@ int Hashtable::aggregateFlow(FieldData* baseFlow, FieldData* flow)
 	}
 
 	for (i = 0; i < dataTemplate->fieldCount; i++) {
-		FieldInfo* fi = &dataTemplate->fieldInfo[i];
+		IpfixRecord::FieldInfo* fi = &dataTemplate->fieldInfo[i];
 
 		if(!isToBeAggregated(fi->type)) {
 			continue;
@@ -381,7 +381,7 @@ int Hashtable::aggregateFlow(FieldData* baseFlow, FieldData* flow)
 /**
  * Returns a hash value corresponding to all variable, non-aggregatable fields of a flow
  */
-uint16_t Hashtable::getHash(FieldData* data) {
+uint16_t Hashtable::getHash(IpfixRecord::Data* data) {
 	int i;
 
 	uint16_t hash = 0;
@@ -402,7 +402,7 @@ uint16_t Hashtable::getHash(FieldData* data) {
  * Checks if two data fields are binary equal
  * @return 1 if fields are equal
  */
-int equalRaw(FieldType* data1Type, FieldData* data1, FieldType* data2Type, FieldData* data2) {
+int equalRaw(IpfixRecord::FieldInfo::Type* data1Type, IpfixRecord::Data* data1, IpfixRecord::FieldInfo::Type* data2Type, IpfixRecord::Data* data2) {
 	int i;
 
 	if(data1Type->id != data2Type->id) return 0;
@@ -422,14 +422,14 @@ int equalRaw(FieldType* data1Type, FieldData* data1, FieldType* data2Type, Field
  * Checks if all of two flows' (non-aggregatable) fields are binary equal
  * @return 1 if fields are equal
  */
-int Hashtable::equalFlow(FieldData* flow1, FieldData* flow2)
+int Hashtable::equalFlow(IpfixRecord::Data* flow1, IpfixRecord::Data* flow2)
 {
 	int i;
 
 	if(flow1 == flow2) return 1;
 
 	for(i = 0; i < dataTemplate->fieldCount; i++) {
-		FieldInfo* fi = &dataTemplate->fieldInfo[i];
+		IpfixRecord::FieldInfo* fi = &dataTemplate->fieldInfo[i];
 
 		if(isToBeAggregated(fi->type)) {
 			continue;
@@ -446,7 +446,7 @@ int Hashtable::equalFlow(FieldData* flow1, FieldData* flow2)
 /**
  * Inserts a data block into the hashtable
  */
-void Hashtable::bufferDataBlock(FieldData* data)
+void Hashtable::bufferDataBlock(IpfixRecord::Data* data)
 {
 	recordsReceived++;
 
@@ -487,7 +487,7 @@ void Hashtable::bufferDataBlock(FieldData* data)
  * Copies \c srcData to \c dstData applying \c modifier.
  * Takes care to pad \c srcData with zero-bytes in case it is shorter than \c dstData.
  */
-void copyData(FieldType* dstType, FieldData* dstData, FieldType* srcType, FieldData* srcData, Rule::Field::Modifier modifier)
+void copyData(IpfixRecord::FieldInfo::Type* dstType, IpfixRecord::Data* dstData, IpfixRecord::FieldInfo::Type* srcType, IpfixRecord::Data* srcData, Rule::Field::Modifier modifier)
 {
 	if((dstType->id != srcType->id) || (dstType->eid != srcType->eid)) {
 		DPRINTF("copyData: Tried to copy field to destination of different type\n");
@@ -572,16 +572,16 @@ void copyData(FieldType* dstType, FieldData* dstData, FieldType* srcType, FieldD
 /**
  * Buffer passed flow in Hashtable @c ht
  */
-void Hashtable::aggregateTemplateData(TemplateInfo* ti, FieldData* data)
+void Hashtable::aggregateTemplateData(IpfixRecord::TemplateInfo* ti, IpfixRecord::Data* data)
 {
 	int i;
 
 	/* Create data block to be inserted into buffer... */
-	FieldData* htdata = (FieldData*)malloc(fieldLength);
+	IpfixRecord::Data* htdata = (IpfixRecord::Data*)malloc(fieldLength);
 
 	for (i = 0; i < dataTemplate->fieldCount; i++) {
-		FieldInfo* hfi = &dataTemplate->fieldInfo[i];
-		FieldInfo* tfi = getTemplateFieldInfo(ti, &hfi->type);
+		IpfixRecord::FieldInfo* hfi = &dataTemplate->fieldInfo[i];
+		IpfixRecord::FieldInfo* tfi = getTemplateFieldInfo(ti, &hfi->type);
 
 		if(!tfi) {
 			DPRINTF("Flow to be buffered did not contain %s field\n", typeid2string(hfi->type.id));
@@ -636,18 +636,18 @@ void Hashtable::aggregateTemplateData(TemplateInfo* ti, FieldData* data)
 /**
  * Buffer passed flow (containing fixed-value fields) in Hashtable @c ht
  */
-void Hashtable::aggregateDataTemplateData(DataTemplateInfo* ti, FieldData* data)
+void Hashtable::aggregateDataTemplateData(IpfixRecord::DataTemplateInfo* ti, IpfixRecord::Data* data)
 {
 	int i;
 
 	/* Create data block to be inserted into buffer... */
-	FieldData* htdata = (FieldData*)malloc(fieldLength);
+	IpfixRecord::Data* htdata = (IpfixRecord::Data*)malloc(fieldLength);
 
 	for (i = 0; i < dataTemplate->fieldCount; i++) {
-		FieldInfo* hfi = &dataTemplate->fieldInfo[i];
+		IpfixRecord::FieldInfo* hfi = &dataTemplate->fieldInfo[i];
 
 		/* Copy from matching variable field, should it exist */
-		FieldInfo* tfi = getDataTemplateFieldInfo(ti, &hfi->type);
+		IpfixRecord::FieldInfo* tfi = getDataTemplateFieldInfo(ti, &hfi->type);
 		if(tfi) {
 			copyData(&hfi->type, htdata + hfi->offset, &tfi->type, data + tfi->offset, fieldModifier[i]);
 

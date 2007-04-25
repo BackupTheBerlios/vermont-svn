@@ -18,34 +18,9 @@
  *
  */
 
-#ifndef RULES_H
-#define RULES_H
+#include "msg.h"
+#include "IpfixRecord.hpp"
 
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <stdlib.h>
-#include "IpfixParser.hpp"
-#include "Rule.hpp"
+IpfixRecord::~IpfixRecord() {
+}
 
-#define MAX_RULES 255
-
-/**
- * Set of aggregation rules
- */
-class Rules {
-	public:
-		Rules(char* fname);
-		~Rules();
-
-		int count;
-		Rule* rule[MAX_RULES];
-};
-
-int parseModifier(const char* s, Rule::Field::Modifier* modifier);
-int parseProtoPattern(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length);
-int parseIPv4Pattern(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length);
-int parsePortPattern(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length);
-int parseTcpFlags(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length);
-
-#endif

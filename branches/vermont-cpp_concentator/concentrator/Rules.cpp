@@ -111,7 +111,7 @@ int parseModifier(const char* s, Rule::Field::Modifier* modifier) {
  * parses the given string
  * @return 0 if successful
  */
-int parseProtoPattern(char* s, FieldData** fdata, FieldLength* length) {
+int parseProtoPattern(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length) {
 	int proto = -1;
 	if (strcmp(s, "ICMP") == 0) proto = IPFIX_protocolIdentifier_ICMP;
 	if (strcmp(s, "TCP") == 0) proto = IPFIX_protocolIdentifier_TCP;
@@ -125,7 +125,7 @@ int parseProtoPattern(char* s, FieldData** fdata, FieldLength* length) {
 	}
 
 	*length = 1;
-	FieldData* fd = (FieldData*)malloc(*length);
+	IpfixRecord::Data* fd = (IpfixRecord::Data*)malloc(*length);
 	fd[0] = proto;
 	*fdata = fd;
 
@@ -136,7 +136,7 @@ int parseProtoPattern(char* s, FieldData** fdata, FieldLength* length) {
  * parses the given string
  * @return 0 if successful
  */
-int parseIPv4Pattern(char* s, FieldData** fdata, FieldLength* length) {
+int parseIPv4Pattern(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length) {
 	char* p = s;
 	char* octet1 = get_next_token(&p, ".");
 	char* octet2 = get_next_token(&p, ".");
@@ -153,7 +153,7 @@ int parseIPv4Pattern(char* s, FieldData** fdata, FieldLength* length) {
 */
 	*length = 5;
 
-	FieldData* fd = (FieldData*)malloc(*length);
+	IpfixRecord::Data* fd = (IpfixRecord::Data*)malloc(*length);
 	fd[0]=atoi(octet1);
 	fd[1]=atoi(octet2);
 	fd[2]=atoi(octet3);
@@ -168,7 +168,7 @@ int parseIPv4Pattern(char* s, FieldData** fdata, FieldLength* length) {
  * parses the given string
  * @return 0 if successful
  */
-int parsePortPattern(char* s, FieldData** fdata, FieldLength* length) {
+int parsePortPattern(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length) {
 	char buf[256];
 
 	char* p = s;
@@ -182,7 +182,7 @@ int parsePortPattern(char* s, FieldData** fdata, FieldLength* length) {
 		char* start = get_next_token(&p2, ":");
 		char* end = get_next_token(&p2, ",");
 		*length = *length + 4;
-		*fdata = (FieldData*)realloc(*fdata, *length);
+		*fdata = (IpfixRecord::Data*)realloc(*fdata, *length);
 		uint16_t starti = atoi(start);
 		uint16_t endi = starti;
 		if (end) endi = atoi(end);
@@ -200,7 +200,7 @@ int parsePortPattern(char* s, FieldData** fdata, FieldLength* length) {
  * parses the given string
  * @return 0 if successful
  */
-int parseTcpFlags(char* s, FieldData** fdata, FieldLength* length) {
+int parseTcpFlags(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length) {
 	uint8_t flags = 0;
     
 	char* p = s;
@@ -218,7 +218,7 @@ int parseTcpFlags(char* s, FieldData** fdata, FieldLength* length) {
 	
 
 	*length = 1;
-	FieldData* fd = (FieldData*)malloc(*length);
+	IpfixRecord::Data* fd = (IpfixRecord::Data*)malloc(*length);
 	fd[0] = flags;
 	*fdata = fd;
 

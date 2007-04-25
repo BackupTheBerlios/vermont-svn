@@ -59,8 +59,8 @@ class Rule {
 				 */
 				enum Modifier {DISCARD = 0, KEEP = 1, AGGREGATE = 2, MASK_START = 126, MASK_END = 254};
 
-				FieldType type; /**< field type this Rule::Field refers to */
-				FieldData* pattern; /**< pattern to match fields against to determine applicability of a rule. A pattern of NULL means no pattern needs to be matched for this field */
+				IpfixRecord::FieldInfo::Type type; /**< field type this Rule::Field refers to */
+				IpfixRecord::Data* pattern; /**< pattern to match fields against to determine applicability of a rule. A pattern of NULL means no pattern needs to be matched for this field */
 				Rule::Field::Modifier modifier; /**< modifier to apply to the corresponding field if this rule is matched */
 		};
 
@@ -68,8 +68,8 @@ class Rule {
 		Rule();
 		~Rule();
 		void print();
-		int templateDataMatches(TemplateInfo* info, FieldData* data);
-		int dataTemplateDataMatches(DataTemplateInfo* info, FieldData* data);
+		int templateDataMatches(IpfixRecord::TemplateInfo* info, IpfixRecord::Data* data);
+		int dataTemplateDataMatches(IpfixRecord::DataTemplateInfo* info, IpfixRecord::Data* data);
 
 		uint16_t id;
 		uint16_t preceding;

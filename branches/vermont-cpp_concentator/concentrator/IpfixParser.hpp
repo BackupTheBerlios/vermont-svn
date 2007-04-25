@@ -41,7 +41,7 @@ class TemplateBuffer;
  * (see the @c setTemplateCallback() and @c setDataRecordCallback() function groups).
  *
  * The Collector module supports higher-level modules by providing field types and offsets along 
- * with the raw data block of individual messages passed via the callback functions (see @c TemplateInfo)
+ * with the raw data block of individual messages passed via the callback functions (see @c IpfixRecord::TemplateInfo)
  */
 class IpfixParser {
 	public:
@@ -52,7 +52,7 @@ class IpfixParser {
 		 * Add a FlowSink that receives flows we collect
 		 */
 		void addFlowSink(FlowSink* flowSink);
-		int processMessage(uint8_t* message, uint16_t length, SourceID* sourceId);
+		int processMessage(uint8_t* message, uint16_t length, IpfixRecord::SourceID* sourceId);
 
 	protected:
 		/**
@@ -131,22 +131,22 @@ class IpfixParser {
 		friend class TemplateBuffer;
 		TemplateBuffer* templateBuffer; /**< TemplateBuffer* structure */
 
-		void processDataSet(SourceID* sourceID, IpfixSetHeader* set);
-		void processTemplateSet(SourceID* sourceID, IpfixSetHeader* set);
-		void processDataTemplateSet(SourceID* sourceID, IpfixSetHeader* set);
-		void processOptionsTemplateSet(SourceID* sourceId, IpfixSetHeader* set);
-		int processNetflowV9Packet(uint8_t* message, uint16_t length, SourceID* sourceId);
-		int processIpfixPacket(uint8_t* message, uint16_t length, SourceID* sourceId);
+		void processDataSet(IpfixRecord::SourceID* sourceID, IpfixSetHeader* set);
+		void processTemplateSet(IpfixRecord::SourceID* sourceID, IpfixSetHeader* set);
+		void processDataTemplateSet(IpfixRecord::SourceID* sourceID, IpfixSetHeader* set);
+		void processOptionsTemplateSet(IpfixRecord::SourceID* sourceId, IpfixSetHeader* set);
+		int processNetflowV9Packet(uint8_t* message, uint16_t length, IpfixRecord::SourceID* sourceId);
+		int processIpfixPacket(uint8_t* message, uint16_t length, IpfixRecord::SourceID* sourceId);
 
 };
 
-void printFieldData(FieldType type, FieldData* pattern);
+void printFieldData(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* pattern);
 
-FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, FieldType* type);
-FieldInfo* getTemplateFieldInfo(TemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid);
-FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, FieldType* type);
-FieldInfo* getDataTemplateFieldInfo(DataTemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid);
-FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, FieldType* type);
-FieldInfo* getDataTemplateDataInfo(DataTemplateInfo* ti, TypeId fieldTypeId, EnterpriseNo fieldTypeEid);
+IpfixRecord::FieldInfo* getTemplateFieldInfo(IpfixRecord::TemplateInfo* ti, IpfixRecord::FieldInfo::Type* type);
+IpfixRecord::FieldInfo* getTemplateFieldInfo(IpfixRecord::TemplateInfo* ti, IpfixRecord::FieldInfo::Type::Id fieldTypeId, IpfixRecord::FieldInfo::Type::EnterpriseNo fieldTypeEid);
+IpfixRecord::FieldInfo* getDataTemplateFieldInfo(IpfixRecord::DataTemplateInfo* ti, IpfixRecord::FieldInfo::Type* type);
+IpfixRecord::FieldInfo* getDataTemplateFieldInfo(IpfixRecord::DataTemplateInfo* ti, IpfixRecord::FieldInfo::Type::Id fieldTypeId, IpfixRecord::FieldInfo::Type::EnterpriseNo fieldTypeEid);
+IpfixRecord::FieldInfo* getDataTemplateDataInfo(IpfixRecord::DataTemplateInfo* ti, IpfixRecord::FieldInfo::Type* type);
+IpfixRecord::FieldInfo* getDataTemplateDataInfo(IpfixRecord::DataTemplateInfo* ti, IpfixRecord::FieldInfo::Type::Id fieldTypeId, IpfixRecord::FieldInfo::Type::EnterpriseNo fieldTypeEid);
 
 #endif

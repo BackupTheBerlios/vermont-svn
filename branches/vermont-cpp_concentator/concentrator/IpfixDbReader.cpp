@@ -29,7 +29,7 @@
 
 /***** Internal Functions ****************************************************/
 
-void copyUintNetByteOrder(FieldData* dest, char* src, FieldType type);
+void copyUintNetByteOrder(IpfixRecord::Data* dest, char* src, IpfixRecord::FieldInfo::Type type);
 
 /**
  * First send a a new template, then send the dataTemplates for all stored
@@ -40,7 +40,7 @@ void* IpfixDbReader::readFromDB(void* ipfixDbReader_)
 	IpfixDbReader* ipfixDbReader = (IpfixDbReader*)ipfixDbReader_;
 	int i;
 
-	DataTemplateInfo* dataTemplateInfo = (DataTemplateInfo*)malloc(sizeof(DataTemplateInfo));
+	IpfixRecord::DataTemplateInfo* dataTemplateInfo = (IpfixRecord::DataTemplateInfo*)malloc(sizeof(IpfixRecord::DataTemplateInfo));
 	DbData* dbData = ipfixDbReader->dbReader->dbData;
 
 	// TODO: make IpfixDbReader exit if exit was requested!
@@ -67,7 +67,7 @@ void* IpfixDbReader::readFromDB(void* ipfixDbReader_)
  * Constructs a template from the table data and sends it to all connected
  * modules.
  */
-int IpfixDbReader::dbReaderSendNewTemplate(DataTemplateInfo* dataTemplateInfo, int table_index)
+int IpfixDbReader::dbReaderSendNewTemplate(IpfixRecord::DataTemplateInfo* dataTemplateInfo, int table_index)
 {
 	int i;
 	int fieldLength  = 0;
@@ -91,9 +91,9 @@ int IpfixDbReader::dbReaderSendNewTemplate(DataTemplateInfo* dataTemplateInfo, i
 
 	for(i = 0; i < dbData->colCount; i++) {			
 		dataTemplateInfo->fieldCount++;
-		dataTemplateInfo->fieldInfo = (FieldInfo*)realloc(dataTemplateInfo->fieldInfo,
-						      sizeof(FieldInfo)*dataTemplateInfo->fieldCount);
-		FieldInfo* fi = &dataTemplateInfo->fieldInfo[dataTemplateInfo->fieldCount - 1];	
+		dataTemplateInfo->fieldInfo = (IpfixRecord::FieldInfo*)realloc(dataTemplateInfo->fieldInfo,
+						      sizeof(IpfixRecord::FieldInfo)*dataTemplateInfo->fieldCount);
+		IpfixRecord::FieldInfo* fi = &dataTemplateInfo->fieldInfo[dataTemplateInfo->fieldCount - 1];	
 		fi->type.id = dbData->columns[i]->ipfixId;
 		fi->type.length = dbData->columns[i]->length;
 		fi->type.eid = 0;
@@ -110,7 +110,7 @@ int IpfixDbReader::dbReaderSendNewTemplate(DataTemplateInfo* dataTemplateInfo, i
 }
 
 
-void copyUintNetByteOrder(FieldData* dest, char* src, FieldType type) {
+void copyUintNetByteOrder(IpfixRecord::Data* dest, char* src, IpfixRecord::FieldInfo::Type type) {
         switch (type.length) {
         case 1:
 		*(uint8_t*)dest = *(uint8_t*)src;
@@ -137,13 +137,13 @@ void copyUintNetByteOrder(FieldData* dest, char* src, FieldType type) {
  * strings, therefore they must change into IPFIX format 
 */
 
-int IpfixDbReader::dbReaderSendTable(DataTemplateInfo* dataTemplateInfo, int table_index)
+int IpfixDbReader::dbReaderSendTable(IpfixRecord::DataTemplateInfo* dataTemplateInfo, int table_index)
 {
        	MYSQL_RES* dbResult = NULL;
 	MYSQL_ROW dbRow = NULL;
 	DbData* dbData = dbReader->dbData;
 	int i;
-	FieldData* data = (FieldData*)malloc(MAX_MSG_LEN);
+	IpfixRecord::Data* data = (IpfixRecord::Data*)malloc(MAX_MSG_LEN);
 	int dataLength = 0;
 	unsigned delta = 0;
 	unsigned flowTime = 0;
@@ -234,7 +234,7 @@ int IpfixDbReader::dbReaderSendTable(DataTemplateInfo* dataTemplateInfo, int tab
 /**
  * get all tableNames in database that matches with the wildcard "h%"
  **/
-int IpfixDbReader::dbReaderDestroyTemplate(DataTemplateInfo* dataTemplateInfo)
+int IpfixDbReader::dbReaderDestroyTemplate(IpfixRecord::DataTemplateInfo* dataTemplateInfo)
 {
 	for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
 		(*i)->onDataTemplateDestruction(&srcId, dataTemplateInfo);

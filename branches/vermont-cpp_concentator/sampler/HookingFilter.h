@@ -17,10 +17,10 @@
 class HookingFilter : public PacketProcessor {
 
 	public:
-		static TemplateInfo ip_traffic_template;
-		static TemplateInfo icmp_traffic_template;
-		static TemplateInfo udp_traffic_template;
-		static TemplateInfo tcp_traffic_template;
+		static IpfixRecord::TemplateInfo ip_traffic_template;
+		static IpfixRecord::TemplateInfo icmp_traffic_template;
+		static IpfixRecord::TemplateInfo udp_traffic_template;
+		static IpfixRecord::TemplateInfo tcp_traffic_template;
 
 		HookingFilter(FlowSink *flowSink = 0) : flowSink(flowSink) {
 		}
@@ -41,10 +41,10 @@ class HookingFilter : public PacketProcessor {
 	protected:
 		FlowSink *flowSink;
 
-		static FieldInfo ip_traffic_fi[];
-		static FieldInfo icmp_traffic_fi[];
-		static FieldInfo udp_traffic_fi[];
-		static FieldInfo tcp_traffic_fi[];
+		static IpfixRecord::FieldInfo ip_traffic_fi[];
+		static IpfixRecord::FieldInfo icmp_traffic_fi[];
+		static IpfixRecord::FieldInfo udp_traffic_fi[];
+		static IpfixRecord::FieldInfo tcp_traffic_fi[];
 };
 
 

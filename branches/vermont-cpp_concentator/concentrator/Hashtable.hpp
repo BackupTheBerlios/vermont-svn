@@ -63,22 +63,22 @@ class Hashtable {
 			public:
 				uint32_t expireTime; /**< timestamp when this bucket will expire if no new flows are added */
 				uint32_t forceExpireTime; /**< timestamp when this bucket is forced to expire */
-				FieldData* data; /**< contains variable fields of aggregated flow; format defined in Hashtable::dataInfo::fieldInfo */
+				IpfixRecord::Data* data; /**< contains variable fields of aggregated flow; format defined in Hashtable::dataInfo::fieldInfo */
 				Hashtable::Bucket* next; /**< next bucket in spill chain */
 		};
 
 		Hashtable(Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime);
 		~Hashtable();
 
-		int isToBeAggregated(FieldType type);
+		int isToBeAggregated(IpfixRecord::FieldInfo::Type type);
 
 		/**
 		 * Add a FlowSink that receives flows we export
 		 */
 		void addFlowSink(FlowSink* flowSink);
 
-		void aggregateTemplateData(TemplateInfo* ti, FieldData* data);
-		void aggregateDataTemplateData(DataTemplateInfo* ti, FieldData* data);
+		void aggregateTemplateData(IpfixRecord::TemplateInfo* ti, IpfixRecord::Data* data);
+		void aggregateDataTemplateData(IpfixRecord::DataTemplateInfo* ti, IpfixRecord::Data* data);
 
 		void expireFlows();
 
@@ -94,21 +94,21 @@ class Hashtable {
 
 	protected:
 
-		DataTemplateInfo* dataTemplate; /**< structure describing both variable and fixed fields and containing fixed data */
+		IpfixRecord::DataTemplateInfo* dataTemplate; /**< structure describing both variable and fixed fields and containing fixed data */
 		uint16_t fieldLength; /**< length in bytes of all variable-length fields */
 		Rule::Field::Modifier* fieldModifier; /**< specifies what modifier to apply to a given field */
 
 		typedef std::list<FlowSink*> FlowSinks;
 		FlowSinks flowSinks; /**< List of FlowSink objects that receive flows we export */
 
-		Hashtable::Bucket* createBucket(FieldData* data);
+		Hashtable::Bucket* createBucket(IpfixRecord::Data* data);
 		void exportBucket(Hashtable::Bucket* bucket);
 		void destroyBucket(Hashtable::Bucket* bucket);
-		int aggregateField(FieldType* type, FieldData* baseData, FieldData* deltaData);
-		int aggregateFlow(FieldData* baseFlow, FieldData* flow);
-		uint16_t getHash(FieldData* data);
-		int equalFlow(FieldData* flow1, FieldData* flow2);
-		void bufferDataBlock(FieldData* data);
+		int aggregateField(IpfixRecord::FieldInfo::Type* type, IpfixRecord::Data* baseData, IpfixRecord::Data* deltaData);
+		int aggregateFlow(IpfixRecord::Data* baseFlow, IpfixRecord::Data* flow);
+		uint16_t getHash(IpfixRecord::Data* data);
+		int equalFlow(IpfixRecord::Data* flow1, IpfixRecord::Data* flow2);
+		void bufferDataBlock(IpfixRecord::Data* data);
 };
 	
 #endif

@@ -2,6 +2,8 @@ noinst_LIBRARIES=libconcentrator.a
 
 libconcentrator_a_SOURCES=IpfixAggregator.cpp IpfixAggregator.hpp crc16.cpp crc16.hpp Hashtable.cpp \
 Hashtable.hpp ipfix.cpp ipfix.hpp IpfixReceiver.cpp IpfixReceiver.hpp \
+FlowSink.hpp FlowSink.cpp \
+IpfixRecord.hpp IpfixRecord.cpp \
 IpfixPrinter.cpp IpfixPrinter.hpp \
 IpfixParser.cpp IpfixParser.hpp \
 IpfixPacketProcessor.cpp IpfixPacketProcessor.hpp \

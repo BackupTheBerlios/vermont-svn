@@ -26,7 +26,7 @@ bool HookingFilter::processPacket(const Packet *p)
 	    return true;
 	    
 	int transport_offset;
-	FieldData *fdata=(FieldData *)p->netHeader;
+	IpfixRecord::Data *fdata=(IpfixRecord::Data *)p->netHeader;
 	uint32_t pad1;
 	uint8_t pad2;
 	
@@ -103,7 +103,7 @@ bool HookingFilter::processPacket(const Packet *p)
 	return true;
 }
 
-FieldInfo HookingFilter::ip_traffic_fi[] = {
+IpfixRecord::FieldInfo HookingFilter::ip_traffic_fi[] = {
 	/* { { ID, len, enterprise}, offset} */
 	{ {IPFIX_TYPEID_packetDeltaCount,         1, 0}, 10},
 	{ {IPFIX_TYPEID_flowStartSeconds,         4, 0}, 4},
@@ -114,7 +114,7 @@ FieldInfo HookingFilter::ip_traffic_fi[] = {
 	{ {IPFIX_TYPEID_destinationIPv4Address,   4, 0}, 16}
 };
 
-FieldInfo HookingFilter::icmp_traffic_fi[] = {
+IpfixRecord::FieldInfo HookingFilter::icmp_traffic_fi[] = {
 	/* { { ID, len, enterprise}, offset} */
 	{ {IPFIX_TYPEID_icmpTypeCode,             2, 0}, 0},
 	{ {IPFIX_TYPEID_packetDeltaCount,         1, 0}, 10},
@@ -126,7 +126,7 @@ FieldInfo HookingFilter::icmp_traffic_fi[] = {
 	{ {IPFIX_TYPEID_destinationIPv4Address,   4, 0}, 16}
 };
 
-FieldInfo HookingFilter::udp_traffic_fi[] = {
+IpfixRecord::FieldInfo HookingFilter::udp_traffic_fi[] = {
 	/* { { ID, len, enterprise}, offset} */
 	{ {IPFIX_TYPEID_sourceTransportPort,      2, 0}, 0},
 	{ {IPFIX_TYPEID_destinationTransportPort, 2, 0}, 2},
@@ -139,7 +139,7 @@ FieldInfo HookingFilter::udp_traffic_fi[] = {
 	{ {IPFIX_TYPEID_destinationIPv4Address,   4, 0}, 16}
 };
 
-FieldInfo HookingFilter::tcp_traffic_fi[] = {
+IpfixRecord::FieldInfo HookingFilter::tcp_traffic_fi[] = {
 	/* { { ID, len, enterprise}, offset} */
 	{ {IPFIX_TYPEID_tcpControlBits,           1, 0}, 13},
 	{ {IPFIX_TYPEID_sourceTransportPort,      2, 0}, 0},
@@ -153,28 +153,28 @@ FieldInfo HookingFilter::tcp_traffic_fi[] = {
 	{ {IPFIX_TYPEID_destinationIPv4Address,   4, 0}, 16}
 };
 
-TemplateInfo HookingFilter::ip_traffic_template = {
+IpfixRecord::TemplateInfo HookingFilter::ip_traffic_template = {
 	/*.templateId =*/ 0,
 	/*.fieldCount =*/ 7,
 	/*.fieldInfo  =*/ ip_traffic_fi,
 	/*.userData   =*/ NULL
 };
 
-TemplateInfo HookingFilter::icmp_traffic_template = {
+IpfixRecord::TemplateInfo HookingFilter::icmp_traffic_template = {
 	/*.templateId =*/ 0,
 	/*.fieldCount =*/ 8,
 	/*.fieldInfo  =*/ icmp_traffic_fi,
 	/*.userData   =*/ NULL
 };
 
-TemplateInfo HookingFilter::udp_traffic_template = {
+IpfixRecord::TemplateInfo HookingFilter::udp_traffic_template = {
 	/*.templateId =*/ 0,
 	/*.fieldCount =*/ 9,
 	/*.fieldInfo  =*/ udp_traffic_fi,
 	/*.userData   =*/ NULL
 };
 
-TemplateInfo HookingFilter::tcp_traffic_template = {
+IpfixRecord::TemplateInfo HookingFilter::tcp_traffic_template = {
 	/*.templateId =*/ 0,
 	/*.fieldCount =*/ 10,
 	/*.fieldInfo  =*/ tcp_traffic_fi,

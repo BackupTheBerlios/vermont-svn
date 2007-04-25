@@ -120,7 +120,7 @@ int IpfixSender::addCollector(const char *ip, uint16_t port)
  * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int IpfixSender::onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo) {
+int IpfixSender::onDataTemplate(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo) {
 	uint16_t my_template_id;
 	uint16_t my_preceding;
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
@@ -146,7 +146,7 @@ int IpfixSender::onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTempla
 	/* Count number of IPv4 fields with length 5 */
 	int splitFields = 0;
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
-		FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
+		IpfixRecord::FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
 		if ((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
 			splitFields++;
 		}
@@ -158,7 +158,7 @@ int IpfixSender::onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTempla
 	/* Count number of IPv4 fields with length 5 */
 	int splitFixedfields = 0;
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
-		FieldInfo* fi = &dataTemplateInfo->dataInfo[i];
+		IpfixRecord::FieldInfo* fi = &dataTemplateInfo->dataInfo[i];
 		if ((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
 			splitFixedfields++;
 		}
@@ -173,7 +173,7 @@ int IpfixSender::onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTempla
 	}
 
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
-		FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
+		IpfixRecord::FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
 
 		/* Split IPv4 fields with length 5, i.e. fields with network mask attached */
 		if ((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
@@ -193,7 +193,7 @@ int IpfixSender::onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTempla
 
 	int dataLength = 0;
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
-		FieldInfo* fi = &dataTemplateInfo->dataInfo[i];
+		IpfixRecord::FieldInfo* fi = &dataTemplateInfo->dataInfo[i];
 
 		dataLength += fi->type.length;
 
@@ -217,7 +217,7 @@ int IpfixSender::onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTempla
 	memcpy(data, dataTemplateInfo->data, dataLength);
 
 	for (i = 0; i < dataTemplateInfo->dataCount; i++) {
-		FieldInfo* fi = &dataTemplateInfo->dataInfo[i];
+		IpfixRecord::FieldInfo* fi = &dataTemplateInfo->dataInfo[i];
 
 		/* Invert imask of IPv4 fields with length 5, i.e. fields with network mask attached */
 		if ((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
@@ -255,7 +255,7 @@ int IpfixSender::onDataTemplate(SourceID* sourceID, DataTemplateInfo* dataTempla
  * @param sourceID ignored
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
-int IpfixSender::onDataTemplateDestruction(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo) 
+int IpfixSender::onDataTemplateDestruction(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo) 
 {
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
 
@@ -288,7 +288,7 @@ int IpfixSender::onDataTemplateDestruction(SourceID* sourceID, DataTemplateInfo*
  * @param length Length of the data block supplied
  * @param data Pointer to a data block containing all variable fields
  */
-int IpfixSender::onDataDataRecord(SourceID* sourceID, DataTemplateInfo* dataTemplateInfo, uint16_t length, FieldData* data) {
+int IpfixSender::onDataDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo, uint16_t length, IpfixRecord::Data* data) {
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
 
 	if (!exporter) {
@@ -306,7 +306,7 @@ int IpfixSender::onDataDataRecord(SourceID* sourceID, DataTemplateInfo* dataTemp
 
 	int i;
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
-		FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
+		IpfixRecord::FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
 
 		/* Split IPv4 fields with length 5, i.e. fields with network mask attached */
 		if ((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {

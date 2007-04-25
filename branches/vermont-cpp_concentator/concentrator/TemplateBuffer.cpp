@@ -27,9 +27,9 @@
 #include "msg.h"
 
 /**
- * Returns a TemplateInfo, OptionsTemplateInfo, DataTemplateInfo or NULL
+ * Returns a IpfixRecord::TemplateInfo, IpfixRecord::OptionsTemplateInfo, IpfixRecord::DataTemplateInfo or NULL
  */
-TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(SourceID* sourceId, TemplateID templateId) {
+TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(IpfixRecord::SourceID* sourceId, TemplateID templateId) {
 	time_t now = time(0);
 	TemplateBuffer::BufferedTemplate* bt = head;
 	while (bt != 0) {
@@ -46,7 +46,7 @@ TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(SourceID* 
 }
 
 /**
- * Saves a TemplateInfo, OptionsTemplateInfo, DataTemplateInfo overwriting existing Templates
+ * Saves a IpfixRecord::TemplateInfo, IpfixRecord::OptionsTemplateInfo, IpfixRecord::DataTemplateInfo overwriting existing Templates
  */
 void TemplateBuffer::bufferTemplate(TemplateBuffer::BufferedTemplate* bt) {
 	destroyBufferedTemplate(&bt->sourceID, bt->templateID);
@@ -58,7 +58,7 @@ void TemplateBuffer::bufferTemplate(TemplateBuffer::BufferedTemplate* bt) {
 /**
  * Frees memory, marks Template unused.
  */
-void TemplateBuffer::destroyBufferedTemplate(SourceID* sourceId, TemplateID templateId) 
+void TemplateBuffer::destroyBufferedTemplate(IpfixRecord::SourceID* sourceId, TemplateID templateId) 
 {
 	TemplateBuffer::BufferedTemplate* predecessor = 0;
 	TemplateBuffer::BufferedTemplate* bt = head;

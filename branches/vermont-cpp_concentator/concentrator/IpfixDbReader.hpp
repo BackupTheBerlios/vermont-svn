@@ -54,7 +54,7 @@ class IpfixDbReader {
 		 */
 		void addFlowSink(FlowSink* flowSink);
 
-		SourceID srcId;
+		IpfixRecord::SourceID srcId;
 
 	protected:
 		static const int MAX_TABLES = 10; /**< count of tables that will be send */
@@ -95,9 +95,9 @@ class IpfixDbReader {
 		int getTables();
 		int getColumns(int n);
 		static void* readFromDB(void* ipfixDbReader_);
-		int dbReaderSendNewTemplate(DataTemplateInfo* dataTemplateInfo, int table_index);
-		int dbReaderSendTable(DataTemplateInfo* dataTemplateInfo, int n);
-		int dbReaderDestroyTemplate(DataTemplateInfo* dataTemplateInfo);
+		int dbReaderSendNewTemplate(IpfixRecord::DataTemplateInfo* dataTemplateInfo, int table_index);
+		int dbReaderSendTable(IpfixRecord::DataTemplateInfo* dataTemplateInfo, int n);
+		int dbReaderDestroyTemplate(IpfixRecord::DataTemplateInfo* dataTemplateInfo);
 		int connectToDb(const char* hostName, const char* dbName, const char* username, const char* password, unsigned int port, uint16_t observationDomainId);
 		IpfixDbReader::columnDB* getColumnByName(const char* name);
 };
