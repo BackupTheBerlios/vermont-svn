@@ -25,6 +25,11 @@ FlowSink::FlowSink() : thread(flowSinkProcess), exitFlag(false) {
 }
 
 FlowSink::~FlowSink() {
+	msg(MSG_DEBUG, "Sink: destructor called");
+	terminateSink();
+	msg(MSG_DEBUG, "Sink: waiting for exporter thread");
+	thread.join();
+	msg(MSG_DEBUG, "Sink: exporter thread joined");
 }
 
 void FlowSink::push(IpfixRecord* ipfixRecord) {
@@ -82,6 +87,10 @@ void FlowSink::flowSinkProcess()
 		ipfixRecord->release();
 		DPRINTF("SINK: free packet");
 	}
+}
+
+bool FlowSink::runSink() {
+	return(thread.run(this));
 }
 
 bool FlowSink::terminateSink() {
