@@ -31,7 +31,7 @@
 #include "IpfixCollector.hpp"
 #include "IpfixParser.hpp"
 #include "IpfixPacketProcessor.hpp"
-#include "IpfixReceiver.hpp"
+#include "IpfixReceiverUdpIpV4.hpp"
 #include "IpfixPrinter.hpp"
 #include "../msg.h"
 
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 	IpfixPrinter ipfixPrinter;
 	ipfixPrinter.start();
 
-	IpfixReceiver ipfixReceiver(IpfixReceiver::UDP_IPV4, lport);
+	IpfixReceiverUdpIpV4 ipfixReceiver(lport);
 	/* (not in this branch of rcvIpfix)
 	if (argc > 2) {
 		msg(MSG_DIALOG, "Adding %s to list of authorized hosts", argv[2]);

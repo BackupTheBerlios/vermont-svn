@@ -13,6 +13,7 @@
 
 #include <msg.h>
 #include <concentrator/IpfixAggregator.hpp>
+#include "concentrator/IpfixReceiverUdpIpV4.hpp"
 
 
 CollectorConfiguration::CollectorConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
@@ -96,7 +97,7 @@ void CollectorConfiguration::setUp()
 	}
 
 	for (unsigned i = 0; i != listeners.size(); ++i) {
-		IpfixReceiver* ipfixReceiver = new IpfixReceiver(IpfixReceiver::UDP_IPV4, listeners[i]->port);
+		IpfixReceiver* ipfixReceiver = new IpfixReceiverUdpIpV4(listeners[i]->port);
 		if (!ipfixReceiver) {
 			throw std::runtime_error("Could not create receiver");
 		}

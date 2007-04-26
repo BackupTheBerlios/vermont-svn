@@ -35,15 +35,8 @@
  */
 class IpfixReceiver {
 	public:
-		/**
-		 * Defines type of Receiver
-		 */
-		typedef enum {
-			UDP_IPV4, UDP_IPV6, TCP_IPV4, TCP_IPV6, SCTP_IPV4, SCTP_IPV6
-		} Receiver_Type;
-
-		IpfixReceiver(Receiver_Type receiver_type, int port);
-		~IpfixReceiver();
+		IpfixReceiver();
+		virtual ~IpfixReceiver();
 
 		int start();
 		int stop();
@@ -51,34 +44,26 @@ class IpfixReceiver {
 		int addAuthorizedHost(const char* host);
 		int isHostAuthorized(struct in_addr* inaddr, int addrlen);
 		int setPacketProcessors(std::list<IpfixPacketProcessor*> packetProcessors);
-		int hasPacketProcessor();
+		bool hasPacketProcessor();
 
 		void stats();
 
+		virtual void run() = 0;
+
 	protected:
-		int listen_socket;
-
-		int* connected_sockets;
-		int connection_count;
-
+		std::list<IpfixPacketProcessor*> packetProcessors; /**< Authorized incoming packets are forwarded to the packetProcessors. The list of packetProcessor must be created, managed and destroyed by an superior instance. The IpfixReceiver will only work with the given list */
+	
+		int exit; /**< exit flag to terminate thread */
 		pthread_mutex_t mutex; /**< Mutex to pause receiving thread */
+
+	private:
 		pthread_t thread; /**< Thread ID for this particular instance, to sync against etc */
 
-		int authCount; /**< Length of authHosts array */
-		struct in_addr* authHosts; /**< List of authorized hosts. Only packets from hosts in this list, will be forwarded to the PacketProcessors */
-
-		std::list<IpfixPacketProcessor*> packetProcessors; /**< Authorized incoming packets are forwarded to the packetProcessors. The list of packetProcessor must be created, managed and destroyed by an superior instance. The IpfixReceiver will only work with the given list */
-		int processorCount;
-		int exit; /**< exit flag to terminate thread */
+		std::vector<in_addr> authHosts; /**< List of authorized hosts. Only packets from hosts in this list, will be forwarded to the PacketProcessors */
 
 		uint32_t receivedRecords; /**< Statistics: Total number of data (or dataData) records received since last statistics were polled */
 	
-		Receiver_Type receiver_type;
-
 		static void* listenerThread(void* ipfixReceiver_);
-		void udpListener();
-		int createUdpIpv4Receiver(int port);
-		void destroyUdpReceiver();
 };
 
 #endif
