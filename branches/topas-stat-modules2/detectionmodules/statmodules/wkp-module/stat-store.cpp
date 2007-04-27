@@ -358,7 +358,7 @@ void StatStore::writeToFile() {
 
   std::ofstream file("data.txt", std::ios_base::app);
   if (file.is_open() == true) {
-    file << Data << "---" << "\n";
+    file << Data;
     file.close();
     return;
   }
