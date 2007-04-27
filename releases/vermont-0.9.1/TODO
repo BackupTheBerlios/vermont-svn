@@ -1,0 +1,2 @@
+- Template management is performed via ObservationDomainId. It should be done
+  with the SourceID struct
