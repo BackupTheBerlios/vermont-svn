@@ -23,7 +23,7 @@
 #include <sstream>
 
 
-int DataStore::fieldToInt(byte* data, int len) 
+int DataStore::fieldToInt(byte* data, int len)
 {
         switch (len) {
         case 1:
@@ -46,8 +46,22 @@ std::string IpAddress::toString() const
         return sstream.str();
 }
 
+void IpAddress::fromString(const std::string & ipstr)
+{
+        std::string::size_type i_neu = 0;
+        std::string::size_type i_alt = 0;
+        int index = 0;
+        while (i_neu != std::string::npos) {
+          i_neu = ipstr.find('.',i_alt);
+          address[index] = atoi( (ipstr.substr(i_alt,i_neu-1)).c_str() );
+          i_alt = i_neu+1;
+          index++;
+        }
+        return;
+}
 
-std::ostream& operator<<(std::ostream& ost, const IpAddress& ip) 
+
+std::ostream& operator<<(std::ostream& ost, const IpAddress& ip)
 {
         ost << ip[0] << "." << ip[1] << "." << ip[2] << "." << ip[3];
         return ost;

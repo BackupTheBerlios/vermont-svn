@@ -44,6 +44,16 @@ Funktioniert. Parameter sind
 - Ein wenig unschön ist noch das Zusammenspiel mit report_only_first_attack, da man
 anhand der Ausgabe dann nicht mehr erkennt, wann ein Angriff vorüber ist (außer dass die Aktualisierung alphas dann nicht mehr pausuert wird). Vielleicht eine Art "attack still in progress"-Nachricht einbauen.
 
+TODO(4)
+Test-Zeug
+-------------------------------
+In StatStore:
+Funktionen: writeToFile() und readFromFile()
+Membervariablen: dataFile und dataFromFile
+
+Hier:
+Test-Funktion umgebaut
+
 */
 
 
@@ -1637,7 +1647,11 @@ void Stat::test(StatStore * store) {
 #endif
 
   // Getting whole Data from store
-  std::map<EndPoint,Info> Data = store->getData();
+  //std::map<EndPoint,Info> Data = store->getData();
+
+  // read Data from File (for testing purposes)
+  store->readFromFile();
+  std::map<EndPoint,Info> Data = store->getDataFromFile();
 
   // Dumping empty records:
   if (Data.empty()==true) {
@@ -1648,9 +1662,9 @@ void Stat::test(StatStore * store) {
   }
 
   // write data to file (for testing purposes)
-  store->writeToFile();
+  //store->writeToFile();
 
-/*
+
   outfile
     << "####################################################" << std::endl
     << "########## Stat::test(...)-call number: " << test_counter
@@ -1863,7 +1877,7 @@ void Stat::test(StatStore * store) {
 
   test_counter++;
 
-*/
+
 
   /* don't forget to free the store-object! */
   delete store;

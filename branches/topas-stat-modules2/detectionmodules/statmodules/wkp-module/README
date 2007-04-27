@@ -149,8 +149,7 @@ This parameter defines the number of maximal observable endpoints. If this
 size is reached, every further endpoint will be ignored. This is to avoid
 storage exhaustion, if you run the module for a longer time. The "bigger" the
 endpoint_key, the more endpoints will be monitored, so if you e. g. use the
-combination of ip/port/protocol as endpoint_key, you should think about increasing the maxsize of the endpointlist. If nothing is given, default value will be used
-(DEFAULT_endpointlist_maxsize).
+combination of ip/port/protocol as endpoint_key, you should think about increasing the maxsize of the endpointlist. If nothing is given, default value will be used (DEFAULT_endpointlist_maxsize).
 
 
 <protocols>:
@@ -195,7 +194,8 @@ opening this file, the module will exit after an error message. If no
 file is given, a warning message will be issued stating that it is
 assumed the user wants the module to monitor every IP address found on
 the monitored device. Please note that the IP addresses reported to
-the collector by the monitor will also be masked. You can also use "all" to monitor every ip address. Dont be foolish and name your ipfile that way ;)
+the collector by the monitor will also be masked. You can also use "all"
+to monitor every ip address. Dont be foolish and name your ipfile that way ;)
 
 
 <stat_test_frequency>:
@@ -245,25 +245,24 @@ assumed (after some warning message).
 
 <amplitude_percentage>:
 
-This parameter represents the relative increase in the mean after an attack occured. As soon as the test-statistic g does make this jump, an alarm will be raised (note: with the next parameter, you can define how often this jump needs to be taken until an alarm is thrown). It will be multiplied with the current mean of normal behaviour (alpha) to help calculating the threshold N at which an alarm shall be raised. Possible values are floating point values and if omitted, 1.5 will be used as default value.
+This parameter represents the relative increase in the mean after an attack occured. As soon as the test-statistic g does make this jump, an alarm will be raised (note: with the next parameter, you can define how often this jump needs to be taken until an alarm is thrown). It will be multiplied with the current mean of normal behaviour (alpha) to help calculating the threshold N at which an alarm shall be raised. Possible values are floating point values and if omitted, DEFAULT_amplitude_percentage will be used as default value.
 
 
 <repetition_factor>:
 
-This parameter defines, how often the test-statistic g may make the jump mentioned above consecutively until an alarm is raised. Thus, this parameter is somehow related to the amplitude_percentage. But whilst the amplitude_percentage represents the "sensitivity" of the increase of the test-statistic g (that means, how large the values of X must be to make g positive), this parameter helps you in controlling your false alarm rate by making the test less sensitive to outliers and by this means more robust. It expects integer values and may not be 0 or negative. A good choice would be 2 or 3. If omitted, 2 will be used as default;
+This parameter defines, how often the test-statistic g may make the jump mentioned above consecutively until an alarm is raised. Thus, this parameter is somehow related to the amplitude_percentage. But whilst the amplitude_percentage represents the "sensitivity" of the increase of the test-statistic g (that means, how large the values of X must be to make g positive), this parameter helps you in controlling your false alarm rate by making the test less sensitive to outliers and by this means more robust. It expects integer values and may not be 0 or negative. A good choice would be 2 or 3. If omitted, DEFAULT_repetition_factor will be used as default;
 
 
 <learning_phase_for_alpha>:
 
-This parameter expects an positive integer value which indicates the number of samples to be collected for each endpoint, before the initial mean value alpha is calculated. Only after alpha was calculated, the cusum-test can start for that endpoint. The higher the value for this parameter, the more precise alpha will be. If omitted, 10 will be assumed. This value may not be negative or zero!
+This parameter expects an positive integer value which indicates the number of samples to be collected for each endpoint, before the initial mean value alpha is calculated. Only after alpha was calculated, the cusum-test can start for that endpoint. The higher the value for this parameter, the more precise alpha will be. If omitted, DEFAULT_learning_phase_for_alpha will be assumed. This value may not be negative or zero!
 
 
 <smoothing_constant>:
 
 This parameter expects floating point values greater than zero and represents the smoothing constant for the exponentially weighted moving average function used to smooth the mean value alpha. Alpha will be calculated via
 alpha(n) = alpha(n-1) * (1 - smoothing_constant) + X(n-1) * smoothing_constant
-That means: the greater the value of the smoothing constant, the more weight will be given to the last value of the metric and the less weight will be given to the last mean alpha. It is wise to use small values for the smoothing constant so that the last observed value has only little impact on the new mean.
-If omitted, 0.15 will be used as default value for the smoothing constant.
+That means: the greater the value of the smoothing constant, the more weight will be given to the last value of the metric and the less weight will be given to the last mean alpha. It is wise to use small values for the smoothing constant so that the last observed value has only little impact on the new mean. If omitted, DEFAULT_smoothing_constant will be used as default value for.
 
 
 

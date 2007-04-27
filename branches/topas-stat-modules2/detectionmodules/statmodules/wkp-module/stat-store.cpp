@@ -354,6 +354,7 @@ void StatStore::recordEnd() {
 }
 
 
+// (for testing purposes)
 void StatStore::writeToFile() {
 
   std::ofstream file("data.txt", std::ios_base::app);
@@ -366,6 +367,55 @@ void StatStore::writeToFile() {
     std::cerr << "ERROR: Couldnt open file @ StatStore::writeToFile()!\nExiting.\n";
     exit(0);
   }
+}
+
+// (for testing purposes)
+void StatStore::readFromFile() {
+
+  std::string tmp;
+
+  if ( dataFile.eof() ) {
+    std::cerr << "INFORMATION: All Data read from file.\nExiting.\n";
+    dataFile.close();
+    exit(0);
+  }
+
+  while ( getline(dataFile, tmp) ) {
+    if (0 == strcasecmp(tmp.c_str(), "---") )
+      break;
+    else if ( dataFile.eof() ) {
+      std::cerr << "INFORMATION: All Data read from file.\nExiting.\n";
+      dataFile.close();
+      exit(0);
+    }
+
+    // extract endpoint-data
+    std::string::size_type i = tmp.find(':', 0);
+    std::string ipstr(tmp, 0, i-1);
+    std::string::size_type j = tmp.find('|', i);
+    std::string portstr(tmp, i+1, j-1);
+    std::string::size_type k = tmp.find('_', j);
+    std::string protostr(tmp, j+1, k-1);
+
+    IpAddress ip = IpAddress(0,0,0,0);
+    ip.fromString(ipstr);
+    EndPoint e = EndPoint(ip, atoi(portstr.c_str()), atoi(protostr.c_str()));
+    //std::cout << "e: " << e << std::endl;
+
+    // extract metric-data
+    std::stringstream tmp1(tmp.substr(k+1));
+    Info info;
+    tmp1 >> info.packets_in >> info.packets_out >> info.bytes_in >> info.bytes_out >> info.records_in >> info.records_out;
+    //std::cout << "Info: " << info.packets_in << ", " << info.packets_out << ", " << info.bytes_in << ", " << info.bytes_out << ", " << info.records_in << ", " << info.records_out << std::endl;
+
+    // put it into Data
+    dataFromFile[e] = info;
+
+    tmp.clear();
+    tmp1.clear();
+  }
+
+  return;
 }
 
 
@@ -391,3 +441,5 @@ std::vector<uint16_t> StatStore::MonitoredPorts;
 bool StatStore::MonitorAllPorts = false;
 
 bool StatStore::BeginMonitoring = false;
+
+std::ifstream StatStore::dataFile("data.txt");

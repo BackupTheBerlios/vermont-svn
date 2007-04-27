@@ -174,8 +174,9 @@ public:
                 return false;
         }
 
-        /* TODO: turn this member into an operator */
+        /* TODO: turn this members into operators */
         std::string toString() const;
+        void fromString(const std::string &);
 
 	void setAddress(const byte a[4])
 	{
