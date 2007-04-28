@@ -1647,11 +1647,11 @@ void Stat::test(StatStore * store) {
 #endif
 
   // Getting whole Data from store
-  //std::map<EndPoint,Info> Data = store->getData();
+  std::map<EndPoint,Info> Data = store->getData();
 
   // read Data from File (for testing purposes)
-  store->readFromFile();
-  std::map<EndPoint,Info> Data = store->getDataFromFile();
+  //store->readFromFile();
+  //std::map<EndPoint,Info> Data = store->getDataFromFile();
 
   // Dumping empty records:
   if (Data.empty()==true) {
@@ -1662,9 +1662,9 @@ void Stat::test(StatStore * store) {
   }
 
   // write data to file (for testing purposes)
-  //store->writeToFile();
+  store->writeToFile();
 
-
+/*
   outfile
     << "####################################################" << std::endl
     << "########## Stat::test(...)-call number: " << test_counter
@@ -1877,6 +1877,7 @@ void Stat::test(StatStore * store) {
 
   test_counter++;
 
+*/
 
 
   /* don't forget to free the store-object! */
