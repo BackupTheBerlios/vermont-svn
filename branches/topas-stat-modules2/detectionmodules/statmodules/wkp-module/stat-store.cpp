@@ -302,9 +302,6 @@ void StatStore::recordEnd() {
         newinfo.bytes_out = byte_nb;
         newinfo.records_out = 1;
         Data.insert(std::make_pair<EndPoint,Info>(e_source, newinfo));
-//         Data[e_source].packets_out = packet_nb;
-//         Data[e_source].bytes_out = byte_nb;
-//         Data[e_source].records_out = 1;
         EndPointList.push_back(e_source);
       }
       else
@@ -340,9 +337,6 @@ void StatStore::recordEnd() {
         newinfo.bytes_in = byte_nb;
         newinfo.records_in = 1;
         Data.insert(std::make_pair<EndPoint,Info>(e_dest, newinfo));
-//         Data[e_dest].packets_in = packet_nb;
-//         Data[e_dest].bytes_in = byte_nb;
-//         Data[e_dest].records_in = 1;
         EndPointList.push_back(e_dest);
       }
       else
@@ -354,10 +348,10 @@ void StatStore::recordEnd() {
 }
 
 
-// (for testing purposes)
+// TESTING
 void StatStore::writeToFile() {
 
-  std::ofstream file("data.txt", std::ios_base::app);
+  std::ofstream file("data_all_30.txt", std::ios_base::app);
   if (file.is_open() == true) {
     file << Data;
     file.close();
@@ -369,33 +363,32 @@ void StatStore::writeToFile() {
   }
 }
 
-// (for testing purposes)
-void StatStore::readFromFile() {
-
-  std::string tmp;
+// TESTING
+bool StatStore::readFromFile() {
 
   if ( dataFile.eof() ) {
-    std::cerr << "INFORMATION: All Data read from file.\nExiting.\n";
+    std::cerr << "INFORMATION: All Data read from file.\n";
     dataFile.close();
-    exit(0);
+    return false;
   }
 
+  std::string tmp;
   while ( getline(dataFile, tmp) ) {
     if (0 == strcasecmp(tmp.c_str(), "---") )
       break;
     else if ( dataFile.eof() ) {
-      std::cerr << "INFORMATION: All Data read from file.\nExiting.\n";
+      std::cerr << "INFORMATION: All Data read from file.\n";
       dataFile.close();
-      exit(0);
+      return false;
     }
 
     // extract endpoint-data
     std::string::size_type i = tmp.find(':', 0);
-    std::string ipstr(tmp, 0, i-1);
+    std::string ipstr(tmp, 0, i);
     std::string::size_type j = tmp.find('|', i);
-    std::string portstr(tmp, i+1, j-1);
+    std::string portstr(tmp, i+1, j-i-1);
     std::string::size_type k = tmp.find('_', j);
-    std::string protostr(tmp, j+1, k-1);
+    std::string protostr(tmp, j+1, k-j-1);
 
     IpAddress ip = IpAddress(0,0,0,0);
     ip.fromString(ipstr);
@@ -415,7 +408,7 @@ void StatStore::readFromFile() {
     tmp1.clear();
   }
 
-  return;
+  return true;
 }
 
 
@@ -442,4 +435,5 @@ bool StatStore::MonitorAllPorts = false;
 
 bool StatStore::BeginMonitoring = false;
 
-std::ifstream StatStore::dataFile("data.txt");
+// TESTING
+std::ifstream StatStore::dataFile("data_all_30.txt");

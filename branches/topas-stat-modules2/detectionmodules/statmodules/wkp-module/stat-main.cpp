@@ -87,6 +87,10 @@ Stat::Stat(const std::string & configfile)
   protocol_monitoring = false;
 
   test_counter = 0;
+
+  // TESTING
+  counter = 0;
+
   init(configfile);
 }
 
@@ -1646,25 +1650,109 @@ void Stat::test(StatStore * store) {
   idmefMessage = getNewIdmefMessage("wkp-module", "statistical anomaly detection");
 #endif
 
-  // Getting whole Data from store
-  std::map<EndPoint,Info> Data = store->getData();
 
-  // read Data from File (for testing purposes)
-  //store->readFromFile();
-  //std::map<EndPoint,Info> Data = store->getDataFromFile();
+  // +++++++++++++++++++++++++++++++++++
+  // BEGIN TESTING (READ DATA FROM FILE)
+  // +++++++++++++++++++++++++++++++++++
+
+  // read data from file
+  bool more = store->readFromFile();
+  // still more data to read?
+  if (more == true) {
+    std::map<EndPoint,Info> Data = store->getDataFromFile();
+    // Dumping empty records:
+    if (Data.empty()==true) {
+      if (output_verbosity>=3 || warning_verbosity==1)
+        outfile << "INFORMATION: Got empty record; "
+          << "dumping it and waiting for another record" << std::endl << std::flush;
+      return;
+    }
+
+    // count number of appearings of each endpoint
+    // to let us filter the most often appearing ones
+    std::map<EndPoint,Info>::iterator Data_it = Data.begin();
+    while (Data_it != Data.end()) {
+      endPointCount[Data_it->first]++;
+      Data_it++;
+    }
+    std::cout << "Stand: " << counter << std::endl;
+    counter++;
+  }
+  // if all data was read
+  else {
+    // search the X most frequently appeared endpoints
+    int X = 25;
+    std::map<EndPoint,int> mostFrequentEndPoints;
+    for (int j = 0; j <= X; j++) {
+      std::pair<EndPoint,int> tmpmax;
+      tmpmax.first = (endPointCount.begin())->first;
+      tmpmax.second = (endPointCount.begin())->second;
+      for (std::map<EndPoint,int>::iterator i = endPointCount.begin(); i != endPointCount.end(); i++) {
+        if (tmpmax.second < i->second) {
+          tmpmax.first = i->first;
+          tmpmax.second = i->second;
+        }
+      }
+      mostFrequentEndPoints.insert(tmpmax);
+      endPointCount.erase(tmpmax.first);
+    }
+    // write the X most frequently endpoints to a file
+    // Note: Now, we can use that file as the filter for
+    // ip_addresses_to_monitor parameter
+    std::ofstream f("data_all_30_freq_eps.txt", std::ios_base::app);
+    std::map<EndPoint,int>::iterator iter;
+    for (iter=mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
+      f << (iter->first).getIpAddress() << " " << iter->second << "\n";
+    f.close();
+    exit(0);
+  }
+
+  // +++++++++++++++++++++++++++++++++
+  // END TESTING (READ DATA FROM FILE)
+  // +++++++++++++++++++++++++++++++++
+
+
+
+/*
+  // ++++++++++++++++++++++++++++++++++
+  // BEGIN TESTING (WRITE DATA TO FILE)
+  // ++++++++++++++++++++++++++++++++++
+
+  std::map<EndPoint,Info> Data = store->getData();
 
   // Dumping empty records:
   if (Data.empty()==true) {
     if (output_verbosity>=3 || warning_verbosity==1)
       outfile << "INFORMATION: Got empty record; "
-	      << "dumping it and waiting for another record" << std::endl << std::flush;
+        << "dumping it and waiting for another record" << std::endl << std::flush;
     return;
   }
 
-  // write data to file (for testing purposes)
+  // write data to file
   store->writeToFile();
 
+  // ++++++++++++++++++++++++++++++++
+  // END TESTING (WRITE DATA TO FILE)
+  // ++++++++++++++++++++++++++++++++
+*/
+
+
+
 /*
+  // ++++++++++++++++
+  // NORMAL BEHAVIOUR
+  // ++++++++++++++++
+
+  std::map<EndPoint,Info> Data = store->getData();
+
+  // Dumping empty records:
+  if (Data.empty()==true) {
+    if (output_verbosity>=3 || warning_verbosity==1)
+      outfile << "INFORMATION: Got empty record; "
+        << "dumping it and waiting for another record" << std::endl << std::flush;
+    return;
+  }
+
   outfile
     << "####################################################" << std::endl
     << "########## Stat::test(...)-call number: " << test_counter

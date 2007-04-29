@@ -217,6 +217,12 @@ class Stat : public DetectionBase<StatStore> {
   void stat_test_ks (std::list<int64_t> &, std::list<int64_t> &, bool &);
   void stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &, bool &);
 
+  // TESTING
+  // contains endpoints and their number of occurance
+  std::map<EndPoint,int> endPointCount;
+  int counter;
+
+
   // here is the sample container for the wkp-tests:
   std::map<EndPoint, Samples> SampleData;
 

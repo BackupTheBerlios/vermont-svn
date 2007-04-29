@@ -48,13 +48,17 @@ std::string IpAddress::toString() const
 
 void IpAddress::fromString(const std::string & ipstr)
 {
-        std::string::size_type i_neu = 0;
         std::string::size_type i_alt = 0;
+        std::string::size_type i_neu = ipstr.find('.',i_alt);
         int index = 0;
-        while (i_neu != std::string::npos) {
-          i_neu = ipstr.find('.',i_alt);
-          address[index] = atoi( (ipstr.substr(i_alt,i_neu-1)).c_str() );
+        while ( true ) {
+          address[index] = atoi( (ipstr.substr(i_alt,i_neu-i_alt)).c_str() );
+          if ( i_neu == ipstr.length())
+            break;
           i_alt = i_neu+1;
+          i_neu = ipstr.find('.',i_alt);
+          if ( i_neu == std::string::npos)
+            i_neu = ipstr.length();
           index++;
         }
         return;

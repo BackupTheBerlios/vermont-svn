@@ -13,12 +13,17 @@
 	<preferences>
     <output_file>wkp.output</output_file>
     <accepted_source_ids>all</accepted_source_ids>
-    <alarm_time>30</alarm_time>
+    <alarm_time>1</alarm_time>
     <warning_verbosity>1</warning_verbosity>
     <output_verbosity>4</output_verbosity>
     <endpoint_key>all</endpoint_key>
     <monitored_values>
       <value>packets_in</value>
+      <value>packets_out</value>
+      <value>bytes_in</value>
+      <value>bytes_out</value>
+      <value>records_in</value>
+      <value>records_out</value>
     </monitored_values>
     <noise_threshold_packets>0</noise_threshold_packets>
     <noise_threshold_bytes>0</noise_threshold_bytes>

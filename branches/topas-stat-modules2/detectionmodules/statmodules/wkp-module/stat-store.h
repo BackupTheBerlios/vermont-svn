@@ -49,7 +49,7 @@ class StatStore : public DataStore {
   std::map<EndPoint,Info> Data;     // data collected from all records received
                                     // since last call to Stat::test()
 
-  // (for testing purposes)
+  // TESTING
   std::map<EndPoint,Info> dataFromFile;
 
   static std::map<EndPoint,Info> PreviousData;
@@ -73,12 +73,13 @@ class StatStore : public DataStore {
   std::map<EndPoint,Info> getData() const {return Data;}
   std::map<EndPoint,Info> getPreviousData() const {return PreviousData;}
 
-  // (for testin purposes)
+
+  // TESTING
   std::map<EndPoint,Info> getDataFromFile() const {return dataFromFile;}
-  // writes the Data in a file (for testing purposes)
+  // writes the Data in a file
   void writeToFile();
-  // reads data from a file (for testing purposes)
-  void readFromFile();
+  // reads data from a file
+  bool readFromFile();
 
 
  private:
@@ -132,11 +133,12 @@ class StatStore : public DataStore {
   // DetectionBase if something is not ready (cf. Stat::Stat(), where
   // DetectionBase<StatStore> begins to run while Stat::init() is not over).
 
+  // TESTING
   static std::ifstream dataFile;
   // ifstream to read from the file with all the data in it
   // static as we need to know which data was already read and
   // thus keep the file-handle and its position alive
-  // (for testing purposes)
+
 
   // All these are static because they are the same for every StatStore object.
   // As they will be set by a function, Stat::init(), that doesn't have any
