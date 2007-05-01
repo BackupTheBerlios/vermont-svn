@@ -88,8 +88,21 @@ Stat::Stat(const std::string & configfile)
 
   test_counter = 0;
 
+
   // TESTING
   counter = 0;
+  // Filtering: read most frequently X endpoints from file
+  // and push them into filter vector
+  // (Belongs to READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
+  // comment it, if not needed!
+  std::ifstream f("darpa1_ip_10_freq_eps.txt");
+  std::string tmp;
+  while ( getline(f, tmp) ) {
+    EndPoint e = EndPoint(IpAddress(0,0,0,0),0,0);
+    e.fromString(tmp);
+    filter.push_back(e);
+  }
+
 
   init(configfile);
 }
@@ -1650,23 +1663,61 @@ void Stat::test(StatStore * store) {
   idmefMessage = getNewIdmefMessage("wkp-module", "statistical anomaly detection");
 #endif
 
+//
+// EXPLANATION:
+// ##############################################################
+// 1 WRITE DATA TO FILE:
+//      this code simply writes all the data to a file
+// 2 READ DATA FROM FILE TO SEARCH ENDPOINTS
+//      this file reads the data from the file from 1 and finds the
+//      most frequently appearing X endpoints and writes them to a file.
+//      We can then use them to:
+// 3 READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES
+//      only the most frequently appearing X endpoints from
+//      the file created in 2 are considered (thanks to the filter vector, see
+//      constructor) to calculate the metrics for them and write these metrics
+//      to a file for every of these X endpoints.
+// NOW, WE ARE ABLE TO MAKE SOME DIAGRAMS OF THE DATA AND BETTER UNDERSTAND
+// WHAT'S GOING ON. NOW, CUSUM CAN BE APPLIED AND WE KNOW, WHERE IT WILL
+// POSSIBLY DETECT ANOMALIES.
 
-  // +++++++++++++++++++++++++++++++++++
-  // BEGIN TESTING (READ DATA FROM FILE)
-  // +++++++++++++++++++++++++++++++++++
 
-  // read data from file
+/*
+  // ++++++++++++++++++++++++++++++++++
+  // BEGIN TESTING (WRITE DATA TO FILE)
+  // ++++++++++++++++++++++++++++++++++
+  // NOTE: adapt file name in StatStore::writeToFile() AND
+  // comment filter in constructor AND
+  // adapt config file (endpoint_key, alarm_time = 10 etc.)
+  std::map<EndPoint,Info> Data = store->getData();
+
+  // Dumping empty records:
+  if (Data.empty()==true)
+    return;
+
+  // write data to file
+  store->writeToFile();
+  // ++++++++++++++++++++++++++++++++
+  // END TESTING (WRITE DATA TO FILE)
+  // ++++++++++++++++++++++++++++++++
+*/
+
+
+
+/*
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // BEGIN TESTING (READ DATA FROM FILE TO SEARCH ENDPOINTS)
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // read data from file and search the most frequently
+  // appearing X endpoints
+  // NOTE: dont forget to set alarm_time to 1 AND comment filter in constructor
   bool more = store->readFromFile();
   // still more data to read?
   if (more == true) {
     std::map<EndPoint,Info> Data = store->getDataFromFile();
     // Dumping empty records:
-    if (Data.empty()==true) {
-      if (output_verbosity>=3 || warning_verbosity==1)
-        outfile << "INFORMATION: Got empty record; "
-          << "dumping it and waiting for another record" << std::endl << std::flush;
+    if (Data.empty()==true)
       return;
-    }
 
     // count number of appearings of each endpoint
     // to let us filter the most often appearing ones
@@ -1681,9 +1732,9 @@ void Stat::test(StatStore * store) {
   // if all data was read
   else {
     // search the X most frequently appeared endpoints
-    int X = 25;
+    int X = 10;
     std::map<EndPoint,int> mostFrequentEndPoints;
-    for (int j = 0; j <= X; j++) {
+    for (int j = 0; j < X; j++) {
       std::pair<EndPoint,int> tmpmax;
       tmpmax.first = (endPointCount.begin())->first;
       tmpmax.second = (endPointCount.begin())->second;
@@ -1697,44 +1748,73 @@ void Stat::test(StatStore * store) {
       endPointCount.erase(tmpmax.first);
     }
     // write the X most frequently endpoints to a file
-    // Note: Now, we can use that file as the filter for
-    // ip_addresses_to_monitor parameter
-    std::ofstream f("data_all_30_freq_eps.txt", std::ios_base::app);
+    // Note: Now, we can use that file to determine the filters ...
+    std::ofstream f("darpa1_ip_10_freq_eps.txt", std::ios_base::app);
     std::map<EndPoint,int>::iterator iter;
     for (iter=mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
-      f << (iter->first).getIpAddress() << " " << iter->second << "\n";
+      f << iter->first << "\n";
     f.close();
+    std::cout << "Done." << std::endl;
     exit(0);
   }
-
-  // +++++++++++++++++++++++++++++++++
-  // END TESTING (READ DATA FROM FILE)
-  // +++++++++++++++++++++++++++++++++
-
-
-
-/*
-  // ++++++++++++++++++++++++++++++++++
-  // BEGIN TESTING (WRITE DATA TO FILE)
-  // ++++++++++++++++++++++++++++++++++
-
-  std::map<EndPoint,Info> Data = store->getData();
-
-  // Dumping empty records:
-  if (Data.empty()==true) {
-    if (output_verbosity>=3 || warning_verbosity==1)
-      outfile << "INFORMATION: Got empty record; "
-        << "dumping it and waiting for another record" << std::endl << std::flush;
-    return;
-  }
-
-  // write data to file
-  store->writeToFile();
-
-  // ++++++++++++++++++++++++++++++++
-  // END TESTING (WRITE DATA TO FILE)
-  // ++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // END TESTING (READ DATA FROM FILE TO SEARCH ENDPOINTS)
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 */
+
+
+
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // BEGIN TESTING (READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // write metrics from each endpoint to a file
+  // so we can make tables of the data with external programs
+  // NOTE: Dont forget to adapt the filename convention here AND for the
+  // uncommented filter in the constructor AND for StatStore::readFromFile AND
+  // choose metrics to be saved in config file
+  bool more = store->readFromFile();
+  if (more == true) {
+    std::map<EndPoint,Info> Data = store->getDataFromFile();
+    // Dumping empty records:
+    if (Data.empty()==true)
+      return;
+
+    std::map<EndPoint,Info>::iterator Data_it = Data.begin();
+    std::map<EndPoint,Info> PreviousData = store->getPreviousDataFromFile();
+    Info prev;
+
+    // for every unfiltered EndPoint, extract the data to its file
+    while (Data_it != Data.end()) {
+      if ( find(filter.begin(), filter.end(), Data_it->first) != filter.end() ) {
+        prev = PreviousData[Data_it->first];
+        // extract metric data
+        std::vector<int64_t> v = extract_data(Data_it->second, prev);
+        // open endpoint's file
+        std::string fname = "darpa1_ip_10_endpoint_" + (Data_it->first).toString() + ".data";
+        std::ofstream file(fname.c_str(),std::ios_base::app);
+        // write metric data to file
+        for (int i = 0; i != v.size(); i++) {
+          file << v.at(i);
+          if (i != v.size()-1)
+            file << " ";
+        }
+        file << "\n";
+        file.close();
+      }
+      Data_it++;
+    }
+    std::cout << "Stand: " << counter << std::endl;
+    counter++;
+  }
+  else {
+    std::cout << "Done." << std::endl;
+    exit(0);
+  }
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // END TESTING (READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 
 
@@ -1744,6 +1824,9 @@ void Stat::test(StatStore * store) {
   // ++++++++++++++++
 
   std::map<EndPoint,Info> Data = store->getData();
+  //bool more = store->readFromFile();
+  // if (more == true) {
+  //std::map<EndPoint,Info> Data = store->getDataFromFile();
 
   // Dumping empty records:
   if (Data.empty()==true) {
@@ -1762,6 +1845,7 @@ void Stat::test(StatStore * store) {
   std::map<EndPoint,Info>::iterator Data_it = Data.begin();
 
   std::map<EndPoint,Info> PreviousData = store->getPreviousData();
+  //std::map<EndPoint,Info> PreviousData = store->getPreviousDataFromFile();
     // Needed for extraction of packets(t)-packets(t-1) and bytes(t)-bytes(t-1)
     // Holds information about the Info used in the last call to test()
   Info prev;
@@ -1973,6 +2057,12 @@ void Stat::test(StatStore * store) {
   outfile << std::endl << std::flush;
   return;
 
+  //}
+  //else {
+  //  delete store;
+  //  std::cout << "Done." << std::endl;
+  //  exit(0);
+  //}
 }
 
 

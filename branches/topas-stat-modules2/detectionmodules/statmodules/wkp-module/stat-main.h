@@ -221,6 +221,9 @@ class Stat : public DetectionBase<StatStore> {
   // contains endpoints and their number of occurance
   std::map<EndPoint,int> endPointCount;
   int counter;
+  // contains most frequently X appeared endpoints ...
+  // only data for them will be collected and written to files
+  std::vector<EndPoint> filter;
 
 
   // here is the sample container for the wkp-tests:

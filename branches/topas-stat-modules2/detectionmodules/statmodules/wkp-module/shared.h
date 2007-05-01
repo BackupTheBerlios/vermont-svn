@@ -110,6 +110,7 @@ class EndPoint {
     }
 
     std::string toString() const;
+    void fromString(const std::string &);
 
     // Setters & Getters
     void setIpAddress(const IpAddress & ip) {

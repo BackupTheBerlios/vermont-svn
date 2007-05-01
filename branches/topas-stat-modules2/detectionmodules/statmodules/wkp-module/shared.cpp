@@ -27,8 +27,24 @@
 std::string EndPoint::toString() const
 {
         std::stringstream sstream;
-        sstream << ipAddr[0] << "." << ipAddr[1] << "." << ipAddr[2] << "." << ipAddr[3] << ":" << portNr << " | " << (uint16_t) protocolID;
+        sstream << ipAddr << ":" << portNr << "|" << (uint16_t) protocolID;
         return sstream.str();
+}
+
+void EndPoint::fromString(const std::string & epstr)
+{
+  std::string::size_type i = epstr.find(':', 0);
+  std::string ipstr(epstr, 0, i);
+  std::string::size_type j = epstr.find('|', i);
+  std::string portstr(epstr, i+1, j-i-1);
+  std::string::size_type k = epstr.find('_', j);
+  std::string protostr(epstr, j+1, k-j-1);
+
+  ipAddr.fromString(ipstr);
+  portNr = atoi(portstr.c_str());
+  protocolID = atoi(protostr.c_str());
+
+  return;
 }
 
 

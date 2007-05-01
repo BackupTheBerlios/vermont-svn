@@ -37,6 +37,9 @@ StatStore::~StatStore() {
 
   PreviousData = Data;
 
+  // TESTING
+  previousDataFromFile = dataFromFile;
+
 }
 
 bool StatStore::recordStart(SourceID sourceId) {
@@ -351,7 +354,7 @@ void StatStore::recordEnd() {
 // TESTING
 void StatStore::writeToFile() {
 
-  std::ofstream file("data_all_30.txt", std::ios_base::app);
+  std::ofstream file("darpa1_ip_10.txt", std::ios_base::app);
   if (file.is_open() == true) {
     file << Data;
     file.close();
@@ -401,7 +404,7 @@ bool StatStore::readFromFile() {
     tmp1 >> info.packets_in >> info.packets_out >> info.bytes_in >> info.bytes_out >> info.records_in >> info.records_out;
     //std::cout << "Info: " << info.packets_in << ", " << info.packets_out << ", " << info.bytes_in << ", " << info.bytes_out << ", " << info.records_in << ", " << info.records_out << std::endl;
 
-    // put it into Data
+    // put it into dataFromFile ...
     dataFromFile[e] = info;
 
     tmp.clear();
@@ -436,4 +439,5 @@ bool StatStore::MonitorAllPorts = false;
 bool StatStore::BeginMonitoring = false;
 
 // TESTING
-std::ifstream StatStore::dataFile("data_all_30.txt");
+std::ifstream StatStore::dataFile("darpa1_ip_10.txt");
+std::map<EndPoint,Info> StatStore::previousDataFromFile;
