@@ -219,16 +219,19 @@ if no value is provided (after an information message).
 
 <pause_update_when_attack>:
 
-This parameter is for "pausing" the update function when one ore more attacks
-occurs, i.e. it updates only the "new" sample, so that the anomaly is not
+For the WKP-Tests, this parameter is for "pausing" the update function when one ore more attacks occurs, i.e. it updates only the "new" sample, so that the anomaly is not
 assumed to be normal traffic when the corresponding sample values are sent
 into the "old" sample. This avoids detecting another anomaly when the
 current anomaly ceases and traffic returns to normal values.
 This parameter can have values 0, 1 or 2 and is set to 0 (after a warning
 message) if omitted.
 0 - no pausing at all
-1 - pause, if (at least) one test detects an attack
-2 - pause, if all tests detect an attack
+1 - pause, if (at least) one of the wkp-tests detects an attack
+2 - pause, if all three tests detect an attack
+For the cusum-test, the values are related to the metrics. That means, updates for alpha will only be paused, if
+1 - at least one metric yielded an alarm
+2 - all metrics yielded an alarm
+3 - pause update for every metric individually.
 
 
 

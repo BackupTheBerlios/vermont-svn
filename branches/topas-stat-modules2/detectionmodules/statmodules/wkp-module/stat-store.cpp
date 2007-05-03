@@ -354,7 +354,7 @@ void StatStore::recordEnd() {
 // TESTING
 void StatStore::writeToFile() {
 
-  std::ofstream file("darpa1_ip_10.txt", std::ios_base::app);
+  std::ofstream file("darpa1_protocol_10.txt", std::ios_base::app);
   if (file.is_open() == true) {
     file << Data;
     file.close();
@@ -439,5 +439,5 @@ bool StatStore::MonitorAllPorts = false;
 bool StatStore::BeginMonitoring = false;
 
 // TESTING
-std::ifstream StatStore::dataFile("darpa1_ip_10.txt");
+std::ifstream StatStore::dataFile("darpa1_protocol_10.txt");
 std::map<EndPoint,Info> StatStore::previousDataFromFile;

@@ -95,13 +95,15 @@ Stat::Stat(const std::string & configfile)
   // and push them into filter vector
   // (Belongs to READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
   // comment it, if not needed!
-  std::ifstream f("darpa1_ip_10_freq_eps.txt");
+
+  std::ifstream f("darpa1_protocol_10_freq_eps.txt");
   std::string tmp;
   while ( getline(f, tmp) ) {
     EndPoint e = EndPoint(IpAddress(0,0,0,0),0,0);
     e.fromString(tmp);
     filter.push_back(e);
   }
+
 
 
   init(configfile);
@@ -1248,6 +1250,9 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
       case 2:
         pause_update_when_attack = 2;
         break;
+      case 3:
+        pause_update_when_attack = 3;
+        break;
       default:
         std::stringstream Error;
         Error
@@ -1257,7 +1262,8 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
           << "  Please chose one of the following and restart:\n"
           << "  0: no pausing\n"
           << "  1: pause, if one test detected an attack\n"
-          << "  2: pause, if all tests detected an attack\n";
+          << "  2: pause, if all tests detected an attack\n"
+          << "  3: pause for every metric individually (for cusum only)\n";
         std::cerr << Error.str();
         if (warning_verbosity==1)
           outfile << Error.str() << std::flush;
@@ -1667,18 +1673,18 @@ void Stat::test(StatStore * store) {
 // EXPLANATION:
 // ##############################################################
 // 1 WRITE DATA TO FILE:
-//      this code simply writes all the data to a file
+//      this code simply writes all the data collected by "store" to a file
 // 2 READ DATA FROM FILE TO SEARCH ENDPOINTS
-//      this file reads the data from the file from 1 and finds the
-//      most frequently appearing X endpoints and writes them to a file.
-//      We can then use them to:
+//      this file reads the data from the file created in 1 and finds the
+//      most frequently appearing X endpoints and writes them to a file which
+//      then can be used as a filter for the next step
 // 3 READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES
 //      only the most frequently appearing X endpoints from
 //      the file created in 2 are considered (thanks to the filter vector, see
 //      constructor) to calculate the metrics for them and write these metrics
 //      to a file for every of these X endpoints.
 // NOW, WE ARE ABLE TO MAKE SOME DIAGRAMS OF THE DATA AND BETTER UNDERSTAND
-// WHAT'S GOING ON. NOW, CUSUM CAN BE APPLIED AND WE KNOW, WHERE IT WILL
+// WHAT'S GOING ON. THEN, CUSUM CAN BE APPLIED AND WE KNOW, WHERE IT WILL
 // POSSIBLY DETECT ANOMALIES.
 
 
@@ -1711,6 +1717,7 @@ void Stat::test(StatStore * store) {
   // read data from file and search the most frequently
   // appearing X endpoints
   // NOTE: dont forget to set alarm_time to 1 AND comment filter in constructor
+  // AND adapt filenames (here and in StatStore)
   bool more = store->readFromFile();
   // still more data to read?
   if (more == true) {
@@ -1749,7 +1756,7 @@ void Stat::test(StatStore * store) {
     }
     // write the X most frequently endpoints to a file
     // Note: Now, we can use that file to determine the filters ...
-    std::ofstream f("darpa1_ip_10_freq_eps.txt", std::ios_base::app);
+    std::ofstream f("darpa1_protocol_10_freq_eps.txt", std::ios_base::app);
     std::map<EndPoint,int>::iterator iter;
     for (iter=mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
       f << iter->first << "\n";
@@ -1764,15 +1771,15 @@ void Stat::test(StatStore * store) {
 
 
 
-
+/*
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // BEGIN TESTING (READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // write metrics from each endpoint to a file
   // so we can make tables of the data with external programs
-  // NOTE: Dont forget to adapt the filename convention here AND for the
+  // NOTE: Dont forget to delete old metrics.txt-files AND adapt filename for the
   // uncommented filter in the constructor AND for StatStore::readFromFile AND
-  // choose metrics to be saved in config file
+  // choose metrics to be saved in config file (alarm_time = 1)
   bool more = store->readFromFile();
   if (more == true) {
     std::map<EndPoint,Info> Data = store->getDataFromFile();
@@ -1791,7 +1798,7 @@ void Stat::test(StatStore * store) {
         // extract metric data
         std::vector<int64_t> v = extract_data(Data_it->second, prev);
         // open endpoint's file
-        std::string fname = "darpa1_ip_10_endpoint_" + (Data_it->first).toString() + ".data";
+        std::string fname = "metrics_" + (Data_it->first).toString() + ".txt";
         std::ofstream file(fname.c_str(),std::ios_base::app);
         // write metric data to file
         for (int i = 0; i != v.size(); i++) {
@@ -1814,19 +1821,132 @@ void Stat::test(StatStore * store) {
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // END TESTING (READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
+
+
+
+  // ++++++++++++++++++++++++++++
+  // BEGIN TESTING (DO THE TESTS)
+  // ++++++++++++++++++++++++++++
+  // Do the Cusum-Test and print out the parameters to a file for
+  // every of the X endpoints and their metrics (to compare it to our metric-diagrams)
+  // NOTE: Dont forget to adapt the filename convention for the
+  // uncommented filter in the constructor AND for StatStore::readFromFile
+  // AND delete old files created by cusum_test() AND  set alarm_time = 1
+  bool more = store->readFromFile();
+  if (more == true) {
+    std::map<EndPoint,Info> Data = store->getDataFromFile();
+
+    if (Data.empty()==true) {
+      if (output_verbosity>=3 || warning_verbosity==1)
+      return;
+    }
+
+    std::map<EndPoint,Info>::iterator Data_it = Data.begin();
+
+    std::map<EndPoint,Info> PreviousData = store->getPreviousDataFromFile();
+    Info prev;
+
+    while (Data_it != Data.end()) {
+      // filter (do tests only for the X frequently appeared endpoints)
+      if ( find(filter.begin(), filter.end(), Data_it->first) != filter.end() ) {
+        outfile << "[[ " << Data_it->first << " ]]" << std::endl;
+
+        prev = PreviousData[Data_it->first];
+
+        if (enable_cusum_test == true) {
+          std::map<EndPoint, CusumParams>::iterator CusumData_it = CusumData.find(Data_it->first);
+
+          if (CusumData_it == CusumData.end()) {
+            CusumParams C;
+            for (int i = 0; i != monitored_values.size(); i++) {
+              (C.sum).push_back(0);
+              (C.alpha).push_back(0.0);
+              (C.g).push_back(0.0);
+              (C.last_cusum_test_was_attack).push_back(false);
+              (C.X_curr).push_back(0);
+              (C.X_last).push_back(0);
+            }
+
+            std::vector<int64_t> v = extract_data(Data_it->second, prev);
+            for (int i = 0; i != v.size(); i++)
+              C.sum.at(i) += v.at(i);
+
+            C.learning_phase_nr = 1;
+
+            CusumData[Data_it->first] = C;
+            if (output_verbosity >= 3)
+              outfile << " (CUSUM): New monitored EndPoint added" << std::endl;
+          }
+          else
+            update_c ( CusumData_it->second, extract_data(Data_it->second, prev) );
+        }
+      }
+      Data_it++;
+    }
+
+    int ep_nr = 0;
+    if (enable_cusum_test == true)
+      ep_nr = CusumData.size();
+
+    if (output_verbosity >= 4) {
+      outfile << "#### STATE OF ALL MONITORED ENDPOINTS (" << ep_nr << "):" << std::endl;
+      if (enable_cusum_test == true) {
+        outfile << "### CUSUM OVERVIEW" << std::endl;
+        std::map<EndPoint,CusumParams>::iterator CusumData_it =
+          CusumData.begin();
+        while (CusumData_it != CusumData.end()) {
+          outfile
+            << "[[ " << CusumData_it->first << " ]]\n"
+            << "  alpha: " << (CusumData_it->second).alpha << "\n"
+            << "  g: " << (CusumData_it->second).g << "\n";
+          CusumData_it++;
+        }
+      }
+    }
+
+    bool MakeStatTest;
+    if (stat_test_frequency == 0)
+      MakeStatTest = false;
+    else
+      MakeStatTest = (test_counter % stat_test_frequency == 0);
+
+    if (MakeStatTest == true) {
+      if (enable_cusum_test == true) {
+        std::map<EndPoint,CusumParams>::iterator CusumData_it = CusumData.begin();
+        while (CusumData_it != CusumData.end()) {
+          if ( (CusumData_it->second).ready_to_test == true ) {
+            outfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
+            cusum_test (CusumData_it->first, CusumData_it->second);
+          }
+          CusumData_it++;
+        }
+      }
+    }
+
+    test_counter++;
+    delete store;
+    outfile << std::endl << std::flush;
+    return;
+  }
+  else {
+    delete store;
+    std::cout << "Done." << std::endl;
+    exit(0);
+  }
+  // ++++++++++++++++++++++++++
+  // END TESTING (DO THE TESTS)
+  // ++++++++++++++++++++++++++
 
 
 
 
 /*
-  // ++++++++++++++++
-  // NORMAL BEHAVIOUR
-  // ++++++++++++++++
+  // ++++++++++++++++++++++
+  // BEGIN NORMAL BEHAVIOUR
+  // ++++++++++++++++++++++
 
   std::map<EndPoint,Info> Data = store->getData();
-  //bool more = store->readFromFile();
-  // if (more == true) {
-  //std::map<EndPoint,Info> Data = store->getDataFromFile();
 
   // Dumping empty records:
   if (Data.empty()==true) {
@@ -2010,7 +2130,6 @@ void Stat::test(StatStore * store) {
   // be conducted)
 
   if (MakeStatTest == true) {
-
     // We begin testing as soon as possible, i.e.
     // for WKP:
       // as soon as a sample is big enough to test, i.e. when its
@@ -2044,25 +2163,17 @@ void Stat::test(StatStore * store) {
         CusumData_it++;
       }
     }
-
   }
 
   test_counter++;
-
-*/
-
-
-  /* don't forget to free the store-object! */
+  // don't forget to free the store-object!
   delete store;
   outfile << std::endl << std::flush;
   return;
-
-  //}
-  //else {
-  //  delete store;
-  //  std::cout << "Done." << std::endl;
-  //  exit(0);
-  //}
+  // ++++++++++++++++++++
+  // END NORMAL BEHAVIOUR
+  // ++++++++++++++++++++
+*/
 }
 
 
@@ -2246,7 +2357,7 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
       }
     }
   }
-  // if parameter is 0 or there was no attack detected
+  // if parameter is 0 (or 3) or there was no attack detected
   // update both samples
   else {
     S.Old.pop_front();
@@ -2305,8 +2416,7 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
         // Note: learning_phase_for_alpha is never 0, because
         // this is handled in init_cusum_test()
         C.alpha.at(i) = C.sum.at(i) / learning_phase_for_alpha;
-        // Set last value (needed to update alpha in the next test-run)
-        C.X_last.at(i) = new_value.at(i);
+        C.X_curr.at(i) = new_value.at(i);
         if (output_verbosity >= 3)
           outfile << C.alpha.at(i) << " ";
       }
@@ -2318,21 +2428,67 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
     }
   }
 
-  // pausing update for alpha, if last cusum-test
-  // was an attack
-  if ( pause_update_when_attack > 0
-    && C.last_cusum_test_was_attack == true) {
+  // pausing update for alpha (depending on pause_update parameter)
+  bool at_least_one_test_was_attack = false;
+  for (int i = 0; i != C.last_cusum_test_was_attack.size(); i++)
+    if (C.last_cusum_test_was_attack.at(i) == true)
+      at_least_one_test_was_attack = true;
+
+  bool all_tests_were_attacks = true;
+  for (int i = 0; i != C.last_cusum_test_was_attack.size(); i++)
+    if (C.last_cusum_test_was_attack.at(i) == false)
+      all_tests_were_attacks = false;
+
+  // pause, if at least one metric yielded an alarm
+  if ( pause_update_when_attack == 1
+    && at_least_one_test_was_attack == true) {
     if (output_verbosity >= 3)
-      outfile << " (CUSUM): Pausing update for alpha\n";
+      outfile << " (CUSUM): Pausing update for alpha (at least one test was attack)\n";
+    // update values for X
+    for (int i = 0; i != C.X_curr.size(); i++) {
+      C.X_last.at(i) = C.X_curr.at(i);
+      C.X_curr.at(i) = new_value.at(i);
+    }
+    return;
+  }
+  // pause, if all metrics yielded an alarm
+  else if ( pause_update_when_attack == 2
+    && all_tests_were_attacks == true) {
+    if (output_verbosity >= 3)
+      outfile << " (CUSUM): Pausing update for alpha (all tests were attacks)\n";
+    // update values for X
+    for (int i = 0; i != C.X_curr.size(); i++) {
+      C.X_last.at(i) = C.X_curr.at(i);
+      C.X_curr.at(i) = new_value.at(i);
+    }
+    return;
+  }
+  // pause for those metrics, which yielded an alarm
+  // and update only the others
+  else if (pause_update_when_attack == 3
+    && at_least_one_test_was_attack == true) {
+    if (output_verbosity >= 3)
+      outfile << " (CUSUM): Pausing update for alpha (for those metrics which were attacks)\n";
+    for (int i = 0; i != C.alpha.size(); i++) {
+      // update values for X
+      C.X_last.at(i) = C.X_curr.at(i);
+      C.X_curr.at(i) = new_value.at(i);
+      if (C.last_cusum_test_was_attack.at(i) == false) {
+        // update alpha
+        C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
+      }
+    }
     return;
   }
 
+
   // Otherwise update all alphas per EWMA
   for (int i = 0; i != C.alpha.size(); i++) {
-    C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
     // update values for X
     C.X_last.at(i) = C.X_curr.at(i);
     C.X_curr.at(i) = new_value.at(i);
+    // update alpha
+    C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
   }
 
   if (output_verbosity >= 3)
@@ -2413,12 +2569,14 @@ void Stat::stat_test (Samples & S) {
 
 // statistical test function / cusum-test
 // (optional, depending on how often the user wishes to do it)
-void Stat::cusum_test(CusumParams & C) {
+// Changed for TESTING (remove EndPoint parameter and TESTING-sequence after testing)
+void Stat::cusum_test(const EndPoint & EP, CusumParams & C) {
 
-  // as the tests can be performed for several metrics, we have to
-  // store, if at least one metric raised an alarm and if so, set
-  // the last_cusum_test_was_attack-flag to true
-  bool was_attack = false;
+  // we have to store, for which metrics an attack was detected and set
+  // the corresponding last_cusum_test_was_attack-flags to true/false
+  std::vector<bool> was_attack;
+  for (int i = 0; i!= C.last_cusum_test_was_attack.size(); i++)
+    was_attack.push_back(false);
   // index, as we cant use the iterator for dereferencing the elements of
   // CusumParams
   int i = 0;
@@ -2450,13 +2608,15 @@ void Stat::cusum_test(CusumParams & C) {
     if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
 
       if (report_only_first_attack == false
-        || C.last_cusum_test_was_attack == false) {
+        || C.last_cusum_test_was_attack.at(i) == false) {
         outfile
-          << "    ATTACK! ATTACK! ATTACK!\n"
+          << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+          << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
           << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
           << "    ALARM! ALARM! Women und children first!" << std::endl;
         std::cout
-          << "  ATTACK! ATTACK! ATTACK!\n"
+          << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+          << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
           << "  Cusum test says we're under attack!\n"
           << "  ALARM! ALARM! Women und children first!" << std::endl;
         #ifdef IDMEF_SUPPORT_ENABLED
@@ -2466,17 +2626,29 @@ void Stat::cusum_test(CusumParams & C) {
         #endif
       }
 
-      was_attack = true;
+      was_attack.at(i) = true;
 
     }
+
+    // BEGIN TESTING
+    std::string filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+    std::ofstream file(filename.c_str(), std::ios_base::app);
+    // nr X  g N alpha beta
+    file << (int) C.X_curr.at(i) << " " << (int) C.g.at(i)
+         << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
+         << " " << test_counter << "\n";
+    file.close();
+    // END TESTING
 
     i++;
   }
 
-  if (was_attack == true)
-    C.last_cusum_test_was_attack = true;
-  else
-    C.last_cusum_test_was_attack = false;
+  for (int i = 0; i != was_attack.size(); i++) {
+    if (was_attack.at(i) == true)
+      C.last_cusum_test_was_attack.at(i) = true;
+    else
+      C.last_cusum_test_was_attack.at(i) = false;
+  }
 
   outfile << std::flush;
   return;
@@ -2597,9 +2769,9 @@ std::string Stat::getMetricName(const enum Metric & m) {
     case RECORDS_OUT:
       return std::string("records_out");
     case BYTES_IN_PER_PACKET_IN:
-      return std::string("bytes_in/packet_in");
+      return std::string("bytes_in_per_packet_in");
     case BYTES_OUT_PER_PACKET_OUT:
-      return std::string("bytes_out/packet_out");
+      return std::string("bytes_out_per_packet_out");
     case PACKETS_OUT_MINUS_PACKETS_IN:
       return std::string("packets_out-packets_in");
     case BYTES_OUT_MINUS_BYTES_IN:

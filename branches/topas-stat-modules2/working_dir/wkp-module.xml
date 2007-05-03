@@ -16,7 +16,7 @@
     <alarm_time>1</alarm_time>
     <warning_verbosity>1</warning_verbosity>
     <output_verbosity>4</output_verbosity>
-    <endpoint_key>all</endpoint_key>
+    <endpoint_key>protocol</endpoint_key>
     <monitored_values>
       <value>packets_in</value>
       <value>packets_out</value>
@@ -42,17 +42,17 @@
     <netmask>32</netmask>
     <stat_test_frequency>1</stat_test_frequency>
     <report_only_first_attack>true</report_only_first_attack>
-    <pause_update_when_attack>2</pause_update_when_attack>
+    <pause_update_when_attack>3</pause_update_when_attack>
 	</preferences>
   <cusum-test-params>
     <cusum_test>true</cusum_test>
-    <amplitude_percentage>1.33</amplitude_percentage>
+    <amplitude_percentage>2.0</amplitude_percentage>
     <repetition_factor>3</repetition_factor>
-    <learning_phase_for_alpha>3</learning_phase_for_alpha>
-    <smoothing_constant>0.115</smoothing_constant>
+    <learning_phase_for_alpha>50</learning_phase_for_alpha>
+    <smoothing_constant>0.05</smoothing_constant>
   </cusum-test-params>
 	<wkp-test-params>
-		<wilcoxon_test>true</wilcoxon_test>
+		<wilcoxon_test>false</wilcoxon_test>
 		<kolmogorov_test>false</kolmogorov_test>
 		<pearson_chi-square_test>false</pearson_chi-square_test>
 		<sample_old_size>3</sample_old_size>

@@ -119,12 +119,13 @@ public:
   // needed to update alpha
   std::vector<int> X_last;
 
-  bool last_cusum_test_was_attack;
+  // every metric has its was-attack-flag
+  std::vector<bool> last_cusum_test_was_attack;
+
   bool ready_to_test;
 
   CusumParams()
   {
-    last_cusum_test_was_attack = false;
     ready_to_test = false;
     learning_phase_nr = 0;
   }
@@ -205,7 +206,8 @@ class Stat : public DetectionBase<StatStore> {
   void update(Samples &, const std::vector<int64_t> &);
   void stat_test(Samples &);
   void update_c(CusumParams &, const std::vector<int64_t> &);
-  void cusum_test(CusumParams &);
+  // Changed for TESTING (remove the first parameter after testing)
+  void cusum_test(const EndPoint &, CusumParams &);
 
   // this function is called by stat_test() and cusum_test() to extract a
   // single metric to test from a std::vector<int64_t>

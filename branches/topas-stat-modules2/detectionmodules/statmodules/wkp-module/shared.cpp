@@ -27,7 +27,7 @@
 std::string EndPoint::toString() const
 {
         std::stringstream sstream;
-        sstream << ipAddr << ":" << portNr << "|" << (uint16_t) protocolID;
+        sstream << ipAddr << "_" << portNr << "|" << (uint16_t) protocolID;
         return sstream.str();
 }
 
