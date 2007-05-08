@@ -354,7 +354,7 @@ void StatStore::recordEnd() {
 // TESTING
 void StatStore::writeToFile() {
 
-  std::ofstream file("darpa1_protocol_10.txt", std::ios_base::app);
+  std::ofstream file("darpa2_protocol_10.txt", std::ios_base::app);
   if (file.is_open() == true) {
     file << Data;
     file.close();

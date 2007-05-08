@@ -205,9 +205,12 @@ class Stat : public DetectionBase<StatStore> {
   std::vector<int64_t> extract_data (const Info &, const Info &);
   void update(Samples &, const std::vector<int64_t> &);
   void stat_test(Samples &);
+  // use this for TESTING purposes!
+  void T_stat_test(const EndPoint &, Samples &);
   void update_c(CusumParams &, const std::vector<int64_t> &);
-  // Changed for TESTING (remove the first parameter after testing)
-  void cusum_test(const EndPoint &, CusumParams &);
+  void cusum_test(CusumParams &);
+  // use this for TESTING purposes!
+  void T_cusum_test(const EndPoint &, CusumParams &);
 
   // this function is called by stat_test() and cusum_test() to extract a
   // single metric to test from a std::vector<int64_t>
@@ -215,9 +218,9 @@ class Stat : public DetectionBase<StatStore> {
   std::string getMetricName(const enum Metric &);
 
   // the following functions are called by the stat_test()-function
-  void stat_test_wmw(std::list<int64_t> &, std::list<int64_t> &, bool &);
-  void stat_test_ks (std::list<int64_t> &, std::list<int64_t> &, bool &);
-  void stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &, bool &);
+  double stat_test_wmw(std::list<int64_t> &, std::list<int64_t> &, bool &);
+  double stat_test_ks (std::list<int64_t> &, std::list<int64_t> &, bool &);
+  double stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &, bool &);
 
   // TESTING
   // contains endpoints and their number of occurance

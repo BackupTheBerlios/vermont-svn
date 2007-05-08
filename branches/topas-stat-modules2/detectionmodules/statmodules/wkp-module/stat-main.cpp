@@ -1686,6 +1686,12 @@ void Stat::test(StatStore * store) {
 // NOW, WE ARE ABLE TO MAKE SOME DIAGRAMS OF THE DATA AND BETTER UNDERSTAND
 // WHAT'S GOING ON. THEN, CUSUM CAN BE APPLIED AND WE KNOW, WHERE IT WILL
 // POSSIBLY DETECT ANOMALIES.
+//
+// 4 DO THE TESTS
+//      reads data from file and executes the cusum-test on it. For every endpoint
+//      and every metric, it creates a file where alle the cusum-params are stored
+//      in. They can be visualized afterwards to be compared to the metric-diagrams
+//      from 3 and so on.
 
 
 /*
@@ -1703,6 +1709,7 @@ void Stat::test(StatStore * store) {
 
   // write data to file
   store->writeToFile();
+  delete store;
   // ++++++++++++++++++++++++++++++++
   // END TESTING (WRITE DATA TO FILE)
   // ++++++++++++++++++++++++++++++++
@@ -1735,6 +1742,7 @@ void Stat::test(StatStore * store) {
     }
     std::cout << "Stand: " << counter << std::endl;
     counter++;
+    delete store;
   }
   // if all data was read
   else {
@@ -1762,6 +1770,7 @@ void Stat::test(StatStore * store) {
       f << iter->first << "\n";
     f.close();
     std::cout << "Done." << std::endl;
+    delete store;
     exit(0);
   }
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1813,9 +1822,11 @@ void Stat::test(StatStore * store) {
     }
     std::cout << "Stand: " << counter << std::endl;
     counter++;
+    delete store;
   }
   else {
     std::cout << "Done." << std::endl;
+    delete store;
     exit(0);
   }
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1837,10 +1848,8 @@ void Stat::test(StatStore * store) {
   if (more == true) {
     std::map<EndPoint,Info> Data = store->getDataFromFile();
 
-    if (Data.empty()==true) {
-      if (output_verbosity>=3 || warning_verbosity==1)
+    if (Data.empty()==true)
       return;
-    }
 
     std::map<EndPoint,Info>::iterator Data_it = Data.begin();
 
@@ -1853,6 +1862,27 @@ void Stat::test(StatStore * store) {
         outfile << "[[ " << Data_it->first << " ]]" << std::endl;
 
         prev = PreviousData[Data_it->first];
+
+        if (enable_wkp_test == true) {
+          std::map<EndPoint, Samples>::iterator SampleData_it =
+            SampleData.find(Data_it->first);
+
+          if (SampleData_it == SampleData.end()) {
+            Samples S;
+            // extract_data has vector<int64_t> as output
+            (S.Old).push_back(extract_data(Data_it->second, prev));
+            SampleData[Data_it->first] = S;
+            if (output_verbosity >= 3) {
+              outfile << " (WKP): New monitored EndPoint added" << std::endl;
+              if (output_verbosity >= 4) {
+                outfile << "   with first element of sample_old: " << S.Old.back() << std::endl;
+              }
+            }
+
+          }
+          else
+            update ( SampleData_it->second, extract_data(Data_it->second, prev) );
+        }
 
         if (enable_cusum_test == true) {
           std::map<EndPoint, CusumParams>::iterator CusumData_it = CusumData.find(Data_it->first);
@@ -1885,12 +1915,28 @@ void Stat::test(StatStore * store) {
       Data_it++;
     }
 
-    int ep_nr = 0;
-    if (enable_cusum_test == true)
+    int ep_nr;
+    if (enable_wkp_test == true)
+      ep_nr = SampleData.size();
+    else if (enable_cusum_test == true)
       ep_nr = CusumData.size();
 
     if (output_verbosity >= 4) {
       outfile << "#### STATE OF ALL MONITORED ENDPOINTS (" << ep_nr << "):" << std::endl;
+      if (enable_wkp_test == true) {
+        outfile << "### WKP OVERVIEW" << std::endl;
+        std::map<EndPoint,Samples>::iterator SampleData_it =
+          SampleData.begin();
+        while (SampleData_it != SampleData.end()) {
+          outfile
+            << "[[ " << SampleData_it->first << " ]]\n"
+            << "  sample_old (" << (SampleData_it->second).Old.size()  << ") : "
+            << (SampleData_it->second).Old << "\n"
+            << "  sample_new (" << (SampleData_it->second).New.size() << ") : "
+            << (SampleData_it->second).New << "\n";
+          SampleData_it++;
+        }
+      }
       if (enable_cusum_test == true) {
         outfile << "### CUSUM OVERVIEW" << std::endl;
         std::map<EndPoint,CusumParams>::iterator CusumData_it =
@@ -1912,12 +1958,22 @@ void Stat::test(StatStore * store) {
       MakeStatTest = (test_counter % stat_test_frequency == 0);
 
     if (MakeStatTest == true) {
+      if (enable_wkp_test == true) {
+        std::map<EndPoint,Samples>::iterator SampleData_it = SampleData.begin();
+        while (SampleData_it != SampleData.end()) {
+          if ( ((SampleData_it->second).New).size() == sample_new_size ) {
+            outfile << "\n#### WKP TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
+            T_stat_test ( SampleData_it->first, SampleData_it->second );
+          }
+          SampleData_it++;
+        }
+      }
       if (enable_cusum_test == true) {
         std::map<EndPoint,CusumParams>::iterator CusumData_it = CusumData.begin();
         while (CusumData_it != CusumData.end()) {
           if ( (CusumData_it->second).ready_to_test == true ) {
             outfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
-            cusum_test (CusumData_it->first, CusumData_it->second);
+            T_cusum_test (CusumData_it->first, CusumData_it->second);
           }
           CusumData_it++;
         }
@@ -2069,7 +2125,6 @@ void Stat::test(StatStore * store) {
         // thanks to the recorded new values in Data_it->second:
         update_c ( CusumData_it->second, extract_data(Data_it->second, prev) );
       }
-
     }
 
     Data_it++;
@@ -2528,6 +2583,7 @@ void Stat::stat_test (Samples & S) {
     sample_old_single_metric = getSingleMetric(S.Old, *it, index);
     sample_new_single_metric = getSingleMetric(S.New, *it, index);
 
+
     // Wilcoxon-Mann-Whitney test:
     if (enable_wmw_test == true) {
       stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
@@ -2567,10 +2623,182 @@ void Stat::stat_test (Samples & S) {
 
 }
 
+// same function as the above one, but for TESTING purposes!
+void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
+
+  // Containers for the values of single metrics
+  std::list<int64_t> sample_old_single_metric;
+  std::list<int64_t> sample_new_single_metric;
+
+  std::vector<Metric>::iterator it = monitored_values.begin();
+
+  // for every value (represented by *it) in monitored_values,
+  // do the tests
+  short index = 0;
+  // as the tests can be performed for several metrics, we have to
+  // store, if at least one metric raised an alarm and if so, set
+  // the last_test_was_attack-flag to true
+  bool wmw_was_attack = false;
+  bool ks_was_attack = false;
+  bool pcs_was_attack = false;
+
+  while (it != monitored_values.end()) {
+
+    if (output_verbosity >= 4)
+      outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
+
+    sample_old_single_metric = getSingleMetric(S.Old, *it, index);
+    sample_new_single_metric = getSingleMetric(S.New, *it, index);
+
+    double p_wmw, p_ks, p_pcs;
+
+    // Wilcoxon-Mann-Whitney test:
+    if (enable_wmw_test == true) {
+      p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
+      if (S.last_wmw_test_was_attack == true)
+        wmw_was_attack = true;
+    }
+
+    // Kolmogorov-Smirnov test:
+    if (enable_ks_test == true) {
+      p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
+      if (S.last_ks_test_was_attack == true)
+        ks_was_attack = true;
+    }
+
+    // Pearson chi-square test:
+    if (enable_pcs_test == true) {
+      p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
+      if (S.last_pcs_test_was_attack == true)
+        pcs_was_attack = true;
+    }
+
+    std::string wmw_filename = "wmwparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+    std::string ks_filename = "ksparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+    std::string pcs_filename = "pcsparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+
+    std::stringstream tmp;
+    tmp << p_wmw;
+    std::string str_p_wmw = tmp.str();
+    tmp.clear();
+    std::string::size_type i = str_p_wmw.find('.',0);
+    str_p_wmw.replace(i, 1, 1, ',');
+
+    tmp << p_ks;
+    std::string str_p_ks = tmp.str();
+    tmp.clear();
+    i = str_p_ks.find('.',0);
+    str_p_ks.replace(i, 1, 1, ',');
+
+    tmp << p_pcs;
+    std::string str_p_pcs = tmp.str();
+    i = str_p_pcs.find('.',0);
+    str_p_pcs.replace(i, 1, 1, ',');
+
+    std::ofstream wmw_file(wmw_filename.c_str(), std::ios_base::app);
+    std::ofstream ks_file(ks_filename.c_str(), std::ios_base::app);
+    std::ofstream pcs_file(pcs_filename.c_str(), std::ios_base::app);
+    wmw_file << str_p_wmw << " " << test_counter << "\n";
+    ks_file << str_p_ks << " " << test_counter << "\n";
+    pcs_file << str_p_pcs << " " << test_counter << "\n";
+    wmw_file.close();
+    ks_file.close();
+    pcs_file.close();
+
+    it++;
+    index++;
+  }
+
+  // if there was at least one alarm, set the corresponding
+  // flag to true
+  if (wmw_was_attack == true)
+    S.last_wmw_test_was_attack = true;
+  if (ks_was_attack == true)
+    S.last_ks_test_was_attack = true;
+  if (pcs_was_attack == true)
+    S.last_pcs_test_was_attack = true;
+
+  outfile << std::flush;
+  return;
+
+}
+
 // statistical test function / cusum-test
 // (optional, depending on how often the user wishes to do it)
-// Changed for TESTING (remove EndPoint parameter and TESTING-sequence after testing)
-void Stat::cusum_test(const EndPoint & EP, CusumParams & C) {
+void Stat::cusum_test(CusumParams & C) {
+
+  // we have to store, for which metrics an attack was detected and set
+  // the corresponding last_cusum_test_was_attack-flags to true/false
+  std::vector<bool> was_attack;
+  for (int i = 0; i!= C.last_cusum_test_was_attack.size(); i++)
+    was_attack.push_back(false);
+  // index, as we cant use the iterator for dereferencing the elements of
+  // CusumParams
+  int i = 0;
+  // current adapted threshold
+  double N = 0.0;
+  // beta, needed to make (Xn - beta) slightly negative in the mean
+  double beta = 0.0;
+
+  for (std::vector<Metric>::iterator it = monitored_values.begin(); it != monitored_values.end(); it++) {
+
+    if (output_verbosity >= 4)
+      outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+
+    // Calculate N and beta
+    N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
+    beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
+
+    if (output_verbosity >= 4) {
+      outfile << " Cusum test returned:\n"
+              << "  Threshold: " << N << std::endl;
+      outfile << "  reject H0 (no attack) if current value of statistic g > "
+              << N << std::endl;
+    }
+
+    // TODO(3)
+    // "attack still in progress"-Nachricht?
+
+    // perform the test and if g > N raise an alarm
+    if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
+
+      if (report_only_first_attack == false
+        || C.last_cusum_test_was_attack.at(i) == false) {
+        outfile
+          << "    ATTACK! ATTACK! ATTACK!\n"
+          << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
+          << "    ALARM! ALARM! Women und children first!" << std::endl;
+        std::cout
+          << "  ATTACK! ATTACK! ATTACK!\n"
+          << "  Cusum test says we're under attack!\n"
+          << "  ALARM! ALARM! Women und children first!" << std::endl;
+        #ifdef IDMEF_SUPPORT_ENABLED
+          idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
+          sendIdmefMessage("DDoS", idmefMessage);
+          idmefMessage = getNewIdmefMessage();
+        #endif
+      }
+
+      was_attack.at(i) = true;
+
+    }
+
+    i++;
+  }
+
+  for (int i = 0; i != was_attack.size(); i++) {
+    if (was_attack.at(i) == true)
+      C.last_cusum_test_was_attack.at(i) = true;
+    else
+      C.last_cusum_test_was_attack.at(i) = false;
+  }
+
+  outfile << std::flush;
+  return;
+}
+
+// same function as the above one, but for TESTING purposes!
+void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
 
   // we have to store, for which metrics an attack was detected and set
   // the corresponding last_cusum_test_was_attack-flags to true/false
@@ -2615,8 +2843,8 @@ void Stat::cusum_test(const EndPoint & EP, CusumParams & C) {
           << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
           << "    ALARM! ALARM! Women und children first!" << std::endl;
         std::cout
-          << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-          << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
+          << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+          << "  " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
           << "  Cusum test says we're under attack!\n"
           << "  ALARM! ALARM! Women und children first!" << std::endl;
         #ifdef IDMEF_SUPPORT_ENABLED
@@ -2791,7 +3019,7 @@ std::string Stat::getMetricName(const enum Metric & m) {
   }
 }
 
-void Stat::stat_test_wmw (std::list<int64_t> & sample_old,
+double Stat::stat_test_wmw (std::list<int64_t> & sample_old,
 			  std::list<int64_t> & sample_new, bool & last_wmw_test_was_attack) {
 
   double p;
@@ -2814,11 +3042,11 @@ void Stat::stat_test_wmw (std::list<int64_t> & sample_old,
       if (report_only_first_attack == false
 	    || last_wmw_test_was_attack == false) {
 	      outfile
-          << "    ATTACK! ATTACK! ATTACK!\n"
+          << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
 		      << "    Wilcoxon-Mann-Whitney test says we're under attack!\n"
 		      << "    ALARM! ALARM! Women und children first!" << std::endl;
 	      std::cout
-          << "  ATTACK! ATTACK! ATTACK!\n"
+          << "  ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
           << "  Wilcoxon-Mann-Whitney test says we're under attack!\n"
 		      << "  ALARM! ALARM! Women und children first!" << std::endl;
       #ifdef IDMEF_SUPPORT_ENABLED
@@ -2849,11 +3077,10 @@ void Stat::stat_test_wmw (std::list<int64_t> & sample_old,
       last_wmw_test_was_attack = false;
   }
 
-  return;
+  return p;
 }
 
-
-void Stat::stat_test_ks (std::list<int64_t> & sample_old,
+double Stat::stat_test_ks (std::list<int64_t> & sample_old,
 			 std::list<int64_t> & sample_new, bool & last_ks_test_was_attack) {
 
   double p;
@@ -2875,10 +3102,10 @@ void Stat::stat_test_ks (std::list<int64_t> & sample_old,
     if (significance_level > p) {
       if (report_only_first_attack == false
 	    || last_ks_test_was_attack == false) {
-	      outfile << "    ATTACK! ATTACK! ATTACK!\n"
+	      outfile << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
 		      << "    Kolmogorov-Smirnov test says we're under attack!\n"
 		      << "    ALARM! ALARM! Women und children first!" << std::endl;
-	      std::cout << "  ATTACK! ATTACK! ATTACK!\n"
+	      std::cout << "  ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
           << "  Kolmogorov-Smirnov test says we're under attack!\n"
           << "  ALARM! ALARM! Women und children first!" << std::endl;
       #ifdef IDMEF_SUPPORT_ENABLED
@@ -2909,11 +3136,11 @@ void Stat::stat_test_ks (std::list<int64_t> & sample_old,
       last_ks_test_was_attack = false;
   }
 
-  return;
+  return p;
 }
 
 
-void Stat::stat_test_pcs (std::list<int64_t> & sample_old,
+double Stat::stat_test_pcs (std::list<int64_t> & sample_old,
 			  std::list<int64_t> & sample_new, bool & last_pcs_test_was_attack) {
 
   double p;
@@ -2935,10 +3162,10 @@ void Stat::stat_test_pcs (std::list<int64_t> & sample_old,
     if (significance_level > p) {
       if (report_only_first_attack == false
 	    || last_pcs_test_was_attack == false) {
-	      outfile << "    ATTACK! ATTACK! ATTACK!\n"
+	      outfile << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
 		      << "    Pearson chi-square test says we're under attack!\n"
 		      << "    ALARM! ALARM! Women und children first!" << std::endl;
-	      std::cout << "  ATTACK! ATTACK! ATTACK!\n"
+	      std::cout << "  ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
 		      << "  Pearson chi-square test says we're under attack!\n"
 		      << "  ALARM! ALARM! Women und children first!" << std::endl;
       #ifdef IDMEF_SUPPORT_ENABLED
@@ -2969,7 +3196,7 @@ void Stat::stat_test_pcs (std::list<int64_t> & sample_old,
       last_pcs_test_was_attack = false;
   }
 
-  return;
+  return p;
 }
 
 void Stat::sigTerm(int signum)

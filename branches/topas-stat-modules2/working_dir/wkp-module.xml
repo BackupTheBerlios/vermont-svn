@@ -46,17 +46,17 @@
 	</preferences>
   <cusum-test-params>
     <cusum_test>true</cusum_test>
-    <amplitude_percentage>2.0</amplitude_percentage>
+    <amplitude_percentage>3</amplitude_percentage>
     <repetition_factor>3</repetition_factor>
     <learning_phase_for_alpha>50</learning_phase_for_alpha>
     <smoothing_constant>0.05</smoothing_constant>
   </cusum-test-params>
 	<wkp-test-params>
-		<wilcoxon_test>false</wilcoxon_test>
-		<kolmogorov_test>false</kolmogorov_test>
-		<pearson_chi-square_test>false</pearson_chi-square_test>
-		<sample_old_size>3</sample_old_size>
-		<sample_new_size>1</sample_new_size>
+		<wilcoxon_test>true</wilcoxon_test>
+		<kolmogorov_test>true</kolmogorov_test>
+		<pearson_chi-square_test>true</pearson_chi-square_test>
+		<sample_old_size>100</sample_old_size>
+		<sample_new_size>10</sample_new_size>
 		<two_sided>false</two_sided>
 		<significance_level>0.05</significance_level>
 	</wkp-test-params>
