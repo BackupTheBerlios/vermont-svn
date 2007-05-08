@@ -2673,37 +2673,34 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
         pcs_was_attack = true;
     }
 
-    std::string wmw_filename = "wmwparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
-    std::string ks_filename = "ksparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
-    std::string pcs_filename = "pcsparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+    std::string filename = "wkpparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
 
-    std::stringstream tmp;
-    tmp << p_wmw;
-    std::string str_p_wmw = tmp.str();
-    tmp.clear();
+    // replace the decimal point by a comma
+    // (open office cant handle points in decimal numbers ;) )
+    std::stringstream tmp1;
+    tmp1 << p_wmw;
+    std::string str_p_wmw = tmp1.str();
     std::string::size_type i = str_p_wmw.find('.',0);
-    str_p_wmw.replace(i, 1, 1, ',');
+    if (i != std::string::npos)
+      str_p_wmw.replace(i, 1, 1, ',');
 
-    tmp << p_ks;
-    std::string str_p_ks = tmp.str();
-    tmp.clear();
+    std::stringstream tmp2;
+    tmp2 << p_ks;
+    std::string str_p_ks = tmp2.str();
     i = str_p_ks.find('.',0);
-    str_p_ks.replace(i, 1, 1, ',');
+    if (i != std::string::npos)
+      str_p_ks.replace(i, 1, 1, ',');
 
-    tmp << p_pcs;
-    std::string str_p_pcs = tmp.str();
+    std::stringstream tmp3;
+    tmp3 << p_pcs;
+    std::string str_p_pcs = tmp3.str();
     i = str_p_pcs.find('.',0);
-    str_p_pcs.replace(i, 1, 1, ',');
+    if (i != std::string::npos)
+      str_p_pcs.replace(i, 1, 1, ',');
 
-    std::ofstream wmw_file(wmw_filename.c_str(), std::ios_base::app);
-    std::ofstream ks_file(ks_filename.c_str(), std::ios_base::app);
-    std::ofstream pcs_file(pcs_filename.c_str(), std::ios_base::app);
-    wmw_file << str_p_wmw << " " << test_counter << "\n";
-    ks_file << str_p_ks << " " << test_counter << "\n";
-    pcs_file << str_p_pcs << " " << test_counter << "\n";
-    wmw_file.close();
-    ks_file.close();
-    pcs_file.close();
+    std::ofstream file(filename.c_str(), std::ios_base::app);
+    file << str_p_wmw << " " << str_p_ks << " " << str_p_pcs << " " << test_counter << "\n";
+    file.close();
 
     it++;
     index++;
