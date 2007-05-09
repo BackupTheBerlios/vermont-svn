@@ -58,6 +58,6 @@
 		<sample_old_size>100</sample_old_size>
 		<sample_new_size>10</sample_new_size>
 		<two_sided>false</two_sided>
-		<significance_level>0.05</significance_level>
+		<significance_level>0.01</significance_level>
 	</wkp-test-params>
 </configuration>

@@ -95,7 +95,6 @@ Stat::Stat(const std::string & configfile)
   // and push them into filter vector
   // (Belongs to READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
   // comment it, if not needed!
-
   std::ifstream f("darpa1_protocol_10_freq_eps.txt");
   std::string tmp;
   while ( getline(f, tmp) ) {
@@ -1696,7 +1695,7 @@ void Stat::test(StatStore * store) {
 
 /*
   // ++++++++++++++++++++++++++++++++++
-  // BEGIN TESTING (WRITE DATA TO FILE)
+  // BEGIN TESTING (1 WRITE DATA TO FILE)
   // ++++++++++++++++++++++++++++++++++
   // NOTE: adapt file name in StatStore::writeToFile() AND
   // comment filter in constructor AND
@@ -1711,7 +1710,7 @@ void Stat::test(StatStore * store) {
   store->writeToFile();
   delete store;
   // ++++++++++++++++++++++++++++++++
-  // END TESTING (WRITE DATA TO FILE)
+  // END TESTING (1 WRITE DATA TO FILE)
   // ++++++++++++++++++++++++++++++++
 */
 
@@ -1719,7 +1718,7 @@ void Stat::test(StatStore * store) {
 
 /*
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // BEGIN TESTING (READ DATA FROM FILE TO SEARCH ENDPOINTS)
+  // BEGIN TESTING (2 READ DATA FROM FILE TO SEARCH ENDPOINTS)
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // read data from file and search the most frequently
   // appearing X endpoints
@@ -1764,7 +1763,7 @@ void Stat::test(StatStore * store) {
     }
     // write the X most frequently endpoints to a file
     // Note: Now, we can use that file to determine the filters ...
-    std::ofstream f("darpa1_protocol_10_freq_eps.txt", std::ios_base::app);
+    std::ofstream f("darpa2_protocol_10_freq_eps.txt", std::ios_base::app);
     std::map<EndPoint,int>::iterator iter;
     for (iter=mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
       f << iter->first << "\n";
@@ -1774,7 +1773,7 @@ void Stat::test(StatStore * store) {
     exit(0);
   }
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // END TESTING (READ DATA FROM FILE TO SEARCH ENDPOINTS)
+  // END TESTING (2 READ DATA FROM FILE TO SEARCH ENDPOINTS)
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 */
 
@@ -1782,7 +1781,7 @@ void Stat::test(StatStore * store) {
 
 /*
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // BEGIN TESTING (READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
+  // BEGIN TESTING (3 READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // write metrics from each endpoint to a file
   // so we can make tables of the data with external programs
@@ -1830,14 +1829,14 @@ void Stat::test(StatStore * store) {
     exit(0);
   }
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // END TESTING (READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
+  // END TESTING (3 READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 */
 
 
 
   // ++++++++++++++++++++++++++++
-  // BEGIN TESTING (DO THE TESTS)
+  // BEGIN TESTING (4 DO THE TESTS)
   // ++++++++++++++++++++++++++++
   // Do the Cusum-Test and print out the parameters to a file for
   // every of the X endpoints and their metrics (to compare it to our metric-diagrams)
@@ -1991,7 +1990,7 @@ void Stat::test(StatStore * store) {
     exit(0);
   }
   // ++++++++++++++++++++++++++
-  // END TESTING (DO THE TESTS)
+  // END TESTING (4 DO THE TESTS)
   // ++++++++++++++++++++++++++
 
 
@@ -2699,7 +2698,8 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
       str_p_pcs.replace(i, 1, 1, ',');
 
     std::ofstream file(filename.c_str(), std::ios_base::app);
-    file << str_p_wmw << " " << str_p_ks << " " << str_p_pcs << " " << test_counter << "\n";
+    // metric p-value(wmw) p-value(ks) p-value(pcs) counter
+    file << sample_new_single_metric.back() << " " << str_p_wmw << " " << str_p_ks << " " << str_p_pcs << " " << test_counter << "\n";
     file.close();
 
     it++;

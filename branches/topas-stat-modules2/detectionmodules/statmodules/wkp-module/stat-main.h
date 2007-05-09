@@ -80,6 +80,9 @@ public:
   std::list<std::vector<int64_t> > Old;
   std::list<std::vector<int64_t> > New;
 
+  // every metric has its was-attack-flag for every test
+  // TODO: pause update for every metric individually (pause_update = 3)
+  // see Cusum-test ...
   bool last_wmw_test_was_attack;
   bool last_ks_test_was_attack;
   bool last_pcs_test_was_attack;
