@@ -87,6 +87,13 @@ public:
   bool last_ks_test_was_attack;
   bool last_pcs_test_was_attack;
 
+  // BEGIN TESTING
+  // count raised alarms for every metric, endpoint and test seperately
+  std::vector<int> wmw_alarms;
+  std::vector<int> ks_alarms;
+  std::vector<int> pcs_alarms;
+  // END TESTING
+
   Samples()
   {
     last_wmw_test_was_attack = false;
@@ -124,6 +131,11 @@ public:
 
   // every metric has its was-attack-flag
   std::vector<bool> last_cusum_test_was_attack;
+
+  // BEGIN TESTING
+  // count raised alarms for every metric and endpoint seperately
+  std::vector<int> cusum_alarms;
+  // END TESTING
 
   bool ready_to_test;
 
@@ -225,13 +237,18 @@ class Stat : public DetectionBase<StatStore> {
   double stat_test_ks (std::list<int64_t> &, std::list<int64_t> &, bool &);
   double stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &, bool &);
 
-  // TESTING
+  // BEGIN TESTING
   // contains endpoints and their number of occurance
   std::map<EndPoint,int> endPointCount;
-  int counter;
+  int counter; // only needed to print out state for the test-scripts 2 and 3)
+  std::vector<int> cusum_alarms;  // counters for detected attacks
+  std::vector<int> wmw_alarms;    // for every metric
+  std::vector<int> ks_alarms;     // and avery test
+  std::vector<int> pcs_alarms;
   // contains most frequently X appeared endpoints ...
   // only data for them will be collected and written to files
   std::vector<EndPoint> filter;
+  // END TESTING
 
 
   // here is the sample container for the wkp-tests:

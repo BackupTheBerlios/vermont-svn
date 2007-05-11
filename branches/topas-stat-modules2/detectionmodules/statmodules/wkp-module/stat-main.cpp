@@ -89,13 +89,14 @@ Stat::Stat(const std::string & configfile)
   test_counter = 0;
 
 
-  // TESTING
+  // BEGIN TESTING
   counter = 0;
   // Filtering: read most frequently X endpoints from file
   // and push them into filter vector
-  // (Belongs to READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
+  // (Needed for test-scripts 3 and 4)
   // comment it, if not needed!
-  std::ifstream f("darpa1_protocol_10_freq_eps.txt");
+
+  std::ifstream f("darpa1_port_10_freq_eps.txt");
   std::string tmp;
   while ( getline(f, tmp) ) {
     EndPoint e = EndPoint(IpAddress(0,0,0,0),0,0);
@@ -103,6 +104,7 @@ Stat::Stat(const std::string & configfile)
     filter.push_back(e);
   }
 
+  // END TESTING
 
 
   init(configfile);
@@ -1700,6 +1702,7 @@ void Stat::test(StatStore * store) {
   // NOTE: adapt file name in StatStore::writeToFile() AND
   // comment filter in constructor AND
   // adapt config file (endpoint_key, alarm_time = 10 etc.)
+  // AND start vermont ;)
   std::map<EndPoint,Info> Data = store->getData();
 
   // Dumping empty records:
@@ -1763,7 +1766,7 @@ void Stat::test(StatStore * store) {
     }
     // write the X most frequently endpoints to a file
     // Note: Now, we can use that file to determine the filters ...
-    std::ofstream f("darpa2_protocol_10_freq_eps.txt", std::ios_base::app);
+    std::ofstream f("darpa1_port_10_freq_eps.txt", std::ios_base::app);
     std::map<EndPoint,int>::iterator iter;
     for (iter=mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
       f << iter->first << "\n";
@@ -1810,11 +1813,9 @@ void Stat::test(StatStore * store) {
         std::ofstream file(fname.c_str(),std::ios_base::app);
         // write metric data to file
         for (int i = 0; i != v.size(); i++) {
-          file << v.at(i);
-          if (i != v.size()-1)
-            file << " ";
+          file << v.at(i) << " ";
         }
-        file << "\n";
+        file << counter << "\n";
         file.close();
       }
       Data_it++;
@@ -1843,6 +1844,7 @@ void Stat::test(StatStore * store) {
   // NOTE: Dont forget to adapt the filename convention for the
   // uncommented filter in the constructor AND for StatStore::readFromFile
   // AND delete old files created by cusum_test() AND  set alarm_time = 1
+  // AND chose some params
   bool more = store->readFromFile();
   if (more == true) {
     std::map<EndPoint,Info> Data = store->getDataFromFile();
@@ -1866,10 +1868,15 @@ void Stat::test(StatStore * store) {
           std::map<EndPoint, Samples>::iterator SampleData_it =
             SampleData.find(Data_it->first);
 
+          // initialize S
           if (SampleData_it == SampleData.end()) {
             Samples S;
-            // extract_data has vector<int64_t> as output
             (S.Old).push_back(extract_data(Data_it->second, prev));
+            for (int i = 0; i != monitored_values.size(); i++) {
+              (S.wmw_alarms).push_back(0);
+              (S.ks_alarms).push_back(0);
+              (S.pcs_alarms).push_back(0);
+            }
             SampleData[Data_it->first] = S;
             if (output_verbosity >= 3) {
               outfile << " (WKP): New monitored EndPoint added" << std::endl;
@@ -1886,6 +1893,7 @@ void Stat::test(StatStore * store) {
         if (enable_cusum_test == true) {
           std::map<EndPoint, CusumParams>::iterator CusumData_it = CusumData.find(Data_it->first);
 
+          // initialize C
           if (CusumData_it == CusumData.end()) {
             CusumParams C;
             for (int i = 0; i != monitored_values.size(); i++) {
@@ -1893,6 +1901,7 @@ void Stat::test(StatStore * store) {
               (C.alpha).push_back(0.0);
               (C.g).push_back(0.0);
               (C.last_cusum_test_was_attack).push_back(false);
+              (C.cusum_alarms).push_back(0);
               (C.X_curr).push_back(0);
               (C.X_last).push_back(0);
             }
@@ -2654,6 +2663,8 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
     // Wilcoxon-Mann-Whitney test:
     if (enable_wmw_test == true) {
       p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
+      if (significance_level > p_wmw)
+        (S.wmw_alarms).at(index)++;
       if (S.last_wmw_test_was_attack == true)
         wmw_was_attack = true;
     }
@@ -2661,6 +2672,8 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
     // Kolmogorov-Smirnov test:
     if (enable_ks_test == true) {
       p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
+      if (significance_level > p_ks)
+        (S.ks_alarms).at(index)++;
       if (S.last_ks_test_was_attack == true)
         ks_was_attack = true;
     }
@@ -2668,6 +2681,8 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
     // Pearson chi-square test:
     if (enable_pcs_test == true) {
       p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
+      if (significance_level > p_pcs)
+        (S.pcs_alarms).at(index)++;
       if (S.last_pcs_test_was_attack == true)
         pcs_was_attack = true;
     }
@@ -2698,8 +2713,12 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
       str_p_pcs.replace(i, 1, 1, ',');
 
     std::ofstream file(filename.c_str(), std::ios_base::app);
-    // metric p-value(wmw) p-value(ks) p-value(pcs) counter
-    file << sample_new_single_metric.back() << " " << str_p_wmw << " " << str_p_ks << " " << str_p_pcs << " " << test_counter << "\n";
+    // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
+    // p-value(pcs) #alarms(pcs) counter
+    file << sample_new_single_metric.back() << " " << str_p_wmw << " "
+         << (S.wmw_alarms).at(index) << " " << str_p_ks << " "
+         << (S.ks_alarms).at(index) << " " << str_p_pcs << " "
+         << (S.pcs_alarms).at(index) << " " << test_counter << "\n";
     file.close();
 
     it++;
@@ -2851,6 +2870,7 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
         #endif
       }
 
+      (C.cusum_alarms).at(i)++;
       was_attack.at(i) = true;
 
     }
@@ -2858,10 +2878,10 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
     // BEGIN TESTING
     std::string filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
     std::ofstream file(filename.c_str(), std::ios_base::app);
-    // nr X  g N alpha beta
+    // X  g N alpha beta #alarms counter
     file << (int) C.X_curr.at(i) << " " << (int) C.g.at(i)
          << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
-         << " " << test_counter << "\n";
+         << " " << (C.cusum_alarms).at(i) << " " << test_counter << "\n";
     file.close();
     // END TESTING
 
