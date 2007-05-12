@@ -17,6 +17,11 @@
     <warning_verbosity>1</warning_verbosity>
     <output_verbosity>4</output_verbosity>
     <endpoint_key>port</endpoint_key>
+    <pca>
+      <use_pca>true</use_pca>
+      <metrics>packets_in bytes_in records_in</metrics>
+      <learning_phase>25</learning_phase>
+    </pca>
     <monitored_values>
       <value>packets_in</value>
       <value>packets_out</value>

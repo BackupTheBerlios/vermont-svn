@@ -19,41 +19,16 @@
 /**************************************************************************/
 
 /*
-
 TODO(1)
-Mehr Protokolle
+handle more protocols
 --------------------------------------
-Bisher nur TCP, UDP, ICMP und RAW
-
+now, only TCP, UDP, ICMP and RAW are inspected
 
 TODO(2)
-Port-Unterscheidung (Source/Dest)
----------------------------------
-Ports werden aggregiert, d. h. Informationen darüber, ob der Port ein Quell- oder Zielport war, gehen verloren. Sollten diese Informationen erhalten bleiben?
-
-
-TODO(3)
-CUSUM
------------------------------------------------------
-Funktioniert. Parameter sind
-  - Lernphase für initiales alpha
-  - amplitude_percentage zur Berechnung des "Schwellwertes"
-  - repetition_factor zur Erhöhung der Robustheit
-  - smoothing constant zur Aktualisierung von alpha per EWMA
-
-- Ein wenig unschön ist noch das Zusammenspiel mit report_only_first_attack, da man
-anhand der Ausgabe dann nicht mehr erkennt, wann ein Angriff vorüber ist (außer dass die Aktualisierung alphas dann nicht mehr pausuert wird). Vielleicht eine Art "attack still in progress"-Nachricht einbauen.
-
-TODO(4)
-Test-Zeug
--------------------------------
-In StatStore:
-Funktionen: writeToFile() und readFromFile()
-Membervariablen: dataFile und dataFromFile
-
-Hier:
-Test-Funktion umgebaut
-
+Tests
+--------------------------------------
+If report_only_first_attack = true:
+We cant see from the output, whether an attack ceased. Maybe some kind of "attack still in progress"-message would be nice ...
 */
 
 
@@ -82,6 +57,9 @@ Stat::Stat(const std::string & configfile)
   // lock, will be unlocked at the end of init() (cf. StatStore class header):
   StatStore::setBeginMonitoring () = false;
 
+  packetsSubscribed = false;
+  bytesSubscribed = false;
+
   ip_monitoring = false;
   port_monitoring = false; ports_relevant = false;
   protocol_monitoring = false;
@@ -108,12 +86,23 @@ Stat::Stat(const std::string & configfile)
 
 
   init(configfile);
+
+  // allocate covariance matrix
+  if (use_pca == true) {
+    cov = gsl_matrix_calloc (3, 3);
+    learning_phase_nr_for_pca = 0;
+    pca_ready = false;
+  }
+
 }
 
 
 Stat::~Stat() {
 
   outfile.close();
+  // deallocate covariance matrix
+  if (use_pca == true)
+    gsl_matrix_free(cov);
 
 }
 
@@ -187,6 +176,9 @@ void Stat::init(const std::string & configfile) {
 
   // extracting the key of the endpoints
   init_endpoint_key(config);
+
+  // initialize pca parameters
+  init_pca(config);
 
   // extracting monitored values
   init_monitored_values(config);
@@ -552,6 +544,179 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
   return;
 }
 
+// extract all needed parameters for the pca, if enabled
+void Stat::init_pca(XMLConfObj * config) {
+
+  if (!config->nodeExists("pca")) {
+    use_pca = false;
+    return;
+  }
+
+  std::stringstream Error1, Error2, Error3, Error4, Default1, Default2, Default3;
+  Error1
+    << "ERROR: No use_pca parameter in XML config file!\n"
+    << "  Please define one and restart.\n";
+  Default1
+    << "WARNING: No value for use_pca parameter in XML config file!\n"
+    << "  \"true\" assumed.\n";
+  Error2
+    << "ERROR: No metrics parameter for pca in XML config file!\n"
+    << "  Please define one and restart.\n";
+  Error3
+    << "ERROR: Unknown value for parameter metrics (for pca) in XML config file!\n"
+    << "  Please define one such as \"packets_in bytes_in records_in\" and restart.\n";
+  Error4
+    << "ERROR: No value for parameter metrics (for pca) defined in XML config file!\n"
+    << "  Please define one such as \"packets_in bytes_in records_in\" and restart.\n";
+  Default2
+    << "WARNING: No learning_phase parameter for pca in XML config file!\n"
+    << "  \"" << DEFAULT_learning_phase_for_pca << "\" assumed.\n";
+  Default3
+    << "WARNING: No value for learning_phase parameter (for pca) defined in XML config file!\n"
+    << "  \"" << DEFAULT_learning_phase_for_pca << "\" assumed.\n";
+
+  config->enterNode("pca");
+
+  if (!config->nodeExists("use_pca")) {
+    std::cerr << Error1.str() << "  Exiting.\n";
+    if (warning_verbosity==1)
+      outfile << Error1.str() << "  Exiting." << std::endl << std::flush;
+    exit(0);
+  }
+  else if ( !(config->getValue("use_pca").empty()) ) {
+    use_pca = ( 0 == strcasecmp("true", config->getValue("use_pca").c_str()) ) ? true:false;
+  }
+  else {
+    std::cerr << Default1.str();
+    if (warning_verbosity==1)
+      outfile << Default1.str() << std::flush;
+    use_pca = true;
+  }
+
+  // initialize the other parameters only if pca is used
+  if (use_pca == true) {
+
+    // metrics
+    if (!config->nodeExists("metrics")) {
+      std::cerr << Error2.str() << "  Exiting.\n";
+      if (warning_verbosity==1)
+        outfile << Error2.str() << "  Exiting." << std::endl << std::flush;
+      exit(0);
+    }
+    else if ( !(config->getValue("metrics").empty()) ) {
+      std::string metrics = config->getValue("metrics");
+      std::istringstream MetricsStream (metrics);
+      std::string metric;
+      while (MetricsStream >> metric) {
+        if ( 0 == strcasecmp("packets_in", metric.c_str()) )
+          pca_metrics.push_back(PACKETS_IN);
+        else if ( 0 == strcasecmp("packets_out", metric.c_str()) )
+          pca_metrics.push_back(PACKETS_OUT);
+        else if ( 0 == strcasecmp("bytes_in", metric.c_str())
+              || 0 == strcasecmp("octets_in", metric.c_str()) )
+          pca_metrics.push_back(BYTES_IN);
+        else if ( 0 == strcasecmp("bytes_out", metric.c_str())
+              || 0 == strcasecmp("octets_out", metric.c_str()) )
+          pca_metrics.push_back(BYTES_OUT);
+        else if ( 0 == strcasecmp("records_in", metric.c_str()) )
+          pca_metrics.push_back(RECORDS_IN);
+        else if ( 0 == strcasecmp("records_out", metric.c_str()) )
+          pca_metrics.push_back(RECORDS_OUT);
+        else if ( 0 == strcasecmp("octets_in/packet_in", metric.c_str())
+              || 0 == strcasecmp("bytes_in/packet_in", metric.c_str()) )
+          pca_metrics.push_back(BYTES_IN_PER_PACKET_IN);
+        else if ( 0 == strcasecmp("octets_out/packet_out", metric.c_str())
+              || 0 == strcasecmp("bytes_out/packet_out", metric.c_str()) )
+          pca_metrics.push_back(BYTES_OUT_PER_PACKET_OUT);
+        else if ( 0 == strcasecmp("packets_out-packets_in", metric.c_str()) )
+          pca_metrics.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
+        else if ( 0 == strcasecmp("octets_out-octets_in", metric.c_str())
+              || 0 == strcasecmp("bytes_out-bytes_in", metric.c_str()) )
+          pca_metrics.push_back(BYTES_OUT_MINUS_BYTES_IN);
+        else if ( 0 == strcasecmp("packets_in(t)-packets_in(t-1)", metric.c_str()) )
+          pca_metrics.push_back(PACKETS_T_IN_MINUS_PACKETS_T_1_IN);
+        else if ( 0 == strcasecmp("packets_out(t)-packets_out(t-1)", metric.c_str()) )
+          pca_metrics.push_back(PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT);
+        else if ( 0 == strcasecmp("octets_in(t)-octets_in(t-1)", metric.c_str())
+              || 0 == strcasecmp("bytes_in(t)-bytes_in(t-1)", metric.c_str()) )
+          pca_metrics.push_back(BYTES_T_IN_MINUS_BYTES_T_1_IN);
+        else if ( 0 == strcasecmp("octets_out(t)-octets_out(t-1)", metric.c_str())
+              || 0 == strcasecmp("bytes_out(t)-bytes_out(t-1)", metric.c_str()) )
+          pca_metrics.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
+        else {
+          std::cerr << Error3.str() << "  Exiting.\n";
+          if (warning_verbosity==1)
+            outfile << Error3.str() << "  Exiting." << std::endl << std::flush;
+          exit(0);
+        }
+      }
+    }
+    else {
+      std::cerr << Error4.str() << "Exiting.\n";
+      if (warning_verbosity==1)
+        outfile << Error4.str() << std::endl << std::flush;
+      exit(0);
+    }
+
+    // learning_phase
+    if (!config->nodeExists("learning_phase")) {
+      std::cerr << Default2.str();
+      if (warning_verbosity==1)
+        outfile << Default2.str() << std::flush;
+      learning_phase_for_pca = DEFAULT_learning_phase_for_pca;
+    }
+    else if ( !(config->getValue("learning_phase").empty()) ) {
+      learning_phase_for_pca = atoi(config->getValue("learning_phase").c_str());
+    }
+    else {
+      std::cerr << Default3.str();
+      if (warning_verbosity==1)
+        outfile << Default3.str() << std::flush;
+      learning_phase_for_pca = DEFAULT_learning_phase_for_pca;
+    }
+
+    // subscribing to the needed IPFIX_TYPEID-fields
+    for (int i = 0; i != pca_metrics.size(); i++) {
+      if ( (pca_metrics.at(i) == PACKETS_IN
+        || pca_metrics.at(i) == PACKETS_OUT
+        || pca_metrics.at(i) == PACKETS_OUT_MINUS_PACKETS_IN
+        || pca_metrics.at(i) == PACKETS_T_IN_MINUS_PACKETS_T_1_IN
+        || pca_metrics.at(i) == PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT)
+        && packetsSubscribed == false) {
+        subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
+        packetsSubscribed = true;
+      }
+
+      if ( (pca_metrics.at(i) == BYTES_IN
+        || pca_metrics.at(i) == BYTES_OUT
+        || pca_metrics.at(i) == BYTES_OUT_MINUS_BYTES_IN
+        || pca_metrics.at(i) == BYTES_T_IN_MINUS_BYTES_T_1_IN
+        || pca_metrics.at(i) == BYTES_T_OUT_MINUS_BYTES_T_1_OUT)
+        && bytesSubscribed == false ) {
+        subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
+        bytesSubscribed = true;
+      }
+
+      if ( (pca_metrics.at(i) == BYTES_IN_PER_PACKET_IN
+        || pca_metrics.at(i) == BYTES_OUT_PER_PACKET_OUT)
+        && packetsSubscribed == false
+        && bytesSubscribed == false) {
+        subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
+        subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
+      }
+    }
+
+    // initialize some variables ...
+    for (int i = 0; i < 3; i++) // 3 elements
+      sumsOfMetrics.push_back(0);
+    for (int i = 0; i < 6; i++) // 6 elements
+      sumsOfProducts.push_back(0);
+
+  }
+  config->leaveNode();
+  return;
+}
+
 // extracting monitored values to vector<Metric>;
 // the values are stored there as constants
 // defined in enum Metric in stat_main.h
@@ -649,6 +814,10 @@ void Stat::init_monitored_values(XMLConfObj * config) {
     it++;
   }
 
+  // is pca enabled?
+  if (use_pca == true)
+    monitored_values.push_back(PCA);
+
   // just in case the user provided multiple same values
   // (after these lines, monitored_values contains the Metrics
   // in the correct order)
@@ -677,11 +846,6 @@ void Stat::init_monitored_values(XMLConfObj * config) {
 
 
   // subscribing to the needed IPFIX_TYPEID-fields
-
-  // to prevent multiple subscription
-  bool packetsSubscribed = false;
-  bool bytesSubscribed = false;
-
   for (int i = 0; i != monitored_values.size(); i++) {
     if ( (monitored_values.at(i) == PACKETS_IN
       || monitored_values.at(i) == PACKETS_OUT
@@ -1835,7 +1999,7 @@ void Stat::test(StatStore * store) {
 */
 
 
-
+/*
   // ++++++++++++++++++++++++++++
   // BEGIN TESTING (4 DO THE TESTS)
   // ++++++++++++++++++++++++++++
@@ -2001,11 +2165,11 @@ void Stat::test(StatStore * store) {
   // ++++++++++++++++++++++++++
   // END TESTING (4 DO THE TESTS)
   // ++++++++++++++++++++++++++
+*/
 
 
 
 
-/*
   // ++++++++++++++++++++++
   // BEGIN NORMAL BEHAVIOUR
   // ++++++++++++++++++++++
@@ -2236,7 +2400,7 @@ void Stat::test(StatStore * store) {
   // ++++++++++++++++++++
   // END NORMAL BEHAVIOUR
   // ++++++++++++++++++++
-*/
+
 }
 
 
@@ -2344,10 +2508,189 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
           result.push_back(info.bytes_out - prev.bytes_out);
         break;
 
+      case PCA:
+        // learning phase
+        if (pca_ready == false) {
+          if (learning_phase_nr_for_pca < learning_phase_for_pca) {
+            // update sumsOfMetrics and sumsOfProducts
+            std::vector<int64_t> v = extract_pca_data(info, prev);
+            for (int i = 0; i < 3; i++)
+              sumsOfMetrics.at(i) += v.at(i);
+            sumsOfProducts.at(0) += v.at(0)*v.at(0);
+            sumsOfProducts.at(1) += v.at(1)*v.at(1);
+            sumsOfProducts.at(2) += v.at(2)*v.at(2);
+            sumsOfProducts.at(3) += v.at(0)*v.at(1);
+            sumsOfProducts.at(4) += v.at(1)*v.at(2);
+            sumsOfProducts.at(5) += v.at(0)*v.at(2);
+
+            learning_phase_nr_for_pca++;
+            break;
+          }
+          // end of learning phase
+          else if (learning_phase_nr_for_pca == learning_phase_for_pca) {
+
+            // calculate covariance matrix
+
+            // Overview of indices of sumsOfProducts:
+            //     0         1         2         3         4          5
+            // Sum(x1x1) Sum(x2x2) Sum(x3x3) Sum(x1x2) Sum(x2,x3) Sum(x1x3)
+
+            // matrix element 0,0 --> variance(metric1)
+            gsl_matrix_set(cov,0,0,covariance(sumsOfProducts.at(0),sumsOfMetrics.at(0),sumsOfMetrics.at(0)));
+            // matrix element 1,1 --> variance(metric2)
+            gsl_matrix_set(cov,1,1,covariance(sumsOfProducts.at(1),sumsOfMetrics.at(1),sumsOfMetrics.at(1)));
+            // matrix element 2,2 --> variance(metric3)
+            gsl_matrix_set(cov,2,2,covariance(sumsOfProducts.at(2),sumsOfMetrics.at(2),sumsOfMetrics.at(2)));
+            // matrix elements 0,1 and 1,0 --> covariance(metric1,metric2)
+            double cov01 = covariance(sumsOfProducts.at(3),sumsOfMetrics.at(0),sumsOfMetrics.at(1));
+            gsl_matrix_set(cov,0,1,cov01);
+            gsl_matrix_set(cov,1,0,cov01);
+            // matrix elements 0,2 and 2,0 --> covariance(metric1,metric3)
+            double cov02 = covariance(sumsOfProducts.at(5),sumsOfMetrics.at(0),sumsOfMetrics.at(2));
+            gsl_matrix_set(cov,0,2,cov02);
+            gsl_matrix_set(cov,2,0,cov02);
+            // matrix elements 1,2 and 2,1 --> covariance(metric2,metric3)
+            double cov12 = covariance(sumsOfProducts.at(4),sumsOfMetrics.at(1),sumsOfMetrics.at(2));
+            gsl_matrix_set(cov,1,2,cov12);
+            gsl_matrix_set(cov,2,1,cov12);
+
+            // TODO: calculate eigenvectors etc.
+            // http://www.gnu.org/software/gsl/manual/html_node/Eigensystems.html
+
+            pca_ready = true; // so this code will never be visited again
+            break;
+          }
+        }
+        // testing phase
+        else {
+          // TODO:
+          // Neue beobachteten Werte per pca rekonstruieren
+          // und das Resultat von den tatsächlichen Werten abziehen
+          // und Ergebnis als Cusum-Metrik verwenden ...
+          std::vector<int64_t> new_value = extract_pca_data(info,prev);
+
+          break;
+        }
+
       default:
         std::cerr << "ERROR: monitored_values seems to be empty "
         << "or it holds an unknown type which isnt supported yet."
         << "But this shouldnt happen as the init_monitored_values"
+        << "-function handles that.\nExiting.\n";
+        exit(0);
+    }
+
+    it++;
+  }
+
+  return result;
+}
+
+// needed for pca to extract the new values (for learning or testing)
+std::vector<int64_t> Stat::extract_pca_data (const Info & info, const Info & prev) {
+
+  std::vector<int64_t>  result;
+
+  std::vector<Metric>::iterator it = pca_metrics.begin();
+
+  while (it != pca_metrics.end() ) {
+
+    switch ( *it ) {
+
+      case PACKETS_IN:
+        if (info.packets_in >= noise_threshold_packets)
+          result.push_back(info.packets_in);
+        break;
+
+      case PACKETS_OUT:
+        if (info.packets_out >= noise_threshold_packets)
+          result.push_back(info.packets_out);
+        break;
+
+      case BYTES_IN:
+        if (info.bytes_in >= noise_threshold_bytes)
+          result.push_back(info.bytes_in);
+        break;
+
+      case BYTES_OUT:
+        if (info.bytes_out >= noise_threshold_bytes)
+          result.push_back(info.bytes_out);
+        break;
+
+      case RECORDS_IN:
+        result.push_back(info.records_in);
+        break;
+
+      case RECORDS_OUT:
+        result.push_back(info.records_out);
+        break;
+
+      case BYTES_IN_PER_PACKET_IN:
+        if ( info.packets_in >= noise_threshold_packets
+          || info.bytes_in   >= noise_threshold_bytes ) {
+          if (info.packets_in == 0)
+            result.push_back(0);
+          else
+            result.push_back((1000 * info.bytes_in) / info.packets_in);
+            // the multiplier 1000 enables us to increase precision and "simulate"
+            // a float result, while keeping an integer result: thanks to this trick,
+            // we do not have to write new versions of the tests to support floats
+        }
+        break;
+
+      case BYTES_OUT_PER_PACKET_OUT:
+        if (info.packets_out >= noise_threshold_packets ||
+            info.bytes_out   >= noise_threshold_bytes ) {
+          if (info.packets_out == 0)
+            result.push_back(0);
+          else
+            result.push_back((1000 * info.bytes_out) / info.packets_out);
+        }
+        break;
+
+      case PACKETS_OUT_MINUS_PACKETS_IN:
+        if (info.packets_out >= noise_threshold_packets
+         || info.packets_in  >= noise_threshold_packets )
+          result.push_back(info.packets_out - info.packets_in);
+        break;
+
+      case BYTES_OUT_MINUS_BYTES_IN:
+        if (info.bytes_out >= noise_threshold_bytes
+         || info.bytes_in  >= noise_threshold_bytes )
+          result.push_back(info.bytes_out - info.bytes_in);
+        break;
+
+      case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
+        if (info.packets_in  >= noise_threshold_packets
+         || prev.packets_in  >= noise_threshold_packets)
+          // prev holds the data for the same EndPoint as info
+          // from the last call to test()
+          // it is updated at the beginning of the while-loop in test()
+          result.push_back(info.packets_in - prev.packets_in);
+        break;
+
+      case PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
+        if (info.packets_out >= noise_threshold_packets
+         || prev.packets_out >= noise_threshold_packets)
+          result.push_back(info.packets_out - prev.packets_out);
+        break;
+
+      case BYTES_T_IN_MINUS_BYTES_T_1_IN:
+        if (info.bytes_in >= noise_threshold_bytes
+         || prev.bytes_in >= noise_threshold_bytes)
+          result.push_back(info.bytes_in - prev.bytes_in);
+        break;
+
+      case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
+        if (info.bytes_out >= noise_threshold_bytes
+         || prev.bytes_out >= noise_threshold_bytes)
+          result.push_back(info.bytes_out - prev.bytes_out);
+        break;
+
+      default:
+        std::cerr << "ERROR: pca_metrics seems to be empty "
+        << "or it holds an unknown type which isnt supported yet."
+        << "But this shouldnt happen as the init_pca"
         << "-function handles that.\nExiting.\n";
         exit(0);
     }
@@ -2772,8 +3115,8 @@ void Stat::cusum_test(CusumParams & C) {
               << N << std::endl;
     }
 
-    // TODO(3)
-    // "attack still in progress"-Nachricht?
+    // TODO(2)
+    // "attack still in progress"-message?
 
     // perform the test and if g > N raise an alarm
     if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
@@ -2845,8 +3188,8 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
               << N << std::endl;
     }
 
-    // TODO(3)
-    // "attack still in progress"-Nachricht?
+    // TODO(2)
+    // "attack still in progress"-message?
 
     // perform the test and if g > N raise an alarm
     if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
@@ -2990,6 +3333,12 @@ std::list<int64_t> Stat::getSingleMetric(const std::list<std::vector<int64_t> > 
         it++;
       }
       break;
+    case PCA:
+      while ( it != l.end() ) {
+        result.push_back(it->at(i));
+        it++;
+      }
+      break;
     default:
       std::cerr << "ERROR: Got unknown metric in Stat::getSingleMetric(...)!\n"
                 << "init_monitored_values() should not let this Error happen!";
@@ -3029,6 +3378,8 @@ std::string Stat::getMetricName(const enum Metric & m) {
       return std::string("bytes_in(t)-bytes_in(t-1)");
     case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
       return std::string("bytes_out(t)-bytes_out(t-1)");
+    case PCA:
+      return std::string("pca");
     default:
       std::cerr << "ERROR: Unknown type of Metric in getMetricName().\n"
                 << "Exiting.\n";
@@ -3214,6 +3565,18 @@ double Stat::stat_test_pcs (std::list<int64_t> & sample_old,
   }
 
   return p;
+}
+
+double Stat::covariance (const int & sumProduct, const int & sumX, const int & sumY) {
+  // calculate mean values
+  double avgX = sumX / learning_phase_for_pca;
+  double avgY = sumY / learning_phase_for_pca;
+
+  // calculate the covariance
+  // KOV = 1/N-1 * sum(x1 - n1)(x2 - n2)
+  // = 1/N-1 * sum(x1x2 - x1n2 - x2n1 + n1n2)
+  // = 1/N-1 * (sum(x1x2) - n2*sum(x1) - n1*sum(x2) + N*n1n2)
+  return (sumProduct - avgY*sumX - avgX*sumY + learning_phase_for_pca*avgX*avgY) / (learning_phase_for_pca - 1);
 }
 
 void Stat::sigTerm(int signum)

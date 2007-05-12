@@ -29,6 +29,8 @@
 #include <map>
 #include <string>
 #include <algorithm> // sort(...), unique(...)
+// for pca (matrices etc.)
+#include <gsl/gsl_matrix.h>
 
 // ========================== CLASS Stat ==========================
 
@@ -45,8 +47,9 @@
 #define DEFAULT_sample_old_size 111
 #define DEFAULT_sample_new_size 11
 #define DEFAULT_stat_test_frequency 1
+#define DEFAULT_learning_phase_for_pca 50
 
-// constants for (splitted) monitored values
+// constants for monitored values
 enum Metric {
   PACKETS_IN,
   PACKETS_OUT,
@@ -61,7 +64,8 @@ enum Metric {
   PACKETS_T_IN_MINUS_PACKETS_T_1_IN,
   PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT,
   BYTES_T_IN_MINUS_BYTES_T_1_IN,
-  BYTES_T_OUT_MINUS_BYTES_T_1_OUT
+  BYTES_T_OUT_MINUS_BYTES_T_1_OUT,
+  PCA
 };
 
 // ======================== STRUCT Samples ========================
@@ -80,9 +84,9 @@ public:
   std::list<std::vector<int64_t> > Old;
   std::list<std::vector<int64_t> > New;
 
-  // every metric has its was-attack-flag for every test
   // TODO: pause update for every metric individually (pause_update = 3)
   // see Cusum-test ...
+  // every metric has its was-attack-flag for every test
   bool last_wmw_test_was_attack;
   bool last_ks_test_was_attack;
   bool last_pcs_test_was_attack;
@@ -196,7 +200,10 @@ class Stat : public DetectionBase<StatStore> {
   void init_warning_verbosity(XMLConfObj *);
   void init_output_verbosity(XMLConfObj *);
   void init_endpoint_key(XMLConfObj *);
+  void init_pca(XMLConfObj *);
   void init_monitored_values(XMLConfObj *);
+    bool packetsSubscribed; // as init_pca and init_monitored_values both handle
+    bool bytesSubscribed;   // subscriptions, we need to prevent multiple subscriptions
   void init_noise_thresholds(XMLConfObj *);
   void init_endpointlist_maxsize(XMLConfObj *);
   void init_protocols(XMLConfObj *);
@@ -279,6 +286,28 @@ class Stat : public DetectionBase<StatStore> {
   int stat_test_frequency;
   bool report_only_first_attack;
   short pause_update_when_attack;
+
+  // some parameters for the pca metric:
+  // config parameters
+  bool use_pca; // is pca activated?
+  std::vector<Metric> pca_metrics; // which three metrics shall be used?
+  int learning_phase_for_pca; // length of the learnign phase
+  int learning_phase_nr_for_pca;
+  // the following two are needed for the learning phase
+  // and with their help, covariances of the metrics can be calculated
+  // will hold the elements:
+  // Sum(x1x1), Sum(x2x2), Sum(x3x3), Sum(x1x2), Sum(x2,x3) and Sum(x1x3)
+  std::vector<int> sumsOfProducts;
+  // will hold the elements: Sum(x1), Sum(x2) and Sum(x3)
+  std::vector<int> sumsOfMetrics;
+  // this is the covariance matrix calculated after the learning phase
+  gsl_matrix *cov;
+  // function for calculating the covariance of two metrics
+  // (this will yield one entry for the cov-matrix)
+  double covariance (const int &, const int &, const int &);
+  // function to extract the new values of our three metrics
+  std::vector<int64_t> extract_pca_data (const Info &o, const Info &);
+  bool pca_ready; // flag to identify if still learning phase
 
 
   // test parameters (defined in the XML config file):
