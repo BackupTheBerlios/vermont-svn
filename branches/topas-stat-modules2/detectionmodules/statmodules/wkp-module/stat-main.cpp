@@ -34,6 +34,10 @@ We cant see from the output, whether an attack ceased. Maybe some kind of "attac
 
 #include<signal.h>
 
+// for pca (covariance, eigenvectors etc.)
+#include <gsl/gsl_statistics.h>
+#include <gsl/gsl_eigen.h>
+
 #include "stat-main.h"
 #include "wmw-test.h"
 #include "ks-test.h"
@@ -90,7 +94,11 @@ Stat::Stat(const std::string & configfile)
   // allocate covariance matrix
   if (use_pca == true) {
     cov = gsl_matrix_calloc (3, 3);
+    evec = gsl_matrix_calloc (3, 3);
+    pcaData = gsl_matrix_calloc (learning_phase_for_pca, 3);
     learning_phase_nr_for_pca = 0;
+    pca_mean_value = 0.0;
+    pca_initialized = false;
     pca_ready = false;
   }
 
@@ -101,8 +109,11 @@ Stat::~Stat() {
 
   outfile.close();
   // deallocate covariance matrix
-  if (use_pca == true)
+  if (use_pca == true) {
     gsl_matrix_free(cov);
+    gsl_matrix_free(evec);
+    gsl_matrix_free(pcaData);
+  }
 
 }
 
@@ -705,12 +716,6 @@ void Stat::init_pca(XMLConfObj * config) {
         subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
       }
     }
-
-    // initialize some variables ...
-    for (int i = 0; i < 3; i++) // 3 elements
-      sumsOfMetrics.push_back(0);
-    for (int i = 0; i < 6; i++) // 6 elements
-      sumsOfProducts.push_back(0);
 
   }
   config->leaveNode();
@@ -2512,52 +2517,79 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
         // learning phase
         if (pca_ready == false) {
           if (learning_phase_nr_for_pca < learning_phase_for_pca) {
-            // update sumsOfMetrics and sumsOfProducts
+            // update Data
             std::vector<int64_t> v = extract_pca_data(info, prev);
-            for (int i = 0; i < 3; i++)
-              sumsOfMetrics.at(i) += v.at(i);
-            sumsOfProducts.at(0) += v.at(0)*v.at(0);
-            sumsOfProducts.at(1) += v.at(1)*v.at(1);
-            sumsOfProducts.at(2) += v.at(2)*v.at(2);
-            sumsOfProducts.at(3) += v.at(0)*v.at(1);
-            sumsOfProducts.at(4) += v.at(1)*v.at(2);
-            sumsOfProducts.at(5) += v.at(0)*v.at(2);
-
+            gsl_matrix_set(pcaData, learning_phase_nr_for_pca, 0, v.at(0));
+            gsl_matrix_set(pcaData, learning_phase_nr_for_pca, 1, v.at(1));
+            gsl_matrix_set(pcaData, learning_phase_nr_for_pca, 2, v.at(2));
             learning_phase_nr_for_pca++;
+            result.push_back(0);
             break;
           }
           // end of learning phase
           else if (learning_phase_nr_for_pca == learning_phase_for_pca) {
+            // calculate the mean value of each column ...
+            int xSum = 0; int ySum = 0; int zSum = 0;
+            for (int i = 0; i < learning_phase_for_pca; i++) {
+                xSum += (int64_t) gsl_matrix_get(pcaData,i,0);
+                ySum += (int64_t) gsl_matrix_get(pcaData,i,1);
+                zSum += (int64_t) gsl_matrix_get(pcaData,i,2);
+            }
+            int xMean = xSum / learning_phase_for_pca;
+            int yMean = ySum / learning_phase_for_pca;
+            int zMean = zSum / learning_phase_for_pca;
+            // ... and substract it from every data point in that column
+            for (int i = 0; i < learning_phase_for_pca; i++) {
+              gsl_matrix_set(pcaData,i,0, gsl_matrix_get(pcaData,i,0) - xMean);
+              gsl_matrix_set(pcaData,i,1, gsl_matrix_get(pcaData,i,1) - yMean);
+              gsl_matrix_set(pcaData,i,2, gsl_matrix_get(pcaData,i,2) - zMean);
+            }
+
+            gsl_vector_view xData = gsl_matrix_column(pcaData, 0);
+            gsl_vector_view yData = gsl_matrix_column(pcaData, 1);
+            gsl_vector_view zData = gsl_matrix_column(pcaData, 2);
 
             // calculate covariance matrix
-
-            // Overview of indices of sumsOfProducts:
-            //     0         1         2         3         4          5
-            // Sum(x1x1) Sum(x2x2) Sum(x3x3) Sum(x1x2) Sum(x2,x3) Sum(x1x3)
-
             // matrix element 0,0 --> variance(metric1)
-            gsl_matrix_set(cov,0,0,covariance(sumsOfProducts.at(0),sumsOfMetrics.at(0),sumsOfMetrics.at(0)));
+            gsl_matrix_set(cov,0,0,gsl_stats_variance_m((&xData.vector)->data,1,learning_phase_for_pca,xMean));
             // matrix element 1,1 --> variance(metric2)
-            gsl_matrix_set(cov,1,1,covariance(sumsOfProducts.at(1),sumsOfMetrics.at(1),sumsOfMetrics.at(1)));
+            gsl_matrix_set(cov,1,1,gsl_stats_variance_m((&yData.vector)->data,1,learning_phase_for_pca,yMean));
             // matrix element 2,2 --> variance(metric3)
-            gsl_matrix_set(cov,2,2,covariance(sumsOfProducts.at(2),sumsOfMetrics.at(2),sumsOfMetrics.at(2)));
+            gsl_matrix_set(cov,2,2,gsl_stats_variance_m((&zData.vector)->data,1,learning_phase_for_pca,zMean));
             // matrix elements 0,1 and 1,0 --> covariance(metric1,metric2)
-            double cov01 = covariance(sumsOfProducts.at(3),sumsOfMetrics.at(0),sumsOfMetrics.at(1));
+            double cov01 = gsl_stats_covariance_m((&xData.vector)->data,1,(&yData.vector)->data,1,learning_phase_for_pca,xMean,yMean);
             gsl_matrix_set(cov,0,1,cov01);
             gsl_matrix_set(cov,1,0,cov01);
             // matrix elements 0,2 and 2,0 --> covariance(metric1,metric3)
-            double cov02 = covariance(sumsOfProducts.at(5),sumsOfMetrics.at(0),sumsOfMetrics.at(2));
+            double cov02 = gsl_stats_covariance_m((&xData.vector)->data,1,(&zData.vector)->data,1,learning_phase_for_pca,xMean,zMean);
             gsl_matrix_set(cov,0,2,cov02);
             gsl_matrix_set(cov,2,0,cov02);
             // matrix elements 1,2 and 2,1 --> covariance(metric2,metric3)
-            double cov12 = covariance(sumsOfProducts.at(4),sumsOfMetrics.at(1),sumsOfMetrics.at(2));
+            double cov12 = gsl_stats_covariance_m((&yData.vector)->data,1,(&zData.vector)->data,1,learning_phase_for_pca,yMean,zMean);
             gsl_matrix_set(cov,1,2,cov12);
             gsl_matrix_set(cov,2,1,cov12);
 
-            // TODO: calculate eigenvectors etc.
-            // http://www.gnu.org/software/gsl/manual/html_node/Eigensystems.html
+            // calculate eigenvectors and -values
+            // eigenvalues
+            gsl_vector *eval = gsl_vector_alloc (3);
+            // some workspace needed for computation
+            gsl_eigen_symmv_workspace * w = gsl_eigen_symmv_alloc (3);
+            // computation of eigenvectors (evec) and -values (eval) from
+            // covariance matrix (cov)
+            gsl_eigen_symmv (cov, eval, evec, w);
+            gsl_eigen_symmv_free (w);
+            // sort the eigenvectors by their corresponding eigenvalue
+            gsl_eigen_symmv_sort (eval, evec, GSL_EIGEN_SORT_VAL_DESC);
+
+            // now, we have our three components stored in each column of
+            // evec, first column = most important, last column = least important
+
+            // compute the initial mean value of our residual
+            // gsl_matrix_transpose_memcpy (gsl_matrix * dest, const gsl_matrix * src)
+            //pca_mean_value = ;
 
             pca_ready = true; // so this code will never be visited again
+            result.push_back(0);
             break;
           }
         }
@@ -2569,6 +2601,12 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
           // und Ergebnis als Cusum-Metrik verwenden ...
           std::vector<int64_t> new_value = extract_pca_data(info,prev);
 
+          // Man nimmt die ersten beiden Komponenten, rekonstruiert die
+          // beobachteten Daten, ermittelt das Residuum zwischen tatsächlichen
+          // und rekonstruierten Daten und erhält den pca_value
+          int64_t pca_value;
+
+          result.push_back(pca_value);
           break;
         }
 
@@ -2788,6 +2826,15 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
 // and the update funciotn for the cusum-test
 void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) {
 
+  // initialize alpha for pca, if pca is ready
+  // (this code will be visited exactly one time)
+  if (use_pca == true && pca_initialized == false && pca_ready == true) {
+    for (int i = 0; i != monitored_values.size(); i++)
+      if (monitored_values.at(i) == PCA)
+        C.alpha.at(i) = pca_mean_value;
+    pca_initialized = true;
+  }
+
   // Learning phase for alpha?
   // that means, we dont have enough values to calculate alpha
   // until now (and so cannot perform the cusum test)
@@ -2796,6 +2843,7 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
 
       // update the sum of the values of each metric
       // (needed to calculate the initial alpha)
+      // (for pca, we dont need sum, but dont bother calculating it here ...)
       for (int i = 0; i != C.sum.size(); i++)
         C.sum.at(i) += new_value.at(i);
 
@@ -2818,11 +2866,16 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
                 << "   Calculated initial alphas: ( ";
 
       for (int i = 0; i != C.alpha.size(); i++) {
-        // alpha = sum(values) / #(values)
-        // Note: learning_phase_for_alpha is never 0, because
-        // this is handled in init_cusum_test()
-        C.alpha.at(i) = C.sum.at(i) / learning_phase_for_alpha;
+        if (monitored_values.at(i) != PCA) {
+          // alpha = sum(values) / #(values)
+          // (except for pca!)
+          // Note: learning_phase_for_alpha is never 0, because
+          // this is handled in init_cusum_test()
+          C.alpha.at(i) = C.sum.at(i) / learning_phase_for_alpha;
+        }
+
         C.X_curr.at(i) = new_value.at(i);
+
         if (output_verbosity >= 3)
           outfile << C.alpha.at(i) << " ";
       }
@@ -2833,6 +2886,7 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
       return;
     }
   }
+
 
   // pausing update for alpha (depending on pause_update parameter)
   bool at_least_one_test_was_attack = false;
@@ -2881,20 +2935,23 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
       C.X_curr.at(i) = new_value.at(i);
       if (C.last_cusum_test_was_attack.at(i) == false) {
         // update alpha
-        C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
+        if (monitored_values.at(i) != PCA || pca_initialized == true) {
+          C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
+        }
       }
     }
     return;
   }
 
-
   // Otherwise update all alphas per EWMA
-  for (int i = 0; i != C.alpha.size(); i++) {
+  for (int i = 0; i != monitored_values.size(); i++) {
     // update values for X
     C.X_last.at(i) = C.X_curr.at(i);
     C.X_curr.at(i) = new_value.at(i);
     // update alpha
-    C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
+    if (monitored_values.at(i) != PCA || pca_initialized == true) {
+      C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
+    }
   }
 
   if (output_verbosity >= 3)
@@ -2927,35 +2984,35 @@ void Stat::stat_test (Samples & S) {
   bool pcs_was_attack = false;
 
   while (it != monitored_values.end()) {
+    if (*it != PCA || pca_ready != false) {
+      if (output_verbosity >= 4)
+        outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
 
-    if (output_verbosity >= 4)
-      outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
-
-    sample_old_single_metric = getSingleMetric(S.Old, *it, index);
-    sample_new_single_metric = getSingleMetric(S.New, *it, index);
+      sample_old_single_metric = getSingleMetric(S.Old, *it, index);
+      sample_new_single_metric = getSingleMetric(S.New, *it, index);
 
 
-    // Wilcoxon-Mann-Whitney test:
-    if (enable_wmw_test == true) {
-      stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
-      if (S.last_wmw_test_was_attack == true)
-        wmw_was_attack = true;
+      // Wilcoxon-Mann-Whitney test:
+      if (enable_wmw_test == true) {
+        stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
+        if (S.last_wmw_test_was_attack == true)
+          wmw_was_attack = true;
+      }
+
+      // Kolmogorov-Smirnov test:
+      if (enable_ks_test == true) {
+        stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
+        if (S.last_ks_test_was_attack == true)
+          ks_was_attack = true;
+      }
+
+      // Pearson chi-square test:
+      if (enable_pcs_test == true) {
+        stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
+        if (S.last_pcs_test_was_attack == true)
+          pcs_was_attack = true;
+      }
     }
-
-    // Kolmogorov-Smirnov test:
-    if (enable_ks_test == true) {
-      stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
-      if (S.last_ks_test_was_attack == true)
-        ks_was_attack = true;
-    }
-
-    // Pearson chi-square test:
-    if (enable_pcs_test == true) {
-      stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
-      if (S.last_pcs_test_was_attack == true)
-        pcs_was_attack = true;
-    }
-
     it++;
     index++;
   }
@@ -2994,76 +3051,76 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
   bool pcs_was_attack = false;
 
   while (it != monitored_values.end()) {
+    if (*it != PCA || pca_ready != false) {
+      if (output_verbosity >= 4)
+        outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
 
-    if (output_verbosity >= 4)
-      outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
+      sample_old_single_metric = getSingleMetric(S.Old, *it, index);
+      sample_new_single_metric = getSingleMetric(S.New, *it, index);
 
-    sample_old_single_metric = getSingleMetric(S.Old, *it, index);
-    sample_new_single_metric = getSingleMetric(S.New, *it, index);
+      double p_wmw, p_ks, p_pcs;
 
-    double p_wmw, p_ks, p_pcs;
+      // Wilcoxon-Mann-Whitney test:
+      if (enable_wmw_test == true) {
+        p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
+        if (significance_level > p_wmw)
+          (S.wmw_alarms).at(index)++;
+        if (S.last_wmw_test_was_attack == true)
+          wmw_was_attack = true;
+      }
 
-    // Wilcoxon-Mann-Whitney test:
-    if (enable_wmw_test == true) {
-      p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
-      if (significance_level > p_wmw)
-        (S.wmw_alarms).at(index)++;
-      if (S.last_wmw_test_was_attack == true)
-        wmw_was_attack = true;
+      // Kolmogorov-Smirnov test:
+      if (enable_ks_test == true) {
+        p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
+        if (significance_level > p_ks)
+          (S.ks_alarms).at(index)++;
+        if (S.last_ks_test_was_attack == true)
+          ks_was_attack = true;
+      }
+
+      // Pearson chi-square test:
+      if (enable_pcs_test == true) {
+        p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
+        if (significance_level > p_pcs)
+          (S.pcs_alarms).at(index)++;
+        if (S.last_pcs_test_was_attack == true)
+          pcs_was_attack = true;
+      }
+
+      std::string filename = "wkpparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+
+      // replace the decimal point by a comma
+      // (open office cant handle points in decimal numbers ;) )
+      std::stringstream tmp1;
+      tmp1 << p_wmw;
+      std::string str_p_wmw = tmp1.str();
+      std::string::size_type i = str_p_wmw.find('.',0);
+      if (i != std::string::npos)
+        str_p_wmw.replace(i, 1, 1, ',');
+
+      std::stringstream tmp2;
+      tmp2 << p_ks;
+      std::string str_p_ks = tmp2.str();
+      i = str_p_ks.find('.',0);
+      if (i != std::string::npos)
+        str_p_ks.replace(i, 1, 1, ',');
+
+      std::stringstream tmp3;
+      tmp3 << p_pcs;
+      std::string str_p_pcs = tmp3.str();
+      i = str_p_pcs.find('.',0);
+      if (i != std::string::npos)
+        str_p_pcs.replace(i, 1, 1, ',');
+
+      std::ofstream file(filename.c_str(), std::ios_base::app);
+      // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
+      // p-value(pcs) #alarms(pcs) counter
+      file << sample_new_single_metric.back() << " " << str_p_wmw << " "
+          << (S.wmw_alarms).at(index) << " " << str_p_ks << " "
+          << (S.ks_alarms).at(index) << " " << str_p_pcs << " "
+          << (S.pcs_alarms).at(index) << " " << test_counter << "\n";
+      file.close();
     }
-
-    // Kolmogorov-Smirnov test:
-    if (enable_ks_test == true) {
-      p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
-      if (significance_level > p_ks)
-        (S.ks_alarms).at(index)++;
-      if (S.last_ks_test_was_attack == true)
-        ks_was_attack = true;
-    }
-
-    // Pearson chi-square test:
-    if (enable_pcs_test == true) {
-      p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
-      if (significance_level > p_pcs)
-        (S.pcs_alarms).at(index)++;
-      if (S.last_pcs_test_was_attack == true)
-        pcs_was_attack = true;
-    }
-
-    std::string filename = "wkpparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
-
-    // replace the decimal point by a comma
-    // (open office cant handle points in decimal numbers ;) )
-    std::stringstream tmp1;
-    tmp1 << p_wmw;
-    std::string str_p_wmw = tmp1.str();
-    std::string::size_type i = str_p_wmw.find('.',0);
-    if (i != std::string::npos)
-      str_p_wmw.replace(i, 1, 1, ',');
-
-    std::stringstream tmp2;
-    tmp2 << p_ks;
-    std::string str_p_ks = tmp2.str();
-    i = str_p_ks.find('.',0);
-    if (i != std::string::npos)
-      str_p_ks.replace(i, 1, 1, ',');
-
-    std::stringstream tmp3;
-    tmp3 << p_pcs;
-    std::string str_p_pcs = tmp3.str();
-    i = str_p_pcs.find('.',0);
-    if (i != std::string::npos)
-      str_p_pcs.replace(i, 1, 1, ',');
-
-    std::ofstream file(filename.c_str(), std::ios_base::app);
-    // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
-    // p-value(pcs) #alarms(pcs) counter
-    file << sample_new_single_metric.back() << " " << str_p_wmw << " "
-         << (S.wmw_alarms).at(index) << " " << str_p_ks << " "
-         << (S.ks_alarms).at(index) << " " << str_p_pcs << " "
-         << (S.pcs_alarms).at(index) << " " << test_counter << "\n";
-    file.close();
-
     it++;
     index++;
   }
@@ -3100,48 +3157,48 @@ void Stat::cusum_test(CusumParams & C) {
   double beta = 0.0;
 
   for (std::vector<Metric>::iterator it = monitored_values.begin(); it != monitored_values.end(); it++) {
+    if (*it != PCA || pca_ready != false) {
+      if (output_verbosity >= 4)
+        outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
 
-    if (output_verbosity >= 4)
-      outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+      // Calculate N and beta
+      N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
+      beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
 
-    // Calculate N and beta
-    N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
-    beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
-
-    if (output_verbosity >= 4) {
-      outfile << " Cusum test returned:\n"
-              << "  Threshold: " << N << std::endl;
-      outfile << "  reject H0 (no attack) if current value of statistic g > "
-              << N << std::endl;
-    }
-
-    // TODO(2)
-    // "attack still in progress"-message?
-
-    // perform the test and if g > N raise an alarm
-    if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
-
-      if (report_only_first_attack == false
-        || C.last_cusum_test_was_attack.at(i) == false) {
-        outfile
-          << "    ATTACK! ATTACK! ATTACK!\n"
-          << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
-          << "    ALARM! ALARM! Women und children first!" << std::endl;
-        std::cout
-          << "  ATTACK! ATTACK! ATTACK!\n"
-          << "  Cusum test says we're under attack!\n"
-          << "  ALARM! ALARM! Women und children first!" << std::endl;
-        #ifdef IDMEF_SUPPORT_ENABLED
-          idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
-          sendIdmefMessage("DDoS", idmefMessage);
-          idmefMessage = getNewIdmefMessage();
-        #endif
+      if (output_verbosity >= 4) {
+        outfile << " Cusum test returned:\n"
+                << "  Threshold: " << N << std::endl;
+        outfile << "  reject H0 (no attack) if current value of statistic g > "
+                << N << std::endl;
       }
 
-      was_attack.at(i) = true;
+      // TODO(2)
+      // "attack still in progress"-message?
 
+      // perform the test and if g > N raise an alarm
+      if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
+
+        if (report_only_first_attack == false
+          || C.last_cusum_test_was_attack.at(i) == false) {
+          outfile
+            << "    ATTACK! ATTACK! ATTACK!\n"
+            << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
+            << "    ALARM! ALARM! Women und children first!" << std::endl;
+          std::cout
+            << "  ATTACK! ATTACK! ATTACK!\n"
+            << "  Cusum test says we're under attack!\n"
+            << "  ALARM! ALARM! Women und children first!" << std::endl;
+          #ifdef IDMEF_SUPPORT_ENABLED
+            idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
+            sendIdmefMessage("DDoS", idmefMessage);
+            idmefMessage = getNewIdmefMessage();
+          #endif
+        }
+
+        was_attack.at(i) = true;
+
+      }
     }
-
     i++;
   }
 
@@ -3173,61 +3230,59 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
   double beta = 0.0;
 
   for (std::vector<Metric>::iterator it = monitored_values.begin(); it != monitored_values.end(); it++) {
+    if (*it != PCA || pca_ready != false) {
+      if (output_verbosity >= 4)
+        outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
 
-    if (output_verbosity >= 4)
-      outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+      // Calculate N and beta
+      N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
+      beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
 
-    // Calculate N and beta
-    N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
-    beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
-
-    if (output_verbosity >= 4) {
-      outfile << " Cusum test returned:\n"
-              << "  Threshold: " << N << std::endl;
-      outfile << "  reject H0 (no attack) if current value of statistic g > "
-              << N << std::endl;
-    }
-
-    // TODO(2)
-    // "attack still in progress"-message?
-
-    // perform the test and if g > N raise an alarm
-    if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
-
-      if (report_only_first_attack == false
-        || C.last_cusum_test_was_attack.at(i) == false) {
-        outfile
-          << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-          << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
-          << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
-          << "    ALARM! ALARM! Women und children first!" << std::endl;
-        std::cout
-          << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-          << "  " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
-          << "  Cusum test says we're under attack!\n"
-          << "  ALARM! ALARM! Women und children first!" << std::endl;
-        #ifdef IDMEF_SUPPORT_ENABLED
-          idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
-          sendIdmefMessage("DDoS", idmefMessage);
-          idmefMessage = getNewIdmefMessage();
-        #endif
+      if (output_verbosity >= 4) {
+        outfile << " Cusum test returned:\n"
+                << "  Threshold: " << N << std::endl;
+        outfile << "  reject H0 (no attack) if current value of statistic g > "
+                << N << std::endl;
       }
 
-      (C.cusum_alarms).at(i)++;
-      was_attack.at(i) = true;
+      // TODO(2)
+      // "attack still in progress"-message?
 
+      // perform the test and if g > N raise an alarm
+      if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
+
+        if (report_only_first_attack == false
+          || C.last_cusum_test_was_attack.at(i) == false) {
+          outfile
+            << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+            << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
+            << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
+            << "    ALARM! ALARM! Women und children first!" << std::endl;
+          std::cout
+            << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+            << "  " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
+            << "  Cusum test says we're under attack!\n"
+            << "  ALARM! ALARM! Women und children first!" << std::endl;
+          #ifdef IDMEF_SUPPORT_ENABLED
+            idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
+            sendIdmefMessage("DDoS", idmefMessage);
+            idmefMessage = getNewIdmefMessage();
+          #endif
+        }
+
+        (C.cusum_alarms).at(i)++;
+        was_attack.at(i) = true;
+
+      }
+
+      std::string filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+      std::ofstream file(filename.c_str(), std::ios_base::app);
+      // X  g N alpha beta #alarms counter
+      file << (int) C.X_curr.at(i) << " " << (int) C.g.at(i)
+          << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
+          << " " << (C.cusum_alarms).at(i) << " " << test_counter << "\n";
+      file.close();
     }
-
-    // BEGIN TESTING
-    std::string filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
-    std::ofstream file(filename.c_str(), std::ios_base::app);
-    // X  g N alpha beta #alarms counter
-    file << (int) C.X_curr.at(i) << " " << (int) C.g.at(i)
-         << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
-         << " " << (C.cusum_alarms).at(i) << " " << test_counter << "\n";
-    file.close();
-    // END TESTING
-
     i++;
   }
 
@@ -3565,18 +3620,6 @@ double Stat::stat_test_pcs (std::list<int64_t> & sample_old,
   }
 
   return p;
-}
-
-double Stat::covariance (const int & sumProduct, const int & sumX, const int & sumY) {
-  // calculate mean values
-  double avgX = sumX / learning_phase_for_pca;
-  double avgY = sumY / learning_phase_for_pca;
-
-  // calculate the covariance
-  // KOV = 1/N-1 * sum(x1 - n1)(x2 - n2)
-  // = 1/N-1 * sum(x1x2 - x1n2 - x2n1 + n1n2)
-  // = 1/N-1 * (sum(x1x2) - n2*sum(x1) - n1*sum(x2) + N*n1n2)
-  return (sumProduct - avgY*sumX - avgX*sumY + learning_phase_for_pca*avgX*avgY) / (learning_phase_for_pca - 1);
 }
 
 void Stat::sigTerm(int signum)

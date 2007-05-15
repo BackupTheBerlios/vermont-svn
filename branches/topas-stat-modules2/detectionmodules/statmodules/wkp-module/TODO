@@ -1,0 +1,9 @@
+Man geht ja davon aus, dass es wichtige und unwichtige Komponenten gibt. Aber in unserem Fall kann es doch durchaus vorkommen, dass alle Komponenten in etwa gleichwichtig sind, da Korrelationen zwischen ihnen ungefähr gleich sind. Daher die Frage:
+Welche Komponenten ziehen wir zur Rekonstruktion heran, nur die erste oder die ersten zwei? (Alle drei würden die Daten ja exakt rekonstruieren)
+
+Wie berechnen wir den finalen pca_wert für die Eingabemetrik der Tests oder den initialen Mittelwert des Residuums? Das heißt, wie bestimmt man aus einer Matrix einen einzelnen, vergleichbaren Wert? (Determinante?)
+
+Residuum = OriginalData - ReconstructedData
+wobei OriginalData eine Matrix der Größe (L * 3) ist und
+ReconstructedData der Größe (L * 2) sein könnte
+--> Wie subtrahiert man dann?

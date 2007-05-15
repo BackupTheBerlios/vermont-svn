@@ -29,8 +29,9 @@
 #include <map>
 #include <string>
 #include <algorithm> // sort(...), unique(...)
-// for pca (matrices etc.)
+// for pca (matrices, vectors etc.)
 #include <gsl/gsl_matrix.h>
+#include <gsl/gsl_vector.h>
 
 // ========================== CLASS Stat ==========================
 
@@ -293,18 +294,14 @@ class Stat : public DetectionBase<StatStore> {
   std::vector<Metric> pca_metrics; // which three metrics shall be used?
   int learning_phase_for_pca; // length of the learnign phase
   int learning_phase_nr_for_pca;
-  // the following two are needed for the learning phase
-  // and with their help, covariances of the metrics can be calculated
-  // will hold the elements:
-  // Sum(x1x1), Sum(x2x2), Sum(x3x3), Sum(x1x2), Sum(x2,x3) and Sum(x1x3)
-  std::vector<int> sumsOfProducts;
-  // will hold the elements: Sum(x1), Sum(x2) and Sum(x3)
-  std::vector<int> sumsOfMetrics;
+  // container for the data of each of the three metrics
+  gsl_matrix * pcaData;
   // this is the covariance matrix calculated after the learning phase
   gsl_matrix *cov;
-  // function for calculating the covariance of two metrics
-  // (this will yield one entry for the cov-matrix)
-  double covariance (const int &, const int &, const int &);
+  // and this is the matrix containing the eigenvectors of cov
+  gsl_matrix *evec;
+  double pca_mean_value; // mean value of the residuum
+  bool pca_initialized;
   // function to extract the new values of our three metrics
   std::vector<int64_t> extract_pca_data (const Info &o, const Info &);
   bool pca_ready; // flag to identify if still learning phase
