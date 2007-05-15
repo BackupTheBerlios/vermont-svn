@@ -289,22 +289,29 @@ class Stat : public DetectionBase<StatStore> {
   short pause_update_when_attack;
 
   // some parameters for the pca metric:
-  // config parameters
-  bool use_pca; // is pca activated?
-  std::vector<Metric> pca_metrics; // which three metrics shall be used?
-  int learning_phase_for_pca; // length of the learnign phase
+
+  // is pca activated?
+  bool use_pca;
+  // which three metrics shall be used?
+  std::vector<Metric> pca_metrics;
+  // length of the learning phase
+  int learning_phase_for_pca;
+  // counter (learning phase over?)
   int learning_phase_nr_for_pca;
+  // flag to identify if still in learning phase
+  bool pca_ready;
   // container for the data of each of the three metrics
   gsl_matrix * pcaData;
-  // this is the covariance matrix calculated after the learning phase
+  // covariance matrix calculated after the learning phase
   gsl_matrix *cov;
-  // and this is the matrix containing the eigenvectors of cov
+  // matrix containing the eigenvectors of cov
   gsl_matrix *evec;
-  double pca_mean_value; // mean value of the residuum
+  // initial mean value of the residual
+  double pca_mean_value;
+  // flag to check, whether residual was initialized
   bool pca_initialized;
   // function to extract the new values of our three metrics
-  std::vector<int64_t> extract_pca_data (const Info &o, const Info &);
-  bool pca_ready; // flag to identify if still learning phase
+  std::vector<int64_t> extract_pca_data (const Info &, const Info &);
 
 
   // test parameters (defined in the XML config file):
