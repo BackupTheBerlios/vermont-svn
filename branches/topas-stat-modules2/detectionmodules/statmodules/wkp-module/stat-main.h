@@ -29,9 +29,8 @@
 #include <map>
 #include <string>
 #include <algorithm> // sort(...), unique(...)
-// for pca (matrices, vectors etc.)
+// for pca (matrices etc.)
 #include <gsl/gsl_matrix.h>
-#include <gsl/gsl_vector.h>
 
 // ========================== CLASS Stat ==========================
 
@@ -50,7 +49,7 @@
 #define DEFAULT_stat_test_frequency 1
 #define DEFAULT_learning_phase_for_pca 50
 
-// constants for monitored values
+// constants for metrics
 enum Metric {
   PACKETS_IN,
   PACKETS_OUT,
@@ -66,7 +65,6 @@ enum Metric {
   PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT,
   BYTES_T_IN_MINUS_BYTES_T_1_IN,
   BYTES_T_OUT_MINUS_BYTES_T_1_OUT,
-  PCA
 };
 
 // ======================== STRUCT Samples ========================
@@ -74,7 +72,7 @@ enum Metric {
 // we use this structure as value field in std::map< key, value >
 // it contains a list of the old and the new metrics.
 // Letting Old and New be lists of vector<int64_t> enables us
-// to store values for multiple monitored values
+// to store values for multiple metrics
 // It also holds last-test-was-an-attack flags: they are useful
 // to keep for every endpoint in mind results of tests if
 // report_only_first_attack==true
@@ -92,6 +90,22 @@ public:
   bool last_ks_test_was_attack;
   bool last_pcs_test_was_attack;
 
+  // pca
+  int learning_phase_nr_for_pca;
+  // flag to identify if still in learning phase
+  bool pca_ready;
+  // the following two are needed for the learning phase
+  // and with their help, covariances of the metrics can be calculated.
+  // holds the sum of the product of each two metrics
+  // (should be interpreted as a matrix, with each vector containing one row)
+  std::vector<std::vector<long long int> > sumsOfProducts;
+  // holds the sum of each metric
+  std::vector<int> sumsOfMetrics;
+  // this is the covariance matrix calculated after the learning phase
+  gsl_matrix *cov;
+  // matrix containing the eigenvectors of cov
+  gsl_matrix *evec;
+
   // BEGIN TESTING
   // count raised alarms for every metric, endpoint and test seperately
   std::vector<int> wmw_alarms;
@@ -104,6 +118,8 @@ public:
     last_wmw_test_was_attack = false;
     last_ks_test_was_attack = false;
     last_pcs_test_was_attack = false;
+    learning_phase_nr_for_pca = 0;
+    pca_ready = false;
   }
 
 };
@@ -122,7 +138,7 @@ public:
   // needed to calculate the initial alphas
   std::vector<int64_t> sum;
   // to identify the end of the learning phase
-  int learning_phase_nr;
+  int learning_phase_nr_for_alpha;
   // the means of every metric
   std::vector<double> alpha;
   // current values of the test statistic of each metric
@@ -144,12 +160,29 @@ public:
 
   bool ready_to_test;
 
+  // pca
+  int learning_phase_nr_for_pca;
+  // flag to identify if still in learning phase
+  bool pca_ready;
+  // the following two are needed for the learning phase
+  // and with their help, covariances of the metrics can be calculated.
+  // holds the sum of the product of each two metrics
+  // (should be interpreted as a matrix, with each vector containing one row)
+  std::vector<std::vector<long long int> > sumsOfProducts;
+  // holds the sum of each metric
+  std::vector<int> sumsOfMetrics;
+  // this is the covariance matrix calculated after the learning phase
+  gsl_matrix *cov;
+  // matrix containing the eigenvectors of cov
+  gsl_matrix *evec;
+
   CusumParams()
   {
     ready_to_test = false;
-    learning_phase_nr = 0;
+    learning_phase_nr_for_alpha = 0;
+    learning_phase_nr_for_pca = 0;
+    pca_ready = false;
   }
-
 };
 
 
@@ -202,9 +235,7 @@ class Stat : public DetectionBase<StatStore> {
   void init_output_verbosity(XMLConfObj *);
   void init_endpoint_key(XMLConfObj *);
   void init_pca(XMLConfObj *);
-  void init_monitored_values(XMLConfObj *);
-    bool packetsSubscribed; // as init_pca and init_monitored_values both handle
-    bool bytesSubscribed;   // subscriptions, we need to prevent multiple subscriptions
+  void init_metrics(XMLConfObj *);
   void init_noise_thresholds(XMLConfObj *);
   void init_endpointlist_maxsize(XMLConfObj *);
   void init_protocols(XMLConfObj *);
@@ -278,8 +309,8 @@ class Stat : public DetectionBase<StatStore> {
   std::ofstream outfile;
   int warning_verbosity;
   int output_verbosity;
-  // holds the constants for the (splitted) monitored values
-  std::vector<Metric> monitored_values;
+  // holds the constants for the (splitted) metrics
+  std::vector<Metric> metrics;
   int noise_threshold_packets;
   int noise_threshold_bytes;
   int endpointlist_maxsize;
@@ -288,30 +319,17 @@ class Stat : public DetectionBase<StatStore> {
   bool report_only_first_attack;
   short pause_update_when_attack;
 
-  // some parameters for the pca metric:
-
-  // is pca activated?
-  bool use_pca;
-  // which three metrics shall be used?
-  std::vector<Metric> pca_metrics;
-  // length of the learning phase
-  int learning_phase_for_pca;
-  // counter (learning phase over?)
-  int learning_phase_nr_for_pca;
-  // flag to identify if still in learning phase
-  bool pca_ready;
-  // container for the data of each of the three metrics
-  gsl_matrix * pcaData;
-  // covariance matrix calculated after the learning phase
-  gsl_matrix *cov;
-  // matrix containing the eigenvectors of cov
-  gsl_matrix *evec;
-  // initial mean value of the residual
-  double pca_mean_value;
-  // flag to check, whether residual was initialized
-  bool pca_initialized;
-  // function to extract the new values of our three metrics
-  std::vector<int64_t> extract_pca_data (const Info &, const Info &);
+  // fix PCA stuff
+  // config parameters
+  bool use_pca; // is pca activated?
+  int learning_phase_for_pca; // length of the learning phase
+  // functions
+  // calculate the covariance of two metrics
+  // (this will yield one entry for the cov-matrix)
+  double covariance (const long long int &, const int &, const int &);
+  // extract pca metrics
+  std::vector<int64_t> extract_pca_data (Samples &, const Info &, const Info &);
+  std::vector<int64_t> extract_pca_data (CusumParams &, const Info &, const Info &);
 
 
   // test parameters (defined in the XML config file):

@@ -31,12 +31,12 @@ If report_only_first_attack = true:
 We cant see from the output, whether an attack ceased. Maybe some kind of "attack still in progress"-message would be nice ...
 */
 
+// for pca (eigenvectors etc.)
+#include <gsl/gsl_eigen.h>
+// for pca (matrix multiplication)
+#include <gsl/gsl_blas.h>
 
 #include<signal.h>
-
-// for pca (covariance, eigenvectors etc.)
-#include <gsl/gsl_statistics.h>
-#include <gsl/gsl_eigen.h>
 
 #include "stat-main.h"
 #include "wmw-test.h"
@@ -60,9 +60,6 @@ Stat::Stat(const std::string & configfile)
 
   // lock, will be unlocked at the end of init() (cf. StatStore class header):
   StatStore::setBeginMonitoring () = false;
-
-  packetsSubscribed = false;
-  bytesSubscribed = false;
 
   ip_monitoring = false;
   port_monitoring = false; ports_relevant = false;
@@ -88,32 +85,13 @@ Stat::Stat(const std::string & configfile)
 
   // END TESTING
 
-
   init(configfile);
-
-  // allocate covariance matrix
-  if (use_pca == true) {
-    cov = gsl_matrix_calloc (3, 3);
-    evec = gsl_matrix_calloc (3, 3);
-    pcaData = gsl_matrix_calloc (learning_phase_for_pca, 3);
-    learning_phase_nr_for_pca = 0;
-    pca_mean_value = 0.0;
-    pca_initialized = false;
-    pca_ready = false;
-  }
-
 }
 
 
 Stat::~Stat() {
 
   outfile.close();
-  // deallocate covariance matrix
-  if (use_pca == true) {
-    gsl_matrix_free(cov);
-    gsl_matrix_free(evec);
-    gsl_matrix_free(pcaData);
-  }
 
 }
 
@@ -191,8 +169,8 @@ void Stat::init(const std::string & configfile) {
   // initialize pca parameters
   init_pca(config);
 
-  // extracting monitored values
-  init_monitored_values(config);
+  // extracting metrics
+  init_metrics(config);
 
   // extracting noise reduction preferences
   init_noise_thresholds(config);
@@ -558,43 +536,24 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
 // extract all needed parameters for the pca, if enabled
 void Stat::init_pca(XMLConfObj * config) {
 
-  if (!config->nodeExists("pca")) {
+  if (!config->nodeExists("use_pca")) {
     use_pca = false;
     return;
   }
 
-  std::stringstream Error1, Error2, Error3, Error4, Default1, Default2, Default3;
-  Error1
-    << "ERROR: No use_pca parameter in XML config file!\n"
-    << "  Please define one and restart.\n";
+  std::stringstream Default1, Default2, Default3;
   Default1
-    << "WARNING: No value for use_pca parameter in XML config file!\n"
+    << "WARNING: No value for use_pca parameter defined in XML config file!\n"
     << "  \"true\" assumed.\n";
-  Error2
-    << "ERROR: No metrics parameter for pca in XML config file!\n"
-    << "  Please define one and restart.\n";
-  Error3
-    << "ERROR: Unknown value for parameter metrics (for pca) in XML config file!\n"
-    << "  Please define one such as \"packets_in bytes_in records_in\" and restart.\n";
-  Error4
-    << "ERROR: No value for parameter metrics (for pca) defined in XML config file!\n"
-    << "  Please define one such as \"packets_in bytes_in records_in\" and restart.\n";
   Default2
-    << "WARNING: No learning_phase parameter for pca in XML config file!\n"
+    << "WARNING: No pca_learning_phase parameter defined in XML config file!\n"
     << "  \"" << DEFAULT_learning_phase_for_pca << "\" assumed.\n";
   Default3
-    << "WARNING: No value for learning_phase parameter (for pca) defined in XML config file!\n"
+    << "WARNING: No value for pca_learning_phase parameter defined in XML config file!\n"
     << "  \"" << DEFAULT_learning_phase_for_pca << "\" assumed.\n";
 
-  config->enterNode("pca");
 
-  if (!config->nodeExists("use_pca")) {
-    std::cerr << Error1.str() << "  Exiting.\n";
-    if (warning_verbosity==1)
-      outfile << Error1.str() << "  Exiting." << std::endl << std::flush;
-    exit(0);
-  }
-  else if ( !(config->getValue("use_pca").empty()) ) {
+  if ( !(config->getValue("use_pca").empty()) ) {
     use_pca = ( 0 == strcasecmp("true", config->getValue("use_pca").c_str()) ) ? true:false;
   }
   else {
@@ -607,77 +566,15 @@ void Stat::init_pca(XMLConfObj * config) {
   // initialize the other parameters only if pca is used
   if (use_pca == true) {
 
-    // metrics
-    if (!config->nodeExists("metrics")) {
-      std::cerr << Error2.str() << "  Exiting.\n";
-      if (warning_verbosity==1)
-        outfile << Error2.str() << "  Exiting." << std::endl << std::flush;
-      exit(0);
-    }
-    else if ( !(config->getValue("metrics").empty()) ) {
-      std::string metrics = config->getValue("metrics");
-      std::istringstream MetricsStream (metrics);
-      std::string metric;
-      while (MetricsStream >> metric) {
-        if ( 0 == strcasecmp("packets_in", metric.c_str()) )
-          pca_metrics.push_back(PACKETS_IN);
-        else if ( 0 == strcasecmp("packets_out", metric.c_str()) )
-          pca_metrics.push_back(PACKETS_OUT);
-        else if ( 0 == strcasecmp("bytes_in", metric.c_str())
-              || 0 == strcasecmp("octets_in", metric.c_str()) )
-          pca_metrics.push_back(BYTES_IN);
-        else if ( 0 == strcasecmp("bytes_out", metric.c_str())
-              || 0 == strcasecmp("octets_out", metric.c_str()) )
-          pca_metrics.push_back(BYTES_OUT);
-        else if ( 0 == strcasecmp("records_in", metric.c_str()) )
-          pca_metrics.push_back(RECORDS_IN);
-        else if ( 0 == strcasecmp("records_out", metric.c_str()) )
-          pca_metrics.push_back(RECORDS_OUT);
-        else if ( 0 == strcasecmp("octets_in/packet_in", metric.c_str())
-              || 0 == strcasecmp("bytes_in/packet_in", metric.c_str()) )
-          pca_metrics.push_back(BYTES_IN_PER_PACKET_IN);
-        else if ( 0 == strcasecmp("octets_out/packet_out", metric.c_str())
-              || 0 == strcasecmp("bytes_out/packet_out", metric.c_str()) )
-          pca_metrics.push_back(BYTES_OUT_PER_PACKET_OUT);
-        else if ( 0 == strcasecmp("packets_out-packets_in", metric.c_str()) )
-          pca_metrics.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
-        else if ( 0 == strcasecmp("octets_out-octets_in", metric.c_str())
-              || 0 == strcasecmp("bytes_out-bytes_in", metric.c_str()) )
-          pca_metrics.push_back(BYTES_OUT_MINUS_BYTES_IN);
-        else if ( 0 == strcasecmp("packets_in(t)-packets_in(t-1)", metric.c_str()) )
-          pca_metrics.push_back(PACKETS_T_IN_MINUS_PACKETS_T_1_IN);
-        else if ( 0 == strcasecmp("packets_out(t)-packets_out(t-1)", metric.c_str()) )
-          pca_metrics.push_back(PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT);
-        else if ( 0 == strcasecmp("octets_in(t)-octets_in(t-1)", metric.c_str())
-              || 0 == strcasecmp("bytes_in(t)-bytes_in(t-1)", metric.c_str()) )
-          pca_metrics.push_back(BYTES_T_IN_MINUS_BYTES_T_1_IN);
-        else if ( 0 == strcasecmp("octets_out(t)-octets_out(t-1)", metric.c_str())
-              || 0 == strcasecmp("bytes_out(t)-bytes_out(t-1)", metric.c_str()) )
-          pca_metrics.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
-        else {
-          std::cerr << Error3.str() << "  Exiting.\n";
-          if (warning_verbosity==1)
-            outfile << Error3.str() << "  Exiting." << std::endl << std::flush;
-          exit(0);
-        }
-      }
-    }
-    else {
-      std::cerr << Error4.str() << "Exiting.\n";
-      if (warning_verbosity==1)
-        outfile << Error4.str() << std::endl << std::flush;
-      exit(0);
-    }
-
     // learning_phase
-    if (!config->nodeExists("learning_phase")) {
+    if (!config->nodeExists("pca_learning_phase")) {
       std::cerr << Default2.str();
       if (warning_verbosity==1)
         outfile << Default2.str() << std::flush;
       learning_phase_for_pca = DEFAULT_learning_phase_for_pca;
     }
-    else if ( !(config->getValue("learning_phase").empty()) ) {
-      learning_phase_for_pca = atoi(config->getValue("learning_phase").c_str());
+    else if ( !(config->getValue("pca_learning_phase").empty()) ) {
+      learning_phase_for_pca = atoi(config->getValue("pca_learning_phase").c_str());
     }
     else {
       std::cerr << Default3.str();
@@ -685,57 +582,24 @@ void Stat::init_pca(XMLConfObj * config) {
         outfile << Default3.str() << std::flush;
       learning_phase_for_pca = DEFAULT_learning_phase_for_pca;
     }
-
-    // subscribing to the needed IPFIX_TYPEID-fields
-    for (int i = 0; i != pca_metrics.size(); i++) {
-      if ( (pca_metrics.at(i) == PACKETS_IN
-        || pca_metrics.at(i) == PACKETS_OUT
-        || pca_metrics.at(i) == PACKETS_OUT_MINUS_PACKETS_IN
-        || pca_metrics.at(i) == PACKETS_T_IN_MINUS_PACKETS_T_1_IN
-        || pca_metrics.at(i) == PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT)
-        && packetsSubscribed == false) {
-        subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
-        packetsSubscribed = true;
-      }
-
-      if ( (pca_metrics.at(i) == BYTES_IN
-        || pca_metrics.at(i) == BYTES_OUT
-        || pca_metrics.at(i) == BYTES_OUT_MINUS_BYTES_IN
-        || pca_metrics.at(i) == BYTES_T_IN_MINUS_BYTES_T_1_IN
-        || pca_metrics.at(i) == BYTES_T_OUT_MINUS_BYTES_T_1_OUT)
-        && bytesSubscribed == false ) {
-        subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
-        bytesSubscribed = true;
-      }
-
-      if ( (pca_metrics.at(i) == BYTES_IN_PER_PACKET_IN
-        || pca_metrics.at(i) == BYTES_OUT_PER_PACKET_OUT)
-        && packetsSubscribed == false
-        && bytesSubscribed == false) {
-        subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
-        subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
-      }
-    }
-
   }
-  config->leaveNode();
   return;
 }
 
-// extracting monitored values to vector<Metric>;
+// extracting metrics to vector<Metric>;
 // the values are stored there as constants
 // defined in enum Metric in stat_main.h
-void Stat::init_monitored_values(XMLConfObj * config) {
+void Stat::init_metrics(XMLConfObj * config) {
 
   std::stringstream Error1, Error2, Error3, Usage;
   Error1
-    << "ERROR: No monitored_values parameter in XML config file!\n"
+    << "ERROR: No metrics parameter in XML config file!\n"
     << "  Please define one and restart.\n";
   Error2
-    << "ERROR: No value parameter(s) defined for monitored_values in XML config file!\n"
+    << "ERROR: No value parameter(s) defined for metrics in XML config file!\n"
     << "  Please define at least one and restart.\n";
   Error3
-    << "ERROR: Unknown value parameter(s) defined for monitored_values in XML config file!\n"
+    << "ERROR: Unknown value parameter(s) defined for metrics in XML config file!\n"
     << "  Please provide only valid <value>-parameters.\n";
   Usage
     << "  Use for each <value>-Tag one of the following metrics:\n"
@@ -745,14 +609,14 @@ void Stat::init_monitored_values(XMLConfObj * config) {
     << "  packets_out(t)-packets_out(t-1), bytes_in(t)-bytes_in(t-1) or "
     << "  bytes_out(t)-bytes_out(t-1).\n";
 
-  if (!config->nodeExists("monitored_values")) {
+  if (!config->nodeExists("metrics")) {
     std::cerr << Error1.str() << Usage.str() << "  Exiting.\n";
     if (warning_verbosity==1)
       outfile << Error1.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
     exit(0);
   }
 
-  config->enterNode("monitored_values");
+  config->enterNode("metrics");
 
   std::vector<std::string> tmp_monitored_data;
 
@@ -772,44 +636,44 @@ void Stat::init_monitored_values(XMLConfObj * config) {
   config->leaveNode();
 
   // extract the values from tmp_monitored_data (string)
-  // to monitored_values (vector<enum>)
+  // to metrics (vector<enum>)
   std::vector<std::string>::iterator it = tmp_monitored_data.begin();
   while ( it != tmp_monitored_data.end() ) {
     if ( 0 == strcasecmp("packets_in", (*it).c_str()) )
-      monitored_values.push_back(PACKETS_IN);
+      metrics.push_back(PACKETS_IN);
     else if ( 0 == strcasecmp("packets_out", (*it).c_str()) )
-      monitored_values.push_back(PACKETS_OUT);
+      metrics.push_back(PACKETS_OUT);
     else if ( 0 == strcasecmp("bytes_in", (*it).c_str())
            || 0 == strcasecmp("octets_in",(*it).c_str()) )
-      monitored_values.push_back(BYTES_IN);
+      metrics.push_back(BYTES_IN);
     else if ( 0 == strcasecmp("bytes_out", (*it).c_str())
            || 0 == strcasecmp("octets_out",(*it).c_str()) )
-      monitored_values.push_back(BYTES_OUT);
+      metrics.push_back(BYTES_OUT);
     else if ( 0 == strcasecmp("records_in",(*it).c_str()) )
-      monitored_values.push_back(RECORDS_IN);
+      metrics.push_back(RECORDS_IN);
     else if ( 0 == strcasecmp("records_out",(*it).c_str()) )
-      monitored_values.push_back(RECORDS_OUT);
+      metrics.push_back(RECORDS_OUT);
     else if ( 0 == strcasecmp("octets_in/packet_in",(*it).c_str())
            || 0 == strcasecmp("bytes_in/packet_in",(*it).c_str()) )
-      monitored_values.push_back(BYTES_IN_PER_PACKET_IN);
+      metrics.push_back(BYTES_IN_PER_PACKET_IN);
     else if ( 0 == strcasecmp("octets_out/packet_out",(*it).c_str())
            || 0 == strcasecmp("bytes_out/packet_out",(*it).c_str()) )
-      monitored_values.push_back(BYTES_OUT_PER_PACKET_OUT);
+      metrics.push_back(BYTES_OUT_PER_PACKET_OUT);
     else if ( 0 == strcasecmp("packets_out-packets_in",(*it).c_str()) )
-      monitored_values.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
+      metrics.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
     else if ( 0 == strcasecmp("octets_out-octets_in",(*it).c_str())
            || 0 == strcasecmp("bytes_out-bytes_in",(*it).c_str()) )
-      monitored_values.push_back(BYTES_OUT_MINUS_BYTES_IN);
+      metrics.push_back(BYTES_OUT_MINUS_BYTES_IN);
     else if ( 0 == strcasecmp("packets_in(t)-packets_in(t-1)",(*it).c_str()) )
-      monitored_values.push_back(PACKETS_T_IN_MINUS_PACKETS_T_1_IN);
+      metrics.push_back(PACKETS_T_IN_MINUS_PACKETS_T_1_IN);
     else if ( 0 == strcasecmp("packets_out(t)-packets_out(t-1)",(*it).c_str()) )
-      monitored_values.push_back(PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT);
+      metrics.push_back(PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT);
     else if ( 0 == strcasecmp("octets_in(t)-octets_in(t-1)",(*it).c_str())
            || 0 == strcasecmp("bytes_in(t)-bytes_in(t-1)",(*it).c_str()) )
-      monitored_values.push_back(BYTES_T_IN_MINUS_BYTES_T_1_IN);
+      metrics.push_back(BYTES_T_IN_MINUS_BYTES_T_1_IN);
     else if ( 0 == strcasecmp("octets_out(t)-octets_out(t-1)",(*it).c_str())
            || 0 == strcasecmp("bytes_out(t)-bytes_out(t-1)",(*it).c_str()) )
-      monitored_values.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
+      metrics.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
     else {
         std::cerr << Error3.str() << Usage.str() << "  Exiting.\n";
         if (warning_verbosity==1)
@@ -819,17 +683,13 @@ void Stat::init_monitored_values(XMLConfObj * config) {
     it++;
   }
 
-  // is pca enabled?
-  if (use_pca == true)
-    monitored_values.push_back(PCA);
-
   // just in case the user provided multiple same values
-  // (after these lines, monitored_values contains the Metrics
+  // (after these lines, metrics contains the Metrics
   // in the correct order)
-  sort(monitored_values.begin(),monitored_values.end());
-  std::vector<Metric>::iterator new_end = unique(monitored_values.begin(),monitored_values.end());
-  std::vector<Metric> tmp(monitored_values.begin(), new_end);
-  monitored_values = tmp;
+  sort(metrics.begin(),metrics.end());
+  std::vector<Metric>::iterator new_end = unique(metrics.begin(),metrics.end());
+  std::vector<Metric> tmp(metrics.begin(), new_end);
+  metrics = tmp;
 
   // print out, in which order the values will be stored
   // in the Samples-Lists (for better understanding the output
@@ -838,9 +698,9 @@ void Stat::init_monitored_values(XMLConfObj * config) {
   Information
     << "INFORMATION: Values in the lists sample_old and sample_new will be "
     << "stored in the following order:\n";
-  std::vector<Metric>::iterator val = monitored_values.begin();
+  std::vector<Metric>::iterator val = metrics.begin();
   Information << "( ";
-  while (val != monitored_values.end() ) {
+  while (val != metrics.end() ) {
     Information << getMetricName(*val) << " ";
     val++;
   }
@@ -849,31 +709,32 @@ void Stat::init_monitored_values(XMLConfObj * config) {
     if (warning_verbosity==1)
       outfile << Information.str() << std::flush;
 
-
+  bool packetsSubscribed = false;
+  bool bytesSubscribed = false;
   // subscribing to the needed IPFIX_TYPEID-fields
-  for (int i = 0; i != monitored_values.size(); i++) {
-    if ( (monitored_values.at(i) == PACKETS_IN
-      || monitored_values.at(i) == PACKETS_OUT
-      || monitored_values.at(i) == PACKETS_OUT_MINUS_PACKETS_IN
-      || monitored_values.at(i) == PACKETS_T_IN_MINUS_PACKETS_T_1_IN
-      || monitored_values.at(i) == PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT)
+  for (int i = 0; i != metrics.size(); i++) {
+    if ( (metrics.at(i) == PACKETS_IN
+      || metrics.at(i) == PACKETS_OUT
+      || metrics.at(i) == PACKETS_OUT_MINUS_PACKETS_IN
+      || metrics.at(i) == PACKETS_T_IN_MINUS_PACKETS_T_1_IN
+      || metrics.at(i) == PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT)
       && packetsSubscribed == false) {
       subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
       packetsSubscribed = true;
     }
 
-    if ( (monitored_values.at(i) == BYTES_IN
-      || monitored_values.at(i) == BYTES_OUT
-      || monitored_values.at(i) == BYTES_OUT_MINUS_BYTES_IN
-      || monitored_values.at(i) == BYTES_T_IN_MINUS_BYTES_T_1_IN
-      || monitored_values.at(i) == BYTES_T_OUT_MINUS_BYTES_T_1_OUT)
+    if ( (metrics.at(i) == BYTES_IN
+      || metrics.at(i) == BYTES_OUT
+      || metrics.at(i) == BYTES_OUT_MINUS_BYTES_IN
+      || metrics.at(i) == BYTES_T_IN_MINUS_BYTES_T_1_IN
+      || metrics.at(i) == BYTES_T_OUT_MINUS_BYTES_T_1_OUT)
       && bytesSubscribed == false ) {
       subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
       bytesSubscribed = true;
     }
 
-    if ( (monitored_values.at(i) == BYTES_IN_PER_PACKET_IN
-       || monitored_values.at(i) == BYTES_OUT_PER_PACKET_OUT)
+    if ( (metrics.at(i) == BYTES_IN_PER_PACKET_IN
+       || metrics.at(i) == BYTES_OUT_PER_PACKET_OUT)
       && packetsSubscribed == false
       && bytesSubscribed == false) {
       subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
@@ -2040,12 +1901,28 @@ void Stat::test(StatStore * store) {
           // initialize S
           if (SampleData_it == SampleData.end()) {
             Samples S;
-            (S.Old).push_back(extract_data(Data_it->second, prev));
-            for (int i = 0; i != monitored_values.size(); i++) {
+            if (use_pca == true) {
+              S.cov = gsl_matrix_calloc (metrics.size(), metrics.size());
+              S.evec = gsl_matrix_calloc (metrics.size(), metrics.size());
+              // initialize sumsOfMetrics and sumsOfProducts
+              for (int i = 0; i < metrics.size(); i++) {
+                S.sumsOfMetrics.push_back(0);
+                std::vector<long long int> v;
+                S.sumsOfProducts.push_back(v);
+                for (int j = 0; j < metrics.size(); j++)
+                  S.sumsOfProducts.at(i).push_back(0);
+              }
+              std::vector<int64_t> v = extract_pca_data(S, Data_it->second, prev);
+            }
+            else
+              (S.Old).push_back(extract_data(Data_it->second, prev));
+
+            for (int i = 0; i != metrics.size(); i++) {
               (S.wmw_alarms).push_back(0);
               (S.ks_alarms).push_back(0);
               (S.pcs_alarms).push_back(0);
             }
+
             SampleData[Data_it->first] = S;
             if (output_verbosity >= 3) {
               outfile << " (WKP): New monitored EndPoint added" << std::endl;
@@ -2055,8 +1932,14 @@ void Stat::test(StatStore * store) {
             }
 
           }
-          else
-            update ( SampleData_it->second, extract_data(Data_it->second, prev) );
+          else {
+            if (use_pca == true) {
+              std::vector<int64_t> v = extract_pca_data(SampleData_it->second, Data_it->second, prev);
+              update ( SampleData_it->second, v );
+            }
+            else
+              update ( SampleData_it->second, extract_data(Data_it->second, prev) );
+          }
         }
 
         if (enable_cusum_test == true) {
@@ -2065,7 +1948,7 @@ void Stat::test(StatStore * store) {
           // initialize C
           if (CusumData_it == CusumData.end()) {
             CusumParams C;
-            for (int i = 0; i != monitored_values.size(); i++) {
+            for (int i = 0; i != metrics.size(); i++) {
               (C.sum).push_back(0);
               (C.alpha).push_back(0.0);
               (C.g).push_back(0.0);
@@ -2075,18 +1958,39 @@ void Stat::test(StatStore * store) {
               (C.X_last).push_back(0);
             }
 
-            std::vector<int64_t> v = extract_data(Data_it->second, prev);
-            for (int i = 0; i != v.size(); i++)
-              C.sum.at(i) += v.at(i);
-
-            C.learning_phase_nr = 1;
-
+            // extract_data
+            std::vector<int64_t> v;
+            if (use_pca == true) {
+              C.cov = gsl_matrix_calloc (metrics.size(), metrics.size());
+              C.evec = gsl_matrix_calloc (metrics.size(), metrics.size());
+              // initialize sumsOfMetrics and sumsOfProducts
+              for (int i = 0; i < metrics.size(); i++) {
+                C.sumsOfMetrics.push_back(0);
+                std::vector<long long int> v;
+                C.sumsOfProducts.push_back(v);
+                for (int j = 0; j < metrics.size(); j++)
+                  C.sumsOfProducts.at(i).push_back(0);
+              }
+              v = extract_pca_data(C, Data_it->second, prev);
+            }
+            else {
+              v = extract_data(Data_it->second, prev);
+              for (int i = 0; i != v.size(); i++)
+                C.sum.at(i) += v.at(i);
+              C.learning_phase_nr_for_alpha = 1;
+            }
             CusumData[Data_it->first] = C;
             if (output_verbosity >= 3)
               outfile << " (CUSUM): New monitored EndPoint added" << std::endl;
           }
-          else
-            update_c ( CusumData_it->second, extract_data(Data_it->second, prev) );
+          else {
+            if (use_pca == true) {
+              std::vector<int64_t> v = extract_pca_data(CusumData_it->second, Data_it->second, prev);
+              update_c ( CusumData_it->second, v );
+            }
+            else
+              update_c ( CusumData_it->second, extract_data(Data_it->second, prev) );
+          }
         }
       }
       Data_it++;
@@ -2239,7 +2143,23 @@ void Stat::test(StatStore * store) {
 
         Samples S;
         // extract_data has vector<int64_t> as output
-        (S.Old).push_back(extract_data(Data_it->second, prev));
+        if (use_pca == true) {
+          S.cov = gsl_matrix_calloc (metrics.size(), metrics.size());
+          S.evec = gsl_matrix_calloc (metrics.size(), metrics.size());
+          // initialize sumsOfMetrics and sumsOfProducts
+          for (int i = 0; i < metrics.size(); i++) {
+            S.sumsOfMetrics.push_back(0);
+            std::vector<long long int> v;
+            S.sumsOfProducts.push_back(v);
+            for (int j = 0; j < metrics.size(); j++)
+              S.sumsOfProducts.at(i).push_back(0);
+          }
+          // v is not used, but we need to call extract_pca_data anyhow
+          std::vector<int64_t> v = extract_pca_data(S, Data_it->second, prev);
+        }
+        else
+          (S.Old).push_back(extract_data(Data_it->second, prev));
+
         SampleData[Data_it->first] = S;
         if (output_verbosity >= 3) {
           outfile << " (WKP): New monitored EndPoint added" << std::endl;
@@ -2254,7 +2174,12 @@ void Stat::test(StatStore * store) {
         // in our sample container "SampleData"; so we update the samples
         // (SampleData_it->second).Old and (SampleData_it->second).New
         // thanks to the recorded new value in Data_it->second:
-        update ( SampleData_it->second, extract_data(Data_it->second, prev) );
+        if (use_pca == true) {
+          std::vector<int64_t> v = extract_pca_data(SampleData_it->second, Data_it->second, prev);
+          update ( SampleData_it->second, v );
+        }
+        else
+          update ( SampleData_it->second, extract_data(Data_it->second, prev) );
       }
     }
 
@@ -2273,7 +2198,7 @@ void Stat::test(StatStore * store) {
 
         CusumParams C;
         // initialize the vectors of C
-        for (int i = 0; i != monitored_values.size(); i++) {
+        for (int i = 0; i != metrics.size(); i++) {
           (C.sum).push_back(0);
           (C.alpha).push_back(0.0);
           (C.g).push_back(0.0);
@@ -2282,15 +2207,30 @@ void Stat::test(StatStore * store) {
         }
 
         // extract_data
-        std::vector<int64_t> v = extract_data(Data_it->second, prev);
+        std::vector<int64_t> v;
+        if (use_pca == true) {
+          C.cov = gsl_matrix_calloc (metrics.size(), metrics.size());
+          C.evec = gsl_matrix_calloc (metrics.size(), metrics.size());
+          // initialize sumsOfMetrics and sumsOfProducts
+          for (int i = 0; i < metrics.size(); i++) {
+            C.sumsOfMetrics.push_back(0);
+            std::vector<long long int> v;
+            C.sumsOfProducts.push_back(v);
+            for (int j = 0; j < metrics.size(); j++)
+              C.sumsOfProducts.at(i).push_back(0);
+          }
+          v = extract_pca_data(C, Data_it->second, prev);
+        }
+        else { // no learning phase for pca ...
+          v = extract_data(Data_it->second, prev);
+          // add first value of each metric to the sum, which is needed
+          // only to calculate the initial alpha after learning_phase_for_alpha
+          // is over
+          for (int i = 0; i != v.size(); i++)
+            C.sum.at(i) += v.at(i);
 
-        // add first value of each metric to the sum, which is needed
-        // only to calculate the initial alpha after learning_phase_for_alpha
-        // is over
-        for (int i = 0; i != v.size(); i++)
-          C.sum.at(i) += v.at(i);
-
-        C.learning_phase_nr = 1;
+          C.learning_phase_nr_for_alpha = 1;
+        }
 
         CusumData[Data_it->first] = C;
         if (output_verbosity >= 3)
@@ -2300,7 +2240,12 @@ void Stat::test(StatStore * store) {
         // We found the recorded EndPoint Data_it->first
         // in our cusum container "CusumData"; so we update alpha
         // thanks to the recorded new values in Data_it->second:
-        update_c ( CusumData_it->second, extract_data(Data_it->second, prev) );
+        if (use_pca == true) {
+          std::vector<int64_t> v = extract_pca_data(CusumData_it->second, Data_it->second, prev);
+          update_c ( CusumData_it->second, v );
+        }
+        else
+          update_c ( CusumData_it->second, extract_data(Data_it->second, prev) );
       }
     }
 
@@ -2412,14 +2357,14 @@ void Stat::test(StatStore * store) {
 
 // =================== FUNCTIONS USED BY THE TEST FUNCTION ====================
 
-// extracts interesting data from StatStore according to monitored_values:
+// extracts interesting data from StatStore according to metrics:
 std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) {
 
   std::vector<int64_t>  result;
 
-  std::vector<Metric>::iterator it = monitored_values.begin();
+  std::vector<Metric>::iterator it = metrics.begin();
 
-  while (it != monitored_values.end() ) {
+  while (it != metrics.end() ) {
 
     switch ( *it ) {
 
@@ -2513,107 +2458,10 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
           result.push_back(info.bytes_out - prev.bytes_out);
         break;
 
-      case PCA:
-        // learning phase
-        if (pca_ready == false) {
-          if (learning_phase_nr_for_pca < learning_phase_for_pca) {
-            // update Data
-            std::vector<int64_t> v = extract_pca_data(info, prev);
-            gsl_matrix_set(pcaData, learning_phase_nr_for_pca, 0, v.at(0));
-            gsl_matrix_set(pcaData, learning_phase_nr_for_pca, 1, v.at(1));
-            gsl_matrix_set(pcaData, learning_phase_nr_for_pca, 2, v.at(2));
-            learning_phase_nr_for_pca++;
-            result.push_back(0);
-            break;
-          }
-          // end of learning phase
-          else if (learning_phase_nr_for_pca == learning_phase_for_pca) {
-            // calculate the mean value of each column ...
-            int xSum = 0; int ySum = 0; int zSum = 0;
-            for (int i = 0; i < learning_phase_for_pca; i++) {
-                xSum += (int64_t) gsl_matrix_get(pcaData,i,0);
-                ySum += (int64_t) gsl_matrix_get(pcaData,i,1);
-                zSum += (int64_t) gsl_matrix_get(pcaData,i,2);
-            }
-            int xMean = xSum / learning_phase_for_pca;
-            int yMean = ySum / learning_phase_for_pca;
-            int zMean = zSum / learning_phase_for_pca;
-            // ... and substract it from every data point in that column
-            for (int i = 0; i < learning_phase_for_pca; i++) {
-              gsl_matrix_set(pcaData,i,0, gsl_matrix_get(pcaData,i,0) - xMean);
-              gsl_matrix_set(pcaData,i,1, gsl_matrix_get(pcaData,i,1) - yMean);
-              gsl_matrix_set(pcaData,i,2, gsl_matrix_get(pcaData,i,2) - zMean);
-            }
-
-            gsl_vector_view xData = gsl_matrix_column(pcaData, 0);
-            gsl_vector_view yData = gsl_matrix_column(pcaData, 1);
-            gsl_vector_view zData = gsl_matrix_column(pcaData, 2);
-
-            // calculate covariance matrix
-            // matrix element 0,0 --> variance(metric1)
-            gsl_matrix_set(cov,0,0,gsl_stats_variance_m((&xData.vector)->data,1,learning_phase_for_pca,xMean));
-            // matrix element 1,1 --> variance(metric2)
-            gsl_matrix_set(cov,1,1,gsl_stats_variance_m((&yData.vector)->data,1,learning_phase_for_pca,yMean));
-            // matrix element 2,2 --> variance(metric3)
-            gsl_matrix_set(cov,2,2,gsl_stats_variance_m((&zData.vector)->data,1,learning_phase_for_pca,zMean));
-            // matrix elements 0,1 and 1,0 --> covariance(metric1,metric2)
-            double cov01 = gsl_stats_covariance_m((&xData.vector)->data,1,(&yData.vector)->data,1,learning_phase_for_pca,xMean,yMean);
-            gsl_matrix_set(cov,0,1,cov01);
-            gsl_matrix_set(cov,1,0,cov01);
-            // matrix elements 0,2 and 2,0 --> covariance(metric1,metric3)
-            double cov02 = gsl_stats_covariance_m((&xData.vector)->data,1,(&zData.vector)->data,1,learning_phase_for_pca,xMean,zMean);
-            gsl_matrix_set(cov,0,2,cov02);
-            gsl_matrix_set(cov,2,0,cov02);
-            // matrix elements 1,2 and 2,1 --> covariance(metric2,metric3)
-            double cov12 = gsl_stats_covariance_m((&yData.vector)->data,1,(&zData.vector)->data,1,learning_phase_for_pca,yMean,zMean);
-            gsl_matrix_set(cov,1,2,cov12);
-            gsl_matrix_set(cov,2,1,cov12);
-
-            // calculate eigenvectors and -values
-            // eigenvalues
-            gsl_vector *eval = gsl_vector_alloc (3);
-            // some workspace needed for computation
-            gsl_eigen_symmv_workspace * w = gsl_eigen_symmv_alloc (3);
-            // computation of eigenvectors (evec) and -values (eval) from
-            // covariance matrix (cov)
-            gsl_eigen_symmv (cov, eval, evec, w);
-            gsl_eigen_symmv_free (w);
-            // sort the eigenvectors by their corresponding eigenvalue
-            gsl_eigen_symmv_sort (eval, evec, GSL_EIGEN_SORT_VAL_DESC);
-
-            // now, we have our three components stored in each column of
-            // evec, first column = most important, last column = least important
-
-            // compute the initial mean value of our residual
-            // gsl_matrix_transpose_memcpy (gsl_matrix * dest, const gsl_matrix * src)
-            //pca_mean_value = ;
-
-            pca_ready = true; // so this code will never be visited again
-            result.push_back(0);
-            break;
-          }
-        }
-        // testing phase
-        else {
-          // TODO:
-          // Neue beobachteten Werte per pca rekonstruieren
-          // und das Resultat von den tatsächlichen Werten abziehen
-          // und Ergebnis als Cusum-Metrik verwenden ...
-          std::vector<int64_t> new_value = extract_pca_data(info,prev);
-
-          // Man nimmt die ersten beiden Komponenten, rekonstruiert die
-          // beobachteten Daten, ermittelt das Residuum zwischen tatsächlichen
-          // und rekonstruierten Daten und erhält den pca_value
-          int64_t pca_value;
-
-          result.push_back(pca_value);
-          break;
-        }
-
       default:
-        std::cerr << "ERROR: monitored_values seems to be empty "
+        std::cerr << "ERROR: metrics seems to be empty "
         << "or it holds an unknown type which isnt supported yet."
-        << "But this shouldnt happen as the init_monitored_values"
+        << "But this shouldnt happen as the init_metrics"
         << "-function handles that.\nExiting.\n";
         exit(0);
     }
@@ -2624,119 +2472,171 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
   return result;
 }
 
-// needed for pca to extract the new values (for learning or testing)
-std::vector<int64_t> Stat::extract_pca_data (const Info & info, const Info & prev) {
+// needed for pca to extract the new values (for learning and testing)
+// cusum version
+std::vector<int64_t> Stat::extract_pca_data (CusumParams & C, const Info & info, const Info & prev) {
 
-  std::vector<int64_t>  result;
+  std::vector<int64_t> result;
 
-  std::vector<Metric>::iterator it = pca_metrics.begin();
-
-  while (it != pca_metrics.end() ) {
-
-    switch ( *it ) {
-
-      case PACKETS_IN:
-        if (info.packets_in >= noise_threshold_packets)
-          result.push_back(info.packets_in);
-        break;
-
-      case PACKETS_OUT:
-        if (info.packets_out >= noise_threshold_packets)
-          result.push_back(info.packets_out);
-        break;
-
-      case BYTES_IN:
-        if (info.bytes_in >= noise_threshold_bytes)
-          result.push_back(info.bytes_in);
-        break;
-
-      case BYTES_OUT:
-        if (info.bytes_out >= noise_threshold_bytes)
-          result.push_back(info.bytes_out);
-        break;
-
-      case RECORDS_IN:
-        result.push_back(info.records_in);
-        break;
-
-      case RECORDS_OUT:
-        result.push_back(info.records_out);
-        break;
-
-      case BYTES_IN_PER_PACKET_IN:
-        if ( info.packets_in >= noise_threshold_packets
-          || info.bytes_in   >= noise_threshold_bytes ) {
-          if (info.packets_in == 0)
-            result.push_back(0);
-          else
-            result.push_back((1000 * info.bytes_in) / info.packets_in);
-            // the multiplier 1000 enables us to increase precision and "simulate"
-            // a float result, while keeping an integer result: thanks to this trick,
-            // we do not have to write new versions of the tests to support floats
+  // learning phase
+  if (C.pca_ready == false) {
+    if (C.learning_phase_nr_for_pca < learning_phase_for_pca) {
+      // update sumsOfMetrics and sumsOfProducts
+      std::vector<int64_t> v = extract_data(info, prev);
+      for (int i = 0; i < metrics.size(); i++) {
+        C.sumsOfMetrics.at(i) += v.at(i);
+        for (int j = 0; j < metrics.size(); j++) {
+          // sumsOfProducts is a matrix which holds all the sums
+          // of the product of each two metrics;
+          // elements beneath the main diagonal (j < i) are irrelevant
+          // because of commutativity of multiplication
+          // i. e. metric1*metric2 = metric2*metric1
+          if (j >= i)
+            C.sumsOfProducts.at(i).at(j) += v.at(i)*v.at(j);
         }
-        break;
+      }
 
-      case BYTES_OUT_PER_PACKET_OUT:
-        if (info.packets_out >= noise_threshold_packets ||
-            info.bytes_out   >= noise_threshold_bytes ) {
-          if (info.packets_out == 0)
-            result.push_back(0);
-          else
-            result.push_back((1000 * info.bytes_out) / info.packets_out);
-        }
-        break;
-
-      case PACKETS_OUT_MINUS_PACKETS_IN:
-        if (info.packets_out >= noise_threshold_packets
-         || info.packets_in  >= noise_threshold_packets )
-          result.push_back(info.packets_out - info.packets_in);
-        break;
-
-      case BYTES_OUT_MINUS_BYTES_IN:
-        if (info.bytes_out >= noise_threshold_bytes
-         || info.bytes_in  >= noise_threshold_bytes )
-          result.push_back(info.bytes_out - info.bytes_in);
-        break;
-
-      case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
-        if (info.packets_in  >= noise_threshold_packets
-         || prev.packets_in  >= noise_threshold_packets)
-          // prev holds the data for the same EndPoint as info
-          // from the last call to test()
-          // it is updated at the beginning of the while-loop in test()
-          result.push_back(info.packets_in - prev.packets_in);
-        break;
-
-      case PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
-        if (info.packets_out >= noise_threshold_packets
-         || prev.packets_out >= noise_threshold_packets)
-          result.push_back(info.packets_out - prev.packets_out);
-        break;
-
-      case BYTES_T_IN_MINUS_BYTES_T_1_IN:
-        if (info.bytes_in >= noise_threshold_bytes
-         || prev.bytes_in >= noise_threshold_bytes)
-          result.push_back(info.bytes_in - prev.bytes_in);
-        break;
-
-      case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
-        if (info.bytes_out >= noise_threshold_bytes
-         || prev.bytes_out >= noise_threshold_bytes)
-          result.push_back(info.bytes_out - prev.bytes_out);
-        break;
-
-      default:
-        std::cerr << "ERROR: pca_metrics seems to be empty "
-        << "or it holds an unknown type which isnt supported yet."
-        << "But this shouldnt happen as the init_pca"
-        << "-function handles that.\nExiting.\n";
-        exit(0);
+      C.learning_phase_nr_for_pca++;
+      return result; // empty
     }
+    // end of learning phase
+    else if (C.learning_phase_nr_for_pca == learning_phase_for_pca) {
 
-    it++;
+      // calculate covariance matrix
+      for (int i = 0; i < metrics.size(); i++) {
+        for (int j = 0; j < metrics.size(); j++)
+          gsl_matrix_set(C.cov,i,j,covariance(C.sumsOfProducts.at(i).at(j),C.sumsOfMetrics.at(i),C.sumsOfMetrics.at(j)));
+      }
+
+      // calculate eigenvectors and -values
+      gsl_vector *eval = gsl_vector_alloc (metrics.size());
+      // some workspace needed for computation
+      gsl_eigen_symmv_workspace * w = gsl_eigen_symmv_alloc (metrics.size());
+      // computation of eigenvectors (evec) and -values (eval) from
+      // covariance matrix (cov)
+      gsl_eigen_symmv (C.cov, eval, C.evec, w);
+      gsl_eigen_symmv_free (w);
+      // sort the eigenvectors by their corresponding eigenvalue
+      gsl_eigen_symmv_sort (eval, C.evec, GSL_EIGEN_SORT_VAL_DESC);
+
+      // now, we have our components stored in each column of
+      // evec, first column = most important, last column = least important
+
+      // From now on, matrix evec can be used to transform the new arriving data
+      C.pca_ready = true; // so this code will never be visited again
+      return result; // empty
+    }
   }
 
-  return result;
+  // testing phase
+
+  // fetch new metric data
+  std::vector<int64_t> v = extract_data(info,prev);
+  // transform it into a matrix (needed for multiplication)
+  // 1*X matrix with X = #metrics,
+  gsl_matrix *new_metric_data = gsl_matrix_calloc (1, metrics.size());
+  for (int i = 0; i < metrics.size(); i++)
+    gsl_matrix_set(new_metric_data,1,i,v.at(i));
+
+  // matrix multiplication to get the transformed data
+  gsl_matrix *transformed_metric_data = gsl_matrix_calloc (1, metrics.size());
+  gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,
+                       1.0, new_metric_data, C.evec,
+                       0.0, transformed_metric_data);
+
+  // transform the matrix with the transformed data back into a vector
+  for (int i = 0; i < metrics.size(); i++)
+    result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,1,i));
+
+  gsl_matrix_free(new_metric_data);
+  gsl_matrix_free(transformed_metric_data);
+
+  return result; // filled with new values
+}
+
+// needed for pca to extract the new values (for learning and testing)
+// cusum version
+std::vector<int64_t> Stat::extract_pca_data (Samples & S, const Info & info, const Info & prev) {
+
+  std::vector<int64_t> result;
+
+  // learning phase
+  if (S.pca_ready == false) {
+    if (S.learning_phase_nr_for_pca < learning_phase_for_pca) {
+      // update sumsOfMetrics and sumsOfProducts
+      std::vector<int64_t> v = extract_data(info, prev);
+      for (int i = 0; i < metrics.size(); i++) {
+        S.sumsOfMetrics.at(i) += v.at(i);
+        for (int j = 0; j < metrics.size(); j++) {
+          // sumsOfProducts is a matrix which holds all the sums
+          // of the product of each two metrics;
+          // elements beneath the main diagonal (j < i) are irrelevant
+          // because of commutativity of multiplication
+          // i. e. metric1*metric2 = metric2*metric1
+          if (j >= i)
+            S.sumsOfProducts.at(i).at(j) += v.at(i)*v.at(j);
+        }
+      }
+
+      S.learning_phase_nr_for_pca++;
+      return result; // empty
+    }
+    // end of learning phase
+    else if (S.learning_phase_nr_for_pca == learning_phase_for_pca) {
+
+      // calculate covariance matrix
+      for (int i = 0; i < metrics.size(); i++) {
+        for (int j = 0; j < metrics.size(); j++)
+          gsl_matrix_set(S.cov,i,j,covariance(S.sumsOfProducts.at(i).at(j),S.sumsOfMetrics.at(i),S.sumsOfMetrics.at(j)));
+      }
+
+      // calculate eigenvectors and -values
+      gsl_vector *eval = gsl_vector_alloc (metrics.size());
+      // some workspace needed for computation
+      gsl_eigen_symmv_workspace * w = gsl_eigen_symmv_alloc (metrics.size());
+      // computation of eigenvectors (evec) and -values (eval) from
+      // covariance matrix (cov)
+      gsl_eigen_symmv (S.cov, eval, S.evec, w);
+      gsl_eigen_symmv_free (w);
+      // sort the eigenvectors by their corresponding eigenvalue
+      gsl_eigen_symmv_sort (eval, S.evec, GSL_EIGEN_SORT_VAL_DESC);
+
+      // now, we have our components stored in each column of
+      // evec, first column = most important, last column = least important
+
+      // From now on, evec can be used to transform the new arriving data
+
+      // gsl_matrix_transpose_memcpy (gsl_matrix * dest, const gsl_matrix * src)
+
+      S.pca_ready = true; // so this code will never be visited again
+      return result; // empty
+    }
+  }
+
+  // testing phase
+
+  // fetch new metric data
+  std::vector<int64_t> v = extract_data(info,prev);
+  // transform it into a matrix (needed for multiplication)
+  // 1*X matrix with X = #metrics,
+  gsl_matrix *new_metric_data = gsl_matrix_calloc (1, metrics.size());
+  for (int i = 0; i < metrics.size(); i++)
+    gsl_matrix_set(new_metric_data,1,i,v.at(i));
+
+  // matrix multiplication to get the transformed data
+  gsl_matrix *transformed_metric_data = gsl_matrix_calloc (1, metrics.size());
+  gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,
+                       1.0, new_metric_data, S.evec,
+                       0.0, transformed_metric_data);
+
+  // transform the matrix with the transformed data back into a vector
+  for (int i = 0; i < metrics.size(); i++)
+    result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,1,i));
+
+  gsl_matrix_free(new_metric_data);
+  gsl_matrix_free(transformed_metric_data);
+
+  return result; // filled with new values
 }
 
 
@@ -2745,6 +2645,13 @@ std::vector<int64_t> Stat::extract_pca_data (const Info & info, const Info & pre
 // learn/update function for samples (called everytime test() is called)
 //
 void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
+
+  // Updates for pca metrics have to wait for the pca learning phase
+  // needed to calculate the eigenvectors
+  // NOTE: The overall learning phase will thus sum up to
+  // learning_phase_pca + leraning_phase_samples
+  if (use_pca == true && S.pca_ready == false)
+    return;
 
   // Learning phase?
   if (S.Old.size() != sample_old_size) {
@@ -2826,24 +2733,21 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
 // and the update funciotn for the cusum-test
 void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) {
 
-  // initialize alpha for pca, if pca is ready
-  // (this code will be visited exactly one time)
-  if (use_pca == true && pca_initialized == false && pca_ready == true) {
-    for (int i = 0; i != monitored_values.size(); i++)
-      if (monitored_values.at(i) == PCA)
-        C.alpha.at(i) = pca_mean_value;
-    pca_initialized = true;
-  }
+  // Updates for pca metrics have to wait for the pca learning phase
+  // needed to calculate the eigenvectors
+  // NOTE: The overall learning phase will thus sum up to
+  // learning_phase_pca + leraning_phase_alpha
+  if (use_pca == true && C.pca_ready == false)
+    return;
 
   // Learning phase for alpha?
   // that means, we dont have enough values to calculate alpha
   // until now (and so cannot perform the cusum test)
   if (C.ready_to_test == false) {
-    if (C.learning_phase_nr < learning_phase_for_alpha) {
+    if (C.learning_phase_nr_for_alpha < learning_phase_for_alpha) {
 
       // update the sum of the values of each metric
       // (needed to calculate the initial alpha)
-      // (for pca, we dont need sum, but dont bother calculating it here ...)
       for (int i = 0; i != C.sum.size(); i++)
         C.sum.at(i) += new_value.at(i);
 
@@ -2851,7 +2755,7 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
         outfile
           << " (CUSUM): Learning phase for alpha ...\n";
 
-      C.learning_phase_nr++;
+      C.learning_phase_nr_for_alpha++;
 
       return;
     }
@@ -2859,23 +2763,18 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
     // Enough values? Calculate initial alpha per simple average
     // and set ready_to_test-flag to true (so we never visit this
     // code here again for the current endpoint)
-    if (C.learning_phase_nr == learning_phase_for_alpha) {
+    if (C.learning_phase_nr_for_alpha == learning_phase_for_alpha) {
 
       if (output_verbosity >= 3)
         outfile << " (CUSUM): Learning phase is over\n"
                 << "   Calculated initial alphas: ( ";
 
       for (int i = 0; i != C.alpha.size(); i++) {
-        if (monitored_values.at(i) != PCA) {
-          // alpha = sum(values) / #(values)
-          // (except for pca!)
-          // Note: learning_phase_for_alpha is never 0, because
-          // this is handled in init_cusum_test()
-          C.alpha.at(i) = C.sum.at(i) / learning_phase_for_alpha;
-        }
-
+        // alpha = sum(values) / #(values)
+        // Note: learning_phase_for_alpha is never 0, because
+        // this is handled in init_cusum_test()
+        C.alpha.at(i) = C.sum.at(i) / learning_phase_for_alpha;
         C.X_curr.at(i) = new_value.at(i);
-
         if (output_verbosity >= 3)
           outfile << C.alpha.at(i) << " ";
       }
@@ -2886,7 +2785,6 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
       return;
     }
   }
-
 
   // pausing update for alpha (depending on pause_update parameter)
   bool at_least_one_test_was_attack = false;
@@ -2935,23 +2833,20 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
       C.X_curr.at(i) = new_value.at(i);
       if (C.last_cusum_test_was_attack.at(i) == false) {
         // update alpha
-        if (monitored_values.at(i) != PCA || pca_initialized == true) {
-          C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
-        }
+        C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
       }
     }
     return;
   }
 
+
   // Otherwise update all alphas per EWMA
-  for (int i = 0; i != monitored_values.size(); i++) {
+  for (int i = 0; i != C.alpha.size(); i++) {
     // update values for X
     C.X_last.at(i) = C.X_curr.at(i);
     C.X_curr.at(i) = new_value.at(i);
     // update alpha
-    if (monitored_values.at(i) != PCA || pca_initialized == true) {
-      C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
-    }
+    C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
   }
 
   if (output_verbosity >= 3)
@@ -2971,9 +2866,9 @@ void Stat::stat_test (Samples & S) {
   std::list<int64_t> sample_old_single_metric;
   std::list<int64_t> sample_new_single_metric;
 
-  std::vector<Metric>::iterator it = monitored_values.begin();
+  std::vector<Metric>::iterator it = metrics.begin();
 
-  // for every value (represented by *it) in monitored_values,
+  // for every value (represented by *it) in metrics,
   // do the tests
   short index = 0;
   // as the tests can be performed for several metrics, we have to
@@ -2983,36 +2878,36 @@ void Stat::stat_test (Samples & S) {
   bool ks_was_attack = false;
   bool pcs_was_attack = false;
 
-  while (it != monitored_values.end()) {
-    if (*it != PCA || pca_ready != false) {
-      if (output_verbosity >= 4)
-        outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
+  while (it != metrics.end()) {
 
-      sample_old_single_metric = getSingleMetric(S.Old, *it, index);
-      sample_new_single_metric = getSingleMetric(S.New, *it, index);
+    if (output_verbosity >= 4)
+      outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
+
+    sample_old_single_metric = getSingleMetric(S.Old, *it, index);
+    sample_new_single_metric = getSingleMetric(S.New, *it, index);
 
 
-      // Wilcoxon-Mann-Whitney test:
-      if (enable_wmw_test == true) {
-        stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
-        if (S.last_wmw_test_was_attack == true)
-          wmw_was_attack = true;
-      }
-
-      // Kolmogorov-Smirnov test:
-      if (enable_ks_test == true) {
-        stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
-        if (S.last_ks_test_was_attack == true)
-          ks_was_attack = true;
-      }
-
-      // Pearson chi-square test:
-      if (enable_pcs_test == true) {
-        stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
-        if (S.last_pcs_test_was_attack == true)
-          pcs_was_attack = true;
-      }
+    // Wilcoxon-Mann-Whitney test:
+    if (enable_wmw_test == true) {
+      stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
+      if (S.last_wmw_test_was_attack == true)
+        wmw_was_attack = true;
     }
+
+    // Kolmogorov-Smirnov test:
+    if (enable_ks_test == true) {
+      stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
+      if (S.last_ks_test_was_attack == true)
+        ks_was_attack = true;
+    }
+
+    // Pearson chi-square test:
+    if (enable_pcs_test == true) {
+      stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
+      if (S.last_pcs_test_was_attack == true)
+        pcs_was_attack = true;
+    }
+
     it++;
     index++;
   }
@@ -3038,9 +2933,9 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
   std::list<int64_t> sample_old_single_metric;
   std::list<int64_t> sample_new_single_metric;
 
-  std::vector<Metric>::iterator it = monitored_values.begin();
+  std::vector<Metric>::iterator it = metrics.begin();
 
-  // for every value (represented by *it) in monitored_values,
+  // for every value (represented by *it) in metrics,
   // do the tests
   short index = 0;
   // as the tests can be performed for several metrics, we have to
@@ -3050,77 +2945,77 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
   bool ks_was_attack = false;
   bool pcs_was_attack = false;
 
-  while (it != monitored_values.end()) {
-    if (*it != PCA || pca_ready != false) {
-      if (output_verbosity >= 4)
-        outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
+  while (it != metrics.end()) {
 
-      sample_old_single_metric = getSingleMetric(S.Old, *it, index);
-      sample_new_single_metric = getSingleMetric(S.New, *it, index);
+    if (output_verbosity >= 4)
+      outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
 
-      double p_wmw, p_ks, p_pcs;
+    sample_old_single_metric = getSingleMetric(S.Old, *it, index);
+    sample_new_single_metric = getSingleMetric(S.New, *it, index);
 
-      // Wilcoxon-Mann-Whitney test:
-      if (enable_wmw_test == true) {
-        p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
-        if (significance_level > p_wmw)
-          (S.wmw_alarms).at(index)++;
-        if (S.last_wmw_test_was_attack == true)
-          wmw_was_attack = true;
-      }
+    double p_wmw, p_ks, p_pcs;
 
-      // Kolmogorov-Smirnov test:
-      if (enable_ks_test == true) {
-        p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
-        if (significance_level > p_ks)
-          (S.ks_alarms).at(index)++;
-        if (S.last_ks_test_was_attack == true)
-          ks_was_attack = true;
-      }
-
-      // Pearson chi-square test:
-      if (enable_pcs_test == true) {
-        p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
-        if (significance_level > p_pcs)
-          (S.pcs_alarms).at(index)++;
-        if (S.last_pcs_test_was_attack == true)
-          pcs_was_attack = true;
-      }
-
-      std::string filename = "wkpparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
-
-      // replace the decimal point by a comma
-      // (open office cant handle points in decimal numbers ;) )
-      std::stringstream tmp1;
-      tmp1 << p_wmw;
-      std::string str_p_wmw = tmp1.str();
-      std::string::size_type i = str_p_wmw.find('.',0);
-      if (i != std::string::npos)
-        str_p_wmw.replace(i, 1, 1, ',');
-
-      std::stringstream tmp2;
-      tmp2 << p_ks;
-      std::string str_p_ks = tmp2.str();
-      i = str_p_ks.find('.',0);
-      if (i != std::string::npos)
-        str_p_ks.replace(i, 1, 1, ',');
-
-      std::stringstream tmp3;
-      tmp3 << p_pcs;
-      std::string str_p_pcs = tmp3.str();
-      i = str_p_pcs.find('.',0);
-      if (i != std::string::npos)
-        str_p_pcs.replace(i, 1, 1, ',');
-
-      std::ofstream file(filename.c_str(), std::ios_base::app);
-      // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
-      // p-value(pcs) #alarms(pcs) counter
-      file << sample_new_single_metric.back() << " " << str_p_wmw << " "
-          << (S.wmw_alarms).at(index) << " " << str_p_ks << " "
-          << (S.ks_alarms).at(index) << " " << str_p_pcs << " "
-          << (S.pcs_alarms).at(index) << " " << test_counter << "\n";
-      file.close();
+    // Wilcoxon-Mann-Whitney test:
+    if (enable_wmw_test == true) {
+      p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
+      if (significance_level > p_wmw)
+        (S.wmw_alarms).at(index)++;
+      if (S.last_wmw_test_was_attack == true)
+        wmw_was_attack = true;
     }
+
+    // Kolmogorov-Smirnov test:
+    if (enable_ks_test == true) {
+      p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
+      if (significance_level > p_ks)
+        (S.ks_alarms).at(index)++;
+      if (S.last_ks_test_was_attack == true)
+        ks_was_attack = true;
+    }
+
+    // Pearson chi-square test:
+    if (enable_pcs_test == true) {
+      p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
+      if (significance_level > p_pcs)
+        (S.pcs_alarms).at(index)++;
+      if (S.last_pcs_test_was_attack == true)
+        pcs_was_attack = true;
+    }
+
+    std::string filename = "wkpparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+
+    // replace the decimal point by a comma
+    // (open office cant handle points in decimal numbers ;) )
+    std::stringstream tmp1;
+    tmp1 << p_wmw;
+    std::string str_p_wmw = tmp1.str();
+    std::string::size_type i = str_p_wmw.find('.',0);
+    if (i != std::string::npos)
+      str_p_wmw.replace(i, 1, 1, ',');
+
+    std::stringstream tmp2;
+    tmp2 << p_ks;
+    std::string str_p_ks = tmp2.str();
+    i = str_p_ks.find('.',0);
+    if (i != std::string::npos)
+      str_p_ks.replace(i, 1, 1, ',');
+
+    std::stringstream tmp3;
+    tmp3 << p_pcs;
+    std::string str_p_pcs = tmp3.str();
+    i = str_p_pcs.find('.',0);
+    if (i != std::string::npos)
+      str_p_pcs.replace(i, 1, 1, ',');
+
+    std::ofstream file(filename.c_str(), std::ios_base::app);
+    // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
+    // p-value(pcs) #alarms(pcs) counter
+    file << sample_new_single_metric.back() << " " << str_p_wmw << " "
+         << (S.wmw_alarms).at(index) << " " << str_p_ks << " "
+         << (S.ks_alarms).at(index) << " " << str_p_pcs << " "
+         << (S.pcs_alarms).at(index) << " " << test_counter << "\n";
+    file.close();
+
     it++;
     index++;
   }
@@ -3156,49 +3051,49 @@ void Stat::cusum_test(CusumParams & C) {
   // beta, needed to make (Xn - beta) slightly negative in the mean
   double beta = 0.0;
 
-  for (std::vector<Metric>::iterator it = monitored_values.begin(); it != monitored_values.end(); it++) {
-    if (*it != PCA || pca_ready != false) {
-      if (output_verbosity >= 4)
-        outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+  for (std::vector<Metric>::iterator it = metrics.begin(); it != metrics.end(); it++) {
 
-      // Calculate N and beta
-      N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
-      beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
+    if (output_verbosity >= 4)
+      outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
 
-      if (output_verbosity >= 4) {
-        outfile << " Cusum test returned:\n"
-                << "  Threshold: " << N << std::endl;
-        outfile << "  reject H0 (no attack) if current value of statistic g > "
-                << N << std::endl;
-      }
+    // Calculate N and beta
+    N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
+    beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
 
-      // TODO(2)
-      // "attack still in progress"-message?
-
-      // perform the test and if g > N raise an alarm
-      if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
-
-        if (report_only_first_attack == false
-          || C.last_cusum_test_was_attack.at(i) == false) {
-          outfile
-            << "    ATTACK! ATTACK! ATTACK!\n"
-            << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
-            << "    ALARM! ALARM! Women und children first!" << std::endl;
-          std::cout
-            << "  ATTACK! ATTACK! ATTACK!\n"
-            << "  Cusum test says we're under attack!\n"
-            << "  ALARM! ALARM! Women und children first!" << std::endl;
-          #ifdef IDMEF_SUPPORT_ENABLED
-            idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
-            sendIdmefMessage("DDoS", idmefMessage);
-            idmefMessage = getNewIdmefMessage();
-          #endif
-        }
-
-        was_attack.at(i) = true;
-
-      }
+    if (output_verbosity >= 4) {
+      outfile << " Cusum test returned:\n"
+              << "  Threshold: " << N << std::endl;
+      outfile << "  reject H0 (no attack) if current value of statistic g > "
+              << N << std::endl;
     }
+
+    // TODO(2)
+    // "attack still in progress"-message?
+
+    // perform the test and if g > N raise an alarm
+    if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
+
+      if (report_only_first_attack == false
+        || C.last_cusum_test_was_attack.at(i) == false) {
+        outfile
+          << "    ATTACK! ATTACK! ATTACK!\n"
+          << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
+          << "    ALARM! ALARM! Women und children first!" << std::endl;
+        std::cout
+          << "  ATTACK! ATTACK! ATTACK!\n"
+          << "  Cusum test says we're under attack!\n"
+          << "  ALARM! ALARM! Women und children first!" << std::endl;
+        #ifdef IDMEF_SUPPORT_ENABLED
+          idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
+          sendIdmefMessage("DDoS", idmefMessage);
+          idmefMessage = getNewIdmefMessage();
+        #endif
+      }
+
+      was_attack.at(i) = true;
+
+    }
+
     i++;
   }
 
@@ -3229,60 +3124,62 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
   // beta, needed to make (Xn - beta) slightly negative in the mean
   double beta = 0.0;
 
-  for (std::vector<Metric>::iterator it = monitored_values.begin(); it != monitored_values.end(); it++) {
-    if (*it != PCA || pca_ready != false) {
-      if (output_verbosity >= 4)
-        outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+  for (std::vector<Metric>::iterator it = metrics.begin(); it != metrics.end(); it++) {
 
-      // Calculate N and beta
-      N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
-      beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
+    if (output_verbosity >= 4)
+      outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
 
-      if (output_verbosity >= 4) {
-        outfile << " Cusum test returned:\n"
-                << "  Threshold: " << N << std::endl;
-        outfile << "  reject H0 (no attack) if current value of statistic g > "
-                << N << std::endl;
-      }
+    // Calculate N and beta
+    N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
+    beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
 
-      // TODO(2)
-      // "attack still in progress"-message?
-
-      // perform the test and if g > N raise an alarm
-      if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
-
-        if (report_only_first_attack == false
-          || C.last_cusum_test_was_attack.at(i) == false) {
-          outfile
-            << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-            << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
-            << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
-            << "    ALARM! ALARM! Women und children first!" << std::endl;
-          std::cout
-            << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-            << "  " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
-            << "  Cusum test says we're under attack!\n"
-            << "  ALARM! ALARM! Women und children first!" << std::endl;
-          #ifdef IDMEF_SUPPORT_ENABLED
-            idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
-            sendIdmefMessage("DDoS", idmefMessage);
-            idmefMessage = getNewIdmefMessage();
-          #endif
-        }
-
-        (C.cusum_alarms).at(i)++;
-        was_attack.at(i) = true;
-
-      }
-
-      std::string filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
-      std::ofstream file(filename.c_str(), std::ios_base::app);
-      // X  g N alpha beta #alarms counter
-      file << (int) C.X_curr.at(i) << " " << (int) C.g.at(i)
-          << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
-          << " " << (C.cusum_alarms).at(i) << " " << test_counter << "\n";
-      file.close();
+    if (output_verbosity >= 4) {
+      outfile << " Cusum test returned:\n"
+              << "  Threshold: " << N << std::endl;
+      outfile << "  reject H0 (no attack) if current value of statistic g > "
+              << N << std::endl;
     }
+
+    // TODO(2)
+    // "attack still in progress"-message?
+
+    // perform the test and if g > N raise an alarm
+    if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
+
+      if (report_only_first_attack == false
+        || C.last_cusum_test_was_attack.at(i) == false) {
+        outfile
+          << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+          << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
+          << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
+          << "    ALARM! ALARM! Women und children first!" << std::endl;
+        std::cout
+          << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+          << "  " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
+          << "  Cusum test says we're under attack!\n"
+          << "  ALARM! ALARM! Women und children first!" << std::endl;
+        #ifdef IDMEF_SUPPORT_ENABLED
+          idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
+          sendIdmefMessage("DDoS", idmefMessage);
+          idmefMessage = getNewIdmefMessage();
+        #endif
+      }
+
+      (C.cusum_alarms).at(i)++;
+      was_attack.at(i) = true;
+
+    }
+
+    // BEGIN TESTING
+    std::string filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+    std::ofstream file(filename.c_str(), std::ios_base::app);
+    // X  g N alpha beta #alarms counter
+    file << (int) C.X_curr.at(i) << " " << (int) C.g.at(i)
+         << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
+         << " " << (C.cusum_alarms).at(i) << " " << test_counter << "\n";
+    file.close();
+    // END TESTING
+
     i++;
   }
 
@@ -3388,15 +3285,9 @@ std::list<int64_t> Stat::getSingleMetric(const std::list<std::vector<int64_t> > 
         it++;
       }
       break;
-    case PCA:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
     default:
       std::cerr << "ERROR: Got unknown metric in Stat::getSingleMetric(...)!\n"
-                << "init_monitored_values() should not let this Error happen!";
+                << "init_metrics() should not let this Error happen!";
       exit(0);
   }
 
@@ -3433,8 +3324,6 @@ std::string Stat::getMetricName(const enum Metric & m) {
       return std::string("bytes_in(t)-bytes_in(t-1)");
     case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
       return std::string("bytes_out(t)-bytes_out(t-1)");
-    case PCA:
-      return std::string("pca");
     default:
       std::cerr << "ERROR: Unknown type of Metric in getMetricName().\n"
                 << "Exiting.\n";
@@ -3620,6 +3509,16 @@ double Stat::stat_test_pcs (std::list<int64_t> & sample_old,
   }
 
   return p;
+}
+
+double Stat::covariance (const long long int & sumProduct, const int & sumX, const int & sumY) {
+  // calculate the covariance
+  // KOV = 1/N-1 * sum(x1 - n1)(x2 - n2)
+  // = 1/N-1 * sum(x1x2 - x1n2 - x2n1 + n1n2)
+  // = 1/N-1 * (sum(x1x2) - n2*sum(x1) - n1*sum(x2) + N*n1n2)
+  // with n1 = 1/N * sum(x1) and n2 = 1/N * sum(x2)
+  // KOV = 1/N-1 * ( sum(x1x2) - 1/N * (sum(x1)sum(x2)) )
+  return (sumProduct - (sumX*sumY) / learning_phase_for_pca) / (learning_phase_for_pca - 1);
 }
 
 void Stat::sigTerm(int signum)
