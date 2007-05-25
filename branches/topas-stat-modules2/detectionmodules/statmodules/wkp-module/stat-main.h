@@ -59,6 +59,10 @@ enum Metric {
   RECORDS_OUT,
   BYTES_IN_PER_PACKET_IN,
   BYTES_OUT_PER_PACKET_OUT,
+  PACKETS_IN_PER_RECORD_IN,
+  PACKETS_OUT_PER_RECORD_OUT,
+  BYTES_IN_PER_RECORD_IN,
+  BYTES_OUT_PER_RECORD_OUT,
   PACKETS_OUT_MINUS_PACKETS_IN,
   BYTES_OUT_MINUS_BYTES_IN,
   PACKETS_T_IN_MINUS_PACKETS_T_1_IN,
@@ -268,7 +272,7 @@ class Stat : public DetectionBase<StatStore> {
 
   // this function is called by stat_test() and cusum_test() to extract a
   // single metric to test from a std::vector<int64_t>
-  std::list<int64_t> getSingleMetric(const std::list<std::vector<int64_t> > &, const enum Metric &, const short &);
+  std::list<int64_t> getSingleMetric(const std::list<std::vector<int64_t> > &, const short &);
   std::string getMetricName(const enum Metric &);
 
   // the following functions are called by the stat_test()-function

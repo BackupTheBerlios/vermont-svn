@@ -604,8 +604,9 @@ void Stat::init_metrics(XMLConfObj * config) {
   Usage
     << "  Use for each <value>-Tag one of the following metrics:\n"
     << "  packets_in, packets_out, bytes_in, bytes_out, records_in, records_out, "
-    << "  bytes_in/packet_in, bytes_out/packet_out, packets_out-packets_in, "
-    << "  bytes_out-bytes_in, packets_in(t)-packets_in(t-1), "
+    << "  bytes_in/packet_in, bytes_out/packet_out, packets_in/record_in, "
+    << "  packets_out/record_out, bytes_in/record_in, bytes_out/record_out, "
+    << "  packets_out-packets_in, bytes_out-bytes_in, packets_in(t)-packets_in(t-1), "
     << "  packets_out(t)-packets_out(t-1), bytes_in(t)-bytes_in(t-1) or "
     << "  bytes_out(t)-bytes_out(t-1).\n";
 
@@ -659,6 +660,16 @@ void Stat::init_metrics(XMLConfObj * config) {
     else if ( 0 == strcasecmp("octets_out/packet_out",(*it).c_str())
            || 0 == strcasecmp("bytes_out/packet_out",(*it).c_str()) )
       metrics.push_back(BYTES_OUT_PER_PACKET_OUT);
+    else if ( 0 == strcasecmp("packets_in/record_in",(*it).c_str()) )
+      metrics.push_back(PACKETS_IN_PER_RECORD_IN);
+    else if ( 0 == strcasecmp("packets_out/record_out",(*it).c_str()) )
+      metrics.push_back(PACKETS_OUT_PER_RECORD_OUT);
+    else if ( 0 == strcasecmp("octets_in/record_in",(*it).c_str())
+           || 0 == strcasecmp("bytes_in/record_in",(*it).c_str()) )
+      metrics.push_back(BYTES_IN_PER_RECORD_IN);
+    else if ( 0 == strcasecmp("octets_out/record_out",(*it).c_str())
+           || 0 == strcasecmp("bytes_out/record_out",(*it).c_str()) )
+      metrics.push_back(BYTES_OUT_PER_RECORD_OUT);
     else if ( 0 == strcasecmp("packets_out-packets_in",(*it).c_str()) )
       metrics.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
     else if ( 0 == strcasecmp("octets_out-octets_in",(*it).c_str())
@@ -695,9 +706,14 @@ void Stat::init_metrics(XMLConfObj * config) {
   // in the Samples-Lists (for better understanding the output
   // of test() etc.
   std::stringstream Information;
-  Information
-    << "INFORMATION: Values in the lists sample_old and sample_new will be "
+  if (use_pca == false)
+    Information
+    << "INFORMATION: Tests will be performed directly on the metrics.\n"
+    << "Values in the lists sample_old and sample_new will be "
     << "stored in the following order:\n";
+  else
+    Information
+    << "INFORMATION: Tests will be performed on the principal components of the following metrics:\n";
   std::vector<Metric>::iterator val = metrics.begin();
   Information << "( ";
   while (val != metrics.end() ) {
@@ -717,7 +733,9 @@ void Stat::init_metrics(XMLConfObj * config) {
       || metrics.at(i) == PACKETS_OUT
       || metrics.at(i) == PACKETS_OUT_MINUS_PACKETS_IN
       || metrics.at(i) == PACKETS_T_IN_MINUS_PACKETS_T_1_IN
-      || metrics.at(i) == PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT)
+      || metrics.at(i) == PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT
+      || metrics.at(i) == PACKETS_IN_PER_RECORD_IN
+      || metrics.at(i) == PACKETS_OUT_PER_RECORD_OUT)
       && packetsSubscribed == false) {
       subscribeTypeId(IPFIX_TYPEID_packetDeltaCount);
       packetsSubscribed = true;
@@ -727,7 +745,9 @@ void Stat::init_metrics(XMLConfObj * config) {
       || metrics.at(i) == BYTES_OUT
       || metrics.at(i) == BYTES_OUT_MINUS_BYTES_IN
       || metrics.at(i) == BYTES_T_IN_MINUS_BYTES_T_1_IN
-      || metrics.at(i) == BYTES_T_OUT_MINUS_BYTES_T_1_OUT)
+      || metrics.at(i) == BYTES_T_OUT_MINUS_BYTES_T_1_OUT
+      || metrics.at(i) == BYTES_IN_PER_RECORD_IN
+      || metrics.at(i) == BYTES_OUT_PER_RECORD_OUT)
       && bytesSubscribed == false ) {
       subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
       bytesSubscribed = true;
@@ -1865,7 +1885,7 @@ void Stat::test(StatStore * store) {
 */
 
 
-/*
+
   // ++++++++++++++++++++++++++++
   // BEGIN TESTING (4 DO THE TESTS)
   // ++++++++++++++++++++++++++++
@@ -1890,7 +1910,8 @@ void Stat::test(StatStore * store) {
     while (Data_it != Data.end()) {
       // filter (do tests only for the X frequently appeared endpoints)
       if ( find(filter.begin(), filter.end(), Data_it->first) != filter.end() ) {
-        outfile << "[[ " << Data_it->first << " ]]" << std::endl;
+        if (output_verbosity >= 3)
+          outfile << "[[ " << Data_it->first << " ]]" << std::endl;
 
         prev = PreviousData[Data_it->first];
 
@@ -1926,7 +1947,7 @@ void Stat::test(StatStore * store) {
             SampleData[Data_it->first] = S;
             if (output_verbosity >= 3) {
               outfile << " (WKP): New monitored EndPoint added" << std::endl;
-              if (output_verbosity >= 4) {
+              if (output_verbosity >= 4 && use_pca == false) {
                 outfile << "   with first element of sample_old: " << S.Old.back() << std::endl;
               }
             }
@@ -2074,11 +2095,10 @@ void Stat::test(StatStore * store) {
   // ++++++++++++++++++++++++++
   // END TESTING (4 DO THE TESTS)
   // ++++++++++++++++++++++++++
-*/
 
 
 
-
+/*
   // ++++++++++++++++++++++
   // BEGIN NORMAL BEHAVIOUR
   // ++++++++++++++++++++++
@@ -2118,8 +2138,8 @@ void Stat::test(StatStore * store) {
 
   // for every EndPoint, extract the data
   while (Data_it != Data.end()) {
-
-    outfile << "[[ " << Data_it->first << " ]]" << std::endl;
+    if (output_verbosity >= 3)
+      outfile << "[[ " << Data_it->first << " ]]" << std::endl;
 
     prev = PreviousData[Data_it->first];
     // it doesn't matter much if Data_it->first is an EndPoint that exists
@@ -2163,7 +2183,7 @@ void Stat::test(StatStore * store) {
         SampleData[Data_it->first] = S;
         if (output_verbosity >= 3) {
           outfile << " (WKP): New monitored EndPoint added" << std::endl;
-          if (output_verbosity >= 4) {
+          if (output_verbosity >= 4 && use_pca == false) {
             outfile << "   with first element of sample_old: " << S.Old.back() << std::endl;
           }
         }
@@ -2350,7 +2370,7 @@ void Stat::test(StatStore * store) {
   // ++++++++++++++++++++
   // END NORMAL BEHAVIOUR
   // ++++++++++++++++++++
-
+*/
 }
 
 
@@ -2371,21 +2391,29 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
       case PACKETS_IN:
         if (info.packets_in >= noise_threshold_packets)
           result.push_back(info.packets_in);
+        else
+          result.push_back(0);
         break;
 
       case PACKETS_OUT:
         if (info.packets_out >= noise_threshold_packets)
           result.push_back(info.packets_out);
+        else
+          result.push_back(0);
         break;
 
       case BYTES_IN:
         if (info.bytes_in >= noise_threshold_bytes)
           result.push_back(info.bytes_in);
+        else
+          result.push_back(0);
         break;
 
       case BYTES_OUT:
         if (info.bytes_out >= noise_threshold_bytes)
           result.push_back(info.bytes_out);
+        else
+          result.push_back(0);
         break;
 
       case RECORDS_IN:
@@ -2407,6 +2435,8 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
             // a float result, while keeping an integer result: thanks to this trick,
             // we do not have to write new versions of the tests to support floats
         }
+        else
+          result.push_back(0);
         break;
 
       case BYTES_OUT_PER_PACKET_OUT:
@@ -2417,18 +2447,68 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
           else
             result.push_back((1000 * info.bytes_out) / info.packets_out);
         }
+        else
+          result.push_back(0);
+        break;
+
+      case PACKETS_IN_PER_RECORD_IN:
+        if ( info.packets_in >= noise_threshold_packets) {
+          if (info.records_in > 0)
+            result.push_back(info.packets_in / info.records_in);
+          else
+            result.push_back(0);
+        }
+        else
+          result.push_back(0);
+        break;
+
+      case PACKETS_OUT_PER_RECORD_OUT:
+        if ( info.packets_out >= noise_threshold_packets) {
+          if (info.records_out > 0)
+            result.push_back(info.packets_out / info.records_out);
+          else
+            result.push_back(0);
+        }
+        else
+          result.push_back(0);
+        break;
+
+      case BYTES_IN_PER_RECORD_IN:
+        if ( info.bytes_in >= noise_threshold_bytes) {
+          if (info.records_in > 0)
+            result.push_back(info.bytes_in / info.records_in);
+          else
+            result.push_back(0);
+        }
+        else
+          result.push_back(0);
+        break;
+
+      case BYTES_OUT_PER_RECORD_OUT:
+        if ( info.bytes_out >= noise_threshold_bytes) {
+          if (info.records_out > 0)
+            result.push_back(info.bytes_out / info.records_out);
+          else
+            result.push_back(0);
+        }
+        else
+          result.push_back(0);
         break;
 
       case PACKETS_OUT_MINUS_PACKETS_IN:
         if (info.packets_out >= noise_threshold_packets
          || info.packets_in  >= noise_threshold_packets )
           result.push_back(info.packets_out - info.packets_in);
+        else
+          result.push_back(0);
         break;
 
       case BYTES_OUT_MINUS_BYTES_IN:
         if (info.bytes_out >= noise_threshold_bytes
          || info.bytes_in  >= noise_threshold_bytes )
           result.push_back(info.bytes_out - info.bytes_in);
+        else
+          result.push_back(0);
         break;
 
       case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
@@ -2438,24 +2518,32 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
           // from the last call to test()
           // it is updated at the beginning of the while-loop in test()
           result.push_back(info.packets_in - prev.packets_in);
+        else
+          result.push_back(0);
         break;
 
       case PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
         if (info.packets_out >= noise_threshold_packets
          || prev.packets_out >= noise_threshold_packets)
           result.push_back(info.packets_out - prev.packets_out);
+        else
+          result.push_back(0);
         break;
 
       case BYTES_T_IN_MINUS_BYTES_T_1_IN:
         if (info.bytes_in >= noise_threshold_bytes
          || prev.bytes_in >= noise_threshold_bytes)
           result.push_back(info.bytes_in - prev.bytes_in);
+        else
+          result.push_back(0);
         break;
 
       case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
         if (info.bytes_out >= noise_threshold_bytes
          || prev.bytes_out >= noise_threshold_bytes)
           result.push_back(info.bytes_out - prev.bytes_out);
+        else
+          result.push_back(0);
         break;
 
       default:
@@ -2518,12 +2606,18 @@ std::vector<int64_t> Stat::extract_pca_data (CusumParams & C, const Info & info,
       gsl_eigen_symmv_free (w);
       // sort the eigenvectors by their corresponding eigenvalue
       gsl_eigen_symmv_sort (eval, C.evec, GSL_EIGEN_SORT_VAL_DESC);
+      gsl_vector_free (eval);
 
       // now, we have our components stored in each column of
       // evec, first column = most important, last column = least important
 
       // From now on, matrix evec can be used to transform the new arriving data
+
       C.pca_ready = true; // so this code will never be visited again
+
+      if (output_verbosity >= 3)
+        outfile << "(CUSUM): PCA learning phase is over! PCA is now ready!" << std::endl;
+
       return result; // empty
     }
   }
@@ -2536,9 +2630,10 @@ std::vector<int64_t> Stat::extract_pca_data (CusumParams & C, const Info & info,
   // 1*X matrix with X = #metrics,
   gsl_matrix *new_metric_data = gsl_matrix_calloc (1, metrics.size());
   for (int i = 0; i < metrics.size(); i++)
-    gsl_matrix_set(new_metric_data,1,i,v.at(i));
+    gsl_matrix_set(new_metric_data,0,i,v.at(i));
 
   // matrix multiplication to get the transformed data
+  // transformed_data = data * evec
   gsl_matrix *transformed_metric_data = gsl_matrix_calloc (1, metrics.size());
   gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,
                        1.0, new_metric_data, C.evec,
@@ -2546,12 +2641,12 @@ std::vector<int64_t> Stat::extract_pca_data (CusumParams & C, const Info & info,
 
   // transform the matrix with the transformed data back into a vector
   for (int i = 0; i < metrics.size(); i++)
-    result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,1,i));
+    result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,0,i));
 
   gsl_matrix_free(new_metric_data);
   gsl_matrix_free(transformed_metric_data);
 
-  return result; // filled with new values
+  return result; // filled with new transformed values
 }
 
 // needed for pca to extract the new values (for learning and testing)
@@ -2600,13 +2695,15 @@ std::vector<int64_t> Stat::extract_pca_data (Samples & S, const Info & info, con
       gsl_eigen_symmv_free (w);
       // sort the eigenvectors by their corresponding eigenvalue
       gsl_eigen_symmv_sort (eval, S.evec, GSL_EIGEN_SORT_VAL_DESC);
+      gsl_vector_free (eval);
 
       // now, we have our components stored in each column of
       // evec, first column = most important, last column = least important
 
       // From now on, evec can be used to transform the new arriving data
 
-      // gsl_matrix_transpose_memcpy (gsl_matrix * dest, const gsl_matrix * src)
+      if (output_verbosity >= 3)
+        outfile << "(WKP): PCA learning phase is over! PCA is now ready!" << std::endl;
 
       S.pca_ready = true; // so this code will never be visited again
       return result; // empty
@@ -2621,7 +2718,7 @@ std::vector<int64_t> Stat::extract_pca_data (Samples & S, const Info & info, con
   // 1*X matrix with X = #metrics,
   gsl_matrix *new_metric_data = gsl_matrix_calloc (1, metrics.size());
   for (int i = 0; i < metrics.size(); i++)
-    gsl_matrix_set(new_metric_data,1,i,v.at(i));
+    gsl_matrix_set(new_metric_data,0,i,v.at(i));
 
   // matrix multiplication to get the transformed data
   gsl_matrix *transformed_metric_data = gsl_matrix_calloc (1, metrics.size());
@@ -2631,12 +2728,12 @@ std::vector<int64_t> Stat::extract_pca_data (Samples & S, const Info & info, con
 
   // transform the matrix with the transformed data back into a vector
   for (int i = 0; i < metrics.size(); i++)
-    result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,1,i));
+    result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,0,i));
 
   gsl_matrix_free(new_metric_data);
   gsl_matrix_free(transformed_metric_data);
 
-  return result; // filled with new values
+  return result; // filled with new transformed values
 }
 
 
@@ -2650,7 +2747,14 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
   // needed to calculate the eigenvectors
   // NOTE: The overall learning phase will thus sum up to
   // learning_phase_pca + leraning_phase_samples
-  if (use_pca == true && S.pca_ready == false)
+  if (use_pca == true && S.pca_ready == false) {
+    if (output_verbosity >= 3)
+      outfile << "(WKP): learning phase for PCA ..." << std::endl;
+    return;
+  }
+
+  // this case happens exactly one time: when PCA is ready for the first time
+  if (new_value.empty() == true)
     return;
 
   // Learning phase?
@@ -2737,7 +2841,14 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
   // needed to calculate the eigenvectors
   // NOTE: The overall learning phase will thus sum up to
   // learning_phase_pca + leraning_phase_alpha
-  if (use_pca == true && C.pca_ready == false)
+  if (use_pca == true && C.pca_ready == false) {
+    if (output_verbosity >= 3)
+      outfile << "(CUSUM): learning phase for PCA ..." << std::endl;
+    return;
+  }
+
+  // this case happens exactly one time: when PCA is ready for the first time
+  if (new_value.empty() == true)
     return;
 
   // Learning phase for alpha?
@@ -2766,7 +2877,7 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
     if (C.learning_phase_nr_for_alpha == learning_phase_for_alpha) {
 
       if (output_verbosity >= 3)
-        outfile << " (CUSUM): Learning phase is over\n"
+        outfile << " (CUSUM): Learning phase for alpha is over\n"
                 << "   Calculated initial alphas: ( ";
 
       for (int i = 0; i != C.alpha.size(); i++) {
@@ -2880,11 +2991,18 @@ void Stat::stat_test (Samples & S) {
 
   while (it != metrics.end()) {
 
-    if (output_verbosity >= 4)
-      outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
+    if (output_verbosity >= 4) {
+      if (use_pca == false)
+        outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
+      else {
+        std::stringstream tmp;
+        tmp << index;
+        outfile << "### Performing WKP-Tests for pca component " << tmp.str() << ":\n";
+      }
+    }
 
-    sample_old_single_metric = getSingleMetric(S.Old, *it, index);
-    sample_new_single_metric = getSingleMetric(S.New, *it, index);
+    sample_old_single_metric = getSingleMetric(S.Old, index);
+    sample_new_single_metric = getSingleMetric(S.New, index);
 
 
     // Wilcoxon-Mann-Whitney test:
@@ -2947,11 +3065,18 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
 
   while (it != metrics.end()) {
 
-    if (output_verbosity >= 4)
-      outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
+    if (output_verbosity >= 4) {
+      if (use_pca == false)
+        outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
+      else {
+        std::stringstream tmp;
+        tmp << index;
+        outfile << "### Performing WKP-Tests for pca component " << tmp.str() << ":\n";
+      }
+    }
 
-    sample_old_single_metric = getSingleMetric(S.Old, *it, index);
-    sample_new_single_metric = getSingleMetric(S.New, *it, index);
+    sample_old_single_metric = getSingleMetric(S.Old, index);
+    sample_new_single_metric = getSingleMetric(S.New, index);
 
     double p_wmw, p_ks, p_pcs;
 
@@ -2982,7 +3107,15 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
         pcs_was_attack = true;
     }
 
-    std::string filename = "wkpparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+
+    std::string filename;
+    if (use_pca == false)
+      filename = "wkpparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+    else {
+      std::stringstream tmp;
+      tmp << index;
+      filename = "wkpparams_" + EP.toString() + "_pca_component_" + tmp.str() + ".txt";
+    }
 
     // replace the decimal point by a comma
     // (open office cant handle points in decimal numbers ;) )
@@ -3053,8 +3186,15 @@ void Stat::cusum_test(CusumParams & C) {
 
   for (std::vector<Metric>::iterator it = metrics.begin(); it != metrics.end(); it++) {
 
-    if (output_verbosity >= 4)
-      outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+    if (output_verbosity >= 4) {
+      if (use_pca == false)
+        outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+      else {
+        std::stringstream tmp;
+        tmp << i;
+        outfile << "### Performing CUSUM-Test for pca component " << tmp.str() << ":\n";
+      }
+    }
 
     // Calculate N and beta
     N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
@@ -3126,8 +3266,15 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
 
   for (std::vector<Metric>::iterator it = metrics.begin(); it != metrics.end(); it++) {
 
-    if (output_verbosity >= 4)
-      outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+    if (output_verbosity >= 4) {
+      if (use_pca == false)
+        outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+      else {
+        std::stringstream tmp;
+        tmp << i;
+        outfile << "### Performing CUSUM-Test for pca component " << tmp.str() << ":\n";
+      }
+    }
 
     // Calculate N and beta
     N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
@@ -3170,15 +3317,21 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
 
     }
 
-    // BEGIN TESTING
-    std::string filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+    std::string filename;
+    if (use_pca == false)
+      filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+    else {
+      std::stringstream tmp;
+      tmp << i;
+      filename = "cusumparams_" + EP.toString() + "_pca_component_" + tmp.str() + ".txt";
+    }
+
     std::ofstream file(filename.c_str(), std::ios_base::app);
     // X  g N alpha beta #alarms counter
     file << (int) C.X_curr.at(i) << " " << (int) C.g.at(i)
          << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
          << " " << (C.cusum_alarms).at(i) << " " << test_counter << "\n";
     file.close();
-    // END TESTING
 
     i++;
   }
@@ -3195,102 +3348,13 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
 }
 
 // functions called by the stat_test()-function
-std::list<int64_t> Stat::getSingleMetric(const std::list<std::vector<int64_t> > & l, const enum Metric & m, const short & i) {
-
+std::list<int64_t> Stat::getSingleMetric(const std::list<std::vector<int64_t> > & l, const short & i) {
   std::list<int64_t> result;
   std::list<std::vector<int64_t> >::const_iterator it = l.begin();
-
-  switch(m) {
-    case PACKETS_IN:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case PACKETS_OUT:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case BYTES_IN:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case BYTES_OUT:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case RECORDS_IN:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case RECORDS_OUT:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case BYTES_IN_PER_PACKET_IN:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case BYTES_OUT_PER_PACKET_OUT:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case PACKETS_OUT_MINUS_PACKETS_IN:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case BYTES_OUT_MINUS_BYTES_IN:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case BYTES_T_IN_MINUS_BYTES_T_1_IN:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
-      while ( it != l.end() ) {
-        result.push_back(it->at(i));
-        it++;
-      }
-      break;
-    default:
-      std::cerr << "ERROR: Got unknown metric in Stat::getSingleMetric(...)!\n"
-                << "init_metrics() should not let this Error happen!";
-      exit(0);
+  while ( it != l.end() ) {
+    result.push_back(it->at(i));
+    it++;
   }
-
   return result;
 }
 
@@ -3312,6 +3376,14 @@ std::string Stat::getMetricName(const enum Metric & m) {
       return std::string("bytes_in_per_packet_in");
     case BYTES_OUT_PER_PACKET_OUT:
       return std::string("bytes_out_per_packet_out");
+    case PACKETS_IN_PER_RECORD_IN:
+      return std::string("packets_in_per_record_in");
+    case PACKETS_OUT_PER_RECORD_OUT:
+      return std::string("packets_out_per_record_out");
+    case BYTES_IN_PER_RECORD_IN:
+      return std::string("bytes_in_per_record_in");
+    case BYTES_OUT_PER_RECORD_OUT:
+      return std::string("bytes_out_per_record_out");
     case PACKETS_OUT_MINUS_PACKETS_IN:
       return std::string("packets_out-packets_in");
     case BYTES_OUT_MINUS_BYTES_IN:
