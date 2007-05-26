@@ -89,13 +89,13 @@ issued and the module exits.
 
 <endpoint_key>:
 
-The user can choose between ip, port, protocol, any combination of them (seperated by spaces) OR "all". This value will form the key of the EndPoints, i. e. that all EndPoints sharing this same key are considered as one EndPoint.
-E. g. if you are only interested in ports and protocols, ip-addresses will be ignored and an EndPoint will look like "0.0.0.0:portNr | protocolNr". This enables the user to investigate port/protocol/ip-combination anomalies. If omitted, all three values will be used as key and a warning message is printed. "all" and "ip port protocol" yield the same result.
+The user can choose between ip, port, protocol, any combination of them (seperated by spaces) OR "all" OR "none". This value will form the key of the EndPoints, i. e. that all EndPoints sharing this same key are considered as one EndPoint.
+E. g. if you are only interested in ports and protocols, ip-addresses will be ignored and an EndPoint will look like "0.0.0.0:portNr | protocolNr". This enables the user to investigate port/protocol/ip-combination anomalies. If omitted, "none" will be used as default endpoint key, i. e. that there will be only one endpoint, 0.0.0.0:0|0, and a warning message is printed. "all" and "ip port protocol" yield the same result.
 
 
-<monitored_values>:
+<metrics>:
 
-The user should choose which value (s)he prefers to monitor and add each of them
+The user should choose which metrics (s)he prefers to monitor and add each of them
 per <value></value>-Tag. The possible values are:
 
 packets_in
@@ -106,6 +106,10 @@ records_in
 records_out
 bytes_in/packet_in
 bytes_out/packet_out
+packets_in/record_in
+packets_out/record_out
+bytes_in/record_in
+bytes_out/record_out
 packets_out-packets_in
 bytes_out-bytes_in
 packets_in(t)-packets_in(t-1)
@@ -115,10 +119,10 @@ bytes_out(t)-bytes_out(t-1)
 
 Example configuration:
 
-  <monitored_values>
+  <metrics>
     <value>packets_out</value>
     <value>bytes_in/packet_in</value>
-  </monitored_values>
+  </metrics>
 
 The input is not case-sensitive, and "bytes" and "octets" are synonymous.
 If nothing or something else is given, the module exits after an
@@ -126,6 +130,11 @@ error message. Please note that the module does in fact NOT handle
 octets/packet, but rather 1000*octets/packet, the result being an
 integer: this trick enables to "simulate" a float division and
 increase precision, without re-writing loads of existing code.
+Another special case are the four metrics packets_in/record_in,
+packets_out/record_out, bytes_in/record_in and bytes_out/record_out.
+In case of an anomaly, the values of these metrics will decrease, but our
+algorithms only consider anomalies which metrics increase. Therefor, these
+metrics will be calculated by records_in * 1000 / packets_in etc.
 
 
 <noise_threshold_packets>, <noise_threshold_bytes>:
@@ -136,9 +145,9 @@ have insignificant or irregular network traffic activity, sending only
 a dozen or so packets from time to time, like "residual" traffic, "noise",
 that should be cut off to avoid monitoring irregular and insignificant
 network traffic. This helps reducing the number of "false positive" alarms.
-Noise reduction is active only if monitored_value is packets or bytes; these
-parameters will be ignored if monitored_value is something else.
-If no noise reduction prefererences are provided and if monitored_value is
+Noise reduction is active only if considered metric contains packets or bytes; these
+parameters will be ignored if metric is something else.
+If no noise reduction prefererences are provided and if metric contains
 packets or bytes, a warning message is issued and default values are used
 (DEFAULT_noise_threshold_packets and DEFAULT_noise_threshold_bytes).
 

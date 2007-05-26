@@ -74,7 +74,7 @@ Stat::Stat(const std::string & configfile)
   // and push them into filter vector
   // (Needed for test-scripts 3 and 4)
   // comment it, if not needed!
-
+/*
   std::ifstream f("darpa1_port_10_freq_eps.txt");
   std::string tmp;
   while ( getline(f, tmp) ) {
@@ -82,7 +82,7 @@ Stat::Stat(const std::string & configfile)
     e.fromString(tmp);
     filter.push_back(e);
   }
-
+*/
   // END TESTING
 
   init(configfile);
@@ -475,13 +475,13 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
   std::stringstream Warning, Error, Default;
   Warning
     << "WARNING: No endpoint_key parameter in XML config file!\n"
-    << "  endpoint_key will be ip + port + protocol!";
+    << "  endpoint_key will be \"none\", i. e. that all traffic will be aggregated to endpoint 0.0.0.0:0|0";
   Error
     << "ERROR: Unknown value defined for endpoint_key parameter in XML config file!\n"
-    << "  Value should be either port, ip, protocol or any combination of them (seperated via spaces)!\n";
+    << "  Value should be either port, ip, protocol OR any combination of them (seperated via spaces) OR \"all\" OR \"none\"!\n";
   Default
     << "WARNING: No value for endpoint_key parameter defined in XML config file!\n"
-    << "  endpoint_key will be ip + port + protocol!";
+    << "  endpoint_key will be \"none\", i. e. that all traffic will be aggregated to endpoint 0.0.0.0:0|0";
 
   // extracting key of endpoints to monitor
   if (!config->nodeExists("endpoint_key")) {
@@ -503,6 +503,10 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
       return;
     }
 
+    // all traffic will be aggregated to endpoint 0.0.0.0:0|0
+    if ( 0 == strcasecmp(Keys.c_str(), "none") )
+      return;
+
     std::istringstream KeyStream (Keys);
     std::string key;
 
@@ -521,13 +525,11 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
       }
     }
   }
+  // all traffic will be aggregated to endpoint 0.0.0.0:0|0
   else {
     std::cerr << Default.str() << "\n";
     if (warning_verbosity==1)
       outfile << Default.str() << std::endl << std::flush;
-    ip_monitoring = true;
-    port_monitoring = true;
-    protocol_monitoring = true;
   }
 
   return;
@@ -1745,7 +1747,7 @@ void Stat::test(StatStore * store) {
 //      from 3 and so on.
 
 
-/*
+
   // ++++++++++++++++++++++++++++++++++
   // BEGIN TESTING (1 WRITE DATA TO FILE)
   // ++++++++++++++++++++++++++++++++++
@@ -1765,7 +1767,7 @@ void Stat::test(StatStore * store) {
   // ++++++++++++++++++++++++++++++++
   // END TESTING (1 WRITE DATA TO FILE)
   // ++++++++++++++++++++++++++++++++
-*/
+
 
 
 
@@ -1885,7 +1887,7 @@ void Stat::test(StatStore * store) {
 */
 
 
-
+/*
   // ++++++++++++++++++++++++++++
   // BEGIN TESTING (4 DO THE TESTS)
   // ++++++++++++++++++++++++++++
@@ -2095,7 +2097,7 @@ void Stat::test(StatStore * store) {
   // ++++++++++++++++++++++++++
   // END TESTING (4 DO THE TESTS)
   // ++++++++++++++++++++++++++
-
+*/
 
 
 /*
@@ -2453,10 +2455,10 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
 
       case PACKETS_IN_PER_RECORD_IN:
         if ( info.packets_in >= noise_threshold_packets) {
-          if (info.records_in > 0)
-            result.push_back(info.packets_in / info.records_in);
-          else
+          if (info.packets_in == 0)
             result.push_back(0);
+          else
+            result.push_back((info.records_in * 1000) / info.packets_in );
         }
         else
           result.push_back(0);
@@ -2464,10 +2466,10 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
 
       case PACKETS_OUT_PER_RECORD_OUT:
         if ( info.packets_out >= noise_threshold_packets) {
-          if (info.records_out > 0)
-            result.push_back(info.packets_out / info.records_out);
-          else
+          if (info.packets_out == 0)
             result.push_back(0);
+          else
+            result.push_back((info.records_out * 1000) / info.packets_out);
         }
         else
           result.push_back(0);
@@ -2475,10 +2477,10 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
 
       case BYTES_IN_PER_RECORD_IN:
         if ( info.bytes_in >= noise_threshold_bytes) {
-          if (info.records_in > 0)
-            result.push_back(info.bytes_in / info.records_in);
-          else
+          if (info.bytes_in == 0)
             result.push_back(0);
+          else
+            result.push_back((info.records_in * 1000) / info.bytes_in);
         }
         else
           result.push_back(0);
@@ -2486,10 +2488,10 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
 
       case BYTES_OUT_PER_RECORD_OUT:
         if ( info.bytes_out >= noise_threshold_bytes) {
-          if (info.records_out > 0)
-            result.push_back(info.bytes_out / info.records_out);
-          else
+          if (info.bytes_out == 0)
             result.push_back(0);
+          else
+            result.push_back((info.records_out * 1000) / info.bytes_out);
         }
         else
           result.push_back(0);
