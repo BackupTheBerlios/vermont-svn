@@ -15,7 +15,7 @@
     <accepted_source_ids>all</accepted_source_ids>
     <alarm_time>10</alarm_time>
     <warning_verbosity>1</warning_verbosity>
-    <output_verbosity>4</output_verbosity>
+    <output_verbosity>0</output_verbosity>
     <endpoint_key>port protocol</endpoint_key>
     <use_pca>false</use_pca>
     <pca_learning_phase>25</pca_learning_phase>

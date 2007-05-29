@@ -350,20 +350,53 @@ void StatStore::recordEnd() {
   return;
 }
 
+// input from file (for offline usage)
+std::ifstream& operator>>(std::ifstream& is, StatStore* store)
+{
 
-// TESTING
-void StatStore::writeToFile() {
+  if ( is.eof() ) {
+    std::cerr << "INFORMATION: All Data read from file.\n";
+    is.close();
+    return is;
+  }
 
-  std::ofstream file("darpa1_port_protocol_10.txt", std::ios_base::app);
-  if (file.is_open() == true) {
-    file << Data;
-    file.close();
-    return;
+  std::string tmp;
+  store->Data.clear();
+  while ( getline(is, tmp) ) {
+    if (0 == strcasecmp(tmp.c_str(), "---") )
+      break;
+    else if ( is.eof() ) {
+      std::cerr << "INFORMATION: All Data read from file.\n";
+      is.close();
+      return is;
+    }
+
+    // extract endpoint-data
+    std::string::size_type i = tmp.find(':', 0);
+    std::string ipstr(tmp, 0, i);
+    std::string::size_type j = tmp.find('|', i);
+    std::string portstr(tmp, i+1, j-i-1);
+    std::string::size_type k = tmp.find('_', j);
+    std::string protostr(tmp, j+1, k-j-1);
+
+    IpAddress ip = IpAddress(0,0,0,0);
+    ip.fromString(ipstr);
+    EndPoint e = EndPoint(ip, atoi(portstr.c_str()), atoi(protostr.c_str()));
+    //std::cout << "e: " << e << std::endl;
+
+    // extract metric-data
+    std::stringstream tmp1(tmp.substr(k+1));
+    Info info;
+    tmp1 >> info.packets_in >> info.packets_out >> info.bytes_in >> info.bytes_out >> info.records_in >> info.records_out;
+
+    // put it into is ...
+    store->Data[e] = info;
+
+    tmp.clear();
+    tmp1.clear();
   }
-  else {
-    std::cerr << "ERROR: Couldnt open file @ StatStore::writeToFile()!\nExiting.\n";
-    exit(0);
-  }
+
+  return is;
 }
 
 // TESTING

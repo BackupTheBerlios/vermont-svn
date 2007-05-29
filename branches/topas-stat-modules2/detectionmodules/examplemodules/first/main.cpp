@@ -27,22 +27,21 @@
 #include <cstdlib>
 
 /* demonstrates the use of libdetectionModule */
-int main(int argc, char** argv) 
+int main(int argc, char** argv)
 {
 	msgStr.setName("First Examplemodule");
 	msgStr.setLevel(MsgStream::INFO);
-		
-        msgStr.print(MsgStream::INFO, "Got command line arguments:");
-        for (int i = 0; i != argc; ++i) {
-                msgStr << MsgStream::INFO << "Argument " << i << ": " << argv[i] << MsgStream::endl;
-        }
 
-        if (argc == 2) {
-                ExampleModule m(argv[1]);
-                return m.exec();
-        }
+  msgStr.print(MsgStream::INFO, "Got command line arguments:");
+  for (int i = 0; i != argc; ++i) {
+          msgStr << MsgStream::INFO << "Argument " << i << ": " << argv[i] << MsgStream::endl;
+  }
 
-        ExampleModule m;
-        return m.exec();
+  if (argc == 2) {
+          ExampleModule m(argv[1]);
+          return m.exec();
+  }
 
+  ExampleModule m;
+  return m.exec();
 }

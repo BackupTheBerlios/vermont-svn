@@ -26,7 +26,6 @@
 #include <detectionbase.h>
 #include <fstream>
 #include <sstream>
-#include <map>
 #include <string>
 #include <algorithm> // sort(...), unique(...)
 // for pca (matrices etc.)
@@ -48,6 +47,8 @@
 #define DEFAULT_sample_new_size 11
 #define DEFAULT_stat_test_frequency 1
 #define DEFAULT_learning_phase_for_pca 50
+
+#define OFFLINE_ENABLED
 
 // constants for metrics
 enum Metric {
@@ -193,7 +194,13 @@ public:
 // main class: does tests, stores samples,
 // reads and stores test parameters...
 
-class Stat : public DetectionBase<StatStore> {
+class Stat
+#ifdef OFFLINE_ENABLED
+      : public DetectionBase<StatStore, OfflineInputPolicy<StatStore> >
+#else
+      : public DetectionBase<StatStore>
+#endif
+{
 
  public:
 
@@ -365,6 +372,8 @@ class Stat : public DetectionBase<StatStore> {
   bool ports_relevant; // if only ICMP AND/OR RAW --> ports_relevant = false
   bool ip_monitoring;
   bool protocol_monitoring;
+
+  std::ofstream storefile;
 };
 
 #endif

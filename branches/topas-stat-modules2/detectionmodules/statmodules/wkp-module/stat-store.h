@@ -78,11 +78,10 @@ class StatStore : public DataStore {
   // TESTING
   std::map<EndPoint,Info> getDataFromFile() const {return dataFromFile;}
   std::map<EndPoint,Info> getPreviousDataFromFile() const {return previousDataFromFile;}
-  // writes the Data in a file
-  void writeToFile();
   // reads data from a file
   bool readFromFile();
 
+  friend std::ifstream& operator>>(std::ifstream&, StatStore*);
 
  private:
 

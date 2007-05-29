@@ -30,15 +30,33 @@ std::string IpAddress::toString() const
         return sstream.str();
 }
 
+void IpAddress::fromString(const std::string & ipstr)
+{
+        std::string::size_type i_alt = 0;
+        std::string::size_type i_neu = ipstr.find('.',i_alt);
+        int index = 0;
+        while ( true ) {
+          address[index] = atoi( (ipstr.substr(i_alt,i_neu-i_alt)).c_str() );
+          if ( i_neu == ipstr.length())
+            break;
+          i_alt = i_neu+1;
+          i_neu = ipstr.find('.',i_alt);
+          if ( i_neu == std::string::npos)
+            i_neu = ipstr.length();
+          index++;
+        }
+        return;
+}
 
-std::ostream& operator<<(std::ostream& ost, const IpAddress& ip) 
+
+std::ostream& operator<<(std::ostream& ost, const IpAddress& ip)
 {
         ost << ip[0] << "." << ip[1] << "." << ip[2] << "." << ip[3];
         return ost;
 }
 
 
-std::istream& operator>>(std::istream& ist, IpAddress& ip) 
+std::istream& operator>>(std::istream& ist, IpAddress& ip)
 {
 	unsigned i[4];
 	char dot;

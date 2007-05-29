@@ -21,8 +21,9 @@
 #ifndef _SHARED_H_
 #define _SHARED_H_
 
-#include <datastore.h>
+#include <ipaddress.h>
 #include <list>
+#include <map>
 #include <vector>
 #include <iostream>
 

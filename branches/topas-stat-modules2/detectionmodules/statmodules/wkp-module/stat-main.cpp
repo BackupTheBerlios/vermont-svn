@@ -44,11 +44,18 @@ We cant see from the output, whether an attack ceased. Maybe some kind of "attac
 #include "pcs-test.h"
 #include "cusum-test.h"
 
+const char offlineFile[] = "darpa1_port_10.txt";
+
 // ==================== CONSTRUCTOR FOR CLASS Stat ====================
 
 
 Stat::Stat(const std::string & configfile)
-  : DetectionBase<StatStore>(configfile) {
+#ifdef OFFLINE_ENABLED
+      : DetectionBase<StatStore, OfflineInputPolicy<StatStore> >(configfile)
+#else
+      : DetectionBase<StatStore>(configfile)
+#endif
+{
 
   // signal handlers
   if (signal(SIGTERM, sigTerm) == SIG_ERR) {
@@ -67,6 +74,17 @@ Stat::Stat(const std::string & configfile)
 
   test_counter = 0;
 
+#ifdef OFFLINE_ENABLED
+  /* open file with offline data */
+  if(!OfflineInputPolicy<StatStore>::openOfflineFile(offlineFile)) {
+      std::cerr << "ERROR: Could not open offline data file!\n Exiting." << std::endl;
+      exit(0);
+  }
+#else
+  /* open file to store data for offline use */
+  storefile.open(offlineFile);
+#endif
+
 
   // BEGIN TESTING
   counter = 0;
@@ -74,7 +92,7 @@ Stat::Stat(const std::string & configfile)
   // and push them into filter vector
   // (Needed for test-scripts 3 and 4)
   // comment it, if not needed!
-/*
+
   std::ifstream f("darpa1_port_10_freq_eps.txt");
   std::string tmp;
   while ( getline(f, tmp) ) {
@@ -82,7 +100,7 @@ Stat::Stat(const std::string & configfile)
     e.fromString(tmp);
     filter.push_back(e);
   }
-*/
+
   // END TESTING
 
   init(configfile);
@@ -92,6 +110,8 @@ Stat::Stat(const std::string & configfile)
 Stat::~Stat() {
 
   outfile.close();
+  if(storefile.is_open())
+      storefile.close();
 
 }
 
@@ -155,7 +175,11 @@ void Stat::init(const std::string & configfile) {
   // extracting alarm_time
   // (that means that the test() methode will be called
   // atoi(alarm_time) seconds after the last test()-run ended)
+#ifdef OFFLINE_ENABLED
+  setAlarmTime(0);
+#else
   init_alarm_time(config);
+#endif
 
   // extracting warning verbosity
   init_warning_verbosity(config);
@@ -1723,7 +1747,7 @@ void Stat::test(StatStore * store) {
 #endif
 
 //
-// EXPLANATION:
+// TESTING EXPLANATION:
 // ##############################################################
 // 1 WRITE DATA TO FILE:
 //      this code simply writes all the data collected by "store" to a file
@@ -1741,17 +1765,17 @@ void Stat::test(StatStore * store) {
 // POSSIBLY DETECT ANOMALIES.
 //
 // 4 DO THE TESTS
-//      reads data from file and executes the cusum-test on it. For every endpoint
-//      and every metric, it creates a file where alle the cusum-params are stored
+//      reads data from file and executes the cusum-test etc. on it. For every endpoint
+//      and every metric, it creates a file where alle the cusum- and wkp-params are stored
 //      in. They can be visualized afterwards to be compared to the metric-diagrams
 //      from 3 and so on.
 
 
-
+/*
   // ++++++++++++++++++++++++++++++++++
   // BEGIN TESTING (1 WRITE DATA TO FILE)
   // ++++++++++++++++++++++++++++++++++
-  // NOTE: adapt file name in StatStore::writeToFile() AND
+  // NOTE: adapt name of offlineFile AND compile this module with OFFLINE_ENABLED=OFF
   // comment filter in constructor AND
   // adapt config file (endpoint_key, alarm_time = 10 etc.)
   // AND start vermont ;)
@@ -1762,12 +1786,15 @@ void Stat::test(StatStore * store) {
     return;
 
   // write data to file
-  store->writeToFile();
+#ifndef OFFLINE_ENABLED
+  // store data storage for offline use
+  storefile << Data;
+#endif
   delete store;
   // ++++++++++++++++++++++++++++++++
   // END TESTING (1 WRITE DATA TO FILE)
   // ++++++++++++++++++++++++++++++++
-
+*/
 
 
 
@@ -1801,7 +1828,9 @@ void Stat::test(StatStore * store) {
   // if all data was read
   else {
     // search the X most frequently appeared endpoints
-    int X = 10;
+    // WARNING: The more metrics you test and the higher the value of X,
+    // the more files will be created later!
+    int X = 5;
     std::map<EndPoint,int> mostFrequentEndPoints;
     for (int j = 0; j < X; j++) {
       std::pair<EndPoint,int> tmpmax;
@@ -1887,26 +1916,24 @@ void Stat::test(StatStore * store) {
 */
 
 
-/*
+
   // ++++++++++++++++++++++++++++
   // BEGIN TESTING (4 DO THE TESTS)
   // ++++++++++++++++++++++++++++
-  // Do the Cusum-Test and print out the parameters to a file for
+  // Do the tests and print out the parameters to a file for
   // every of the X endpoints and their metrics (to compare it to our metric-diagrams)
   // NOTE: Dont forget to adapt the filename convention for the
-  // uncommented filter in the constructor AND for StatStore::readFromFile
-  // AND delete old files created by cusum_test() AND  set alarm_time = 1
-  // AND chose some params
-  bool more = store->readFromFile();
-  if (more == true) {
-    std::map<EndPoint,Info> Data = store->getDataFromFile();
+  // uncommented filter in the constructor and for the offlineFile
+  // AND delete old files created by cusum_test() AND  recompile this module with OFFLINE_ENABLED=ON
+  // AND choose some test-params
+    std::map<EndPoint,Info> Data = store->getData();
 
     if (Data.empty()==true)
       return;
 
     std::map<EndPoint,Info>::iterator Data_it = Data.begin();
 
-    std::map<EndPoint,Info> PreviousData = store->getPreviousDataFromFile();
+    std::map<EndPoint,Info> PreviousData = store->getPreviousData();
     Info prev;
 
     while (Data_it != Data.end()) {
@@ -1971,7 +1998,7 @@ void Stat::test(StatStore * store) {
           // initialize C
           if (CusumData_it == CusumData.end()) {
             CusumParams C;
-            for (int i = 0; i != metrics.size(); i++) {
+            for (int i = 0; i < metrics.size(); i++) {
               (C.sum).push_back(0);
               (C.alpha).push_back(0.0);
               (C.g).push_back(0.0);
@@ -2066,7 +2093,8 @@ void Stat::test(StatStore * store) {
         std::map<EndPoint,Samples>::iterator SampleData_it = SampleData.begin();
         while (SampleData_it != SampleData.end()) {
           if ( ((SampleData_it->second).New).size() == sample_new_size ) {
-            outfile << "\n#### WKP TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
+            if (output_verbosity > 0)
+              outfile << "\n#### WKP TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
             T_stat_test ( SampleData_it->first, SampleData_it->second );
           }
           SampleData_it++;
@@ -2076,7 +2104,8 @@ void Stat::test(StatStore * store) {
         std::map<EndPoint,CusumParams>::iterator CusumData_it = CusumData.begin();
         while (CusumData_it != CusumData.end()) {
           if ( (CusumData_it->second).ready_to_test == true ) {
-            outfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
+            if (output_verbosity > 0)
+              outfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
             T_cusum_test (CusumData_it->first, CusumData_it->second);
           }
           CusumData_it++;
@@ -2086,18 +2115,13 @@ void Stat::test(StatStore * store) {
 
     test_counter++;
     delete store;
-    outfile << std::endl << std::flush;
+    if (output_verbosity > 0)
+      outfile << std::endl << std::flush;
     return;
-  }
-  else {
-    delete store;
-    std::cout << "Done." << std::endl;
-    exit(0);
-  }
   // ++++++++++++++++++++++++++
   // END TESTING (4 DO THE TESTS)
   // ++++++++++++++++++++++++++
-*/
+
 
 
 /*
@@ -2115,11 +2139,18 @@ void Stat::test(StatStore * store) {
     return;
   }
 
-  outfile
-    << "####################################################" << std::endl
-    << "########## Stat::test(...)-call number: " << test_counter
-    << " ##########" << std::endl
-    << "####################################################" << std::endl;
+#ifndef OFFLINE_ENABLED
+  // store data storage for offline use
+  storefile << Data;
+#endif
+
+  if (output_verbosity > 0) {
+    outfile
+      << "####################################################" << std::endl
+      << "########## Stat::test(...)-call number: " << test_counter
+      << " ##########" << std::endl
+      << "####################################################" << std::endl;
+  }
 
   std::map<EndPoint,Info>::iterator Data_it = Data.begin();
 
@@ -2136,7 +2167,8 @@ void Stat::test(StatStore * store) {
   // If not, then we add it as a new pair <EndPoint, *>.
   // If yes, then we update the corresponding entry using
   // std::vector<int64_t> extracted data.
-  outfile << "#### LEARN/UPDATE PHASE" << std::endl;
+  if (output_verbosity > 0)
+    outfile << "#### LEARN/UPDATE PHASE" << std::endl;
 
   // for every EndPoint, extract the data
   while (Data_it != Data.end()) {
@@ -2224,6 +2256,7 @@ void Stat::test(StatStore * store) {
           (C.sum).push_back(0);
           (C.alpha).push_back(0.0);
           (C.g).push_back(0.0);
+          (C.last_cusum_test_was_attack).push_back(false);
           (C.X_curr).push_back(0);
           (C.X_last).push_back(0);
         }
@@ -2344,7 +2377,8 @@ void Stat::test(StatStore * store) {
       while (SampleData_it != SampleData.end()) {
         if ( ((SampleData_it->second).New).size() == sample_new_size ) {
           // i.e., learning phase over
-          outfile << "\n#### WKP TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
+          if (output_verbosity > 0)
+            outfile << "\n#### WKP TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
           stat_test ( SampleData_it->second );
         }
         SampleData_it++;
@@ -2356,7 +2390,8 @@ void Stat::test(StatStore * store) {
       while (CusumData_it != CusumData.end()) {
         if ( (CusumData_it->second).ready_to_test == true ) {
           // i.e. learning phase for alpha is over and it has an initial value
-          outfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
+          if (output_verbosity > 0)
+            outfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
           cusum_test ( CusumData_it->second );
         }
         CusumData_it++;
@@ -2901,12 +2936,12 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
 
   // pausing update for alpha (depending on pause_update parameter)
   bool at_least_one_test_was_attack = false;
-  for (int i = 0; i != C.last_cusum_test_was_attack.size(); i++)
+  for (int i = 0; i < C.last_cusum_test_was_attack.size(); i++)
     if (C.last_cusum_test_was_attack.at(i) == true)
       at_least_one_test_was_attack = true;
 
   bool all_tests_were_attacks = true;
-  for (int i = 0; i != C.last_cusum_test_was_attack.size(); i++)
+  for (int i = 0; i < C.last_cusum_test_was_attack.size(); i++)
     if (C.last_cusum_test_was_attack.at(i) == false)
       all_tests_were_attacks = false;
 
@@ -3176,7 +3211,7 @@ void Stat::cusum_test(CusumParams & C) {
   // we have to store, for which metrics an attack was detected and set
   // the corresponding last_cusum_test_was_attack-flags to true/false
   std::vector<bool> was_attack;
-  for (int i = 0; i!= C.last_cusum_test_was_attack.size(); i++)
+  for (int i = 0; i < metrics.size(); i++)
     was_attack.push_back(false);
   // index, as we cant use the iterator for dereferencing the elements of
   // CusumParams
@@ -3186,7 +3221,7 @@ void Stat::cusum_test(CusumParams & C) {
   // beta, needed to make (Xn - beta) slightly negative in the mean
   double beta = 0.0;
 
-  for (std::vector<Metric>::iterator it = metrics.begin(); it != metrics.end(); it++) {
+  for (std::vector<Metric>::iterator it = metrics.begin(); it < metrics.end(); it++) {
 
     if (output_verbosity >= 4) {
       if (use_pca == false)
@@ -3217,14 +3252,16 @@ void Stat::cusum_test(CusumParams & C) {
 
       if (report_only_first_attack == false
         || C.last_cusum_test_was_attack.at(i) == false) {
-        outfile
-          << "    ATTACK! ATTACK! ATTACK!\n"
-          << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
-          << "    ALARM! ALARM! Women und children first!" << std::endl;
-        std::cout
-          << "  ATTACK! ATTACK! ATTACK!\n"
-          << "  Cusum test says we're under attack!\n"
-          << "  ALARM! ALARM! Women und children first!" << std::endl;
+        if (output_verbosity >= 2) {
+          outfile
+            << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+            << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
+            << "    ALARM! ALARM! Women und children first!" << std::endl;
+          std::cout
+            << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+            << "  Cusum test says we're under attack!\n"
+            << "  ALARM! ALARM! Women und children first!" << std::endl;
+        }
         #ifdef IDMEF_SUPPORT_ENABLED
           idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
           sendIdmefMessage("DDoS", idmefMessage);
@@ -3239,11 +3276,11 @@ void Stat::cusum_test(CusumParams & C) {
     i++;
   }
 
-  for (int i = 0; i != was_attack.size(); i++) {
-    if (was_attack.at(i) == true)
-      C.last_cusum_test_was_attack.at(i) = true;
+  for (int j = 0; j < was_attack.size(); j++) {
+    if (was_attack.at(j) == true)
+      C.last_cusum_test_was_attack.at(j) = true;
     else
-      C.last_cusum_test_was_attack.at(i) = false;
+      C.last_cusum_test_was_attack.at(j) = false;
   }
 
   outfile << std::flush;
@@ -3297,16 +3334,18 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
 
       if (report_only_first_attack == false
         || C.last_cusum_test_was_attack.at(i) == false) {
-        outfile
-          << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-          << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
-          << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
-          << "    ALARM! ALARM! Women und children first!" << std::endl;
-        std::cout
-          << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-          << "  " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
-          << "  Cusum test says we're under attack!\n"
-          << "  ALARM! ALARM! Women und children first!" << std::endl;
+        if (output_verbosity >= 2) {
+          outfile
+            << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+            << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
+            << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
+            << "    ALARM! ALARM! Women und children first!" << std::endl;
+          std::cout
+            << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+            << "  " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
+            << "  Cusum test says we're under attack!\n"
+            << "  ALARM! ALARM! Women und children first!" << std::endl;
+        }
         #ifdef IDMEF_SUPPORT_ENABLED
           idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
           sendIdmefMessage("DDoS", idmefMessage);

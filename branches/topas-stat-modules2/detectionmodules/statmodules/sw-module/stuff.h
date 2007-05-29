@@ -1,7 +1,9 @@
 #ifndef _STUFF_H_
 #define _STUFF_H_
 
-#include "datastore.h"
+#include <ipaddress.h>
+
+#include <map>
 #include <iostream>
 
 // this structure is used to store traffic information
