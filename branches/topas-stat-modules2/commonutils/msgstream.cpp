@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2007 Gerhard Muenz                                    */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -16,43 +16,47 @@
 /*    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA    */
 /**************************************************************************/
 
-#ifndef _EXAMPLE_DATA_STORAGE_H_
-#define _EXAMPLE_DATA_STORAGE_H_
-
-#include <map>
-#include <vector>
-#include <ostream>
-#include <stdexcept>
-#include <datastore.h>
-#include <ipaddress.h>
-#include <iostream>
+#include "msgstream.h"
 
 
-class ExampleDataStorage : public DataStore 
+
+void MsgStream::setLevel(MsgLevel level)
 {
- public:
-        ExampleDataStorage();
-        ~ExampleDataStorage();
-        
-        /**
-         * Inserts the field with fieldId id into the storage class.
-         */
-        void addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid = 0);
-        
-	bool recordStart(SourceID);
-	void recordEnd();
-	
-	const IpAddress& getSourceIP() { return sourceAddress; }
-	const IpAddress& getDestinationIP() { return destinationAddress; }
+    outputLevel = level;
+}
 
-	uint16_t sourcePort;
-	uint16_t destinationPort;
-        
- private:
-	IpAddress sourceAddress;
-	IpAddress destinationAddress;
-	bool recordStarted;
-	int records;
-};
+void MsgStream::setName(const std::string& newname)
+{
+    name = newname;
+}
 
-#endif
+void MsgStream::printIntro(MsgLevel level)
+{
+    switch(level){
+	case FATAL:
+	    std::cout << "FATAL [" << name << "]: ";
+	    break;
+	case ERROR:
+	    std::cout << "ERROR [" << name << "]: ";
+	    break;
+	case WARN:
+	    std::cout << "WARN  [" << name << "]: ";
+	    break;
+	case INFO:
+	    std::cout << "INFO  [" << name << "]: ";
+	    break;
+	case DEBUG:
+	    std::cout << "DEBUG [" << name << "]: ";
+	    break;
+    }
+}
+
+void MsgStream::print(MsgLevel level, const std::string& msg)
+{
+    if(level <= outputLevel)
+    {
+	printIntro(level);
+	std::cout << msg << std::endl;
+    }
+}
+

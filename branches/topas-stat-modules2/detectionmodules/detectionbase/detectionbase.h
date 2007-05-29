@@ -1,6 +1,7 @@
 /**************************************************************************/
 /*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
 /*         2007 Raimondas Sasnauskas <sasnausk@informatik.uni-tuebigen.de */
+/*              Gerhard Muenz                                             */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -21,18 +22,16 @@
 #define _DETECTION_BASE_H_
 
 #include "filepolicy.h"
+#include "offlinepolicy.h"
 
 
 #include <commonutils/sharedobj.h>
 #include <commonutils/global.h>
-#include <commonutils/mutex.h>
+#include <commonutils/msgstream.h>
 #include <commonutils/idmef/idmefmessage.h>
 #include <commonutils/confobj.h>
 #include <concentrator/ipfix.h>
 #include <concentrator/rcvIpfix.h>
-
-
-#include <signal.h>
 
 
 #include <fstream>
@@ -49,6 +48,8 @@
 #include <stdexcept>
 #include <vector>
 
+
+extern MsgStream msgStr; // is defined in detectionbase.cpp
 
 /**
  * Base class for all detection modules used within the IDS.
@@ -67,23 +68,21 @@ class DetectionBase
                 EXIT,
                 RESTART
         } State;
+
         /**
          * Constructor taking path to configuration file. This configuration file is needed to
          * pass information about xmlBlaster sites to the module
          */
         DetectionBase(const std::string& configFile = "")
 #ifdef IDMEF_SUPPORT_ENABLED
-                : currentMessage(NULL), alarmTime(10)
+                : currentMessage(NULL), alarmTime(10), confObj(NULL)
 #else
-                : alarmTime(10)
+                : alarmTime(10), confObj(NULL)
 #endif
         {
-		testMutex.lock();
-                
-                if (SIG_ERR == signal(SIGALRM, DetectionBase<DataStorage, InputPolicy>::sigAlarm)) {
-                        std::cerr << "Could not install signal handler for SIGALARM: " << strerror(errno) << std::endl;
-                        throw std::runtime_error("Could not install signal handler for SIGALARM");
-                }
+		if(configFile == "")
+		    return;
+	    
 		confObj = new XMLConfObj(configFile, XMLConfObj::XML_FILE);
 
 #ifdef IDMEF_SUPPORT_ENABLED
@@ -164,11 +163,11 @@ class DetectionBase
                 for (unsigned i = 0; i != commObjs.size(); ++i) {
 			std::string managerID = (*xmlBlasters[i].getElement()).getProperty().getProperty(config_space::MANAGER_ID);
 			if (managerID == "") {
-                                msg(MSG_INFO, ("Using default " + config_space::MANAGER_ID + " \""
-                                               + config_space::DEFAULT_MANAGER_ID + "\"").c_str());
+                                msgStr << MsgStream::INFO << "Using default " << config_space::MANAGER_ID << " \""
+                                               << config_space::DEFAULT_MANAGER_ID << "\" in exit message" << MsgStream::endl;
                                 managerID = config_space::DEFAULT_MANAGER_ID;
                         }
-			// erase subsribed topic
+			// erase subscribed topic
 			commObjs[i]->erase(analyzerName + "-" + analyzerId);
 			// notify manager about exiting
 			commObjs[i]->publish("<exit oid='" + analyzerName + "-" + analyzerId + "'/>", managerID);
@@ -185,7 +184,7 @@ class DetectionBase
         /**
          * Adds a type id to the list. Only data corresponding to field ids on the list
          * will be stored by the class.
-         * If the list is empty, all data will be stored
+         * If the list is empty, all received data will be passed to the module
          * @param id Field ID to be stored in the list
          */
         void subscribeTypeId(int id)  
@@ -230,7 +229,7 @@ class DetectionBase
                         return 0;
 
                 // we should never get here!
-                throw new std::runtime_error("DetectionBase: unkown state!!!!!!!!!");
+                throw new std::runtime_error("DetectionBase: unknown state!!!!!!!!!");
         }
 
 	static void* workThreadFunc(void* detectionbase_) {
@@ -240,9 +239,16 @@ class DetectionBase
                 DetectionBase<DataStorage, InputPolicy>* dbase = static_cast<DetectionBase<DataStorage, InputPolicy>*>(detectionbase_);
 
                 while (state == RUN) {
-                        inputPolicy.wait();
-                        inputPolicy.importToStorage();
-                        inputPolicy.notify();
+                        if(inputPolicy.wait() == 0)
+			{
+                                msgStr << MsgStream::INFO << "inputPolicy.wait() returned 0, i.e. no more data or file error. Exiting." << MsgStream::endl;
+				state = EXIT;
+			}
+			else
+			{
+				inputPolicy.importToStorage();
+				inputPolicy.notify();
+			}
                 }
 	}
 
@@ -251,36 +257,52 @@ class DetectionBase
          */
         static void* testThreadFunc(void* detectionbase_) 
         {
+		unsigned testInterval;
+		time_t testTime, t;
+
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
                 DetectionBase<DataStorage, InputPolicy>* dbase = static_cast<DetectionBase<DataStorage, InputPolicy>*>(detectionbase_);
+
 		// when alarmtime > 0, buffering is used
 		// otherwise each record is seperately passed to the test function
 		while(state == RUN) {
 			// what a ugly hack! substitute this with some 
 			// saved state!!!!!
-			while(dbase->getAlarmTime() > 0 && state == RUN) {
-				alarm(dbase->getAlarmTime());
-				dbase->testMutex.lock();
-#ifdef IDMEF_SUPPORT_ENABLED
- 				for (unsigned i = 0; i != dbase->commObjs.size(); ++i) {
-					std::string ret = dbase->commObjs[i]->getUpdateMessage();
-					if (ret != "") {
-						try {
-							XMLConfObj* confObj = new XMLConfObj(ret, XMLConfObj::XML_STRING);
-							dbase->update(confObj);
-							delete confObj;
-						} catch (const exceptions::XMLException &e) {
-							msg(MSG_ERROR, e.what());
-							dbase->sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
-						}
+			if((testInterval = dbase->getAlarmTime()) > 0) {
+				testTime = time(NULL) + testInterval;
+				
+				while(testInterval > 0 && state == RUN) {
+					t = time(NULL);
+					if (t > testTime) {
+						msgStr.print(MsgStream::ERROR, "Test function is too slow");
+					} else {
+						sleep(testTime - t);
 					}
- 				}				
+					testInterval = dbase->getAlarmTime(); // may have changed
+					testTime = testTime + testInterval;
+
+#ifdef IDMEF_SUPPORT_ENABLED
+					for (unsigned i = 0; i != dbase->commObjs.size(); ++i) {
+						std::string ret = dbase->commObjs[i]->getUpdateMessage();
+						if (ret != "") {
+							try {
+								XMLConfObj* confObj = new XMLConfObj(ret, XMLConfObj::XML_STRING);
+								dbase->update(confObj);
+								delete confObj;
+							} catch (const exceptions::XMLException &e) {
+								msgStr.print(MsgStream::ERROR, e.what());
+								dbase->sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
+							}
+						}
+					}				
 #endif
-				// get received data into the user data struct 
-				dbase->test(inputPolicy.getStorage());
+					// get received data into the user data struct 
+					dbase->test(inputPolicy.getStorage());
+				}
 			}
+
 			while(dbase->getAlarmTime() == 0 && state == RUN) {
 				DataStorage* d = inputPolicy.getStorage();
 				if (d->isValid()) {
@@ -295,7 +317,7 @@ class DetectionBase
 							dbase->update(confObj);
 							delete confObj;
 						} catch (const exceptions::XMLException &e) {
-							msg(MSG_ERROR, e.what());
+							msgStr.print(MsgStream::ERROR, e.what());
 							dbase->sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
 						}						
 					}
@@ -439,8 +461,8 @@ protected:
 		for (unsigned i = 0; i != commObjs.size(); ++i) {
 			std::string managerID = (*xmlBlasters[i].getElement()).getProperty().getProperty(config_space::MANAGER_ID);
 			if (managerID == "") {
-				msg(MSG_INFO, ("Using default " + config_space::MANAGER_ID + " \"" 
-					       + config_space::DEFAULT_MANAGER_ID + "\"").c_str());
+                                msgStr << MsgStream::INFO << "Using default " << config_space::MANAGER_ID << " \""
+                                               << config_space::DEFAULT_MANAGER_ID << "\" in heartbeat message" << MsgStream::endl;
 				managerID = config_space::DEFAULT_MANAGER_ID;
 			}
 			heartbeatMessage->publish(*commObjs[i], managerID);
@@ -506,30 +528,13 @@ private:
 	pthread_t workingThread;
         static volatile State state;
 
-        /**
-         * If test_mutex locked, no test will be performed
-         */
-	static Mutex testMutex;
-
         XMLConfObj* confObj;
 
-
         unsigned alarmTime;
-        
-        /**
-         * Signal handler for SIGALRM. This signal is emmited, evry time
-         * a new test should be performed
-         */
-        static void sigAlarm(int) 
-        {
-		testMutex.unlock();
-        }
 };
 
 
 
-template<class DataStorage, class InputPolicy>
-Mutex DetectionBase<DataStorage, InputPolicy>::testMutex;
 template<class DataStorage, class InputPolicy>
 InputPolicy DetectionBase<DataStorage, InputPolicy>::inputPolicy;
 template<class DataStorage, class InputPolicy>

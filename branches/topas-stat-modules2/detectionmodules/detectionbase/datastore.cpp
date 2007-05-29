@@ -18,12 +18,7 @@
 
 #include "datastore.h"
 
-
-#include <ostream>
-#include <sstream>
-
-
-int DataStore::fieldToInt(byte* data, int len)
+uint64_t DataStore::fieldToInt(byte* data, unsigned len) 
 {
         switch (len) {
         case 1:
@@ -35,38 +30,7 @@ int DataStore::fieldToInt(byte* data, int len)
         case 8:
                 return ntohll(*(uint64_t*)data);
         default:
-                return -1;
+                return (uint64_t) -1;
         }
 }
 
-std::string IpAddress::toString() const
-{
-        std::stringstream sstream;
-        sstream << address[0] << "." << address[1] << "." << address[2] << "." << address[3];
-        return sstream.str();
-}
-
-void IpAddress::fromString(const std::string & ipstr)
-{
-        std::string::size_type i_alt = 0;
-        std::string::size_type i_neu = ipstr.find('.',i_alt);
-        int index = 0;
-        while ( true ) {
-          address[index] = atoi( (ipstr.substr(i_alt,i_neu-i_alt)).c_str() );
-          if ( i_neu == ipstr.length())
-            break;
-          i_alt = i_neu+1;
-          i_neu = ipstr.find('.',i_alt);
-          if ( i_neu == std::string::npos)
-            i_neu = ipstr.length();
-          index++;
-        }
-        return;
-}
-
-
-std::ostream& operator<<(std::ostream& ost, const IpAddress& ip)
-{
-        ost << ip[0] << "." << ip[1] << "." << ip[2] << "." << ip[3];
-        return ost;
-}

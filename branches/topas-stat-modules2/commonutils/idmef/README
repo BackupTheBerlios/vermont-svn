@@ -130,15 +130,16 @@ These are the functions according to the IDMEF-Message format
                                        const std::string& IPv4Netmask);
   - void createExtNetworkLayerElemNode(const std::string& nodeName, const std::string& value);
 
-  - void createExtStatisticsNode(const std::string& octetRate, const std::string& packetRate,
-                                 const std::string& packetFrequency, const std::string& anomalyMeasure);
+  - void createExtStatisticsNode(const std::string& octetCount, const std::string& packetCount, 
+                                 const std::string& flowCount, const std::string& octetRate,
+                                 const std::string& packetRate, const std::string& anomalyMeasure);
 
   - void createExtObservationPointNode(const std::string& OPName, const std::string& IPv4Address);
 
 Example:
 
  message.createExtAssessmentNode("330", "200", "700", "370"); 
- message.createStatisticsNode("34", "35", "36", "37");
+ message.createStatisticsNode("", "", "","34", "35", "37");
  message.createExtNetworkLayerNode();
  message.createNetworkLayerAddrNode("src", "10.0.1.0", "255.255.255.0");
  message.createNetworkLayerElemNode("DIADEM:IPv4NextProtocol", "TCP");
@@ -176,9 +177,11 @@ Output:
 			<DIADEM:Confidence Base="1000">370</DIADEM:Confidence>
 		</DIADEM:Assessment>
 		<DIADEM:Statistics>
+			<DIADEM:OctetCount></DIADEM:OctetRate>
+			<DIADEM:PacketCount></DIADEM:PacketRate>
+			<DIADEM:FlowCount></DIADEM:PacketFrequency>
 			<DIADEM:OctetRate exponent="0">34</DIADEM:OctetRate>
 			<DIADEM:PacketRate exponent="0">35</DIADEM:PacketRate>
-			<DIADEM:PacketFrequency>36</DIADEM:PacketFrequency>
 			<DIADEM:AnomalyMeasure Base="1000">37</DIADEM:AnomalyMeasure>
 		</DIADEM:Statistics>
 		<DIADEM:TrafficDescription>
@@ -202,41 +205,6 @@ Output:
  </AdditionalData>
  </Alert>
  </IDMEF-Message>
-
-7.) publish the IDMEF-message to the xmlBlaster server under given topic
-
-	/* connect to the xmlBlaster */
-        communicationObject *comm = NULL;
-        comm = new xmlBlasterCommObject(argc, argv, NULL, "idmefblaster");
-        if (comm == NULL) {
-                std::cerr << "Cannot initialize xmlBlaster." << std::endl
-                          << "Make sure, the xmlBlaster server is up and running." << std::endl;
-                exit (-1);
-        }
-
-        int r;
-        r = (*comm).connect();
-        if (r != 0) {
-                std::cerr << "Cannot connect to xmlBlaster!" << std::endl;
-                exit (-1);
-        }
-
-	/* publish the IDMEF-Message */
-        message.publish(comm, "DDoS");
-
-(Note:
-
-You don't have to care about connecting to xmlBlaster sites within your detection
-modules.
-This will be done by the detection module base class automatically. Use the the
-member function
-
-void sendIdmefMessage("your topic", message);
-
-See ipfix-collector/detectionmodules/examplemodules/README for more information on
-this topic
-)
-
 
 As already mentioned above you find the whole function definitions in "idmefmessage.h".
 Doxygen gives also a very good overview over the IdmefMessage class.

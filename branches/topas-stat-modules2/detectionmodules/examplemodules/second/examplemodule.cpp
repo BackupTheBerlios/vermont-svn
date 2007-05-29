@@ -18,6 +18,8 @@
 
 #include "examplemodule.h"
 
+#include <ipaddress.h>
+
 #include <iostream>
 
 ExampleModule::ExampleModule() 
@@ -109,7 +111,7 @@ void ExampleModule::test(ExampleDataStorage* store)
                         std::stringstream sstream;
                         sstream << i->second;
                         tmp = sstream.str();
-                        idmefMessage.createExtStatisticsNode("0", tmp, "0", "0");
+                        idmefMessage.createExtStatisticsNode("0", tmp, "0", "0", "0", "0");
                         sendIdmefMessage("Dummy", idmefMessage);
                         idmefMessage = getNewIdmefMessage();
 #endif          
