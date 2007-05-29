@@ -1869,18 +1869,17 @@ void Stat::test(StatStore * store) {
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // write metrics from each endpoint to a file
   // so we can make tables of the data with external programs
-  // NOTE: Dont forget to delete old metrics.txt-files AND adapt filename for the
-  // uncommented filter in the constructor AND for StatStore::readFromFile AND
-  // choose metrics to be saved in config file (alarm_time = 1)
-  bool more = store->readFromFile();
-  if (more == true) {
-    std::map<EndPoint,Info> Data = store->getDataFromFile();
+  // NOTE: Dont forget to delete old metrics-files AND adapt filename for the
+  // uncommented filter in the constructor AND offlineFile AND
+  // choose metrics to be saved in config file AND
+  // recompile module with OFFLINE_ENABLED=ON
+    std::map<EndPoint,Info> Data = store->getData();
     // Dumping empty records:
     if (Data.empty()==true)
       return;
 
     std::map<EndPoint,Info>::iterator Data_it = Data.begin();
-    std::map<EndPoint,Info> PreviousData = store->getPreviousDataFromFile();
+    std::map<EndPoint,Info> PreviousData = store->getPreviousData();
     Info prev;
 
     // for every unfiltered EndPoint, extract the data to its file
@@ -1904,12 +1903,6 @@ void Stat::test(StatStore * store) {
     std::cout << "Stand: " << counter << std::endl;
     counter++;
     delete store;
-  }
-  else {
-    std::cout << "Done." << std::endl;
-    delete store;
-    exit(0);
-  }
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // END TESTING (3 READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
