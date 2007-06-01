@@ -1,4 +1,4 @@
-SUBDIRS(detectionbase examplemodules snortmodule statmodules countmodule)
+SUBDIRS(detectionbase examplemodules snortmodule statmodules)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/detectionmodules/detectionbase/)
 

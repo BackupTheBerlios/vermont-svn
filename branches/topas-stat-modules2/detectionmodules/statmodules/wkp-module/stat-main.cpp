@@ -44,7 +44,7 @@ We cant see from the output, whether an attack ceased. Maybe some kind of "attac
 #include "pcs-test.h"
 #include "cusum-test.h"
 
-const char offlineFile[] = "darpa1_protocol_10.txt";
+const char offlineFile[] = "darpa1_port_protocol_10.txt";
 
 // ==================== CONSTRUCTOR FOR CLASS Stat ====================
 
@@ -93,7 +93,7 @@ Stat::Stat(const std::string & configfile)
   // (Needed for test-scripts 3 and 4)
   // comment it, if not needed!
 
-  std::ifstream f("darpa1_protocol_10_freq_eps.txt");
+  std::ifstream f("darpa1_port_protocol_10_freq_eps.txt");
   std::string tmp;
   while ( getline(f, tmp) ) {
     EndPoint e = EndPoint(IpAddress(0,0,0,0),0,0);
@@ -169,8 +169,10 @@ void Stat::init(const std::string & configfile) {
   // extracting output file's name
   init_output_file(config);
 
+#ifndef OFFLINE_ENABLED
   // extracting source id's to accept
   init_accepted_source_ids(config);
+#endif
 
   // extracting alarm_time
   // (that means that the test() methode will be called
@@ -187,8 +189,10 @@ void Stat::init(const std::string & configfile) {
   // extracting output verbosity
   init_output_verbosity(config);
 
+#ifndef OFFLINE_ENABLED
   // extracting the key of the endpoints
   init_endpoint_key(config);
+#endif
 
   // initialize pca parameters
   init_pca(config);
@@ -203,6 +207,7 @@ void Stat::init(const std::string & configfile) {
   // i. e. how many endpoints can be monitored
   init_endpointlist_maxsize(config);
 
+#ifndef OFFLINE_ENABLED
   // extracting monitored protocols
   init_protocols(config);
 
@@ -216,6 +221,7 @@ void Stat::init(const std::string & configfile) {
   // to monitor (in case the user doesn't give IP addresses), and
   // initialises some static members of the StatStore class
   init_ip_addresses(config);
+#endif
 
   // now everything is ready to begin monitoring:
   StatStore::setBeginMonitoring() = true;
@@ -751,6 +757,7 @@ void Stat::init_metrics(XMLConfObj * config) {
     if (warning_verbosity==1)
       outfile << Information.str() << std::flush;
 
+#ifndef OFFLINE_ENABLED
   bool packetsSubscribed = false;
   bool bytesSubscribed = false;
   // subscribing to the needed IPFIX_TYPEID-fields
@@ -787,6 +794,7 @@ void Stat::init_metrics(XMLConfObj * config) {
       subscribeTypeId(IPFIX_TYPEID_octetDeltaCount);
     }
   }
+#endif
 
   return;
 }

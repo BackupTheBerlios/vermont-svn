@@ -48,8 +48,6 @@
 #define DEFAULT_stat_test_frequency 1
 #define DEFAULT_learning_phase_for_pca 50
 
-#define OFFLINE_ENABLED
-
 // constants for metrics
 enum Metric {
   PACKETS_IN,

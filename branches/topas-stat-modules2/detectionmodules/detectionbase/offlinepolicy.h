@@ -91,48 +91,11 @@ public:
 		return ret;
   }
 
-  void subscribeId(int id) {
-    idList.push_back(id);
-  }
-
-  void subscribeSourceId(uint16_t id) {
-    sourceIdList.push_back(id);
-  }
-
 private:
-  std::vector<int> idList;
-  std::vector<uint16_t> sourceIdList;
 	Storage* buffer;
 	static std::ifstream inputstr;
 	Mutex bufferLock;
 	Mutex dataAvailableLock;
-
-  bool isIdInList(int id) const
-  {
-    if (idList.empty()) {
-      return true;
-    }
-    /* TODO: think about hashing */
-    for (std::vector<int>::const_iterator i = idList.begin(); i != idList.end(); ++i) {
-      if ((*i) == id)
-        return true;
-    }
-
-    return false;
-  }
-
-  bool isSourceIdInList(uint16_t id) const
-  {
-    if (sourceIdList.empty())
-      return true;
-
-    for (std::vector<uint16_t>::const_iterator i = sourceIdList.begin(); i != sourceIdList.end(); ++i) {
-      if ((*i) == id) {
-        return true;
-      }
-    }
-    return false;
-  }
 };
 
 template <class Storage> std::ifstream OfflineInputPolicy<Storage>::inputstr;
