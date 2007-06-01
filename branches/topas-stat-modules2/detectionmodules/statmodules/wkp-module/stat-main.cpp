@@ -44,7 +44,7 @@ We cant see from the output, whether an attack ceased. Maybe some kind of "attac
 #include "pcs-test.h"
 #include "cusum-test.h"
 
-const char offlineFile[] = "darpa1_port_10.txt";
+const char offlineFile[] = "darpa1_protocol_10.txt";
 
 // ==================== CONSTRUCTOR FOR CLASS Stat ====================
 
@@ -93,7 +93,7 @@ Stat::Stat(const std::string & configfile)
   // (Needed for test-scripts 3 and 4)
   // comment it, if not needed!
 
-  std::ifstream f("darpa1_port_10_freq_eps.txt");
+  std::ifstream f("darpa1_protocol_10_freq_eps.txt");
   std::string tmp;
   while ( getline(f, tmp) ) {
     EndPoint e = EndPoint(IpAddress(0,0,0,0),0,0);
@@ -1778,7 +1778,7 @@ void Stat::test(StatStore * store) {
   // NOTE: adapt name of offlineFile AND compile this module with OFFLINE_ENABLED=OFF
   // comment filter in constructor AND
   // adapt config file (endpoint_key, alarm_time = 10 etc.)
-  // AND start vermont ;)
+  // AND start vermont and collector AND comment #define-line in stat_main.h
   std::map<EndPoint,Info> Data = store->getData();
 
   // Dumping empty records:
@@ -1805,7 +1805,8 @@ void Stat::test(StatStore * store) {
   // read data from file and search the most frequently
   // appearing X endpoints
   // NOTE: dont forget to set alarm_time to 1 AND comment filter in constructor
-  // AND adapt filenames (here and in StatStore)
+  // AND adapt filenames (here and in StatStore) AND recompile module with
+  // OFFLINE_ENABLED = OFF AND comment #define-line in stat_main.h (start collector)
   bool more = store->readFromFile();
   // still more data to read?
   if (more == true) {
@@ -1830,7 +1831,7 @@ void Stat::test(StatStore * store) {
     // search the X most frequently appeared endpoints
     // WARNING: The more metrics you test and the higher the value of X,
     // the more files will be created later!
-    int X = 5;
+    int X = 10;
     std::map<EndPoint,int> mostFrequentEndPoints;
     for (int j = 0; j < X; j++) {
       std::pair<EndPoint,int> tmpmax;
@@ -1847,7 +1848,7 @@ void Stat::test(StatStore * store) {
     }
     // write the X most frequently endpoints to a file
     // Note: Now, we can use that file to determine the filters ...
-    std::ofstream f("darpa1_port_10_freq_eps.txt", std::ios_base::app);
+    std::ofstream f("darpa1_port_protocol_10_freq_eps.txt", std::ios_base::app);
     std::map<EndPoint,int>::iterator iter;
     for (iter=mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
       f << iter->first << "\n";
@@ -1872,7 +1873,8 @@ void Stat::test(StatStore * store) {
   // NOTE: Dont forget to delete old metrics-files AND adapt filename for the
   // uncommented filter in the constructor AND offlineFile AND
   // choose metrics to be saved in config file AND
-  // recompile module with OFFLINE_ENABLED=ON
+  // recompile module with OFFLINE_ENABLED=ON (start module directly)
+  // AND uncomment #define-line in stat_main.h
     std::map<EndPoint,Info> Data = store->getData();
     // Dumping empty records:
     if (Data.empty()==true)
@@ -1917,8 +1919,9 @@ void Stat::test(StatStore * store) {
   // every of the X endpoints and their metrics (to compare it to our metric-diagrams)
   // NOTE: Dont forget to adapt the filename convention for the
   // uncommented filter in the constructor and for the offlineFile
-  // AND delete old files created by cusum_test() AND  recompile this module with OFFLINE_ENABLED=ON
-  // AND choose some test-params
+  // AND delete old files created by cusum_test() AND  recompile this module with
+  // OFFLINE_ENABLED=ON (start module directly) AND uncomment #define-line in
+  // stat_main.h AND choose some test-params
     std::map<EndPoint,Info> Data = store->getData();
 
     if (Data.empty()==true)
@@ -1928,6 +1931,8 @@ void Stat::test(StatStore * store) {
 
     std::map<EndPoint,Info> PreviousData = store->getPreviousData();
     Info prev;
+
+    std::cout << "Stand: " << test_counter << std::endl;
 
     while (Data_it != Data.end()) {
       // filter (do tests only for the X frequently appeared endpoints)
@@ -2046,7 +2051,9 @@ void Stat::test(StatStore * store) {
       ep_nr = CusumData.size();
 
     if (output_verbosity >= 4) {
-      outfile << "#### STATE OF ALL MONITORED ENDPOINTS (" << ep_nr << "):" << std::endl;
+      outfile
+          << "#### STATE OF ALL MONITORED ENDPOINTS (" << ep_nr << "):"
+          << std::endl;
       if (enable_wkp_test == true) {
         outfile << "### WKP OVERVIEW" << std::endl;
         std::map<EndPoint,Samples>::iterator SampleData_it =

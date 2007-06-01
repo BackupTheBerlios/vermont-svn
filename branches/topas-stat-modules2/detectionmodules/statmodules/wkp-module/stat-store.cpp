@@ -472,5 +472,5 @@ bool StatStore::MonitorAllPorts = false;
 bool StatStore::BeginMonitoring = false;
 
 // TESTING
-std::ifstream StatStore::dataFile("darpa1_port_10.txt");
+std::ifstream StatStore::dataFile("darpa1_port_protocol_10.txt");
 std::map<EndPoint,Info> StatStore::previousDataFromFile;
