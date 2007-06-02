@@ -28,7 +28,6 @@
 StatStore::StatStore()
   : e_source(IpAddress(0,0,0,0),0,0), e_dest(IpAddress(0,0,0,0),0,0) {
 
-  skip_both = skip_source = skip_dest = false;
   packet_nb = byte_nb = 0;
 
 }
@@ -37,9 +36,6 @@ StatStore::~StatStore() {
 
   PreviousData = Data;
 
-  // TESTING
-  previousDataFromFile = dataFromFile;
-
 }
 
 bool StatStore::recordStart(SourceID sourceId) {
@@ -47,7 +43,6 @@ bool StatStore::recordStart(SourceID sourceId) {
   if (BeginMonitoring != true)
     return false;
 
-  skip_both = skip_source = skip_dest = false;
   packet_nb = byte_nb = 0;
   e_source = e_dest = EndPoint(IpAddress(0,0,0,0),0,0);
 
@@ -62,15 +57,6 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
   // we subscribed to (so don't get worried because of
   // the "breaks" in the "switch" loop hereafter)
 
-  // if one of the filters was matched, we dont want that endpoint
-  // and so dont need to further addFieldData to it
-  // But maybe one of the involved endpoints, either e_source or e_dest
-  // is wanted, so we skip only, if really both arent wanted, i. e.
-  // skip_both --> protocol isnt wanted
-  // skip_source/dest --> source/dest ip or source/dest port isnt wanted
-  if (skip_both == true || (skip_source == true && skip_dest == true))
-    return;
-
   IpAddress SourceIP = IpAddress(0,0,0,0);
   IpAddress DestIP = IpAddress(0,0,0,0);
 
@@ -84,16 +70,11 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
         return;
       }
 
-      if ( find(MonitoredProtocols.begin(), MonitoredProtocols.end(), *fieldData)
-            != MonitoredProtocols.end() ) {
-        // *fielData is a protocol number, so is 1 byte (= uint8_t) long
-        // remember to cast it into an uint16_t (= unsigned int)
-        // if you want to print it!
-        e_source.setProtocolID(*fieldData);
-        e_dest.setProtocolID(*fieldData);
-      }
-      else
-        skip_both = true;
+      // *fielData is a protocol number, so is 1 byte (= uint8_t) long
+      // remember to cast it into an uint16_t (= unsigned int)
+      // if you want to print it!
+      e_source.setProtocolID(*fieldData);
+      e_dest.setProtocolID(*fieldData);
 
       break;
 
@@ -107,18 +88,7 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
       }
 
       SourceIP.setAddress(fieldData[0],fieldData[1],fieldData[2],fieldData[3]);
-      SourceIP.remanent_mask(subnetMask);
-
-      // filtering ...
-      if ( MonitorEveryIp == true
-        || find(MonitoredIpAddresses.begin(),MonitoredIpAddresses.end(),SourceIP)
-            != MonitoredIpAddresses.end())
-        e_source.setIpAddress(SourceIP);
-      else
-        // we dont consider all ip addresses and the (masked) SourceIP
-        // is not one of the IPs in the given IpList
-        // so we arent interested in that endpoint
-        skip_source = true;
+      e_source.setIpAddress(SourceIP);
 
       break;
 
@@ -132,25 +102,13 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
       }
 
       DestIP.setAddress(fieldData[0],fieldData[1],fieldData[2],fieldData[3]);
-      DestIP.remanent_mask(subnetMask);
-
-      // filtering ...
-      if ( MonitorEveryIp == true
-       || find(MonitoredIpAddresses.begin(),MonitoredIpAddresses.end(),DestIP)
-           != MonitoredIpAddresses.end()  ) {
-        e_dest.setIpAddress(DestIP);
-      }
-      else
-        skip_dest = true;
+      e_dest.setIpAddress(DestIP);
 
       break;
 
-    // Ports do only matter, if
-    // endpoint_key contains "port"
-    // AND
-    // endpoint_key contains "protocol" AND TCP and/or UDP are selected
-    // OR
-    // protocols dont matter
+    // Ports do only matter, if endpoint_key contains "port"
+    // AND (endpoint_key contains "protocol" AND TCP and/or UDP are selected
+    // OR protocols dont matter)
     case IPFIX_TYPEID_sourceTransportPort:
 
       if (fieldDataLength != IPFIX_LENGTH_sourceTransportPort
@@ -161,30 +119,17 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
       }
 
       if (fieldDataLength == IPFIX_LENGTH_sourceTransportPort) {
-        if ( MonitorAllPorts == true || MonitoredPorts.end() !=
-            find (MonitoredPorts.begin(), MonitoredPorts.end(),
-            ntohs(*(uint16_t*)fieldData)) ) {
-          // fieldData must be casted into an uint16_t (= unsigned int)
-          // as it is a port number
-          // (and, also, converted from network order to host order)
-          e_source.setPortNr(ntohs(*(uint16_t*)fieldData));
-          return;
-        }
-        else
-          skip_source = true;
+        // fieldData must be casted into an int
+        // (and, also, converted from network order to host order)
+        e_source.setPortNr(ntohs(*(int*)fieldData));
+        return;
       }
 
       if (fieldDataLength == IPFIX_LENGTH_sourceTransportPort-1) {
-        if ( MonitorAllPorts == true || MonitoredPorts.end() !=
-            find (MonitoredPorts.begin(), MonitoredPorts.end(),
-            (uint16_t)*fieldData) ) {
-          // fieldData must be casted into an uint16_t (= unsigned int)
-          // as it is a port number
-          e_source.setPortNr((uint16_t)*fieldData);
-          return;
-        }
-        else
-          skip_source = true;
+        // fieldData must be casted into an int
+        // as it is a port number
+        e_source.setPortNr((int)*fieldData);
+        return;
       }
 
       break;
@@ -200,25 +145,13 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
       }
 
       if (fieldDataLength == IPFIX_LENGTH_destinationTransportPort) {
-        if ( MonitorAllPorts == true || MonitoredPorts.end() !=
-            find (MonitoredPorts.begin(), MonitoredPorts.end(),
-            ntohs(*(uint16_t*)fieldData)) ) {
-          e_dest.setPortNr(ntohs(*(uint16_t*)fieldData));
-          return;
-        }
-        else
-          skip_dest = true;
+        e_dest.setPortNr(ntohs(*(int*)fieldData));
+        return;
       }
 
       if (fieldDataLength == IPFIX_LENGTH_destinationTransportPort-1) {
-        if ( MonitorAllPorts == true || MonitoredPorts.end() !=
-            find (MonitoredPorts.begin(), MonitoredPorts.end(),
-            (uint16_t)*fieldData) ) {
-          e_dest.setPortNr((uint16_t)*fieldData);
-          return;
-        }
-        else
-          skip_dest = true;
+        e_dest.setPortNr((int)*fieldData);
+        return;
       }
 
       break;
@@ -261,23 +194,20 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
 }
 
 
+// For every call to recordEnd, two endpoints will be considered:
+// One consisting of SourceIP, SourcePort and Protocol (e_source)
+// And one consisting of DestIP, DestPort and Protocol (e_dest)
 void StatStore::recordEnd() {
-
-  // If one of the filters was matched, we dont want that endpoint
-  // and so dont need to do further checks and updates ...
-  // But maybe one of the involved endpoints, either e_source or e_dest
-  // is wanted, so we skip only, if really both arent wanted, i. e.
-  // skip_both --> protocol isnt wanted (matches for both endpoints)
-  // skip_source/dest --> source/dest ip or source/dest port isnt wanted
-  if (skip_both == true || (skip_source == true && skip_dest == true))
-    return;
 
   std::stringstream Warning;
   Warning
   << "WARNING: New EndPoint observed but EndPointListMaxSize reached!\n"
   << "Couldn't monitor new EndPoint: ";
 
-  if (skip_source == false) {
+// Handle EndPoint e_source (with SourceIP and SourcePort)
+
+  // Consider only EndPoints we are interested in
+  if (filterEndPoint(e_source) == false) {
     // EndPoint already known and thus in our List?
     if ( find(EndPointList.begin(), EndPointList.end(), e_source) != EndPointList.end() ) {
       // Since Data is destroyed after every test()-run,
@@ -312,7 +242,11 @@ void StatStore::recordEnd() {
     }
   }
 
-  if (skip_dest == false) {
+
+// Handle EndPoint e_dest (with DestIP and DestPort)
+
+  // Consider only EndPoints we are interested in
+  if (filterEndPoint(e_dest) == false) {
     // EndPoint already known and thus in our List?
     if ( find(EndPointList.begin(), EndPointList.end(), e_dest) != EndPointList.end() ) {
       // Since Data is destroyed after every test()-run,
@@ -399,54 +333,31 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store)
   return is;
 }
 
-// TESTING
-bool StatStore::readFromFile() {
+// returns true, if we arent interested in EndPoint e
+// (false otherwise)
+bool StatStore::filterEndPoint (const EndPoint & e) {
 
-  if ( dataFile.eof() ) {
-    std::cerr << "INFORMATION: All Data read from file.\n";
-    dataFile.close();
-    return false;
+  std::vector<EndPoint>::iterator it = EndPointFilter.begin();
+
+  while ( it != EndPointFilter.end() ) {
+
+    // apply netmask of *it (the current wanted endpoint)
+    // to e (the tested endpoint)
+    // (the netmask will be applied automatically by the call to setNetMask())
+    e.setNetMask(it->getNetMask());
+
+    // compare ip addresses (netmask already applied)
+    if ( e.getIpAddress() != it->getIpAddress() )
+      return true;
+    if  (e.getPortNr() != it->getPortNr() && it->getPortNr() != -1 )
+      return true;
+    if ( e.getProtocolID() != it->getProtocolID() && it->getProtocolID() != -1 )
+      return true;
+    it++;
   }
 
-  std::string tmp;
-  while ( getline(dataFile, tmp) ) {
-    if (0 == strcasecmp(tmp.c_str(), "---") )
-      break;
-    else if ( dataFile.eof() ) {
-      std::cerr << "INFORMATION: All Data read from file.\n";
-      dataFile.close();
-      return false;
-    }
-
-    // extract endpoint-data
-    std::string::size_type i = tmp.find(':', 0);
-    std::string ipstr(tmp, 0, i);
-    std::string::size_type j = tmp.find('|', i);
-    std::string portstr(tmp, i+1, j-i-1);
-    std::string::size_type k = tmp.find('_', j);
-    std::string protostr(tmp, j+1, k-j-1);
-
-    IpAddress ip = IpAddress(0,0,0,0);
-    ip.fromString(ipstr);
-    EndPoint e = EndPoint(ip, atoi(portstr.c_str()), atoi(protostr.c_str()));
-    //std::cout << "e: " << e << std::endl;
-
-    // extract metric-data
-    std::stringstream tmp1(tmp.substr(k+1));
-    Info info;
-    tmp1 >> info.packets_in >> info.packets_out >> info.bytes_in >> info.bytes_out >> info.records_in >> info.records_out;
-    //std::cout << "Info: " << info.packets_in << ", " << info.packets_out << ", " << info.bytes_in << ", " << info.bytes_out << ", " << info.records_in << ", " << info.records_out << std::endl;
-
-    // put it into dataFromFile ...
-    dataFromFile[e] = info;
-
-    tmp.clear();
-    tmp1.clear();
-  }
-
-  return true;
+  return false;
 }
-
 
 // ========== INITIALISATIONS OF STATIC MEMBERS OF CLASS StatStore ===========
 
@@ -456,21 +367,10 @@ std::map<EndPoint,Info> StatStore::PreviousData;
 // by the Stat::init() function, we have to provide some initial values
 // in the implementation file of the related class;
 
-std::vector<IpAddress> StatStore::MonitoredIpAddresses;
-byte StatStore::subnetMask[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-bool StatStore::MonitorEveryIp = false;
+std::map<EndPoint,short> StatStore::EndPointFilter;
+bool StatStore::MonitorEveryEndPoint = false;
 
 std::vector<EndPoint> StatStore::EndPointList;
 int StatStore::EndPointListMaxSize = 0;
 
-std::vector<byte> StatStore::MonitoredProtocols;
-bool StatStore::MonitorAllProtocols = false;
-
-std::vector<uint16_t> StatStore::MonitoredPorts;
-bool StatStore::MonitorAllPorts = false;
-
 bool StatStore::BeginMonitoring = false;
-
-// TESTING
-std::ifstream StatStore::dataFile("darpa1_port_protocol_10.txt");
-std::map<EndPoint,Info> StatStore::previousDataFromFile;

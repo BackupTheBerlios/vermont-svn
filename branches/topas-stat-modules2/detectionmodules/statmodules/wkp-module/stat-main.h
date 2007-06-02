@@ -35,10 +35,11 @@
 
 #define DEFAULT_alarm_time 10
 #define DEFAULT_warning_verbosity 0
-#define DEFAULT_output_verbosity 3
+#define DEFAULT_logfile_output_verbosity 3
 #define DEFAULT_noise_threshold_packets 0
 #define DEFAULT_noise_threshold_bytes 0
 #define DEFAULT_endpointlist_maxsize 500
+#define DEFAULT_x_frequent_endpoints 10
 #define DEFAULT_amplitude_percentage 1.5
 #define DEFAULT_repetition_factor 2
 #define DEFAULT_learning_phase_for_alpha 10
@@ -237,20 +238,19 @@ class Stat
 
   // as the init function is really huge, we divide it into tasks:
   // those related to the user's preferences regarding the module...
-  void init_output_file(XMLConfObj *);
+  void init_logfile(XMLConfObj *);
   void init_accepted_source_ids(XMLConfObj *);
   void init_alarm_time(XMLConfObj *);
   void init_warning_verbosity(XMLConfObj *);
-  void init_output_verbosity(XMLConfObj *);
+  void init_logfile_output_verbosity(XMLConfObj *);
+  void init_offline_file(XMLConfObj *);
+  void init_output_dir(XMLConfObj *);
   void init_endpoint_key(XMLConfObj *);
   void init_pca(XMLConfObj *);
   void init_metrics(XMLConfObj *);
   void init_noise_thresholds(XMLConfObj *);
   void init_endpointlist_maxsize(XMLConfObj *);
-  void init_protocols(XMLConfObj *);
-  void init_netmask(XMLConfObj *);
-  void init_ports(XMLConfObj *);
-  void init_ip_addresses(XMLConfObj *);
+  void init_endpointfilter(XMLConfObj *);
   void init_stat_test_freq(XMLConfObj *);
   void init_report_only_first_attack(XMLConfObj *);
   void init_pause_update_when_attack(XMLConfObj *);
@@ -268,12 +268,8 @@ class Stat
   std::vector<int64_t> extract_data (const Info &, const Info &);
   void update(Samples &, const std::vector<int64_t> &);
   void stat_test(Samples &);
-  // use this for TESTING purposes!
-  void T_stat_test(const EndPoint &, Samples &);
   void update_c(CusumParams &, const std::vector<int64_t> &);
   void cusum_test(CusumParams &);
-  // use this for TESTING purposes!
-  void T_cusum_test(const EndPoint &, CusumParams &);
 
   // this function is called by stat_test() and cusum_test() to extract a
   // single metric to test from a std::vector<int64_t>
@@ -285,17 +281,30 @@ class Stat
   double stat_test_ks (std::list<int64_t> &, std::list<int64_t> &, bool &);
   double stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &, bool &);
 
-  // BEGIN TESTING
   // contains endpoints and their number of occurance
   std::map<EndPoint,int> endPointCount;
-  int counter; // only needed to print out state for the test-scripts 2 and 3)
+
+  // determines how many endpoints will be considered
+  // meaning that only the X most frequently appeared endpoints
+  // will be investigated
+  uint16_t x_frequently_endpoints;
+
+  // File where data will be stored to (in ONLINE MODE)
+  // or be read from (in OFFLINE MODE)
+  std::string offlineFile;
+
+  // If the user specifies an output_dir, this flag will be set to true
+  // and output files (for test-params and metrics) will be generated and
+  // stored into the output_dir
+  bool createFiles;
+  std::string output_dir;
+
+
+  // BEGIN TESTING
   std::vector<int> cusum_alarms;  // counters for detected attacks
   std::vector<int> wmw_alarms;    // for every metric
   std::vector<int> ks_alarms;     // and avery test
   std::vector<int> pcs_alarms;
-  // contains most frequently X appeared endpoints ...
-  // only data for them will be collected and written to files
-  std::vector<EndPoint> filter;
   // END TESTING
 
 
@@ -315,15 +324,14 @@ class Stat
 
 
   // user's preferences (defined in the XML config file):
-  std::ofstream outfile;
+  std::ofstream logfile;
   int warning_verbosity;
-  int output_verbosity;
+  int logfile_output_verbosity;
   // holds the constants for the (splitted) metrics
   std::vector<Metric> metrics;
   int noise_threshold_packets;
   int noise_threshold_bytes;
   int endpointlist_maxsize;
-  std::string ipfile;
   int stat_test_frequency;
   bool report_only_first_attack;
   short pause_update_when_attack;
@@ -365,11 +373,6 @@ class Stat
   // X=stat_test_frequency times that the test() method is called,
   // rather than everytime
   int test_counter;
-
-  bool port_monitoring;
-  bool ports_relevant; // if only ICMP AND/OR RAW --> ports_relevant = false
-  bool ip_monitoring;
-  bool protocol_monitoring;
 
   std::ofstream storefile;
 };

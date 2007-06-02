@@ -48,7 +48,8 @@ class EndPoint {
   private:
 
     IpAddress ipAddr;
-    uint16_t  portNr;
+    short netmask;
+    int  portNr;
     byte  protocolID;
 
     friend std::ostream& operator << (std::ostream&, const EndPoint&);
@@ -58,13 +59,23 @@ class EndPoint {
     // Constructors
     EndPoint() : ipAddr (0,0,0,0) {
 
+      netmask = 32;
       portNr = 0;
       protocolID = 0;
 
     }
 
-    EndPoint(const IpAddress & ip, uint16_t port, byte protocol) : ipAddr (ip[0], ip[1], ip[2], ip[3]) {
+    EndPoint(const IpAddress & ip, short nmask, int port, byte protocol) : ipAddr (ip[0], ip[1], ip[2], ip[3]) {
 
+      if (nmask >= 0 && nmask < 32) {
+        netmask = nmask;
+        applyNetMask();
+      }
+      else {
+        std::cerr << "Invalid Netmask occured! Netmask may only be a value "
+        << "between 0 and 32! Thus, 32 will be assumed for now!" << std::endl;
+        netmask = 32;
+      }
       portNr = port;
       protocolID = protocol;
 
@@ -72,6 +83,10 @@ class EndPoint {
 
     // copy constructor
     EndPoint(const EndPoint & e) : ipAddr(e.ipAddr[0], e.ipAddr[1], e.ipAddr[2],        e.ipAddr[3]){
+
+      netmask = e.netmask;
+      // no need to apply it, because it was already applied
+      //to the original endpoint
 
       portNr = e.portNr;
       protocolID = e.protocolID;
@@ -82,6 +97,7 @@ class EndPoint {
     ~EndPoint() {};
 
 
+    // TODO: consider netmask!
     // Operators (needed for use in maps)
     bool operator==(const EndPoint& e) const {
       return ipAddr[0] == e.ipAddr[0] && ipAddr[1] == e.ipAddr[1]
@@ -111,14 +127,14 @@ class EndPoint {
     }
 
     std::string toString() const;
-    void fromString(const std::string &);
+    void fromString(const std::string &, bool);
 
     // Setters & Getters
     void setIpAddress(const IpAddress & ip) {
       ipAddr.setAddress(ip[0], ip[1], ip[2], ip[3]);
     }
 
-    void setPortNr(const uint16_t & p) {
+    void setPortNr(const int & p) {
       portNr = p;
     }
 
@@ -126,9 +142,24 @@ class EndPoint {
       protocolID = pid;
     }
 
+    void setNetMask(const short & n) {
+      if (n >= 0 && n < 32) {
+        netmask = n;
+        applyNetMask();
+      }
+      else {
+        std::cerr << "Invalid Netmask occured! Netmask may only be a value "
+        << "between 0 and 32! Thus, 32 will be assumed for now!" << std::endl;
+        netmask = 32;
+      }
+    }
+
     IpAddress getIpAddress() const { return ipAddr; }
-    uint16_t getPortNr() const { return portNr; }
+    int getPortNr() const { return portNr; }
     byte getProtocolID() const { return protocolID; }
+    short getNetMask() const { return netmask; }
+
+    void applyNetMask();
 
 };
 

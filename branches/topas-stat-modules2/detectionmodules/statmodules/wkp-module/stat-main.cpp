@@ -44,8 +44,6 @@ We cant see from the output, whether an attack ceased. Maybe some kind of "attac
 #include "pcs-test.h"
 #include "cusum-test.h"
 
-const char offlineFile[] = "darpa1_port_protocol_10.txt";
-
 // ==================== CONSTRUCTOR FOR CLASS Stat ====================
 
 
@@ -74,6 +72,8 @@ Stat::Stat(const std::string & configfile)
 
   test_counter = 0;
 
+  init(configfile);
+
 #ifdef OFFLINE_ENABLED
   /* open file with offline data */
   if(!OfflineInputPolicy<StatStore>::openOfflineFile(offlineFile)) {
@@ -81,35 +81,17 @@ Stat::Stat(const std::string & configfile)
       exit(0);
   }
 #else
-  /* open file to store data for offline use */
-  storefile.open(offlineFile);
+  if (0 != strcasecmp(offline_file.c_str(), "none"))
+    /* open file to store data for offline use */
+    storefile.open(offlineFile);
 #endif
 
-
-  // BEGIN TESTING
-  counter = 0;
-  // Filtering: read most frequently X endpoints from file
-  // and push them into filter vector
-  // (Needed for test-scripts 3 and 4)
-  // comment it, if not needed!
-
-  std::ifstream f("darpa1_port_protocol_10_freq_eps.txt");
-  std::string tmp;
-  while ( getline(f, tmp) ) {
-    EndPoint e = EndPoint(IpAddress(0,0,0,0),0,0);
-    e.fromString(tmp);
-    filter.push_back(e);
-  }
-
-  // END TESTING
-
-  init(configfile);
 }
 
 
 Stat::~Stat() {
 
-  outfile.close();
+  logfile.close();
   if(storefile.is_open())
       storefile.close();
 
@@ -166,8 +148,8 @@ void Stat::init(const std::string & configfile) {
 
   config->enterNode("preferences");
 
-  // extracting output file's name
-  init_output_file(config);
+  // extracting logfile's name
+  init_logfile(config);
 
 #ifndef OFFLINE_ENABLED
   // extracting source id's to accept
@@ -187,7 +169,13 @@ void Stat::init(const std::string & configfile) {
   init_warning_verbosity(config);
 
   // extracting output verbosity
-  init_output_verbosity(config);
+  init_logfile_output_verbosity(config);
+
+  // extract filename for the file where
+  // all the data will be written into
+  init_offline_file(config);
+
+  init_output_dir(config);
 
 #ifndef OFFLINE_ENABLED
   // extracting the key of the endpoints
@@ -208,19 +196,8 @@ void Stat::init(const std::string & configfile) {
   init_endpointlist_maxsize(config);
 
 #ifndef OFFLINE_ENABLED
-  // extracting monitored protocols
-  init_protocols(config);
-
-  // extracting netmask to apply to all IPs
-  init_netmask(config);
-
-  // extracting monitored port numbers
-  init_ports(config);
-
-  // extracts the IP addresses to monitor or the maximal number of IPs
-  // to monitor (in case the user doesn't give IP addresses), and
-  // initialises some static members of the StatStore class
-  init_ip_addresses(config);
+  // extracting endpoints to filter
+  init_endpointfilter(config);
 #endif
 
   // now everything is ready to begin monitoring:
@@ -278,7 +255,7 @@ void Stat::init(const std::string & configfile) {
       << "  Exiting.\n";
     std::cerr << Error.str();
     if (warning_verbosity==1)
-      outfile << Error.str() << std::flush;
+      logfile << Error.str() << std::flush;
     delete config;
     exit(0);
   }
@@ -309,25 +286,25 @@ void Stat::update(XMLConfObj* xmlObj)
 // ================== FUNCTIONS USED BY init FUNCTION =================
 
 
-void Stat::init_output_file(XMLConfObj * config) {
+void Stat::init_logfile(XMLConfObj * config) {
 
   // extracting output file's name
-  if(!config->nodeExists("output_file")) {
+  if(!config->nodeExists("logfile")) {
     std::cerr
-      << "WARNING: No output_file parameter defined in XML config file!\n"
+      << "WARNING: No logfile parameter defined in XML config file!\n"
       << "  Default outputfile used (wkp_output.txt).\n";
-    outfile.open("wkp_output.txt");
+    logfile.open("wkp_output.txt");
   }
-  else if (!(config->getValue("output_file")).empty())
-    outfile.open(config->getValue("output_file").c_str());
+  else if (!(config->getValue("logfile")).empty())
+    logfile.open(config->getValue("logfile").c_str());
   else {
     std::cerr
-      << "WARNING: No value for output_file parameter defined in XML config file!\n"
-      << "  Default output_file used (wkp_output.txt).\n";
-    outfile.open("wkp_output.txt");
+      << "WARNING: No value for logfile parameter defined in XML config file!\n"
+      << "  Default logfile used (wkp_log.txt).\n";
+    logfile.open("wkp_log.txt");
   }
 
-  if (!outfile) {
+  if (!logfile) {
       std::cerr << "ERROR: could not open output file!\n"
         << "  Check if you have enough rights to create or write to it.\n"
         << "  Exiting.\n";
@@ -345,7 +322,7 @@ void Stat::init_accepted_source_ids(XMLConfObj * config) {
       << "WARNING: No accepted_source_ids parameter defined in XML config file!\n"
       << "  All source ids will be accepted.\n";
     std::cerr << Warning.str();
-    outfile << Warning.str() << std::flush;
+    logfile << Warning.str() << std::flush;
   }
   else if (!(config->getValue("accepted_source_ids")).empty()) {
 
@@ -373,7 +350,7 @@ void Stat::init_accepted_source_ids(XMLConfObj * config) {
       << "WARNING: No value for accepted_source_ids parameter defined in XML config file!\n"
       << "  All source ids will be accepted.\n";
     std::cerr << Warning.str();
-    outfile << Warning.str() << std::flush;
+    logfile << Warning.str() << std::flush;
   }
 
   return;
@@ -390,7 +367,7 @@ void Stat::init_alarm_time(XMLConfObj * config) {
       << "WARNING: No alarm_time parameter defined in XML config file!\n"
       << "  \"" << DEFAULT_alarm_time << "\" assumed.\n";
     std::cerr << Warning.str();
-    outfile << Warning.str() << std::flush;
+    logfile << Warning.str() << std::flush;
     setAlarmTime(DEFAULT_alarm_time);
   }
   else if (!(config->getValue("alarm_time")).empty())
@@ -401,7 +378,7 @@ void Stat::init_alarm_time(XMLConfObj * config) {
       << "Warning: No value for alarm_time parameter defined in XML config file!\n"
       << "  \"" << DEFAULT_alarm_time << "\" assumed.\n";
     std::cerr << Warning.str();
-    outfile << Warning.str() << std::flush;
+    logfile << Warning.str() << std::flush;
     setAlarmTime(DEFAULT_alarm_time);
   }
 
@@ -437,7 +414,7 @@ void Stat::init_warning_verbosity(XMLConfObj * config) {
       warning_verbosity = atoi( config->getValue("warning_verbosity").c_str() );
     else {
       std::cerr << Error.str() << Usage.str() << "  Exiting.\n";
-      outfile << Error.str() << Usage.str() << "  Exiting.\n" << std::flush;
+      logfile << Error.str() << Usage.str() << "  Exiting.\n" << std::flush;
       exit(0);
     }
   }
@@ -449,21 +426,21 @@ void Stat::init_warning_verbosity(XMLConfObj * config) {
   return;
 }
 
-void Stat::init_output_verbosity(XMLConfObj * config) {
+void Stat::init_logfile_output_verbosity(XMLConfObj * config) {
 
   std::stringstream Error, Warning, Default, Usage;
   Error
-    << "ERROR: output_verbosity parameter defined in XML config file "
+    << "ERROR: logfile_output_verbosity parameter defined in XML config file "
 	  << "should be between 0 and 5.\n"
     << "  Please define it that way and restart.\n";
   Warning
-    << "WARNING: No output_verbosity parameter defined "
+    << "WARNING: No logfile_output_verbosity parameter defined "
     << "in XML config file!\n"
-    << "  \"" << DEFAULT_output_verbosity << "\" assumed.\n";
+    << "  \"" << DEFAULT_logfile_output_verbosity << "\" assumed.\n";
   Default
-    << "WARNING: No value for output_verbosity parameter defined "
+    << "WARNING: No value for logfile_output_verbosity parameter defined "
 	  << "in XML config file!\n"
-	  << "  \"" << DEFAULT_output_verbosity << "\" assumed.\n";
+	  << "  \"" << DEFAULT_logfile_output_verbosity << "\" assumed.\n";
   Usage
     << "  O: no output generated\n"
 	  << "  1: only p-values and attacks are recorded\n"
@@ -473,29 +450,102 @@ void Stat::init_output_verbosity(XMLConfObj * config) {
 	  << "  5: same as 4, plus all details from statistical tests\n";
 
   // extracting output verbosity
-  if(!config->nodeExists("output_verbosity")) {
+  if(!config->nodeExists("logfile_output_verbosity")) {
     std::cerr << Warning.str() << Usage.str();
     if (warning_verbosity==1)
-      outfile << Warning.str() << Usage.str() << std::flush;
-    output_verbosity = DEFAULT_output_verbosity;
+      logfile << Warning.str() << Usage.str() << std::flush;
+    logfile_output_verbosity = DEFAULT_logfile_output_verbosity;
   }
-  else if (!(config->getValue("output_verbosity")).empty()) {
-    if ( 0 <= atoi( config->getValue("output_verbosity").c_str() )
-      && 5 >= atoi( config->getValue("output_verbosity").c_str() ) )
-      output_verbosity = atoi( config->getValue("output_verbosity").c_str() );
+  else if (!(config->getValue("logfile_output_verbosity")).empty()) {
+    if ( 0 <= atoi( config->getValue("logfile_output_verbosity").c_str() )
+      && 5 >= atoi( config->getValue("logfile_output_verbosity").c_str() ) )
+      logfile_output_verbosity = atoi( config->getValue("logfile_output_verbosity").c_str() );
     else {
       std::cerr << Error.str() << Usage.str() << "  Exiting.\n";
       if (warning_verbosity==1)
-        outfile << Error.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
+        logfile << Error.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
       exit(0);
     }
   }
   else {
     std::cerr << Default.str() << Usage.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << Usage.str() << std::flush;
-    output_verbosity = DEFAULT_output_verbosity;
+      logfile << Default.str() << Usage.str() << std::flush;
+    logfile_output_verbosity = DEFAULT_logfile_output_verbosity;
   }
+
+  return;
+}
+
+void Stat::init_offline_file(XMLConfObj * config) {
+  std::stringstream Warning, Default, Error1, Error2;
+  Warning
+    << "WARNING: No offline_file parameter in XML config file!\n"
+    << "  The file will be named \"data.txt\".\n";
+  Default
+    << "WARNING: No value defined for offline_file parameter in XML config file!\n"
+    << "  The file will be named \"data.txt\".\n";
+  Error1
+    << "ERROR: No offline_file parameter in XML config file!\n"
+    << "  Please specify one and restart.\n  Exiting.\n";
+  Error2
+    << "ERROR: No value for offline_file parameter in XML config file!\n"
+    << "  Please specify one and restart.\n  Exiting.\n";
+
+  if (!config->nodeExists("offline_file")) {
+#ifdef OFFLINE_ENABLED
+    std::cerr << Error1.str();
+    if (warning_verbosity==1)
+      logfile << Error1.str() << std::flush;
+    exit(0);
+#else
+    std::cerr << Warning.str();
+    if (warning_verbosity==1)
+      logfile << Warning.str() << std::flush;
+    offlineFile = "data.txt";
+#endif
+  }
+  else if ((config->getValue("offline_file")).empty()) {
+#ifdef OFFLINE_ENABLED
+    std::cerr << Error2.str();
+    if (warning_verbosity==1)
+      logfile << Error2.str() << std::flush;
+    exit(0);
+#else
+    std::cerr << Default.str();
+    if (warning_verbosity==1)
+      logfile << Default.str() << std::flush;
+    offlineFile = "data.txt";
+#endif
+  }
+  else if (0 == strcasecmp(config->getValue("offline_file"),"none")) {
+    offlineFile = "none";
+  }
+  else {
+    offlineFile = config->getValue("offline_file");
+  }
+
+  return;
+}
+
+void Stat::init_output_dir(XMLConfObj * config) {
+
+  if (!config->nodeExists("output_dir")) {
+    createFiles = false;
+    return;
+  }
+  else if((config->getValue("output_dir")).empty()) {
+    createFiles = false;
+    return;
+  }
+
+  output_dir = config->getValue("output_dir");
+
+  // TODO:
+  // Verzeichnis öffnen und Pointer damit verknüpfen?
+  // Im Destruktor dann wieder schließen (falls offen)
+
+  createFiles = true;
 
   return;
 }
@@ -517,7 +567,7 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
   if (!config->nodeExists("endpoint_key")) {
     std::cerr << Warning.str() << "\n";
     if (warning_verbosity==1)
-      outfile << Warning.str() << std::endl << std::flush;
+      logfile << Warning.str() << std::endl << std::flush;
     ip_monitoring = true;
     port_monitoring = true;
     protocol_monitoring = true;
@@ -550,7 +600,7 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
       else {
         std::cerr << Error.str() << "  Exiting.\n";
         if (warning_verbosity==1)
-          outfile << Error.str() << "  Exiting." << std::endl << std::flush;
+          logfile << Error.str() << "  Exiting." << std::endl << std::flush;
         exit(0);
       }
     }
@@ -559,7 +609,7 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
   else {
     std::cerr << Default.str() << "\n";
     if (warning_verbosity==1)
-      outfile << Default.str() << std::endl << std::flush;
+      logfile << Default.str() << std::endl << std::flush;
   }
 
   return;
@@ -591,7 +641,7 @@ void Stat::init_pca(XMLConfObj * config) {
   else {
     std::cerr << Default1.str();
     if (warning_verbosity==1)
-      outfile << Default1.str() << std::flush;
+      logfile << Default1.str() << std::flush;
     use_pca = true;
   }
 
@@ -602,7 +652,7 @@ void Stat::init_pca(XMLConfObj * config) {
     if (!config->nodeExists("pca_learning_phase")) {
       std::cerr << Default2.str();
       if (warning_verbosity==1)
-        outfile << Default2.str() << std::flush;
+        logfile << Default2.str() << std::flush;
       learning_phase_for_pca = DEFAULT_learning_phase_for_pca;
     }
     else if ( !(config->getValue("pca_learning_phase").empty()) ) {
@@ -611,7 +661,7 @@ void Stat::init_pca(XMLConfObj * config) {
     else {
       std::cerr << Default3.str();
       if (warning_verbosity==1)
-        outfile << Default3.str() << std::flush;
+        logfile << Default3.str() << std::flush;
       learning_phase_for_pca = DEFAULT_learning_phase_for_pca;
     }
   }
@@ -645,7 +695,7 @@ void Stat::init_metrics(XMLConfObj * config) {
   if (!config->nodeExists("metrics")) {
     std::cerr << Error1.str() << Usage.str() << "  Exiting.\n";
     if (warning_verbosity==1)
-      outfile << Error1.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
+      logfile << Error1.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
     exit(0);
   }
 
@@ -662,7 +712,7 @@ void Stat::init_metrics(XMLConfObj * config) {
   else {
     std::cerr << Error2.str() << Usage.str() << "  Exiting.\n";
     if (warning_verbosity==1)
-      outfile << Error2.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
+      logfile << Error2.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
     exit(0);
   }
 
@@ -720,7 +770,7 @@ void Stat::init_metrics(XMLConfObj * config) {
     else {
         std::cerr << Error3.str() << Usage.str() << "  Exiting.\n";
         if (warning_verbosity==1)
-          outfile << Error3.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
+          logfile << Error3.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
         exit(0);
       }
     it++;
@@ -755,7 +805,7 @@ void Stat::init_metrics(XMLConfObj * config) {
   Information << ")\n";
   std::cerr << Information.str();
     if (warning_verbosity==1)
-      outfile << Information.str() << std::flush;
+      logfile << Information.str() << std::flush;
 
 #ifndef OFFLINE_ENABLED
   bool packetsSubscribed = false;
@@ -809,7 +859,7 @@ void Stat::init_noise_thresholds(XMLConfObj * config) {
       << "  \"" << DEFAULT_noise_threshold_packets << "\" assumed.\n";
     std::cerr << Default1.str();
     if (warning_verbosity==1)
-      outfile << Default1.str() << std::flush;
+      logfile << Default1.str() << std::flush;
     noise_threshold_packets = DEFAULT_noise_threshold_packets;
   }
   else if ( !(config->getValue("noise_threshold_packets").empty()) )
@@ -821,7 +871,7 @@ void Stat::init_noise_thresholds(XMLConfObj * config) {
       << "  \"" << DEFAULT_noise_threshold_packets << "\" assumed.\n";
     std::cerr << Default1.str();
     if (warning_verbosity==1)
-      outfile << Default1.str() << std::flush;
+      logfile << Default1.str() << std::flush;
     noise_threshold_packets = DEFAULT_noise_threshold_packets;
   }
 
@@ -833,7 +883,7 @@ void Stat::init_noise_thresholds(XMLConfObj * config) {
       << "  \"" << DEFAULT_noise_threshold_bytes << "\" assumed.\n";
     std::cerr << Default2.str();
     if (warning_verbosity==1)
-      outfile << Default2.str() << std::flush;
+      logfile << Default2.str() << std::flush;
     noise_threshold_bytes = DEFAULT_noise_threshold_bytes;
   }
   else if ( !(config->getValue("noise_threshold_bytes").empty()) )
@@ -845,7 +895,7 @@ void Stat::init_noise_thresholds(XMLConfObj * config) {
       << "  \"" << DEFAULT_noise_threshold_bytes << "\" assumed.\n";
     std::cerr << Default2.str();
     if (warning_verbosity==1)
-      outfile << Default2.str() << std::flush;
+      logfile << Default2.str() << std::flush;
     noise_threshold_bytes = DEFAULT_noise_threshold_bytes;
   }
 
@@ -865,7 +915,7 @@ void Stat::init_endpointlist_maxsize(XMLConfObj * config) {
   if (!config->nodeExists("endpointlist_maxsize")) {
     std::cerr << Warning.str();
     if (warning_verbosity==1)
-      outfile << Warning.str() << std::flush;
+      logfile << Warning.str() << std::flush;
     endpointlist_maxsize = DEFAULT_endpointlist_maxsize;
   }
   else if (!(config->getValue("endpointlist_maxsize")).empty())
@@ -873,7 +923,7 @@ void Stat::init_endpointlist_maxsize(XMLConfObj * config) {
   else {
     std::cerr << Warning1.str();
     if (warning_verbosity==1)
-      outfile << Warning1.str() << std::flush;
+      logfile << Warning1.str() << std::flush;
     endpointlist_maxsize = DEFAULT_endpointlist_maxsize;
   }
 
@@ -882,364 +932,149 @@ void Stat::init_endpointlist_maxsize(XMLConfObj * config) {
   return;
 }
 
-//TODO(1)
-// What about other protocols like sctp?
-void Stat::init_protocols(XMLConfObj * config) {
+void Stat::init_endpointfilter(XMLConfObj * config) {
 
-  // shall protocols be monitored at all?
-  // (that means, they were part of the endpoint_key-parameter)
-  if (protocol_monitoring == true) {
+// OFFLINE MODE
+#ifdef OFFLINE_ENABLED
+// read data from file and find the most X frequently appearing
+// EndPoints to create EndPointFilter
 
-    std::stringstream Default, Warning, Usage;
+  std::stringstream Default, Warning;
     Default
-      << "WARNING: No protocols parameter defined in XML config file!\n"
-      << "  All protocols will be monitored (ICMP, TCP, UDP, RAW).\n";
+      << "WARNING: x_frequently_endpoints parameter defined in XML config file!\n"
+      << "  \"" << DEFAULT_x_frequent_endpoints << "\" assumed.\n";
     Warning
-      << "WARNING: No value for protocols parameter defined in XML config file!\n"
-      << "  All protocols will be monitored (ICMP, TCP, UDP, RAW).\n";
-    Usage
-      << "  Please use ICMP, TCP, UDP or RAW (or "
-      << IPFIX_protocolIdentifier_ICMP << ", "
-      << IPFIX_protocolIdentifier_TCP  << ", "
-      << IPFIX_protocolIdentifier_UDP << " or "
-      << IPFIX_protocolIdentifier_RAW  << ").\n";
+      << "WARNING: No value for x_frequently_endpoints parameter defined in XML "
+      << "config file!\n"
+      << "  \"" << DEFAULT_x_frequent_endpoints << "\" assumed.\n";
 
-    // extracting monitored protocols
-    if (!config->nodeExists("protocols")) {
-      std::cerr << Default.str();
-      if (warning_verbosity==1)
-        outfile << Default.str() << std::flush;
-      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
-      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
-      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
-      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
-      ports_relevant = true;
-    }
-    else if (!(config->getValue("protocols")).empty()) {
-
-      std::string Proto = config->getValue("protocols");
-
-      if ( 0 == strcasecmp(Proto.c_str(), "all") ) {
-        StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
-        StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
-        StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
-        StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
-        ports_relevant = true;
-      }
-      else {
-        std::istringstream ProtoStream (Proto);
-
-        std::string protocol;
-        while (ProtoStream >> protocol) {
-
-          if ( strcasecmp(protocol.c_str(),"ICMP") == 0
-          || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_ICMP )
-            StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
-          else if ( strcasecmp(protocol.c_str(),"TCP") == 0
-          || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_TCP ) {
-            StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
-            ports_relevant = true;
-          }
-          else if ( strcasecmp(protocol.c_str(),"UDP") == 0
-          || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_UDP ) {
-            StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
-            ports_relevant = true;
-          }
-          else if ( strcasecmp(protocol.c_str(),"RAW") == 0
-          || atoi(protocol.c_str()) == IPFIX_protocolIdentifier_RAW )
-            StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
-          else {
-            std::cerr << "ERROR: An unknown value (" << protocol
-            << ") for the protocol parameter was defined in XML config file!\n"
-            << Usage.str() << "  Exiting.\n";
-            if (warning_verbosity==1)
-              outfile << "ERROR: An unknown value (" << protocol
-                << ") for the protocol parameter was defined in XML config file!\n"
-                << Usage.str() << "  Exiting." << std::endl << std::flush;
-            exit(0);
-          }
-        }
-      }
-    }
-    else {
-      std::cerr << Warning.str();
-      if (warning_verbosity==1)
-        outfile << Warning.str() << std::flush;
-      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_ICMP);
-      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_TCP);
-      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_UDP);
-      StatStore::AddProtocolToMonitoredProtocols(IPFIX_protocolIdentifier_RAW);
-      ports_relevant = true;
-    }
-
-    subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
+  if (!config->nodeExists("x_frequently_endpoints")) {
+    std::cerr << Default.str();
+    if (warning_verbosity==1)
+      logfile << Default.str() << std::flush;
+    x_frequently_endpoints = DEFAULT_x_frequent_endpoints;
   }
-  // dont consider protocols;
-  // but we may be interested in ports, no matter which protocol is used,
-  // so we set the flag to true (so we dont bother port_monitoring)
+  else if ((config->getValue("x_frequently_endpoints")).empty()) {
+    std::cerr << Warning.str();
+    if (warning_verbosity==1)
+      logfile << Warning.str() << std::flush;
+    x_frequently_endpoints = DEFAULT_x_frequent_endpoints;
+  }
   else
-    ports_relevant = true;
+    x_frequently_endpoints = atoi((config->getValue("x_frequently_endpoints")).c_str());
 
-  return;
-}
 
-void Stat::init_netmask(XMLConfObj * config) {
+  std::ifstream dataFile;
+  dataFile.open(offlineFile);
 
-  // shall ip-addresses be monitored at all?
-  // (that means, they were part of the endpoint_key-parameter)
-  // if not -> no need for netmask
-  if (ip_monitoring == true) {
+  bool more = true;
 
-    std::stringstream Default, Warning, Error, Usage;
+  while (more == true) {
+
+    std::vector<EndPoint> tmpData;
+    std::string tmp;
+    while ( getline(dataFile, tmp) ) {
+      if (0 == strcasecmp(tmp.c_str(), "---") )
+        break;
+      else if ( dataFile.eof() ) {
+        std::cerr << "INFORMATION: All Data read from file.\n";
+        dataFile.close();
+        more = false;
+        break;
+      }
+
+      // extract endpoint-data
+      EndPoint e;
+      e.fromString(tmp, false);
+      tmpData.push_back(e);
+
+      tmp.clear();
+    }
+
+    // count number of appearings of each EndPoint
+    std::vector<EndPoint>::iterator tmpData_it = tmpData.begin();
+    while (tmpData_it != tmpData.end()) {
+      endPointCount[tmpData_it->first]++;
+      tmpData_it++;
+    }
+
+  }
+
+  // if all data was read
+  // search the X most frequently appeared endpoints
+  std::map<EndPoint,int> mostFrequentEndPoints;
+  for (int j = 0; j < x_frequently_endpoints; j++) {
+    std::pair<EndPoint,int> tmpmax;
+    tmpmax.first = (endPointCount.begin())->first;
+    tmpmax.second = (endPointCount.begin())->second;
+    for (std::map<EndPoint,int>::iterator i = endPointCount.begin(); i != endPointCount.end(); i++) {
+      if (tmpmax.second < i->second) {
+        tmpmax.first = i->first;
+        tmpmax.second = i->second;
+      }
+    }
+    mostFrequentEndPoints.insert(tmpmax);
+    endPointCount.erase(tmpmax.first);
+  }
+  // push these endpoints in the endPointFilter
+  std::map<EndPoint,int>::iterator iter;
+  for (iter = mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
+    StatStore::AddEndPointToFilter(iter->first);
+
+#else
+// ONLINE
+// create EndPointFilter from a file specified in XML config file
+// if no such file is specified --> MonitorEveryEndPoint = true
+// The endpoints in the file are in the format
+// ip1.ip2.ip3.ip4/netmask:port|protocol, e. g. 192.13.17.1/24:80|6
+  std::stringstream Default, Warning;
     Default
-      << "WARNING: No value for netmask parameter defined in XML config file!\n"
-      << "  \"32\" assumed.\n";
+      << "WARNING: No endpoint_filter parameter defined in XML config file!\n"
+      << "  All endpoints will be monitored.\n";
     Warning
-      << "WARNING: No netmask parameter defined in XML config file!\n"
-      << "  \"32\" assumed.\n";
-    Error
-      << "ERROR: Netmask parameter was provided in an unknown format in XML config file!\n";
-    Usage
-      << "  Use xxx.yyy.zzz.ttt, hexadecimal or an int between 0 and 32.\n";
+      << "WARNING: No value for endpoint_filter parameter defined in XML "
+      << "config file!\n"
+      << "  All endpoints will be monitored.\n";
 
-    if (config->nodeExists("netmask")) {
-
-      const char * netmask;
-      unsigned int mask[4];
-
-      if (!(config->getValue("netmask")).empty()) {
-        netmask = config->getValue("netmask").c_str();
-      }
-      else {
-        std::cerr << Default.str();
-        if (warning_verbosity==1)
-          outfile << Default.str() << std::flush;
-        StatStore::InitialiseSubnetMask (0xFF,0xFF,0xFF,0xFF);
-        return;
-      }
-
-      // is netmask provided as xxx.yyy.zzz.ttt?
-      if ( netmask[0]=='.' || netmask[1]=='.' ||
-          netmask[2]=='.' || netmask[3]=='.' ) {
-        std::istringstream maskstream (netmask);
-        char dot;
-        maskstream >> mask[0] >> dot >> mask[1] >> dot >> mask[2] >> dot >>mask[3];
-      }
-      // is netmask provided as 0xABCDEFGH?
-      else if ( strncmp(netmask, "0x", 2)==0 ) {
-        char mask1[3] = {netmask[2],netmask[3],'\0'};
-        char mask2[3] = {netmask[4],netmask[5],'\0'};
-        char mask3[3] = {netmask[6],netmask[7],'\0'};
-        char mask4[3] = {netmask[8],netmask[9],'\0'};
-        mask[0] = strtol (mask1, NULL, 16);
-        mask[1] = strtol (mask2, NULL, 16);
-        mask[2] = strtol (mask3, NULL, 16);
-        mask[3] = strtol (mask4, NULL, 16);
-      }
-      // is netmask provided as 0,1,..,32?
-      else if ( atoi(netmask) >= 0 && atoi(netmask) <= 32 ) {
-        std::string Mask;
-        switch( atoi(netmask) ) {
-        case  0: Mask="0x00000000"; break;
-        case  1: Mask="0x80000000"; break;
-        case  2: Mask="0xC0000000"; break;
-        case  3: Mask="0xE0000000"; break;
-        case  4: Mask="0xF0000000"; break;
-        case  5: Mask="0xF8000000"; break;
-        case  6: Mask="0xFC000000"; break;
-        case  7: Mask="0xFE000000"; break;
-        case  8: Mask="0xFF000000"; break;
-        case  9: Mask="0xFF800000"; break;
-        case 10: Mask="0xFFC00000"; break;
-        case 11: Mask="0xFFE00000"; break;
-        case 12: Mask="0xFFF00000"; break;
-        case 13: Mask="0xFFF80000"; break;
-        case 14: Mask="0xFFFC0000"; break;
-        case 15: Mask="0xFFFE0000"; break;
-        case 16: Mask="0xFFFF0000"; break;
-        case 17: Mask="0xFFFF8000"; break;
-        case 18: Mask="0xFFFFC000"; break;
-        case 19: Mask="0xFFFFE000"; break;
-        case 20: Mask="0xFFFFF000"; break;
-        case 21: Mask="0xFFFFF800"; break;
-        case 22: Mask="0xFFFFFC00"; break;
-        case 23: Mask="0xFFFFFE00"; break;
-        case 24: Mask="0xFFFFFF00"; break;
-        case 25: Mask="0xFFFFFF80"; break;
-        case 26: Mask="0xFFFFFFC0"; break;
-        case 27: Mask="0xFFFFFFE0"; break;
-        case 28: Mask="0xFFFFFFF0"; break;
-        case 29: Mask="0xFFFFFFF8"; break;
-        case 30: Mask="0xFFFFFFFC"; break;
-        case 31: Mask="0xFFFFFFFE"; break;
-        case 32: Mask="0xFFFFFFFF"; break;
-        }
-        char mask1[3] = {Mask[2],Mask[3],'\0'};
-        char mask2[3] = {Mask[4],Mask[5],'\0'};
-        char mask3[3] = {Mask[6],Mask[7],'\0'};
-        char mask4[3] = {Mask[8],Mask[9],'\0'};
-        mask[0] = strtol (mask1, NULL, 16);
-        mask[1] = strtol (mask2, NULL, 16);
-        mask[2] = strtol (mask3, NULL, 16);
-        mask[3] = strtol (mask4, NULL, 16);
-      }
-      // if not, then netmask is provided in an unknown format
-      else {
-        std::cerr << Error.str() << Usage.str() << "Exiting.\n";
-        if (warning_verbosity==1)
-          outfile << Error.str() << Usage.str() << "Exiting." << std::endl << std::flush;
-        exit(0);
-      }
-      // if everything is OK:
-      StatStore::InitialiseSubnetMask (mask[0], mask[1], mask[2], mask[3]);
-    }
-    else {
-      std::cerr << Warning.str();
-      if (warning_verbosity==1)
-        outfile << Warning.str() << std::flush;
-      StatStore::InitialiseSubnetMask (0xFF,0xFF,0xFF,0xFF);
-    }
+  if (!config->nodeExists("endpoint_filter")) {
+    std::cerr << Default.str();
+    if (warning_verbosity==1)
+      logfile << Default.str() << std::flush;
+    StatStore::setMonitorEveryEndPoint() = true;
+    return;
+  }
+  else if ((config->getValue("endpoint_filter")).empty()) {
+    std::cerr << Warning.str();
+    if (warning_verbosity==1)
+      logfile << Warning.str() << std::flush;
+    StatStore::setMonitorEveryEndPoint() = true;
+    return;
+  }
+  else if (0 == strcasecmp(config->getValue("endpoint_filter").c_str(),"all")) {
+    StatStore::setMonitorEveryEndPoint() = true;
+    return;
   }
 
-  return;
-}
-
-void Stat::init_ports(XMLConfObj * config) {
-
-  // shall ports be monitored at all?
-  // (that means, they are part of the endpoint_key-parameter);
-  // if TCP or UDP are monitored or we arent interested
-  // in protocols: subscribe to IPFIX port information (ports relevant)
-  if (port_monitoring == true && ports_relevant == true) {
-
-    std::stringstream Warning1, Warning2, Default;
-    Warning1
-      << "WARNING: No ports parameter was provided in XML config file!\n";
-    Warning2
-      << "WARNING: No value for ports parameter was provided in XML config file!\n";
-    Default
-      << "  Every port will be monitored.\n";
-
-    // extracting port numbers to monitor
-    if (config->nodeExists("ports")) {
-
-      if (!(config->getValue("ports")).empty()) {
-
-        std::string Ports = config->getValue("ports");
-
-        if ( 0 == strcasecmp(Ports.c_str(), "all") )
-          StatStore::setMonitorAllPorts() = true;
-        else {
-          std::istringstream PortsStream (Ports);
-          unsigned int port;
-          while (PortsStream >> port)
-            StatStore::AddPortToMonitoredPorts(port);
-          StatStore::setMonitorAllPorts() = false;
-        }
-      }
-      else {
-        std::cerr << Warning2.str() << Default.str();
-        if (warning_verbosity==1)
-          outfile << Warning2.str() << Default.str() << std::flush;
-        StatStore::setMonitorAllPorts() = true;
-      }
-    }
-    else {
-      std::cerr << Warning1.str() << Default.str();
-      if (warning_verbosity==1)
-        outfile << Warning1.str() << Default.str() << std::flush;
-      StatStore::setMonitorAllPorts() = true;
-    }
-    subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
-    subscribeTypeId(IPFIX_TYPEID_destinationTransportPort);
+  std::ifstream f(config->getValue("endpoint_filter").c_str());
+  if (f.is_open() == false) {
+    std::stringstream Error;
+    Error << "ERROR: The endpoint_filter file ("
+      << config->getValue("endpoint_filter")
+      << ") couldnt be opened!\n  Please define the correct filter file "
+      << "or set this parameter to \"all\" to consider every EndPoint.\n  Exiting.\n";
+    std::cerr << Error.str();
+    if (warning_verbosity==1)
+      logfile << Error.str() << std::flush;
+    exit(0);
+  }
+  std::string tmp;
+  while ( getline(f, tmp) ) {
+    EndPoint e;
+    e.fromString(tmp, true); // with netmask applied
+    StatStore::AddEndPointToFilter(e);
   }
 
-  return;
-}
-
-void Stat::init_ip_addresses(XMLConfObj * config) {
-
-  // shall ip-addresses be monitored at all?
-  // (that means, they were part of the endpoint_key-parameter)
-  if (ip_monitoring == true) {
-
-    std::stringstream Warning, Warning1;
-    Warning
-      << "WARNING: No ip_addresses_to_monitor parameter defined in XML config file!\n"
-      << "  I suppose you want me to monitor everything; I'll try.\n";
-    Warning1
-      << "WARNING: No value for ip_addresses_to_monitor parameter defined in XML config file!\n"
-      << "  I suppose you want me to monitor everything; I'll try.\n";
-
-    // the following section extracts either the IP addresses to monitor
-    // or the maximal number of IPs to monitor in case the user doesn't
-    // give IP addresses to monitor
-    bool gotIpfile = false;
-
-    if (!config->nodeExists("ip_addresses_to_monitor")) {
-      std::cerr << Warning.str();
-      if (warning_verbosity==1)
-        outfile << Warning.str() << std::flush;
-    }
-    else if (!(config->getValue("ip_addresses_to_monitor")).empty()) {
-      ipfile = config->getValue("ip_addresses_to_monitor");
-      if ( 0 != strcasecmp(ipfile.c_str(), "all") )
-        gotIpfile = true;
-    }
-    else {
-      std::cerr << Warning1.str();
-      if (warning_verbosity==1)
-        outfile << Warning1.str() << std::flush;
-    }
-
-    // and the following section uses the extracted ipfile
-    // information to initialise some static members of the StatStore class
-    if (gotIpfile == true) {
-
-      std::stringstream Error;
-      Error
-        << "ERROR: I could not open IP-file " << ipfile << "!\n"
-        << "  Please check that the file exists, "
-        << "and that you have enough rights to read it.\n"
-        << "  Exiting.\n";
-
-      std::ifstream ipstream(ipfile.c_str());
-
-      if (!ipstream) {
-        std::cerr << Error.str();
-        if (warning_verbosity==1)
-          outfile << Error.str() << std::flush;
-        exit(0);
-      }
-      else {
-        std::vector<IpAddress> IpVector;
-        unsigned int ip[4];
-        char dot;
-
-        // save read IPs in a vector; mask them at the same time
-        while (ipstream >> ip[0] >> dot >> ip[1] >> dot >> ip[2] >> dot >> ip[3])
-          IpVector.push_back(IpAddress(ip[0],ip[1],ip[2],ip[3]).mask(StatStore::getSubnetMask()) );
-
-        // just in case the user provided a file with multiples IPs,
-        // or the mask function made multiple IPs to appear:
-        sort(IpVector.begin(),IpVector.end());
-        std::vector<IpAddress>::iterator new_end = unique(IpVector.begin(),IpVector.end());
-        std::vector<IpAddress> IpVectorBis (IpVector.begin(), new_end);
-
-        // finally, add these IPs to monitor to static member
-        // StatStore::MonitoredIpAddresses
-        StatStore::AddIpToMonitoredIp (IpVectorBis);
-        // no need to monitor every IP:
-        StatStore::setMonitorEveryIp() = false;
-      }
-
-    }
-    else
-      StatStore::setMonitorEveryIp() = true;
-
-    subscribeTypeId(IPFIX_TYPEID_sourceIPv4Address);
-    subscribeTypeId(IPFIX_TYPEID_destinationIPv4Address);
-  }
+#endif
 
   return;
 }
@@ -1255,7 +1090,7 @@ void Stat::init_stat_test_freq(XMLConfObj * config) {
       << "  \"" << DEFAULT_stat_test_frequency << "\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << std::flush;
+      logfile << Default.str() << std::flush;
     stat_test_frequency = DEFAULT_stat_test_frequency;
   }
   else if (!(config->getValue("stat_test_frequency")).empty()) {
@@ -1270,7 +1105,7 @@ void Stat::init_stat_test_freq(XMLConfObj * config) {
 	    << "  \"" << DEFAULT_stat_test_frequency << "\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << std::flush;
+      logfile << Default.str() << std::flush;
     stat_test_frequency = DEFAULT_stat_test_frequency;
   }
 
@@ -1288,7 +1123,7 @@ void Stat::init_report_only_first_attack(XMLConfObj * config) {
       << "  \"true\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << std::flush;
+      logfile << Default.str() << std::flush;
     report_only_first_attack = true;
   }
   else if (!(config->getValue("report_only_first_attack")).empty()) {
@@ -1303,7 +1138,7 @@ void Stat::init_report_only_first_attack(XMLConfObj * config) {
       << "  \"true\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << std::flush;
+      logfile << Default.str() << std::flush;
     report_only_first_attack = true;
   }
 
@@ -1321,7 +1156,7 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
       << "  No pausing assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << std::flush;
+      logfile << Default.str() << std::flush;
     pause_update_when_attack = 0;
   }
   else if (!(config->getValue("pause_update_when_attack")).empty()) {
@@ -1351,7 +1186,7 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
           << "  3: pause for every metric individually (for cusum only)\n";
         std::cerr << Error.str();
         if (warning_verbosity==1)
-          outfile << Error.str() << std::flush;
+          logfile << Error.str() << std::flush;
         exit(0);
         break;
     }
@@ -1364,7 +1199,7 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
       << "  No pausing assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << std::flush;
+      logfile << Default.str() << std::flush;
     pause_update_when_attack = 0;
   }
 
@@ -1428,7 +1263,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
   if (!config->nodeExists("cusum_test")) {
     std::cerr << Warning.str();
     if (warning_verbosity==1)
-      outfile << Warning.str() << std::flush;
+      logfile << Warning.str() << std::flush;
     enable_cusum_test = true;
   }
   else if (!(config->getValue("cusum_test")).empty()) {
@@ -1437,7 +1272,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
   else {
     std::cerr << Warning1.str();
     if (warning_verbosity==1)
-      outfile << Warning1.str() << std::flush;
+      logfile << Warning1.str() << std::flush;
     enable_cusum_test = true;
   }
 
@@ -1448,7 +1283,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
     if (!config->nodeExists("amplitude_percentage")) {
       std::cerr << Warning2.str();
       if (warning_verbosity==1)
-        outfile << Warning2.str() << std::flush;
+        logfile << Warning2.str() << std::flush;
       amplitude_percentage = DEFAULT_amplitude_percentage;
     }
     else if (!(config->getValue("amplitude_percentage")).empty())
@@ -1456,7 +1291,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
     else {
       std::cerr << Warning3.str();
       if (warning_verbosity==1)
-        outfile << Warning3.str() << std::flush;
+        logfile << Warning3.str() << std::flush;
       amplitude_percentage = DEFAULT_amplitude_percentage;
     }
 
@@ -1464,7 +1299,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
     if (!config->nodeExists("learning_phase_for_alpha")) {
       std::cerr << Warning4.str();
       if (warning_verbosity==1)
-        outfile << Warning4.str() << std::flush;
+        logfile << Warning4.str() << std::flush;
       learning_phase_for_alpha = DEFAULT_learning_phase_for_alpha;
     }
     else if (!(config->getValue("learning_phase_for_alpha")).empty()) {
@@ -1473,14 +1308,14 @@ void Stat::init_cusum_test(XMLConfObj * config) {
       else {
         std::cerr << Error1.str();
         if (warning_verbosity==1)
-          outfile << Error1.str() << std::flush;
+          logfile << Error1.str() << std::flush;
         exit(0);
       }
     }
     else {
       std::cerr << Warning5.str();
       if (warning_verbosity==1)
-        outfile << Warning5.str() << std::flush;
+        logfile << Warning5.str() << std::flush;
       learning_phase_for_alpha = DEFAULT_learning_phase_for_alpha;
     }
 
@@ -1488,7 +1323,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
     if (!config->nodeExists("smoothing_constant")) {
       std::cerr << Warning6.str();
       if (warning_verbosity==1)
-        outfile << Warning6.str() << std::flush;
+        logfile << Warning6.str() << std::flush;
       smoothing_constant = DEFAULT_smoothing_constant;
     }
     else if (!(config->getValue("smoothing_constant")).empty()) {
@@ -1497,14 +1332,14 @@ void Stat::init_cusum_test(XMLConfObj * config) {
       else {
         std::cerr << Error2.str();
         if (warning_verbosity==1)
-          outfile << Error2.str() << std::flush;
+          logfile << Error2.str() << std::flush;
         exit(0);
       }
     }
     else {
       std::cerr << Warning7.str();
       if (warning_verbosity==1)
-        outfile << Warning7.str() << std::flush;
+        logfile << Warning7.str() << std::flush;
       smoothing_constant = DEFAULT_smoothing_constant;
     }
 
@@ -1512,7 +1347,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
     if (!config->nodeExists("repetition_factor")) {
       std::cerr << Warning8.str();
       if (warning_verbosity==1)
-        outfile << Warning8.str() << std::flush;
+        logfile << Warning8.str() << std::flush;
       repetition_factor = DEFAULT_repetition_factor;
     }
     else if (!(config->getValue("repetition_factor")).empty()) {
@@ -1521,14 +1356,14 @@ void Stat::init_cusum_test(XMLConfObj * config) {
       else {
         std::cerr << Error3.str();
         if (warning_verbosity==1)
-          outfile << Error3.str() << std::flush;
+          logfile << Error3.str() << std::flush;
         exit(0);
       }
     }
     else {
       std::cerr << Warning9.str();
       if (warning_verbosity==1)
-        outfile << Warning9.str() << std::flush;
+        logfile << Warning9.str() << std::flush;
       repetition_factor = DEFAULT_repetition_factor;
     }
 
@@ -1564,7 +1399,7 @@ void Stat::init_which_test(XMLConfObj * config) {
   if (!config->nodeExists("wilcoxon_test")) {
     std::cerr << WMWdefault.str();
     if (warning_verbosity==1)
-      outfile << WMWdefault.str() << std::flush;
+      logfile << WMWdefault.str() << std::flush;
     enable_wmw_test = true;
   }
   else if (!(config->getValue("wilcoxon_test")).empty()) {
@@ -1573,14 +1408,14 @@ void Stat::init_which_test(XMLConfObj * config) {
   else {
     std::cerr << WMWdefault1.str();
     if (warning_verbosity==1)
-      outfile << WMWdefault1.str() << std::flush;
+      logfile << WMWdefault1.str() << std::flush;
     enable_wmw_test = true;
   }
 
   if (!config->nodeExists("kolmogorov_test")) {
     std::cerr << KSdefault.str();
     if (warning_verbosity==1)
-      outfile << KSdefault.str() << std::flush;
+      logfile << KSdefault.str() << std::flush;
     enable_ks_test = true;
   }
   else if (!(config->getValue("kolmogorov_test")).empty()) {
@@ -1589,14 +1424,14 @@ void Stat::init_which_test(XMLConfObj * config) {
   else {
     std::cerr << KSdefault1.str();
     if (warning_verbosity==1)
-      outfile << KSdefault1.str() << std::flush;
+      logfile << KSdefault1.str() << std::flush;
     enable_ks_test = true;
   }
 
   if (!config->nodeExists("pearson_chi-square_test")) {
     std::cerr << PCSdefault.str();
     if (warning_verbosity==1)
-      outfile << PCSdefault.str() << std::flush;
+      logfile << PCSdefault.str() << std::flush;
     enable_pcs_test = true;
   }
   else if (!(config->getValue("pearson_chi-square_test")).empty()) {
@@ -1605,7 +1440,7 @@ void Stat::init_which_test(XMLConfObj * config) {
   else {
     std::cerr << PCSdefault1.str();
     if (warning_verbosity==1)
-      outfile << PCSdefault1.str() << std::flush;
+      logfile << PCSdefault1.str() << std::flush;
     enable_pcs_test = true;
   }
 
@@ -1632,7 +1467,7 @@ void Stat::init_sample_sizes(XMLConfObj * config) {
   if (!config->nodeExists("sample_old_size")) {
     std::cerr << Default_old.str();
     if (warning_verbosity==1)
-      outfile << Default_old.str() << std::flush;
+      logfile << Default_old.str() << std::flush;
     sample_old_size = DEFAULT_sample_old_size;
   }
   else if (!(config->getValue("sample_old_size")).empty()) {
@@ -1642,7 +1477,7 @@ void Stat::init_sample_sizes(XMLConfObj * config) {
   else {
     std::cerr << Default1_old.str();
     if (warning_verbosity==1)
-      outfile << Default1_old.str() << std::flush;
+      logfile << Default1_old.str() << std::flush;
     sample_old_size = DEFAULT_sample_old_size;
   }
 
@@ -1650,7 +1485,7 @@ void Stat::init_sample_sizes(XMLConfObj * config) {
   if (!config->nodeExists("sample_new_size")) {
     std::cerr << Default_new.str();
     if (warning_verbosity==1)
-      outfile << Default_new.str() << std::flush;
+      logfile << Default_new.str() << std::flush;
     sample_new_size = DEFAULT_sample_new_size;
   }
   else if (!(config->getValue("sample_new_size")).empty()) {
@@ -1660,7 +1495,7 @@ void Stat::init_sample_sizes(XMLConfObj * config) {
   else {
     std::cerr << Default1_new.str();
     if (warning_verbosity==1)
-      outfile << Default1_new.str() << std::flush;
+      logfile << Default1_new.str() << std::flush;
     sample_new_size = DEFAULT_sample_new_size;
   }
 
@@ -1680,7 +1515,7 @@ void Stat::init_two_sided(XMLConfObj * config) {
       << "  \"false\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << std::flush;
+      logfile << Default.str() << std::flush;
     two_sided = false;
   }
   else if ( enable_wmw_test == true && config->getValue("two_sided").empty() ) {
@@ -1690,7 +1525,7 @@ void Stat::init_two_sided(XMLConfObj * config) {
       << "  \"false\" assumed.\n";
     std::cerr << Default.str();
     if (warning_verbosity==1)
-      outfile << Default.str() << std::flush;
+      logfile << Default.str() << std::flush;
     two_sided = false;
   }
   // Every value but "true" is assumed to be false!
@@ -1712,7 +1547,7 @@ void Stat::init_significance_level(XMLConfObj * config) {
         std::stringstream Error("ERROR: significance_level parameter should be between 0 and 1!\n  Exiting.\n");
         std::cerr << Error.str();
         if (warning_verbosity==1)
-          outfile << Error.str() << std::flush;
+          logfile << Error.str() << std::flush;
         exit(0);
       }
     }
@@ -1723,7 +1558,7 @@ void Stat::init_significance_level(XMLConfObj * config) {
         << "  Nothing will be interpreted as an attack.\n";
       std::cerr << Warning.str();
       if (warning_verbosity==1)
-        outfile << Warning.str() << std::flush;
+        logfile << Warning.str() << std::flush;
       significance_level = -1;
       // means no alarmist verbose effect ("Attack!!!", etc):
       // as 0 <= p-value <= 1, we will always have
@@ -1739,7 +1574,7 @@ void Stat::init_significance_level(XMLConfObj * config) {
       << "  Nothing will be interpreted as an attack.\n";
       std::cerr << Warning.str();
       if (warning_verbosity==1)
-        outfile << Warning.str() << std::flush;
+        logfile << Warning.str() << std::flush;
     significance_level = -1;
   }
 
@@ -1754,406 +1589,24 @@ void Stat::test(StatStore * store) {
   idmefMessage = getNewIdmefMessage("wkp-module", "statistical anomaly detection");
 #endif
 
-//
-// TESTING EXPLANATION:
-// ##############################################################
-// 1 WRITE DATA TO FILE:
-//      this code simply writes all the data collected by "store" to a file
-// 2 READ DATA FROM FILE TO SEARCH ENDPOINTS
-//      this file reads the data from the file created in 1 and finds the
-//      most frequently appearing X endpoints and writes them to a file which
-//      then can be used as a filter for the next step
-// 3 READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES
-//      only the most frequently appearing X endpoints from
-//      the file created in 2 are considered (thanks to the filter vector, see
-//      constructor) to calculate the metrics for them and write these metrics
-//      to a file for every of these X endpoints.
-// NOW, WE ARE ABLE TO MAKE SOME DIAGRAMS OF THE DATA AND BETTER UNDERSTAND
-// WHAT'S GOING ON. THEN, CUSUM CAN BE APPLIED AND WE KNOW, WHERE IT WILL
-// POSSIBLY DETECT ANOMALIES.
-//
-// 4 DO THE TESTS
-//      reads data from file and executes the cusum-test etc. on it. For every endpoint
-//      and every metric, it creates a file where alle the cusum- and wkp-params are stored
-//      in. They can be visualized afterwards to be compared to the metric-diagrams
-//      from 3 and so on.
-
-
-/*
-  // ++++++++++++++++++++++++++++++++++
-  // BEGIN TESTING (1 WRITE DATA TO FILE)
-  // ++++++++++++++++++++++++++++++++++
-  // NOTE: adapt name of offlineFile AND compile this module with OFFLINE_ENABLED=OFF
-  // comment filter in constructor AND
-  // adapt config file (endpoint_key, alarm_time = 10 etc.)
-  // AND start vermont and collector AND comment #define-line in stat_main.h
-  std::map<EndPoint,Info> Data = store->getData();
-
-  // Dumping empty records:
-  if (Data.empty()==true)
-    return;
-
-  // write data to file
-#ifndef OFFLINE_ENABLED
-  // store data storage for offline use
-  storefile << Data;
-#endif
-  delete store;
-  // ++++++++++++++++++++++++++++++++
-  // END TESTING (1 WRITE DATA TO FILE)
-  // ++++++++++++++++++++++++++++++++
-*/
-
-
-
-/*
-  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // BEGIN TESTING (2 READ DATA FROM FILE TO SEARCH ENDPOINTS)
-  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // read data from file and search the most frequently
-  // appearing X endpoints
-  // NOTE: dont forget to set alarm_time to 1 AND comment filter in constructor
-  // AND adapt filenames (here and in StatStore) AND recompile module with
-  // OFFLINE_ENABLED = OFF AND comment #define-line in stat_main.h (start collector)
-  bool more = store->readFromFile();
-  // still more data to read?
-  if (more == true) {
-    std::map<EndPoint,Info> Data = store->getDataFromFile();
-    // Dumping empty records:
-    if (Data.empty()==true)
-      return;
-
-    // count number of appearings of each endpoint
-    // to let us filter the most often appearing ones
-    std::map<EndPoint,Info>::iterator Data_it = Data.begin();
-    while (Data_it != Data.end()) {
-      endPointCount[Data_it->first]++;
-      Data_it++;
-    }
-    std::cout << "Stand: " << counter << std::endl;
-    counter++;
-    delete store;
-  }
-  // if all data was read
-  else {
-    // search the X most frequently appeared endpoints
-    // WARNING: The more metrics you test and the higher the value of X,
-    // the more files will be created later!
-    int X = 10;
-    std::map<EndPoint,int> mostFrequentEndPoints;
-    for (int j = 0; j < X; j++) {
-      std::pair<EndPoint,int> tmpmax;
-      tmpmax.first = (endPointCount.begin())->first;
-      tmpmax.second = (endPointCount.begin())->second;
-      for (std::map<EndPoint,int>::iterator i = endPointCount.begin(); i != endPointCount.end(); i++) {
-        if (tmpmax.second < i->second) {
-          tmpmax.first = i->first;
-          tmpmax.second = i->second;
-        }
-      }
-      mostFrequentEndPoints.insert(tmpmax);
-      endPointCount.erase(tmpmax.first);
-    }
-    // write the X most frequently endpoints to a file
-    // Note: Now, we can use that file to determine the filters ...
-    std::ofstream f("darpa1_port_protocol_10_freq_eps.txt", std::ios_base::app);
-    std::map<EndPoint,int>::iterator iter;
-    for (iter=mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
-      f << iter->first << "\n";
-    f.close();
-    std::cout << "Done." << std::endl;
-    delete store;
-    exit(0);
-  }
-  // +++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // END TESTING (2 READ DATA FROM FILE TO SEARCH ENDPOINTS)
-  // +++++++++++++++++++++++++++++++++++++++++++++++++++++
-*/
-
-
-
-/*
-  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // BEGIN TESTING (3 READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
-  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // write metrics from each endpoint to a file
-  // so we can make tables of the data with external programs
-  // NOTE: Dont forget to delete old metrics-files AND adapt filename for the
-  // uncommented filter in the constructor AND offlineFile AND
-  // choose metrics to be saved in config file AND
-  // recompile module with OFFLINE_ENABLED=ON (start module directly)
-  // AND uncomment #define-line in stat_main.h
-    std::map<EndPoint,Info> Data = store->getData();
-    // Dumping empty records:
-    if (Data.empty()==true)
-      return;
-
-    std::map<EndPoint,Info>::iterator Data_it = Data.begin();
-    std::map<EndPoint,Info> PreviousData = store->getPreviousData();
-    Info prev;
-
-    // for every unfiltered EndPoint, extract the data to its file
-    while (Data_it != Data.end()) {
-      if ( find(filter.begin(), filter.end(), Data_it->first) != filter.end() ) {
-        prev = PreviousData[Data_it->first];
-        // extract metric data
-        std::vector<int64_t> v = extract_data(Data_it->second, prev);
-        // open endpoint's file
-        std::string fname = "metrics_" + (Data_it->first).toString() + ".txt";
-        std::ofstream file(fname.c_str(),std::ios_base::app);
-        // write metric data to file
-        for (int i = 0; i != v.size(); i++) {
-          file << v.at(i) << " ";
-        }
-        file << counter << "\n";
-        file.close();
-      }
-      Data_it++;
-    }
-    std::cout << "Stand: " << counter << std::endl;
-    counter++;
-    delete store;
-  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // END TESTING (3 READ DATA FROM FILE AND MAKE ENDPOINT METRIC FILES)
-  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-*/
-
-
-
-  // ++++++++++++++++++++++++++++
-  // BEGIN TESTING (4 DO THE TESTS)
-  // ++++++++++++++++++++++++++++
-  // Do the tests and print out the parameters to a file for
-  // every of the X endpoints and their metrics (to compare it to our metric-diagrams)
-  // NOTE: Dont forget to adapt the filename convention for the
-  // uncommented filter in the constructor and for the offlineFile
-  // AND delete old files created by cusum_test() AND  recompile this module with
-  // OFFLINE_ENABLED=ON (start module directly) AND uncomment #define-line in
-  // stat_main.h AND choose some test-params
-    std::map<EndPoint,Info> Data = store->getData();
-
-    if (Data.empty()==true)
-      return;
-
-    std::map<EndPoint,Info>::iterator Data_it = Data.begin();
-
-    std::map<EndPoint,Info> PreviousData = store->getPreviousData();
-    Info prev;
-
-    std::cout << "Stand: " << test_counter << std::endl;
-
-    while (Data_it != Data.end()) {
-      // filter (do tests only for the X frequently appeared endpoints)
-      if ( find(filter.begin(), filter.end(), Data_it->first) != filter.end() ) {
-        if (output_verbosity >= 3)
-          outfile << "[[ " << Data_it->first << " ]]" << std::endl;
-
-        prev = PreviousData[Data_it->first];
-
-        if (enable_wkp_test == true) {
-          std::map<EndPoint, Samples>::iterator SampleData_it =
-            SampleData.find(Data_it->first);
-
-          // initialize S
-          if (SampleData_it == SampleData.end()) {
-            Samples S;
-            if (use_pca == true) {
-              S.cov = gsl_matrix_calloc (metrics.size(), metrics.size());
-              S.evec = gsl_matrix_calloc (metrics.size(), metrics.size());
-              // initialize sumsOfMetrics and sumsOfProducts
-              for (int i = 0; i < metrics.size(); i++) {
-                S.sumsOfMetrics.push_back(0);
-                std::vector<long long int> v;
-                S.sumsOfProducts.push_back(v);
-                for (int j = 0; j < metrics.size(); j++)
-                  S.sumsOfProducts.at(i).push_back(0);
-              }
-              std::vector<int64_t> v = extract_pca_data(S, Data_it->second, prev);
-            }
-            else
-              (S.Old).push_back(extract_data(Data_it->second, prev));
-
-            for (int i = 0; i != metrics.size(); i++) {
-              (S.wmw_alarms).push_back(0);
-              (S.ks_alarms).push_back(0);
-              (S.pcs_alarms).push_back(0);
-            }
-
-            SampleData[Data_it->first] = S;
-            if (output_verbosity >= 3) {
-              outfile << " (WKP): New monitored EndPoint added" << std::endl;
-              if (output_verbosity >= 4 && use_pca == false) {
-                outfile << "   with first element of sample_old: " << S.Old.back() << std::endl;
-              }
-            }
-
-          }
-          else {
-            if (use_pca == true) {
-              std::vector<int64_t> v = extract_pca_data(SampleData_it->second, Data_it->second, prev);
-              update ( SampleData_it->second, v );
-            }
-            else
-              update ( SampleData_it->second, extract_data(Data_it->second, prev) );
-          }
-        }
-
-        if (enable_cusum_test == true) {
-          std::map<EndPoint, CusumParams>::iterator CusumData_it = CusumData.find(Data_it->first);
-
-          // initialize C
-          if (CusumData_it == CusumData.end()) {
-            CusumParams C;
-            for (int i = 0; i < metrics.size(); i++) {
-              (C.sum).push_back(0);
-              (C.alpha).push_back(0.0);
-              (C.g).push_back(0.0);
-              (C.last_cusum_test_was_attack).push_back(false);
-              (C.cusum_alarms).push_back(0);
-              (C.X_curr).push_back(0);
-              (C.X_last).push_back(0);
-            }
-
-            // extract_data
-            std::vector<int64_t> v;
-            if (use_pca == true) {
-              C.cov = gsl_matrix_calloc (metrics.size(), metrics.size());
-              C.evec = gsl_matrix_calloc (metrics.size(), metrics.size());
-              // initialize sumsOfMetrics and sumsOfProducts
-              for (int i = 0; i < metrics.size(); i++) {
-                C.sumsOfMetrics.push_back(0);
-                std::vector<long long int> v;
-                C.sumsOfProducts.push_back(v);
-                for (int j = 0; j < metrics.size(); j++)
-                  C.sumsOfProducts.at(i).push_back(0);
-              }
-              v = extract_pca_data(C, Data_it->second, prev);
-            }
-            else {
-              v = extract_data(Data_it->second, prev);
-              for (int i = 0; i != v.size(); i++)
-                C.sum.at(i) += v.at(i);
-              C.learning_phase_nr_for_alpha = 1;
-            }
-            CusumData[Data_it->first] = C;
-            if (output_verbosity >= 3)
-              outfile << " (CUSUM): New monitored EndPoint added" << std::endl;
-          }
-          else {
-            if (use_pca == true) {
-              std::vector<int64_t> v = extract_pca_data(CusumData_it->second, Data_it->second, prev);
-              update_c ( CusumData_it->second, v );
-            }
-            else
-              update_c ( CusumData_it->second, extract_data(Data_it->second, prev) );
-          }
-        }
-      }
-      Data_it++;
-    }
-
-    int ep_nr;
-    if (enable_wkp_test == true)
-      ep_nr = SampleData.size();
-    else if (enable_cusum_test == true)
-      ep_nr = CusumData.size();
-
-    if (output_verbosity >= 4) {
-      outfile
-          << "#### STATE OF ALL MONITORED ENDPOINTS (" << ep_nr << "):"
-          << std::endl;
-      if (enable_wkp_test == true) {
-        outfile << "### WKP OVERVIEW" << std::endl;
-        std::map<EndPoint,Samples>::iterator SampleData_it =
-          SampleData.begin();
-        while (SampleData_it != SampleData.end()) {
-          outfile
-            << "[[ " << SampleData_it->first << " ]]\n"
-            << "  sample_old (" << (SampleData_it->second).Old.size()  << ") : "
-            << (SampleData_it->second).Old << "\n"
-            << "  sample_new (" << (SampleData_it->second).New.size() << ") : "
-            << (SampleData_it->second).New << "\n";
-          SampleData_it++;
-        }
-      }
-      if (enable_cusum_test == true) {
-        outfile << "### CUSUM OVERVIEW" << std::endl;
-        std::map<EndPoint,CusumParams>::iterator CusumData_it =
-          CusumData.begin();
-        while (CusumData_it != CusumData.end()) {
-          outfile
-            << "[[ " << CusumData_it->first << " ]]\n"
-            << "  alpha: " << (CusumData_it->second).alpha << "\n"
-            << "  g: " << (CusumData_it->second).g << "\n";
-          CusumData_it++;
-        }
-      }
-    }
-
-    bool MakeStatTest;
-    if (stat_test_frequency == 0)
-      MakeStatTest = false;
-    else
-      MakeStatTest = (test_counter % stat_test_frequency == 0);
-
-    if (MakeStatTest == true) {
-      if (enable_wkp_test == true) {
-        std::map<EndPoint,Samples>::iterator SampleData_it = SampleData.begin();
-        while (SampleData_it != SampleData.end()) {
-          if ( ((SampleData_it->second).New).size() == sample_new_size ) {
-            if (output_verbosity > 0)
-              outfile << "\n#### WKP TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
-            T_stat_test ( SampleData_it->first, SampleData_it->second );
-          }
-          SampleData_it++;
-        }
-      }
-      if (enable_cusum_test == true) {
-        std::map<EndPoint,CusumParams>::iterator CusumData_it = CusumData.begin();
-        while (CusumData_it != CusumData.end()) {
-          if ( (CusumData_it->second).ready_to_test == true ) {
-            if (output_verbosity > 0)
-              outfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
-            T_cusum_test (CusumData_it->first, CusumData_it->second);
-          }
-          CusumData_it++;
-        }
-      }
-    }
-
-    test_counter++;
-    delete store;
-    if (output_verbosity > 0)
-      outfile << std::endl << std::flush;
-    return;
-  // ++++++++++++++++++++++++++
-  // END TESTING (4 DO THE TESTS)
-  // ++++++++++++++++++++++++++
-
-
-
-/*
-  // ++++++++++++++++++++++
-  // BEGIN NORMAL BEHAVIOUR
-  // ++++++++++++++++++++++
-
   std::map<EndPoint,Info> Data = store->getData();
 
   // Dumping empty records:
   if (Data.empty()==true) {
-    if (output_verbosity>=3 || warning_verbosity==1)
-      outfile << "INFORMATION: Got empty record; "
+    if (logfile_output_verbosity>=3 || warning_verbosity==1)
+      logfile << "INFORMATION: Got empty record; "
         << "dumping it and waiting for another record" << std::endl << std::flush;
     return;
   }
 
 #ifndef OFFLINE_ENABLED
-  // store data storage for offline use
-  storefile << Data;
+  if (storefile.is_open() == true)
+    // store data storage for offline use
+    storefile << Data;
 #endif
 
-  if (output_verbosity > 0) {
-    outfile
+  if (logfile_output_verbosity > 0) {
+    logfile
       << "####################################################" << std::endl
       << "########## Stat::test(...)-call number: " << test_counter
       << " ##########" << std::endl
@@ -2175,13 +1628,13 @@ void Stat::test(StatStore * store) {
   // If not, then we add it as a new pair <EndPoint, *>.
   // If yes, then we update the corresponding entry using
   // std::vector<int64_t> extracted data.
-  if (output_verbosity > 0)
-    outfile << "#### LEARN/UPDATE PHASE" << std::endl;
+  if (logfile_output_verbosity > 0)
+    logfile << "#### LEARN/UPDATE PHASE" << std::endl;
 
   // for every EndPoint, extract the data
   while (Data_it != Data.end()) {
-    if (output_verbosity >= 3)
-      outfile << "[[ " << Data_it->first << " ]]" << std::endl;
+    if (logfile_output_verbosity >= 3)
+      logfile << "[[ " << Data_it->first << " ]]" << std::endl;
 
     prev = PreviousData[Data_it->first];
     // it doesn't matter much if Data_it->first is an EndPoint that exists
@@ -2191,6 +1644,9 @@ void Stat::test(StatStore * store) {
 
     // Do stuff for wkp-tests (if at least one of them is enabled)
     if (enable_wkp_test == true) {
+
+      std::vector<int64_t> metric_data;
+      std::vector<int64_t> pca_metric_data;
 
       std::map<EndPoint, Samples>::iterator SampleData_it =
         SampleData.find(Data_it->first);
@@ -2204,7 +1660,6 @@ void Stat::test(StatStore * store) {
         // as limits are implemented in the StatStore class (EndPointListMaxSize)
 
         Samples S;
-        // extract_data has vector<int64_t> as output
         if (use_pca == true) {
           S.cov = gsl_matrix_calloc (metrics.size(), metrics.size());
           S.evec = gsl_matrix_calloc (metrics.size(), metrics.size());
@@ -2215,18 +1670,21 @@ void Stat::test(StatStore * store) {
             S.sumsOfProducts.push_back(v);
             for (int j = 0; j < metrics.size(); j++)
               S.sumsOfProducts.at(i).push_back(0);
+            // TODO
+            // Hier Dateihandler o. ä. initialisieren
           }
-          // v is not used, but we need to call extract_pca_data anyhow
-          std::vector<int64_t> v = extract_pca_data(S, Data_it->second, prev);
+          pca_metric_data = extract_pca_data(S, Data_it->second, prev);
         }
-        else
-          (S.Old).push_back(extract_data(Data_it->second, prev));
+        else {
+          metric_data = extract_data(Data_it->second, prev);
+          (S.Old).push_back(metric_data);
+        }
 
         SampleData[Data_it->first] = S;
-        if (output_verbosity >= 3) {
-          outfile << " (WKP): New monitored EndPoint added" << std::endl;
-          if (output_verbosity >= 4 && use_pca == false) {
-            outfile << "   with first element of sample_old: " << S.Old.back() << std::endl;
+        if (logfile_output_verbosity >= 3) {
+          logfile << " (WKP): New monitored EndPoint added" << std::endl;
+          if (logfile_output_verbosity >= 4 && use_pca == false) {
+            logfile << "   with first element of sample_old: " << S.Old.back() << std::endl;
           }
         }
 
@@ -2237,16 +1695,34 @@ void Stat::test(StatStore * store) {
         // (SampleData_it->second).Old and (SampleData_it->second).New
         // thanks to the recorded new value in Data_it->second:
         if (use_pca == true) {
-          std::vector<int64_t> v = extract_pca_data(SampleData_it->second, Data_it->second, prev);
-          update ( SampleData_it->second, v );
+          pca_metric_data = extract_pca_data(SampleData_it->second, Data_it->second, prev);
+          update ( SampleData_it->second, pca_metric_data );
         }
-        else
-          update ( SampleData_it->second, extract_data(Data_it->second, prev) );
+        else {
+          metric_data = extract_data(Data_it->second, prev);
+          update ( SampleData_it->second, metric_data );
+        }
       }
+
+      // Create metric files, if wished so
+      if (createFiles == true) {
+        // TODO
+        // Dateinamen irgendwie aus dem Dateihandler zusammenschustern
+        std::string fname = "metrics_" + (Data_it->first).toString() + ".txt";
+        std::ofstream file(fname.c_str(),std::ios_base::app);
+        for (int i = 0; i != metric_data.size(); i++)
+          file << metric_data.at(i) << " ";
+        file << test_counter << "\n";
+        file.close();
+      }
+
     }
 
     // Do stuff for cusum-test (if enabled)
     if (enable_cusum_test == true) {
+
+      std::vector<int64_t> metric_data;
+      std::vector<int64_t> pca_metric_data;
 
       std::map<EndPoint, CusumParams>::iterator CusumData_it = CusumData.find(Data_it->first);
 
@@ -2267,10 +1743,10 @@ void Stat::test(StatStore * store) {
           (C.last_cusum_test_was_attack).push_back(false);
           (C.X_curr).push_back(0);
           (C.X_last).push_back(0);
+          // TODO
+          // Hier Dateihandler o. ä. initialisieren
         }
 
-        // extract_data
-        std::vector<int64_t> v;
         if (use_pca == true) {
           C.cov = gsl_matrix_calloc (metrics.size(), metrics.size());
           C.evec = gsl_matrix_calloc (metrics.size(), metrics.size());
@@ -2282,10 +1758,10 @@ void Stat::test(StatStore * store) {
             for (int j = 0; j < metrics.size(); j++)
               C.sumsOfProducts.at(i).push_back(0);
           }
-          v = extract_pca_data(C, Data_it->second, prev);
+          pca_metric_data = extract_pca_data(C, Data_it->second, prev);
         }
         else { // no learning phase for pca ...
-          v = extract_data(Data_it->second, prev);
+          metric_data = extract_data(Data_it->second, prev);
           // add first value of each metric to the sum, which is needed
           // only to calculate the initial alpha after learning_phase_for_alpha
           // is over
@@ -2296,26 +1772,41 @@ void Stat::test(StatStore * store) {
         }
 
         CusumData[Data_it->first] = C;
-        if (output_verbosity >= 3)
-          outfile << " (CUSUM): New monitored EndPoint added" << std::endl;
+        if (logfile_output_verbosity >= 3)
+          logfile << " (CUSUM): New monitored EndPoint added" << std::endl;
       }
       else {
         // We found the recorded EndPoint Data_it->first
         // in our cusum container "CusumData"; so we update alpha
         // thanks to the recorded new values in Data_it->second:
         if (use_pca == true) {
-          std::vector<int64_t> v = extract_pca_data(CusumData_it->second, Data_it->second, prev);
-          update_c ( CusumData_it->second, v );
+          pca_metric_data = extract_pca_data(CusumData_it->second, Data_it->second, prev);
+          update_c ( CusumData_it->second, pca_metric_data );
         }
-        else
-          update_c ( CusumData_it->second, extract_data(Data_it->second, prev) );
+        else {
+          metric_data = extract_data(Data_it->second, prev);
+          update_c ( CusumData_it->second, metric_data );
+        }
       }
+
+      // Create metric files, if wished so
+      if (createFiles == true) {
+        // TODO
+        // Dateinamen irgendwie aus dem Dateihandler zusammenschustern
+        std::string fname = "pca_metrics_" + (Data_it->first).toString() + ".txt";
+        std::ofstream file(fname.c_str(),std::ios_base::app);
+        for (int i = 0; i != pca_metric_data.size(); i++)
+          file << pca_metric_data.at(i) << " ";
+        file << test_counter << "\n";
+        file.close();
+      }
+
     }
 
     Data_it++;
   }
 
-  outfile << std::endl << std::flush;
+  logfile << std::endl << std::flush;
 
   // 1.5) MAP PRINTING (OPTIONAL, DEPENDS ON VERBOSITY SETTINGS)
 
@@ -2326,15 +1817,15 @@ void Stat::test(StatStore * store) {
   else if (enable_cusum_test == true)
     ep_nr = CusumData.size();
 
-  if (output_verbosity >= 4) {
-    outfile << "#### STATE OF ALL MONITORED ENDPOINTS (" << ep_nr << "):" << std::endl;
+  if (logfile_output_verbosity >= 4) {
+    logfile << "#### STATE OF ALL MONITORED ENDPOINTS (" << ep_nr << "):" << std::endl;
 
     if (enable_wkp_test == true) {
-      outfile << "### WKP OVERVIEW" << std::endl;
+      logfile << "### WKP OVERVIEW" << std::endl;
       std::map<EndPoint,Samples>::iterator SampleData_it =
         SampleData.begin();
       while (SampleData_it != SampleData.end()) {
-        outfile
+        logfile
           << "[[ " << SampleData_it->first << " ]]\n"
           << "  sample_old (" << (SampleData_it->second).Old.size()  << ") : "
           << (SampleData_it->second).Old << "\n"
@@ -2344,11 +1835,11 @@ void Stat::test(StatStore * store) {
       }
     }
     if (enable_cusum_test == true) {
-      outfile << "### CUSUM OVERVIEW" << std::endl;
+      logfile << "### CUSUM OVERVIEW" << std::endl;
       std::map<EndPoint,CusumParams>::iterator CusumData_it =
         CusumData.begin();
       while (CusumData_it != CusumData.end()) {
-        outfile
+        logfile
           << "[[ " << CusumData_it->first << " ]]\n"
           << "  alpha: " << (CusumData_it->second).alpha << "\n"
           << "  g: " << (CusumData_it->second).g << "\n";
@@ -2385,8 +1876,8 @@ void Stat::test(StatStore * store) {
       while (SampleData_it != SampleData.end()) {
         if ( ((SampleData_it->second).New).size() == sample_new_size ) {
           // i.e., learning phase over
-          if (output_verbosity > 0)
-            outfile << "\n#### WKP TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
+          if (logfile_output_verbosity > 0)
+            logfile << "\n#### WKP TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
           stat_test ( SampleData_it->second );
         }
         SampleData_it++;
@@ -2398,8 +1889,8 @@ void Stat::test(StatStore * store) {
       while (CusumData_it != CusumData.end()) {
         if ( (CusumData_it->second).ready_to_test == true ) {
           // i.e. learning phase for alpha is over and it has an initial value
-          if (output_verbosity > 0)
-            outfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
+          if (logfile_output_verbosity > 0)
+            logfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
           cusum_test ( CusumData_it->second );
         }
         CusumData_it++;
@@ -2410,12 +1901,9 @@ void Stat::test(StatStore * store) {
   test_counter++;
   // don't forget to free the store-object!
   delete store;
-  outfile << std::endl << std::flush;
+  logfile << std::endl << std::flush;
   return;
-  // ++++++++++++++++++++
-  // END NORMAL BEHAVIOUR
-  // ++++++++++++++++++++
-*/
+
 }
 
 
@@ -2660,8 +2148,8 @@ std::vector<int64_t> Stat::extract_pca_data (CusumParams & C, const Info & info,
 
       C.pca_ready = true; // so this code will never be visited again
 
-      if (output_verbosity >= 3)
-        outfile << "(CUSUM): PCA learning phase is over! PCA is now ready!" << std::endl;
+      if (logfile_output_verbosity >= 3)
+        logfile << "(CUSUM): PCA learning phase is over! PCA is now ready!" << std::endl;
 
       return result; // empty
     }
@@ -2747,8 +2235,8 @@ std::vector<int64_t> Stat::extract_pca_data (Samples & S, const Info & info, con
 
       // From now on, evec can be used to transform the new arriving data
 
-      if (output_verbosity >= 3)
-        outfile << "(WKP): PCA learning phase is over! PCA is now ready!" << std::endl;
+      if (logfile_output_verbosity >= 3)
+        logfile << "(WKP): PCA learning phase is over! PCA is now ready!" << std::endl;
 
       S.pca_ready = true; // so this code will never be visited again
       return result; // empty
@@ -2793,8 +2281,8 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
   // NOTE: The overall learning phase will thus sum up to
   // learning_phase_pca + leraning_phase_samples
   if (use_pca == true && S.pca_ready == false) {
-    if (output_verbosity >= 3)
-      outfile << "(WKP): learning phase for PCA ..." << std::endl;
+    if (logfile_output_verbosity >= 3)
+      logfile << "(WKP): learning phase for PCA ..." << std::endl;
     return;
   }
 
@@ -2807,11 +2295,11 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
 
     S.Old.push_back(new_value);
 
-    if (output_verbosity >= 3) {
-      outfile << " (WKP): Learning phase for sample_old ..." << std::endl;
-      if (output_verbosity >= 4) {
-        outfile << "   sample_old: " << S.Old << std::endl;
-        outfile << "   sample_new: " << S.New << std::endl;
+    if (logfile_output_verbosity >= 3) {
+      logfile << " (WKP): Learning phase for sample_old ..." << std::endl;
+      if (logfile_output_verbosity >= 4) {
+        logfile << "   sample_old: " << S.Old << std::endl;
+        logfile << "   sample_new: " << S.New << std::endl;
       }
     }
 
@@ -2821,11 +2309,11 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
 
     S.New.push_back(new_value);
 
-    if (output_verbosity >= 3) {
-      outfile << " (WKP): Learning phase for sample_new..." << std::endl;
-      if (output_verbosity >= 4) {
-        outfile << "   sample_old: " << S.Old << std::endl;
-        outfile << "   sample_new: " << S.New << std::endl;
+    if (logfile_output_verbosity >= 3) {
+      logfile << " (WKP): Learning phase for sample_new..." << std::endl;
+      if (logfile_output_verbosity >= 4) {
+        logfile << "   sample_old: " << S.Old << std::endl;
+        logfile << "   sample_new: " << S.New << std::endl;
       }
     }
 
@@ -2849,11 +2337,11 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
     S.New.pop_front();
     S.New.push_back(new_value);
 
-    if (output_verbosity >= 3) {
-      outfile << " (WKP): Update done (for new sample only)" << std::endl;
-      if (output_verbosity >= 4) {
-        outfile << "   sample_old: " << S.Old << std::endl;
-        outfile << "   sample_new: " << S.New << std::endl;
+    if (logfile_output_verbosity >= 3) {
+      logfile << " (WKP): Update done (for new sample only)" << std::endl;
+      if (logfile_output_verbosity >= 4) {
+        logfile << "   sample_old: " << S.Old << std::endl;
+        logfile << "   sample_new: " << S.New << std::endl;
       }
     }
   }
@@ -2865,16 +2353,16 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
     S.New.pop_front();
     S.New.push_back(new_value);
 
-    if (output_verbosity >= 3) {
-      outfile << " (WKP): Update done (for both samples)" << std::endl;
-      if (output_verbosity >= 4) {
-        outfile << "   sample_old: " << S.Old << std::endl;
-        outfile << "   sample_new: " << S.New << std::endl;
+    if (logfile_output_verbosity >= 3) {
+      logfile << " (WKP): Update done (for both samples)" << std::endl;
+      if (logfile_output_verbosity >= 4) {
+        logfile << "   sample_old: " << S.Old << std::endl;
+        logfile << "   sample_new: " << S.New << std::endl;
       }
     }
   }
 
-  outfile << std::flush;
+  logfile << std::flush;
   return;
 }
 
@@ -2887,8 +2375,8 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
   // NOTE: The overall learning phase will thus sum up to
   // learning_phase_pca + leraning_phase_alpha
   if (use_pca == true && C.pca_ready == false) {
-    if (output_verbosity >= 3)
-      outfile << "(CUSUM): learning phase for PCA ..." << std::endl;
+    if (logfile_output_verbosity >= 3)
+      logfile << "(CUSUM): learning phase for PCA ..." << std::endl;
     return;
   }
 
@@ -2907,8 +2395,8 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
       for (int i = 0; i != C.sum.size(); i++)
         C.sum.at(i) += new_value.at(i);
 
-      if (output_verbosity >= 3)
-        outfile
+      if (logfile_output_verbosity >= 3)
+        logfile
           << " (CUSUM): Learning phase for alpha ...\n";
 
       C.learning_phase_nr_for_alpha++;
@@ -2921,8 +2409,8 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
     // code here again for the current endpoint)
     if (C.learning_phase_nr_for_alpha == learning_phase_for_alpha) {
 
-      if (output_verbosity >= 3)
-        outfile << " (CUSUM): Learning phase for alpha is over\n"
+      if (logfile_output_verbosity >= 3)
+        logfile << " (CUSUM): Learning phase for alpha is over\n"
                 << "   Calculated initial alphas: ( ";
 
       for (int i = 0; i != C.alpha.size(); i++) {
@@ -2931,11 +2419,11 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
         // this is handled in init_cusum_test()
         C.alpha.at(i) = C.sum.at(i) / learning_phase_for_alpha;
         C.X_curr.at(i) = new_value.at(i);
-        if (output_verbosity >= 3)
-          outfile << C.alpha.at(i) << " ";
+        if (logfile_output_verbosity >= 3)
+          logfile << C.alpha.at(i) << " ";
       }
-      if (output_verbosity >= 3)
-          outfile << ")\n";
+      if (logfile_output_verbosity >= 3)
+          logfile << ")\n";
 
       C.ready_to_test = true;
       return;
@@ -2956,8 +2444,8 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
   // pause, if at least one metric yielded an alarm
   if ( pause_update_when_attack == 1
     && at_least_one_test_was_attack == true) {
-    if (output_verbosity >= 3)
-      outfile << " (CUSUM): Pausing update for alpha (at least one test was attack)\n";
+    if (logfile_output_verbosity >= 3)
+      logfile << " (CUSUM): Pausing update for alpha (at least one test was attack)\n";
     // update values for X
     for (int i = 0; i != C.X_curr.size(); i++) {
       C.X_last.at(i) = C.X_curr.at(i);
@@ -2968,8 +2456,8 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
   // pause, if all metrics yielded an alarm
   else if ( pause_update_when_attack == 2
     && all_tests_were_attacks == true) {
-    if (output_verbosity >= 3)
-      outfile << " (CUSUM): Pausing update for alpha (all tests were attacks)\n";
+    if (logfile_output_verbosity >= 3)
+      logfile << " (CUSUM): Pausing update for alpha (all tests were attacks)\n";
     // update values for X
     for (int i = 0; i != C.X_curr.size(); i++) {
       C.X_last.at(i) = C.X_curr.at(i);
@@ -2981,8 +2469,8 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
   // and update only the others
   else if (pause_update_when_attack == 3
     && at_least_one_test_was_attack == true) {
-    if (output_verbosity >= 3)
-      outfile << " (CUSUM): Pausing update for alpha (for those metrics which were attacks)\n";
+    if (logfile_output_verbosity >= 3)
+      logfile << " (CUSUM): Pausing update for alpha (for those metrics which were attacks)\n";
     for (int i = 0; i != C.alpha.size(); i++) {
       // update values for X
       C.X_last.at(i) = C.X_curr.at(i);
@@ -3005,10 +2493,10 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
     C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
   }
 
-  if (output_verbosity >= 3)
-    outfile << " (CUSUM): Update done for alpha: " << C.alpha << "\n";
+  if (logfile_output_verbosity >= 3)
+    logfile << " (CUSUM): Update done for alpha: " << C.alpha << "\n";
 
-  outfile << std::flush;
+  logfile << std::flush;
   return;
 }
 
@@ -3036,87 +2524,13 @@ void Stat::stat_test (Samples & S) {
 
   while (it != metrics.end()) {
 
-    if (output_verbosity >= 4) {
+    if (logfile_output_verbosity >= 4) {
       if (use_pca == false)
-        outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
+        logfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
       else {
         std::stringstream tmp;
         tmp << index;
-        outfile << "### Performing WKP-Tests for pca component " << tmp.str() << ":\n";
-      }
-    }
-
-    sample_old_single_metric = getSingleMetric(S.Old, index);
-    sample_new_single_metric = getSingleMetric(S.New, index);
-
-
-    // Wilcoxon-Mann-Whitney test:
-    if (enable_wmw_test == true) {
-      stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
-      if (S.last_wmw_test_was_attack == true)
-        wmw_was_attack = true;
-    }
-
-    // Kolmogorov-Smirnov test:
-    if (enable_ks_test == true) {
-      stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
-      if (S.last_ks_test_was_attack == true)
-        ks_was_attack = true;
-    }
-
-    // Pearson chi-square test:
-    if (enable_pcs_test == true) {
-      stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
-      if (S.last_pcs_test_was_attack == true)
-        pcs_was_attack = true;
-    }
-
-    it++;
-    index++;
-  }
-
-  // if there was at least one alarm, set the corresponding
-  // flag to true
-  if (wmw_was_attack == true)
-    S.last_wmw_test_was_attack = true;
-  if (ks_was_attack == true)
-    S.last_ks_test_was_attack = true;
-  if (pcs_was_attack == true)
-    S.last_pcs_test_was_attack = true;
-
-  outfile << std::flush;
-  return;
-
-}
-
-// same function as the above one, but for TESTING purposes!
-void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
-
-  // Containers for the values of single metrics
-  std::list<int64_t> sample_old_single_metric;
-  std::list<int64_t> sample_new_single_metric;
-
-  std::vector<Metric>::iterator it = metrics.begin();
-
-  // for every value (represented by *it) in metrics,
-  // do the tests
-  short index = 0;
-  // as the tests can be performed for several metrics, we have to
-  // store, if at least one metric raised an alarm and if so, set
-  // the last_test_was_attack-flag to true
-  bool wmw_was_attack = false;
-  bool ks_was_attack = false;
-  bool pcs_was_attack = false;
-
-  while (it != metrics.end()) {
-
-    if (output_verbosity >= 4) {
-      if (use_pca == false)
-        outfile << "### Performing WKP-Tests for metric " << getMetricName(*it) << ":\n";
-      else {
-        std::stringstream tmp;
-        tmp << index;
-        outfile << "### Performing WKP-Tests for pca component " << tmp.str() << ":\n";
+        logfile << "### Performing WKP-Tests for pca component " << tmp.str() << ":\n";
       }
     }
 
@@ -3152,47 +2566,52 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
         pcs_was_attack = true;
     }
 
+    // generate output files, if wished
+    if (createFiles == true) {
 
-    std::string filename;
-    if (use_pca == false)
-      filename = "wkpparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
-    else {
-      std::stringstream tmp;
-      tmp << index;
-      filename = "wkpparams_" + EP.toString() + "_pca_component_" + tmp.str() + ".txt";
+      // TODO
+      // Dateinamen und/oder Dateihandler o. ä. in Klasse einbauen!
+      std::string filename;
+      if (use_pca == false)
+        filename = "wkpparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+      else {
+        std::stringstream tmp;
+        tmp << index;
+        filename = "wkpparams_" + EP.toString() + "_pca_component_" + tmp.str() + ".txt";
+      }
+
+      // replace the decimal point by a comma
+      // (open office cant handle points in decimal numbers ;) )
+      std::stringstream tmp1;
+      tmp1 << p_wmw;
+      std::string str_p_wmw = tmp1.str();
+      std::string::size_type i = str_p_wmw.find('.',0);
+      if (i != std::string::npos)
+        str_p_wmw.replace(i, 1, 1, ',');
+
+      std::stringstream tmp2;
+      tmp2 << p_ks;
+      std::string str_p_ks = tmp2.str();
+      i = str_p_ks.find('.',0);
+      if (i != std::string::npos)
+        str_p_ks.replace(i, 1, 1, ',');
+
+      std::stringstream tmp3;
+      tmp3 << p_pcs;
+      std::string str_p_pcs = tmp3.str();
+      i = str_p_pcs.find('.',0);
+      if (i != std::string::npos)
+        str_p_pcs.replace(i, 1, 1, ',');
+
+      std::ofstream file(filename.c_str(), std::ios_base::app);
+      // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
+      // p-value(pcs) #alarms(pcs) counter
+      file << sample_new_single_metric.back() << " " << str_p_wmw << " "
+          << (S.wmw_alarms).at(index) << " " << str_p_ks << " "
+          << (S.ks_alarms).at(index) << " " << str_p_pcs << " "
+          << (S.pcs_alarms).at(index) << " " << test_counter << "\n";
+      file.close();
     }
-
-    // replace the decimal point by a comma
-    // (open office cant handle points in decimal numbers ;) )
-    std::stringstream tmp1;
-    tmp1 << p_wmw;
-    std::string str_p_wmw = tmp1.str();
-    std::string::size_type i = str_p_wmw.find('.',0);
-    if (i != std::string::npos)
-      str_p_wmw.replace(i, 1, 1, ',');
-
-    std::stringstream tmp2;
-    tmp2 << p_ks;
-    std::string str_p_ks = tmp2.str();
-    i = str_p_ks.find('.',0);
-    if (i != std::string::npos)
-      str_p_ks.replace(i, 1, 1, ',');
-
-    std::stringstream tmp3;
-    tmp3 << p_pcs;
-    std::string str_p_pcs = tmp3.str();
-    i = str_p_pcs.find('.',0);
-    if (i != std::string::npos)
-      str_p_pcs.replace(i, 1, 1, ',');
-
-    std::ofstream file(filename.c_str(), std::ios_base::app);
-    // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
-    // p-value(pcs) #alarms(pcs) counter
-    file << sample_new_single_metric.back() << " " << str_p_wmw << " "
-         << (S.wmw_alarms).at(index) << " " << str_p_ks << " "
-         << (S.ks_alarms).at(index) << " " << str_p_pcs << " "
-         << (S.pcs_alarms).at(index) << " " << test_counter << "\n";
-    file.close();
 
     it++;
     index++;
@@ -3207,7 +2626,7 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
   if (pcs_was_attack == true)
     S.last_pcs_test_was_attack = true;
 
-  outfile << std::flush;
+  logfile << std::flush;
   return;
 
 }
@@ -3215,88 +2634,6 @@ void Stat::T_stat_test (const EndPoint & EP, Samples & S) {
 // statistical test function / cusum-test
 // (optional, depending on how often the user wishes to do it)
 void Stat::cusum_test(CusumParams & C) {
-
-  // we have to store, for which metrics an attack was detected and set
-  // the corresponding last_cusum_test_was_attack-flags to true/false
-  std::vector<bool> was_attack;
-  for (int i = 0; i < metrics.size(); i++)
-    was_attack.push_back(false);
-  // index, as we cant use the iterator for dereferencing the elements of
-  // CusumParams
-  int i = 0;
-  // current adapted threshold
-  double N = 0.0;
-  // beta, needed to make (Xn - beta) slightly negative in the mean
-  double beta = 0.0;
-
-  for (std::vector<Metric>::iterator it = metrics.begin(); it < metrics.end(); it++) {
-
-    if (output_verbosity >= 4) {
-      if (use_pca == false)
-        outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
-      else {
-        std::stringstream tmp;
-        tmp << i;
-        outfile << "### Performing CUSUM-Test for pca component " << tmp.str() << ":\n";
-      }
-    }
-
-    // Calculate N and beta
-    N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
-    beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
-
-    if (output_verbosity >= 4) {
-      outfile << " Cusum test returned:\n"
-              << "  Threshold: " << N << std::endl;
-      outfile << "  reject H0 (no attack) if current value of statistic g > "
-              << N << std::endl;
-    }
-
-    // TODO(2)
-    // "attack still in progress"-message?
-
-    // perform the test and if g > N raise an alarm
-    if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
-
-      if (report_only_first_attack == false
-        || C.last_cusum_test_was_attack.at(i) == false) {
-        if (output_verbosity >= 2) {
-          outfile
-            << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-            << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
-            << "    ALARM! ALARM! Women und children first!" << std::endl;
-          std::cout
-            << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-            << "  Cusum test says we're under attack!\n"
-            << "  ALARM! ALARM! Women und children first!" << std::endl;
-        }
-        #ifdef IDMEF_SUPPORT_ENABLED
-          idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
-          sendIdmefMessage("DDoS", idmefMessage);
-          idmefMessage = getNewIdmefMessage();
-        #endif
-      }
-
-      was_attack.at(i) = true;
-
-    }
-
-    i++;
-  }
-
-  for (int j = 0; j < was_attack.size(); j++) {
-    if (was_attack.at(j) == true)
-      C.last_cusum_test_was_attack.at(j) = true;
-    else
-      C.last_cusum_test_was_attack.at(j) = false;
-  }
-
-  outfile << std::flush;
-  return;
-}
-
-// same function as the above one, but for TESTING purposes!
-void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
 
   // we have to store, for which metrics an attack was detected and set
   // the corresponding last_cusum_test_was_attack-flags to true/false
@@ -3313,13 +2650,13 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
 
   for (std::vector<Metric>::iterator it = metrics.begin(); it != metrics.end(); it++) {
 
-    if (output_verbosity >= 4) {
+    if (logfile_output_verbosity >= 4) {
       if (use_pca == false)
-        outfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
+        logfile << "### Performing CUSUM-Test for metric " << getMetricName(*it) << ":\n";
       else {
         std::stringstream tmp;
         tmp << i;
-        outfile << "### Performing CUSUM-Test for pca component " << tmp.str() << ":\n";
+        logfile << "### Performing CUSUM-Test for pca component " << tmp.str() << ":\n";
       }
     }
 
@@ -3327,10 +2664,10 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
     N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
     beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
 
-    if (output_verbosity >= 4) {
-      outfile << " Cusum test returned:\n"
+    if (logfile_output_verbosity >= 4) {
+      logfile << " Cusum test returned:\n"
               << "  Threshold: " << N << std::endl;
-      outfile << "  reject H0 (no attack) if current value of statistic g > "
+      logfile << "  reject H0 (no attack) if current value of statistic g > "
               << N << std::endl;
     }
 
@@ -3342,8 +2679,8 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
 
       if (report_only_first_attack == false
         || C.last_cusum_test_was_attack.at(i) == false) {
-        if (output_verbosity >= 2) {
-          outfile
+        if (logfile_output_verbosity >= 2) {
+          logfile
             << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
             << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
             << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
@@ -3366,21 +2703,25 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
 
     }
 
-    std::string filename;
-    if (use_pca == false)
-      filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
-    else {
-      std::stringstream tmp;
-      tmp << i;
-      filename = "cusumparams_" + EP.toString() + "_pca_component_" + tmp.str() + ".txt";
-    }
+    if (createFiles == true) {
+      // TODO
+      // Dateinamen und/oder Dateihandler o. ä. in Klasse einbauen!
+      std::string filename;
+      if (use_pca == false)
+        filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+      else {
+        std::stringstream tmp;
+        tmp << i;
+        filename = "cusumparams_" + EP.toString() + "_pca_component_" + tmp.str() + ".txt";
+      }
 
-    std::ofstream file(filename.c_str(), std::ios_base::app);
-    // X  g N alpha beta #alarms counter
-    file << (int) C.X_curr.at(i) << " " << (int) C.g.at(i)
-         << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
-         << " " << (C.cusum_alarms).at(i) << " " << test_counter << "\n";
-    file.close();
+      std::ofstream file(filename.c_str(), std::ios_base::app);
+      // X  g N alpha beta #alarms counter
+      file << (int) C.X_curr.at(i) << " " << (int) C.g.at(i)
+          << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
+          << " " << (C.cusum_alarms).at(i) << " " << test_counter << "\n";
+      file.close();
+    }
 
     i++;
   }
@@ -3392,7 +2733,7 @@ void Stat::T_cusum_test(const EndPoint & EP, CusumParams & C) {
       C.last_cusum_test_was_attack.at(i) = false;
   }
 
-  outfile << std::flush;
+  logfile << std::flush;
   return;
 }
 
@@ -3457,24 +2798,24 @@ double Stat::stat_test_wmw (std::list<int64_t> & sample_old,
 
   double p;
 
-  if (output_verbosity >= 5) {
-    outfile << " Wilcoxon-Mann-Whitney test details:\n";
-    p = wmw_test(sample_old, sample_new, two_sided, outfile);
+  if (logfile_output_verbosity >= 5) {
+    logfile << " Wilcoxon-Mann-Whitney test details:\n";
+    p = wmw_test(sample_old, sample_new, two_sided, logfile);
   }
   else {
     std::ofstream dump("/dev/null");
     p = wmw_test(sample_old, sample_new, two_sided, dump);
   }
 
-  if (output_verbosity >= 2) {
-    outfile << " Wilcoxon-Mann-Whitney test returned:\n"
+  if (logfile_output_verbosity >= 2) {
+    logfile << " Wilcoxon-Mann-Whitney test returned:\n"
 	    << "  p-value: " << p << std::endl;
-    outfile << "  reject H0 (no attack) to any significance level alpha > "
+    logfile << "  reject H0 (no attack) to any significance level alpha > "
 	    << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
 	    || last_wmw_test_was_attack == false) {
-	      outfile
+       logfile
           << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
 		      << "    Wilcoxon-Mann-Whitney test says we're under attack!\n"
 		      << "    ALARM! ALARM! Women und children first!" << std::endl;
@@ -3494,12 +2835,12 @@ double Stat::stat_test_wmw (std::list<int64_t> & sample_old,
       last_wmw_test_was_attack = false;
   }
 
-  if (output_verbosity == 1) {
-    outfile << "wmw: " << p << std::endl;
+  if (logfile_output_verbosity == 1) {
+    logfile << "wmw: " << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
       || last_wmw_test_was_attack == false) {
-	      outfile << "attack to significance level "
+	      logfile << "attack to significance level "
 		      << significance_level << "!" << std::endl;
 	      std::cout << "attack to significance level "
 		      << significance_level << "!" << std::endl;
@@ -3518,24 +2859,24 @@ double Stat::stat_test_ks (std::list<int64_t> & sample_old,
 
   double p;
 
-  if (output_verbosity>=5) {
-    outfile << " Kolmogorov-Smirnov test details:\n";
-    p = ks_test(sample_old, sample_new, outfile);
+  if (logfile_output_verbosity>=5) {
+    logfile << " Kolmogorov-Smirnov test details:\n";
+    p = ks_test(sample_old, sample_new, logfile);
   }
   else {
     std::ofstream dump ("/dev/null");
     p = ks_test(sample_old, sample_new, dump);
   }
 
-  if (output_verbosity >= 2) {
-    outfile << " Kolmogorov-Smirnov test returned:\n"
+  if (logfile_output_verbosity >= 2) {
+    logfile << " Kolmogorov-Smirnov test returned:\n"
 	    << "  p-value: " << p << std::endl;
-    outfile << "  reject H0 (no attack) to any significance level alpha > "
+    logfile << "  reject H0 (no attack) to any significance level alpha > "
 	    << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
 	    || last_ks_test_was_attack == false) {
-	      outfile << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
+	      logfile << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
 		      << "    Kolmogorov-Smirnov test says we're under attack!\n"
 		      << "    ALARM! ALARM! Women und children first!" << std::endl;
 	      std::cout << "  ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
@@ -3553,12 +2894,12 @@ double Stat::stat_test_ks (std::list<int64_t> & sample_old,
       last_ks_test_was_attack = false;
   }
 
-  if (output_verbosity == 1) {
-    outfile << "ks : " << p << std::endl;
+  if (logfile_output_verbosity == 1) {
+    logfile << "ks : " << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
 	    || last_ks_test_was_attack == false) {
-        outfile << "attack to significance level "
+        logfile << "attack to significance level "
           << significance_level << "!" << std::endl;
         std::cout << "attack to significance level "
           << significance_level << "!" << std::endl;
@@ -3578,24 +2919,24 @@ double Stat::stat_test_pcs (std::list<int64_t> & sample_old,
 
   double p;
 
-  if (output_verbosity>=5) {
-    outfile << " Pearson chi-square test details:\n";
-    p = pcs_test(sample_old, sample_new, outfile);
+  if (logfile_output_verbosity>=5) {
+    logfile << " Pearson chi-square test details:\n";
+    p = pcs_test(sample_old, sample_new, logfile);
   }
   else {
     std::ofstream dump ("/dev/null");
     p = pcs_test(sample_old, sample_new, dump);
   }
 
-  if (output_verbosity >= 2) {
-    outfile << " Pearson chi-square test returned:\n"
+  if (logfile_output_verbosity >= 2) {
+    logfile << " Pearson chi-square test returned:\n"
 	    << "  p-value: " << p << std::endl;
-    outfile << "  reject H0 (no attack) to any significance level alpha > "
+    logfile << "  reject H0 (no attack) to any significance level alpha > "
 	    << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
 	    || last_pcs_test_was_attack == false) {
-	      outfile << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
+	      logfile << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
 		      << "    Pearson chi-square test says we're under attack!\n"
 		      << "    ALARM! ALARM! Women und children first!" << std::endl;
 	      std::cout << "  ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
@@ -3613,12 +2954,12 @@ double Stat::stat_test_pcs (std::list<int64_t> & sample_old,
       last_pcs_test_was_attack = false;
   }
 
-  if (output_verbosity == 1) {
-    outfile << "pcs: " << p << std::endl;
+  if (logfile_output_verbosity == 1) {
+    logfile << "pcs: " << p << std::endl;
     if (significance_level > p) {
       if (report_only_first_attack == false
       || last_pcs_test_was_attack == false) {
-	      outfile << "attack to significance level "
+	      logfile << "attack to significance level "
 		      << significance_level << "!" << std::endl;
 	      std::cout << "attack to significance level "
 		      << significance_level << "!" << std::endl;
