@@ -51,7 +51,7 @@ void EndPoint::fromString(const std::string & epstr, bool withNetMask)
 
     ipAddr.fromString(ipstr);
     netmask = atoi(netmaskstr.c_str());
-    if (netmask >= 0 && netmask < 32)
+    if (netmask >= 0 && netmask <= 32)
       applyNetMask();
     else {
       std::cerr << "Invalid Netmask occured! Netmask may only be a value "
@@ -82,7 +82,7 @@ void EndPoint::applyNetMask() {
 
   unsigned int mask[4];
   std::string Mask;
-  switch( atoi(netmask) ) {
+  switch( netmask ) {
     case  0: Mask="0x00000000"; break;
     case  1: Mask="0x80000000"; break;
     case  2: Mask="0xC0000000"; break;
@@ -126,7 +126,7 @@ void EndPoint::applyNetMask() {
   mask[2] = strtol (mask3, NULL, 16);
   mask[3] = strtol (mask4, NULL, 16);
 
-  ipAddr.remanent_mask(mask);
+  ipAddr.remanent_mask((const byte *)mask);
 
   return;
 }

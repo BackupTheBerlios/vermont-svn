@@ -67,7 +67,7 @@ class StatStore : public DataStore {
   std::map<EndPoint,Info> getData() const {return Data;}
   std::map<EndPoint,Info> getPreviousData() const {return PreviousData;}
 
-  bool filterEndPoint (const EndPoint &);
+  bool filterEndPoint (EndPoint &);
 
   friend std::ifstream& operator>>(std::ifstream&, StatStore*);
 

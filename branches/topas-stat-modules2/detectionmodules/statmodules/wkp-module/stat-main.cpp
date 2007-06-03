@@ -66,10 +66,6 @@ Stat::Stat(const std::string & configfile)
   // lock, will be unlocked at the end of init() (cf. StatStore class header):
   StatStore::setBeginMonitoring () = false;
 
-  ip_monitoring = false;
-  port_monitoring = false; ports_relevant = false;
-  protocol_monitoring = false;
-
   test_counter = 0;
 
   init(configfile);
@@ -81,9 +77,9 @@ Stat::Stat(const std::string & configfile)
       exit(0);
   }
 #else
-  if (0 != strcasecmp(offline_file.c_str(), "none"))
+  if (0 != strcasecmp(offlineFile.c_str(), "none"))
     /* open file to store data for offline use */
-    storefile.open(offlineFile);
+    storefile.open(offlineFile.c_str());
 #endif
 
 }
@@ -179,6 +175,8 @@ void Stat::init(const std::string & configfile) {
 
 #ifndef OFFLINE_ENABLED
   // extracting the key of the endpoints
+  // and thus determining, which IPFIX_TYPEIDs we need to subscribe to
+  // NOTE: only needed for ONLINE MODE
   init_endpoint_key(config);
 #endif
 
@@ -195,10 +193,8 @@ void Stat::init(const std::string & configfile) {
   // i. e. how many endpoints can be monitored
   init_endpointlist_maxsize(config);
 
-#ifndef OFFLINE_ENABLED
-  // extracting endpoints to filter
-  init_endpointfilter(config);
-#endif
+  // extracting endpoints to monitor
+  init_endpoints_to_monitor(config);
 
   // now everything is ready to begin monitoring:
   StatStore::setBeginMonitoring() = true;
@@ -518,7 +514,7 @@ void Stat::init_offline_file(XMLConfObj * config) {
     offlineFile = "data.txt";
 #endif
   }
-  else if (0 == strcasecmp(config->getValue("offline_file"),"none")) {
+  else if (0 == strcasecmp(config->getValue("offline_file").c_str(),"none")) {
     offlineFile = "none";
   }
   else {
@@ -542,7 +538,7 @@ void Stat::init_output_dir(XMLConfObj * config) {
   output_dir = config->getValue("output_dir");
 
   // TODO:
-  // Verzeichnis öffnen und Pointer damit verknüpfen?
+  // Verzeichnis öffnen und DirPointer damit verknüpfen?
   // Im Destruktor dann wieder schließen (falls offen)
 
   createFiles = true;
@@ -568,18 +564,17 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
     std::cerr << Warning.str() << "\n";
     if (warning_verbosity==1)
       logfile << Warning.str() << std::endl << std::flush;
-    ip_monitoring = true;
-    port_monitoring = true;
-    protocol_monitoring = true;
   }
   else if (!(config->getValue("endpoint_key")).empty()) {
 
     std::string Keys = config->getValue("endpoint_key");
 
     if ( 0 == strcasecmp(Keys.c_str(), "all") ) {
-      ip_monitoring = true;
-      port_monitoring = true;
-      protocol_monitoring = true;
+      subscribeTypeId(IPFIX_TYPEID_sourceIPv4Address);
+      subscribeTypeId(IPFIX_TYPEID_destinationIPv4Address);
+      subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
+      subscribeTypeId(IPFIX_TYPEID_destinationTransportPort);
+      subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
       return;
     }
 
@@ -591,12 +586,17 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
     std::string key;
 
     while (KeyStream >> key) {
-      if ( 0 == strcasecmp(key.c_str(), "ip") )
-        ip_monitoring = true;
-      else if ( 0 == strcasecmp(key.c_str(), "port") )
-        port_monitoring = true;
-      else if ( 0 == strcasecmp(key.c_str(), "protocol") )
-        protocol_monitoring = true;
+      if ( 0 == strcasecmp(key.c_str(), "ip") ) {
+        subscribeTypeId(IPFIX_TYPEID_sourceIPv4Address);
+        subscribeTypeId(IPFIX_TYPEID_destinationIPv4Address);
+      }
+      else if ( 0 == strcasecmp(key.c_str(), "port") ) {
+        subscribeTypeId(IPFIX_TYPEID_sourceTransportPort);
+        subscribeTypeId(IPFIX_TYPEID_destinationTransportPort);
+      }
+      else if ( 0 == strcasecmp(key.c_str(), "protocol") ) {
+        subscribeTypeId(IPFIX_TYPEID_protocolIdentifier);
+      }
       else {
         std::cerr << Error.str() << "  Exiting.\n";
         if (warning_verbosity==1)
@@ -932,7 +932,7 @@ void Stat::init_endpointlist_maxsize(XMLConfObj * config) {
   return;
 }
 
-void Stat::init_endpointfilter(XMLConfObj * config) {
+void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
 
 // OFFLINE MODE
 #ifdef OFFLINE_ENABLED
@@ -974,7 +974,7 @@ void Stat::init_endpointfilter(XMLConfObj * config) {
     std::vector<EndPoint> tmpData;
     std::string tmp;
     while ( getline(dataFile, tmp) ) {
-      if (0 == strcasecmp(tmp.c_str(), "---") )
+      if (0 == strcasecmp("---",tmp.c_str()) )
         break;
       else if ( dataFile.eof() ) {
         std::cerr << "INFORMATION: All Data read from file.\n";
@@ -1029,37 +1029,37 @@ void Stat::init_endpointfilter(XMLConfObj * config) {
 // ip1.ip2.ip3.ip4/netmask:port|protocol, e. g. 192.13.17.1/24:80|6
   std::stringstream Default, Warning;
     Default
-      << "WARNING: No endpoint_filter parameter defined in XML config file!\n"
+      << "WARNING: No endpoints_to_monitor parameter defined in XML config file!\n"
       << "  All endpoints will be monitored.\n";
     Warning
-      << "WARNING: No value for endpoint_filter parameter defined in XML "
+      << "WARNING: No value for endpoints_to_monitor parameter defined in XML "
       << "config file!\n"
       << "  All endpoints will be monitored.\n";
 
-  if (!config->nodeExists("endpoint_filter")) {
+  if (!config->nodeExists("endpoints_to_monitor")) {
     std::cerr << Default.str();
     if (warning_verbosity==1)
       logfile << Default.str() << std::flush;
     StatStore::setMonitorEveryEndPoint() = true;
     return;
   }
-  else if ((config->getValue("endpoint_filter")).empty()) {
+  else if ((config->getValue("endpoints_to_monitor")).empty()) {
     std::cerr << Warning.str();
     if (warning_verbosity==1)
       logfile << Warning.str() << std::flush;
     StatStore::setMonitorEveryEndPoint() = true;
     return;
   }
-  else if (0 == strcasecmp(config->getValue("endpoint_filter").c_str(),"all")) {
+  else if (0 == strcasecmp("all", config->getValue("endpoints_to_monitor").c_str())) {
     StatStore::setMonitorEveryEndPoint() = true;
     return;
   }
 
-  std::ifstream f(config->getValue("endpoint_filter").c_str());
+  std::ifstream f(config->getValue("endpoints_to_monitor").c_str());
   if (f.is_open() == false) {
     std::stringstream Error;
-    Error << "ERROR: The endpoint_filter file ("
-      << config->getValue("endpoint_filter")
+    Error << "ERROR: The endpoints_to_monitor file ("
+      << config->getValue("endpoints_to_monitor")
       << ") couldnt be opened!\n  Please define the correct filter file "
       << "or set this parameter to \"all\" to consider every EndPoint.\n  Exiting.\n";
     std::cerr << Error.str();
@@ -1623,7 +1623,7 @@ void Stat::test(StatStore * store) {
 
   // 1) LEARN/UPDATE PHASE
   // Parsing data to see whether the recorded EndPoints already exist
-  // in our  "std::map<EndPoint, Samples> SampleData" respective
+  // in our  "std::map<EndPoint, WkpParams> WkpData" respective
   // "std::map<EndPoint, CusumParams> CusumData" container.
   // If not, then we add it as a new pair <EndPoint, *>.
   // If yes, then we update the corresponding entry using
@@ -1642,45 +1642,38 @@ void Stat::test(StatStore * store) {
     // PreviousData[Data_it->first] will automaticaly be an Info structure
     // with all fields set to 0.
 
+    std::vector<int64_t> metric_data;
+    std::vector<int64_t> pca_metric_data;
+
     // Do stuff for wkp-tests (if at least one of them is enabled)
     if (enable_wkp_test == true) {
 
-      std::vector<int64_t> metric_data;
-      std::vector<int64_t> pca_metric_data;
+      std::map<EndPoint, WkpParams>::iterator WkpData_it =
+        WkpData.find(Data_it->first);
 
-      std::map<EndPoint, Samples>::iterator SampleData_it =
-        SampleData.find(Data_it->first);
-
-      if (SampleData_it == SampleData.end()) {
+      if (WkpData_it == WkpData.end()) {
 
         // We didn't find the recorded EndPoint Data_it->first
-        // in our sample container "SampleData"; that means it's a new one,
-        // so we just add it in "SampleData"; there will not be jeopardy
-        // of memory exhaustion through endless growth of the "SampleData" map
+        // in our sample container "WkpData"; that means it's a new one,
+        // so we just add it in "WkpData"; there will not be jeopardy
+        // of memory exhaustion through endless growth of the "WkpData" map
         // as limits are implemented in the StatStore class (EndPointListMaxSize)
 
-        Samples S;
+        WkpParams S;
         if (use_pca == true) {
-          S.cov = gsl_matrix_calloc (metrics.size(), metrics.size());
-          S.evec = gsl_matrix_calloc (metrics.size(), metrics.size());
-          // initialize sumsOfMetrics and sumsOfProducts
-          for (int i = 0; i < metrics.size(); i++) {
-            S.sumsOfMetrics.push_back(0);
-            std::vector<long long int> v;
-            S.sumsOfProducts.push_back(v);
-            for (int j = 0; j < metrics.size(); j++)
-              S.sumsOfProducts.at(i).push_back(0);
-            // TODO
-            // Hier Dateihandler o. ä. initialisieren
-          }
+          // initialize pca stuff
+          S.init(metrics.size());
+          S.correspondingEndPoint = (Data_it->first).toString();
           pca_metric_data = extract_pca_data(S, Data_it->second, prev);
         }
         else {
           metric_data = extract_data(Data_it->second, prev);
           (S.Old).push_back(metric_data);
+          S.correspondingEndPoint = (Data_it->first).toString();
         }
 
-        SampleData[Data_it->first] = S;
+        WkpData[Data_it->first] = S;
+
         if (logfile_output_verbosity >= 3) {
           logfile << " (WKP): New monitored EndPoint added" << std::endl;
           if (logfile_output_verbosity >= 4 && use_pca == false) {
@@ -1691,38 +1684,22 @@ void Stat::test(StatStore * store) {
       }
       else {
         // We found the recorded EndPoint Data_it->first
-        // in our sample container "SampleData"; so we update the samples
-        // (SampleData_it->second).Old and (SampleData_it->second).New
+        // in our sample container "WkpData"; so we update the samples
+        // (WkpData_it->second).Old and (WkpData_it->second).New
         // thanks to the recorded new value in Data_it->second:
         if (use_pca == true) {
-          pca_metric_data = extract_pca_data(SampleData_it->second, Data_it->second, prev);
-          update ( SampleData_it->second, pca_metric_data );
+          pca_metric_data = extract_pca_data(WkpData_it->second, Data_it->second, prev);
+          wkp_update ( WkpData_it->second, pca_metric_data );
         }
         else {
           metric_data = extract_data(Data_it->second, prev);
-          update ( SampleData_it->second, metric_data );
+          wkp_update ( WkpData_it->second, metric_data );
         }
       }
-
-      // Create metric files, if wished so
-      if (createFiles == true) {
-        // TODO
-        // Dateinamen irgendwie aus dem Dateihandler zusammenschustern
-        std::string fname = "metrics_" + (Data_it->first).toString() + ".txt";
-        std::ofstream file(fname.c_str(),std::ios_base::app);
-        for (int i = 0; i != metric_data.size(); i++)
-          file << metric_data.at(i) << " ";
-        file << test_counter << "\n";
-        file.close();
-      }
-
     }
 
     // Do stuff for cusum-test (if enabled)
     if (enable_cusum_test == true) {
-
-      std::vector<int64_t> metric_data;
-      std::vector<int64_t> pca_metric_data;
 
       std::map<EndPoint, CusumParams>::iterator CusumData_it = CusumData.find(Data_it->first);
 
@@ -1743,21 +1720,12 @@ void Stat::test(StatStore * store) {
           (C.last_cusum_test_was_attack).push_back(false);
           (C.X_curr).push_back(0);
           (C.X_last).push_back(0);
-          // TODO
-          // Hier Dateihandler o. ä. initialisieren
         }
 
         if (use_pca == true) {
-          C.cov = gsl_matrix_calloc (metrics.size(), metrics.size());
-          C.evec = gsl_matrix_calloc (metrics.size(), metrics.size());
-          // initialize sumsOfMetrics and sumsOfProducts
-          for (int i = 0; i < metrics.size(); i++) {
-            C.sumsOfMetrics.push_back(0);
-            std::vector<long long int> v;
-            C.sumsOfProducts.push_back(v);
-            for (int j = 0; j < metrics.size(); j++)
-              C.sumsOfProducts.at(i).push_back(0);
-          }
+          // initialize pca stuff
+          C.init(metrics.size());
+          C.correspondingEndPoint = (Data_it->first).toString();
           pca_metric_data = extract_pca_data(C, Data_it->second, prev);
         }
         else { // no learning phase for pca ...
@@ -1765,10 +1733,10 @@ void Stat::test(StatStore * store) {
           // add first value of each metric to the sum, which is needed
           // only to calculate the initial alpha after learning_phase_for_alpha
           // is over
-          for (int i = 0; i != v.size(); i++)
-            C.sum.at(i) += v.at(i);
-
+          for (int i = 0; i != metric_data.size(); i++)
+            C.sum.at(i) += metric_data.at(i);
           C.learning_phase_nr_for_alpha = 1;
+          C.correspondingEndPoint = (Data_it->first).toString();
         }
 
         CusumData[Data_it->first] = C;
@@ -1781,26 +1749,43 @@ void Stat::test(StatStore * store) {
         // thanks to the recorded new values in Data_it->second:
         if (use_pca == true) {
           pca_metric_data = extract_pca_data(CusumData_it->second, Data_it->second, prev);
-          update_c ( CusumData_it->second, pca_metric_data );
+          cusum_update ( CusumData_it->second, pca_metric_data );
         }
         else {
           metric_data = extract_data(Data_it->second, prev);
-          update_c ( CusumData_it->second, metric_data );
+          cusum_update ( CusumData_it->second, metric_data );
         }
       }
+    }
 
-      // Create metric files, if wished so
-      if (createFiles == true) {
-        // TODO
-        // Dateinamen irgendwie aus dem Dateihandler zusammenschustern
-        std::string fname = "pca_metrics_" + (Data_it->first).toString() + ".txt";
-        std::ofstream file(fname.c_str(),std::ios_base::app);
+    // Create metric files, if wished so
+    // (this can be done here, because metrics are the same for both tests)
+    if (createFiles == true) {
+
+      std::string fname;
+
+      if (use_pca == true)
+        fname = "pca_metrics_" + (Data_it->first).toString() + ".txt";
+      else
+        fname = "metrics_" + (Data_it->first).toString() + ".txt";
+
+      // TODO:
+      // Erst in das output_dir-Verzeichnis wechseln und die Dateien dort erstellen
+
+      std::ofstream file(fname.c_str(),std::ios_base::app);
+
+      if (use_pca == true) {
         for (int i = 0; i != pca_metric_data.size(); i++)
           file << pca_metric_data.at(i) << " ";
         file << test_counter << "\n";
-        file.close();
+      }
+      else {
+        for (int i = 0; i != metric_data.size(); i++)
+          file << metric_data.at(i) << " ";
+        file << test_counter << "\n";
       }
 
+      file.close();
     }
 
     Data_it++;
@@ -1813,7 +1798,7 @@ void Stat::test(StatStore * store) {
   // how many endpoints do we already monitor?
   int ep_nr;
   if (enable_wkp_test == true)
-    ep_nr = SampleData.size();
+    ep_nr = WkpData.size();
   else if (enable_cusum_test == true)
     ep_nr = CusumData.size();
 
@@ -1822,16 +1807,16 @@ void Stat::test(StatStore * store) {
 
     if (enable_wkp_test == true) {
       logfile << "### WKP OVERVIEW" << std::endl;
-      std::map<EndPoint,Samples>::iterator SampleData_it =
-        SampleData.begin();
-      while (SampleData_it != SampleData.end()) {
+      std::map<EndPoint,WkpParams>::iterator WkpData_it =
+        WkpData.begin();
+      while (WkpData_it != WkpData.end()) {
         logfile
-          << "[[ " << SampleData_it->first << " ]]\n"
-          << "  sample_old (" << (SampleData_it->second).Old.size()  << ") : "
-          << (SampleData_it->second).Old << "\n"
-          << "  sample_new (" << (SampleData_it->second).New.size() << ") : "
-          << (SampleData_it->second).New << "\n";
-        SampleData_it++;
+          << "[[ " << WkpData_it->first << " ]]\n"
+          << "  sample_old (" << (WkpData_it->second).Old.size()  << ") : "
+          << (WkpData_it->second).Old << "\n"
+          << "  sample_new (" << (WkpData_it->second).New.size() << ") : "
+          << (WkpData_it->second).New << "\n";
+        WkpData_it++;
       }
     }
     if (enable_cusum_test == true) {
@@ -1862,25 +1847,23 @@ void Stat::test(StatStore * store) {
 
   if (MakeStatTest == true) {
     // We begin testing as soon as possible, i.e.
-    // for WKP:
-      // as soon as a sample is big enough to test, i.e. when its
-      // learning phase is over.
-    // for CUSUM:
-      // as soon as we have enough values for calculating the initial
-      // values of alpha
-    // The other endpoints in the "SampleData" and "CusumData"
+    // for WKP: as soon as a sample is big enough to test, i.e. when its
+    // learning phase is over.
+    // for CUSUM: as soon as we have enough values for calculating the initial
+    // values of alpha
+    // The other endpoints in the "WkpData" and "CusumData"
     // maps are let learning.
 
     if (enable_wkp_test == true) {
-      std::map<EndPoint,Samples>::iterator SampleData_it = SampleData.begin();
-      while (SampleData_it != SampleData.end()) {
-        if ( ((SampleData_it->second).New).size() == sample_new_size ) {
+      std::map<EndPoint,WkpParams>::iterator WkpData_it = WkpData.begin();
+      while (WkpData_it != WkpData.end()) {
+        if ( ((WkpData_it->second).New).size() == sample_new_size ) {
           // i.e., learning phase over
           if (logfile_output_verbosity > 0)
-            logfile << "\n#### WKP TESTS for EndPoint [[ " << SampleData_it->first << " ]]\n";
-          stat_test ( SampleData_it->second );
+            logfile << "\n#### WKP TESTS for EndPoint [[ " << WkpData_it->first << " ]]\n";
+          stat_test ( WkpData_it->second );
         }
-        SampleData_it++;
+        WkpData_it++;
       }
     }
 
@@ -2093,19 +2076,20 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
   return result;
 }
 
+// TODO:
+// check, what happens, when WkpParams or CusumParams is casted to Params!
 // needed for pca to extract the new values (for learning and testing)
-// cusum version
-std::vector<int64_t> Stat::extract_pca_data (CusumParams & C, const Info & info, const Info & prev) {
+std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, const Info & prev) {
 
   std::vector<int64_t> result;
 
   // learning phase
-  if (C.pca_ready == false) {
-    if (C.learning_phase_nr_for_pca < learning_phase_for_pca) {
+  if (P.pca_ready == false) {
+    if (P.learning_phase_nr_for_pca < learning_phase_for_pca) {
       // update sumsOfMetrics and sumsOfProducts
       std::vector<int64_t> v = extract_data(info, prev);
       for (int i = 0; i < metrics.size(); i++) {
-        C.sumsOfMetrics.at(i) += v.at(i);
+        P.sumsOfMetrics.at(i) += v.at(i);
         for (int j = 0; j < metrics.size(); j++) {
           // sumsOfProducts is a matrix which holds all the sums
           // of the product of each two metrics;
@@ -2113,20 +2097,20 @@ std::vector<int64_t> Stat::extract_pca_data (CusumParams & C, const Info & info,
           // because of commutativity of multiplication
           // i. e. metric1*metric2 = metric2*metric1
           if (j >= i)
-            C.sumsOfProducts.at(i).at(j) += v.at(i)*v.at(j);
+            P.sumsOfProducts.at(i).at(j) += v.at(i)*v.at(j);
         }
       }
 
-      C.learning_phase_nr_for_pca++;
+      P.learning_phase_nr_for_pca++;
       return result; // empty
     }
     // end of learning phase
-    else if (C.learning_phase_nr_for_pca == learning_phase_for_pca) {
+    else if (P.learning_phase_nr_for_pca == learning_phase_for_pca) {
 
       // calculate covariance matrix
       for (int i = 0; i < metrics.size(); i++) {
         for (int j = 0; j < metrics.size(); j++)
-          gsl_matrix_set(C.cov,i,j,covariance(C.sumsOfProducts.at(i).at(j),C.sumsOfMetrics.at(i),C.sumsOfMetrics.at(j)));
+          gsl_matrix_set(P.cov,i,j,covariance(P.sumsOfProducts.at(i).at(j),P.sumsOfMetrics.at(i),P.sumsOfMetrics.at(j)));
       }
 
       // calculate eigenvectors and -values
@@ -2135,10 +2119,10 @@ std::vector<int64_t> Stat::extract_pca_data (CusumParams & C, const Info & info,
       gsl_eigen_symmv_workspace * w = gsl_eigen_symmv_alloc (metrics.size());
       // computation of eigenvectors (evec) and -values (eval) from
       // covariance matrix (cov)
-      gsl_eigen_symmv (C.cov, eval, C.evec, w);
+      gsl_eigen_symmv (P.cov, eval, P.evec, w);
       gsl_eigen_symmv_free (w);
       // sort the eigenvectors by their corresponding eigenvalue
-      gsl_eigen_symmv_sort (eval, C.evec, GSL_EIGEN_SORT_VAL_DESC);
+      gsl_eigen_symmv_sort (eval, P.evec, GSL_EIGEN_SORT_VAL_DESC);
       gsl_vector_free (eval);
 
       // now, we have our components stored in each column of
@@ -2146,7 +2130,7 @@ std::vector<int64_t> Stat::extract_pca_data (CusumParams & C, const Info & info,
 
       // From now on, matrix evec can be used to transform the new arriving data
 
-      C.pca_ready = true; // so this code will never be visited again
+      P.pca_ready = true; // so this code will never be visited again
 
       if (logfile_output_verbosity >= 3)
         logfile << "(CUSUM): PCA learning phase is over! PCA is now ready!" << std::endl;
@@ -2169,94 +2153,7 @@ std::vector<int64_t> Stat::extract_pca_data (CusumParams & C, const Info & info,
   // transformed_data = data * evec
   gsl_matrix *transformed_metric_data = gsl_matrix_calloc (1, metrics.size());
   gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,
-                       1.0, new_metric_data, C.evec,
-                       0.0, transformed_metric_data);
-
-  // transform the matrix with the transformed data back into a vector
-  for (int i = 0; i < metrics.size(); i++)
-    result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,0,i));
-
-  gsl_matrix_free(new_metric_data);
-  gsl_matrix_free(transformed_metric_data);
-
-  return result; // filled with new transformed values
-}
-
-// needed for pca to extract the new values (for learning and testing)
-// cusum version
-std::vector<int64_t> Stat::extract_pca_data (Samples & S, const Info & info, const Info & prev) {
-
-  std::vector<int64_t> result;
-
-  // learning phase
-  if (S.pca_ready == false) {
-    if (S.learning_phase_nr_for_pca < learning_phase_for_pca) {
-      // update sumsOfMetrics and sumsOfProducts
-      std::vector<int64_t> v = extract_data(info, prev);
-      for (int i = 0; i < metrics.size(); i++) {
-        S.sumsOfMetrics.at(i) += v.at(i);
-        for (int j = 0; j < metrics.size(); j++) {
-          // sumsOfProducts is a matrix which holds all the sums
-          // of the product of each two metrics;
-          // elements beneath the main diagonal (j < i) are irrelevant
-          // because of commutativity of multiplication
-          // i. e. metric1*metric2 = metric2*metric1
-          if (j >= i)
-            S.sumsOfProducts.at(i).at(j) += v.at(i)*v.at(j);
-        }
-      }
-
-      S.learning_phase_nr_for_pca++;
-      return result; // empty
-    }
-    // end of learning phase
-    else if (S.learning_phase_nr_for_pca == learning_phase_for_pca) {
-
-      // calculate covariance matrix
-      for (int i = 0; i < metrics.size(); i++) {
-        for (int j = 0; j < metrics.size(); j++)
-          gsl_matrix_set(S.cov,i,j,covariance(S.sumsOfProducts.at(i).at(j),S.sumsOfMetrics.at(i),S.sumsOfMetrics.at(j)));
-      }
-
-      // calculate eigenvectors and -values
-      gsl_vector *eval = gsl_vector_alloc (metrics.size());
-      // some workspace needed for computation
-      gsl_eigen_symmv_workspace * w = gsl_eigen_symmv_alloc (metrics.size());
-      // computation of eigenvectors (evec) and -values (eval) from
-      // covariance matrix (cov)
-      gsl_eigen_symmv (S.cov, eval, S.evec, w);
-      gsl_eigen_symmv_free (w);
-      // sort the eigenvectors by their corresponding eigenvalue
-      gsl_eigen_symmv_sort (eval, S.evec, GSL_EIGEN_SORT_VAL_DESC);
-      gsl_vector_free (eval);
-
-      // now, we have our components stored in each column of
-      // evec, first column = most important, last column = least important
-
-      // From now on, evec can be used to transform the new arriving data
-
-      if (logfile_output_verbosity >= 3)
-        logfile << "(WKP): PCA learning phase is over! PCA is now ready!" << std::endl;
-
-      S.pca_ready = true; // so this code will never be visited again
-      return result; // empty
-    }
-  }
-
-  // testing phase
-
-  // fetch new metric data
-  std::vector<int64_t> v = extract_data(info,prev);
-  // transform it into a matrix (needed for multiplication)
-  // 1*X matrix with X = #metrics,
-  gsl_matrix *new_metric_data = gsl_matrix_calloc (1, metrics.size());
-  for (int i = 0; i < metrics.size(); i++)
-    gsl_matrix_set(new_metric_data,0,i,v.at(i));
-
-  // matrix multiplication to get the transformed data
-  gsl_matrix *transformed_metric_data = gsl_matrix_calloc (1, metrics.size());
-  gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,
-                       1.0, new_metric_data, S.evec,
+                       1.0, new_metric_data, P.evec,
                        0.0, transformed_metric_data);
 
   // transform the matrix with the transformed data back into a vector
@@ -2274,7 +2171,7 @@ std::vector<int64_t> Stat::extract_pca_data (Samples & S, const Info & info, con
 
 // learn/update function for samples (called everytime test() is called)
 //
-void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
+void Stat::wkp_update ( WkpParams & S, const std::vector<int64_t> & new_value ) {
 
   // Updates for pca metrics have to wait for the pca learning phase
   // needed to calculate the eigenvectors
@@ -2368,7 +2265,7 @@ void Stat::update ( Samples & S, const std::vector<int64_t> & new_value ) {
 
 
 // and the update funciotn for the cusum-test
-void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) {
+void Stat::cusum_update ( CusumParams & C, const std::vector<int64_t> & new_value ) {
 
   // Updates for pca metrics have to wait for the pca learning phase
   // needed to calculate the eigenvectors
@@ -2504,7 +2401,7 @@ void Stat::update_c ( CusumParams & C, const std::vector<int64_t> & new_value ) 
 
 // statistical test function / wkp-tests
 // (optional, depending on how often the user wishes to do it)
-void Stat::stat_test (Samples & S) {
+void Stat::stat_test (WkpParams & S) {
 
   // Containers for the values of single metrics
   std::list<int64_t> sample_old_single_metric;
@@ -2569,15 +2466,13 @@ void Stat::stat_test (Samples & S) {
     // generate output files, if wished
     if (createFiles == true) {
 
-      // TODO
-      // Dateinamen und/oder Dateihandler o. ä. in Klasse einbauen!
       std::string filename;
       if (use_pca == false)
-        filename = "wkpparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+        filename = "wkpparams_" + S.correspondingEndPoint + "_" + getMetricName(*it) + ".txt";
       else {
         std::stringstream tmp;
         tmp << index;
-        filename = "wkpparams_" + EP.toString() + "_pca_component_" + tmp.str() + ".txt";
+        filename = "wkpparams_" + S.correspondingEndPoint  + "_pca_component_" + tmp.str() + ".txt";
       }
 
       // replace the decimal point by a comma
@@ -2602,6 +2497,9 @@ void Stat::stat_test (Samples & S) {
       i = str_p_pcs.find('.',0);
       if (i != std::string::npos)
         str_p_pcs.replace(i, 1, 1, ',');
+
+      // TODO
+      // Erst in output_dir-Verzeichnsi wechseln und Dateien dort erstellen!
 
       std::ofstream file(filename.c_str(), std::ios_base::app);
       // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
@@ -2682,12 +2580,12 @@ void Stat::cusum_test(CusumParams & C) {
         if (logfile_output_verbosity >= 2) {
           logfile
             << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-            << "    " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
+            << "    " << C.correspondingEndPoint << " for metric " << getMetricName(*it) << "\n"
             << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
             << "    ALARM! ALARM! Women und children first!" << std::endl;
           std::cout
             << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
-            << "  " << EP.toString() << " for metric " << getMetricName(*it) << "\n"
+            << "  " << C.correspondingEndPoint << " for metric " << getMetricName(*it) << "\n"
             << "  Cusum test says we're under attack!\n"
             << "  ALARM! ALARM! Women und children first!" << std::endl;
         }
@@ -2704,16 +2602,18 @@ void Stat::cusum_test(CusumParams & C) {
     }
 
     if (createFiles == true) {
-      // TODO
-      // Dateinamen und/oder Dateihandler o. ä. in Klasse einbauen!
+
       std::string filename;
       if (use_pca == false)
-        filename = "cusumparams_" + EP.toString() + "_" + getMetricName(*it) + ".txt";
+        filename = "cusumparams_" + C.correspondingEndPoint  + "_" + getMetricName(*it) + ".txt";
       else {
         std::stringstream tmp;
         tmp << i;
-        filename = "cusumparams_" + EP.toString() + "_pca_component_" + tmp.str() + ".txt";
+        filename = "cusumparams_" + C.correspondingEndPoint  + "_pca_component_" + tmp.str() + ".txt";
       }
+
+      // TODO
+      // Erst in output_dir-Verzeichnsi wechseln und Dateien dort erstellen!
 
       std::ofstream file(filename.c_str(), std::ios_base::app);
       // X  g N alpha beta #alarms counter

@@ -26,7 +26,7 @@
 
 
 StatStore::StatStore()
-  : e_source(IpAddress(0,0,0,0),0,0), e_dest(IpAddress(0,0,0,0),0,0) {
+  : e_source(IpAddress(0,0,0,0),32,0,0), e_dest(IpAddress(0,0,0,0),32,0,0) {
 
   packet_nb = byte_nb = 0;
 
@@ -44,7 +44,7 @@ bool StatStore::recordStart(SourceID sourceId) {
     return false;
 
   packet_nb = byte_nb = 0;
-  e_source = e_dest = EndPoint(IpAddress(0,0,0,0),0,0);
+  e_source = e_dest = EndPoint(IpAddress(0,0,0,0),32,0,0);
 
   return true;
 
@@ -70,9 +70,6 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
         return;
       }
 
-      // *fielData is a protocol number, so is 1 byte (= uint8_t) long
-      // remember to cast it into an uint16_t (= unsigned int)
-      // if you want to print it!
       e_source.setProtocolID(*fieldData);
       e_dest.setProtocolID(*fieldData);
 
@@ -315,7 +312,7 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store)
 
     IpAddress ip = IpAddress(0,0,0,0);
     ip.fromString(ipstr);
-    EndPoint e = EndPoint(ip, atoi(portstr.c_str()), atoi(protostr.c_str()));
+    EndPoint e = EndPoint(ip, 32, atoi(portstr.c_str()), atoi(protostr.c_str()));
     //std::cout << "e: " << e << std::endl;
 
     // extract metric-data
@@ -335,7 +332,7 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store)
 
 // returns true, if we arent interested in EndPoint e
 // (false otherwise)
-bool StatStore::filterEndPoint (const EndPoint & e) {
+bool StatStore::filterEndPoint (EndPoint & e) {
 
   std::vector<EndPoint>::iterator it = EndPointFilter.begin();
 
@@ -347,7 +344,7 @@ bool StatStore::filterEndPoint (const EndPoint & e) {
     e.setNetMask(it->getNetMask());
 
     // compare ip addresses (netmask already applied)
-    if ( e.getIpAddress() != it->getIpAddress() )
+    if ( !(e.getIpAddress() == it->getIpAddress()) )
       return true;
     if  (e.getPortNr() != it->getPortNr() && it->getPortNr() != -1 )
       return true;
@@ -367,7 +364,7 @@ std::map<EndPoint,Info> StatStore::PreviousData;
 // by the Stat::init() function, we have to provide some initial values
 // in the implementation file of the related class;
 
-std::map<EndPoint,short> StatStore::EndPointFilter;
+std::vector<EndPoint> StatStore::EndPointFilter;
 bool StatStore::MonitorEveryEndPoint = false;
 
 std::vector<EndPoint> StatStore::EndPointList;

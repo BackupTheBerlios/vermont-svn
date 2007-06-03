@@ -44,7 +44,7 @@
     <noise_threshold_packets>0</noise_threshold_packets>
     <noise_threshold_bytes>0</noise_threshold_bytes>
     <endpointlist_maxsize>1000000</endpointlist_maxsize>
-    <endpoint_filter>all</endpoint_filter>
+    <endpoints_to_monitor>all</endpoints_to_monitor>
     <x_frequently_endpoints>5</x_frequently_endpoints>
     <stat_test_frequency>1</stat_test_frequency>
     <report_only_first_attack>true</report_only_first_attack>

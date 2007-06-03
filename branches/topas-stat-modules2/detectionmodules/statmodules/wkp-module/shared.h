@@ -49,8 +49,8 @@ class EndPoint {
 
     IpAddress ipAddr;
     short netmask;
-    int  portNr;
-    byte  protocolID;
+    int portNr;
+    int protocolID;
 
     friend std::ostream& operator << (std::ostream&, const EndPoint&);
 
@@ -65,9 +65,9 @@ class EndPoint {
 
     }
 
-    EndPoint(const IpAddress & ip, short nmask, int port, byte protocol) : ipAddr (ip[0], ip[1], ip[2], ip[3]) {
+    EndPoint(const IpAddress & ip, short nmask, int port, int protocol) : ipAddr (ip[0], ip[1], ip[2], ip[3]) {
 
-      if (nmask >= 0 && nmask < 32) {
+      if (nmask >= 0 && nmask <= 32) {
         netmask = nmask;
         applyNetMask();
       }
@@ -82,7 +82,7 @@ class EndPoint {
     }
 
     // copy constructor
-    EndPoint(const EndPoint & e) : ipAddr(e.ipAddr[0], e.ipAddr[1], e.ipAddr[2],        e.ipAddr[3]){
+    EndPoint(const EndPoint & e) : ipAddr(e.ipAddr[0], e.ipAddr[1], e.ipAddr[2], e.ipAddr[3]){
 
       netmask = e.netmask;
       // no need to apply it, because it was already applied
@@ -138,12 +138,12 @@ class EndPoint {
       portNr = p;
     }
 
-    void setProtocolID(const byte & pid) {
+    void setProtocolID(const int & pid) {
       protocolID = pid;
     }
 
     void setNetMask(const short & n) {
-      if (n >= 0 && n < 32) {
+      if (n >= 0 && n <= 32) {
         netmask = n;
         applyNetMask();
       }
@@ -156,7 +156,7 @@ class EndPoint {
 
     IpAddress getIpAddress() const { return ipAddr; }
     int getPortNr() const { return portNr; }
-    byte getProtocolID() const { return protocolID; }
+    int getProtocolID() const { return protocolID; }
     short getNetMask() const { return netmask; }
 
     void applyNetMask();
