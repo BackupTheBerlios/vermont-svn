@@ -25,7 +25,7 @@
 #include "snortstore.h"
 
 
-#include <concentrator/ipfix.h>
+#include <concentrator/ipfix.hpp>
 
 
 #include <cstring>
@@ -40,7 +40,7 @@ SnortStore::~SnortStore() {
 	delete packet;
 }
 
-void SnortStore::addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid) {
+void SnortStore::addFieldData(int id, uint8_t* fieldData, int fieldDataLength, IpfixRecord::FieldInfo::Type::EnterpriseNo eid) {
 	switch (id) {
 		// IP-Header
 		case IPFIX_TYPEID_sourceIPv4Address:
@@ -144,7 +144,7 @@ void SnortStore::addFieldData(int id, byte* fieldData, int fieldDataLength, Ente
 	}
 }
 
-bool SnortStore::recordStart(SourceID sourceid) {
+bool SnortStore::recordStart(IpfixRecord::SourceID sourceid) {
 	is_valid=true;
 	packet = new PcapPacket;
 	packet->ts_sec =time(NULL);

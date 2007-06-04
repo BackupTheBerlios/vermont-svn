@@ -30,6 +30,7 @@
 #include <ctime>
 #include <iostream>
 #include <algorithm>
+#include <boost/smart_ptr.hpp>
 
 
 FileRecorder::FileRecorder(const std::string& s, bool rec)
@@ -80,7 +81,7 @@ unsigned int FileRecorder::usecs()
 	return (tv.tv_sec * 1000000) + (tv.tv_usec);
 }
 
-void FileRecorder::record(const byte* data, uint16_t len)
+void FileRecorder::record(const uint8_t* data, uint16_t len)
 {
 	if (!recording) {
 		return;
@@ -98,9 +99,10 @@ void FileRecorder::play()
 {
 	std::string line;
 	FILE* fd;
-	byte* data = new byte[config_space::MAX_IPFIX_PACKET_LENGTH];
+	uint8_t* data = new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH];
 	unsigned int time;
 	unsigned long fileNumber;
+	boost::shared_ptr<IpfixRecord::SourceID> sourceID(new IpfixRecord::SourceID); //FIXME: initialize SourceID to something (remotely) sensible
 	std::ofstream originalValues("filerecorder.orig");
 	std::ofstream replayValues("filerecorder.replay");
 	while (std::getline(indexFile, line) && !do_abort) {
@@ -135,7 +137,7 @@ void FileRecorder::play()
 		replayValues   << t    / 1000 << std::endl;
 		
 		if (packetCallback) {
-			packetCallback(NULL, data, len);
+			packetCallback->processPacket(boost::shared_array<uint8_t>(data), len, sourceID);
 		}
 
 	}

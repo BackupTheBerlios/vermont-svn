@@ -33,7 +33,7 @@ PrintStore::PrintStore()
 
 }
 
-bool PrintStore::recordStart(SourceID) {
+bool PrintStore::recordStart(IpfixRecord::SourceID) {
 
   if (recordStarted)
     std::cerr << "PrintStore::recordStart() was called while having a started record!\n";
@@ -42,8 +42,8 @@ bool PrintStore::recordStart(SourceID) {
 
 }
 
-void PrintStore::addFieldData(int id, byte * fieldData, int fieldDataLength,
-			      EnterpriseNo eid) {
+void PrintStore::addFieldData(int id, uint8_t * fieldData, int fieldDataLength,
+			      IpfixRecord::FieldInfo::Type::EnterpriseNo eid) {
 
   // we subscribed to (see Print::init()):
   // - IPFIX_TYPEID_flowStartSeconds and IPFIX_TYPEID_flowEndSeconds

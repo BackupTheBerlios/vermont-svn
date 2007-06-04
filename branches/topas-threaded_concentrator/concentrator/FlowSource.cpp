@@ -18,27 +18,21 @@
  *
  */
 
-#ifndef _IPFIX_RECEIVER_UDPIPV4_H_
-#define _IPFIX_RECEIVER_UDPIPV4_H_
+#include "FlowSource.hpp"
 
-#include <pthread.h>
-#include <stdint.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <list>
+FlowSource::FlowSource() {
+}
 
-#include "IpfixReceiver.hpp"
-#include "IpfixPacketProcessor.hpp"
+FlowSource::~FlowSource() {
+}
 
-class IpfixReceiverUdpIpV4 : public IpfixReceiver {
-	public:
-		IpfixReceiverUdpIpV4(int port);
-		virtual ~IpfixReceiverUdpIpV4();
+void FlowSource::addFlowSink(FlowSink* flowSink) {
+	flowSinks.push_back(flowSink);
+}
 
-		virtual void run();
-	private:
-		int listen_socket;
-};
+void FlowSource::push(boost::shared_ptr<IpfixRecord> ipfixRecord) {
+	for (FlowSinks::iterator i = flowSinks.begin(); i != flowSinks.end(); i++) {
+		(*i)->push(ipfixRecord);
+	}
+}
 
-#endif

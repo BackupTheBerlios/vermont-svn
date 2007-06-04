@@ -67,7 +67,7 @@ SemShmNotifier::SemShmNotifier()
 			
 		}
 		
-		IpfixShm::setShmPointer((byte*)ptr);
+		IpfixShm::setShmPointer((uint8_t*)ptr);
 		IpfixShm::setShmSize(nps->getStorageSize());
 	}
 }

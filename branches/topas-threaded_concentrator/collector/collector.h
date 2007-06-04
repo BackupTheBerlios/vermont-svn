@@ -23,8 +23,10 @@
  * @author Lothar Braun <braunl@informatik.uni-tuebingen.de>
  */
 
-#include <concentrator/ipfix.h>
-#include <concentrator/rcvIpfix.h>
+#include <concentrator/ipfix.hpp>
+#include <concentrator/IpfixCollector.hpp>
+#include <concentrator/IpfixReceiverUdpIpV4.hpp>
+#include <concentrator/IpfixPacketProcessor.hpp>
 #include <commonutils/metering.h>
 
 
@@ -43,7 +45,7 @@ class XMLConfObj;
  * a detectionmodule exporter object.
  * The detection module manager is started and controlled by this class 
  */
-class Collector
+class Collector : public IpfixPacketProcessor
 {
 public:
         /**
@@ -84,7 +86,7 @@ public:
          * Sets collectors receiver type (TCP/IPv4, UDP/Ipv4, ...)
          * @param r_t Type of receiver
          */
-        void setReceiverType(Receiver_Type r_t);
+        //void setReceiverType(Receiver_Type r_t);
 
  private:
         static Manager* man;
@@ -148,7 +150,7 @@ public:
          * @param len Length of extracted data
          * @return 0 if operation succeded, -1 otherwise
          */
-        static int messageCallBackFunction(IpfixParser*, byte* data, uint16_t len);
+	virtual int processPacket(boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<IpfixRecord::SourceID> sourceId);
 
         /**
          * Signal handler for signal SIGINT.
@@ -159,7 +161,7 @@ public:
 
 
         int listenPort;
-        Receiver_Type receiverType;
+        //Receiver_Type receiverType;
 };
 
 #endif

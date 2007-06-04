@@ -20,7 +20,7 @@
 #define _RECORDER_H_
 
 
-#include <concentrator/rcvIpfix.h>
+#include <concentrator/IpfixReceiver.hpp>
 
 
 #include <string>
@@ -56,7 +56,7 @@ public:
 	 * @param data Ipfix packet data
 	 * @param len Length of data.
 	 */
-        virtual void record(const byte* data, uint16_t len) = 0;
+        virtual void record(const uint8_t* data, uint16_t len) = 0;
 
 	/**
 	 * Interface method for replaying recorded IPFIX packets. This method is intended
@@ -71,12 +71,12 @@ public:
 	 * Sets the callback function which is called whenever a packet has to be sent to
 	 * the collector when replaying IPFIX traffic.
 	 */
-	void setPacketCallback(ProcessPacketCallbackFunction* pp) {
+	void setPacketCallback(IpfixPacketProcessor* pp) {
 		packetCallback = pp;
 	}
 
 protected:
-	ProcessPacketCallbackFunction* packetCallback;
+	IpfixPacketProcessor* packetCallback;
 	bool recording;
 	volatile bool do_abort;
 };
@@ -99,7 +99,7 @@ public:
          * @param data Ipfix packet data
          * @param len Length of data.       
 	 */
-        virtual void record(const byte* data, uint16_t len) {}
+        virtual void record(const uint8_t* data, uint16_t len) {}
 
 	/**
 	 * Dummy play function. Will return immediately.
@@ -139,7 +139,7 @@ public:
          * @param data Ipfix packet data
          * @param len Length of data.	 
 	 */
-        virtual void record(const byte* data, uint16_t len);
+        virtual void record(const uint8_t* data, uint16_t len);
 
 	/**
 	 * Replays the recorded IPFIX packets. They are passed to the collector depending on the time

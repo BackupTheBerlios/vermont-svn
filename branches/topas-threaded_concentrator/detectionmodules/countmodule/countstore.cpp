@@ -29,7 +29,7 @@ bool CountStore::countPerSrcPort = false;
 bool CountStore::countPerDstPort = false;
 
 
-void CountStore::addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid) 
+void CountStore::addFieldData(int id, uint8_t* fieldData, int fieldDataLength, IpfixRecord::FieldInfo::Type::EnterpriseNo eid) 
 {
     switch (id) {
 	case IPFIX_TYPEID_sourceIPv4Address:
@@ -101,7 +101,7 @@ void CountStore::addFieldData(int id, byte* fieldData, int fieldDataLength, Ente
 }
 
 
-bool CountStore::recordStart(SourceID id) 
+bool CountStore::recordStart(IpfixRecord::SourceID id) 
 {
     assert(recordStarted == false);
     flowKey.reset();

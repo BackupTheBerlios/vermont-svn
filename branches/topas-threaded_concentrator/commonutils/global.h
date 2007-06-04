@@ -21,7 +21,7 @@
 
 
 #include "exceptions.h"
-#include "../concentrator/rcvIpfix.h"
+#include "../concentrator/IpfixReceiver.hpp"
 
 
 #include <stdarg.h>
@@ -43,7 +43,7 @@ namespace config_space
         static const unsigned MAX_FILES = 100000;
 
         static const int DEFAULT_LISTEN_PORT = 4711;
-        static const Receiver_Type DEFAULT_TRANSPORT_PROTO = UDP_IPV4;
+        //static const Receiver_Type DEFAULT_TRANSPORT_PROTO = UDP_IPV4;
 
         /* entries in xml-files */
 	static const std::string CONFIGURATION="configuration";

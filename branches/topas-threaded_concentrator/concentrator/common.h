@@ -25,7 +25,7 @@ Free Software Foundation, Inc.,
 
 #include <stdio.h>
 #include <stdint.h>
-#include "ipfix.h"
+#include "ipfix.hpp"
 
 #ifdef __cplusplus
 extern "C" {

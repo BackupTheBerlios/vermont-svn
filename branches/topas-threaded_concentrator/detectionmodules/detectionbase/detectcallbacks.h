@@ -20,18 +20,18 @@
 #define _DETECT_CALLBACKS_H_
 
 
-#include <concentrator/rcvIpfix.h>
+#include <concentrator/IpfixReceiver.hpp>
 //#include <concentrator/msg.h>
 
 
 /**
  * Will be called whenever a new template with SetId 2 arrives.
  * @param handle Control structure
- * @param sourceID SourceID of sending monitoring station
+ * @param sourceID IpfixRecord::SourceID of sending monitoring station
  * @param ti Struct containing information about the received template
  */
 template <class PacketReader, class Storage>
-int newTemplateArrived(void* handle,  SourceID sourceID, TemplateInfo* ti) 
+int newTemplateArrived(void* handle,  IpfixRecord::SourceID sourceID, IpfixRecord::TemplateInfo* ti) 
 {
         return 0;
 }
@@ -46,8 +46,8 @@ int newTemplateArrived(void* handle,  SourceID sourceID, TemplateInfo* ti)
  * @param data Received data set
  */
 template <class PacketReader, class Storage>
-int newDataRecordArrived(void* handle, SourceID sourceID, TemplateInfo* ti,
-                            uint16_t length, FieldData* data) 
+int newDataRecordArrived(void* handle, IpfixRecord::SourceID sourceID, IpfixRecord::TemplateInfo* ti,
+                            uint16_t length, IpfixRecord::Data* data) 
 {
         PacketReader* input = static_cast<PacketReader*>(handle);
         input->recordMutex.lock();
@@ -78,7 +78,7 @@ int newDataRecordArrived(void* handle, SourceID sourceID, TemplateInfo* ti,
  * @param ti Struct containing information about the expired template
  */
 template <class PacketReader, class Storage>
-int templateDestroyed(void* handle, SourceID sourceID, TemplateInfo* ti) 
+int templateDestroyed(void* handle, IpfixRecord::SourceID sourceID, IpfixRecord::TemplateInfo* ti) 
 {
         return 0;
 }
@@ -91,7 +91,7 @@ int templateDestroyed(void* handle, SourceID sourceID, TemplateInfo* ti)
  * @param optionsTemplateInfo Struct containing information about the incoming template
  */
 template <class PacketReader, class Storage>
-int newOptionsTemplateArrived(void* handle, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) 
+int newOptionsTemplateArrived(void* handle, IpfixRecord::SourceID sourceID, IpfixRecord::OptionsTemplateInfo* optionsTemplateInfo) 
 {
         return 0;
 }
@@ -105,8 +105,8 @@ int newOptionsTemplateArrived(void* handle, SourceID sourceID, OptionsTemplateIn
  * @param data Options template data record
  */
 template <class PacketReader, class Storage>
-int newOptionRecordArrived(void* handle, SourceID sourceID, OptionsTemplateInfo* oti,
-                              uint16_t length, FieldData* data) 
+int newOptionRecordArrived(void* handle, IpfixRecord::SourceID sourceID, IpfixRecord::OptionsTemplateInfo* oti,
+                              uint16_t length, IpfixRecord::Data* data) 
 {
         return 0;
 }
@@ -118,7 +118,7 @@ int newOptionRecordArrived(void* handle, SourceID sourceID, OptionsTemplateInfo*
  * @param optionsTemplateInfo Struct, containing information about the expired template.
  */
 template <class PacketReader, class Storage>
-int optionsTemplateDestroyed(void* handle, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo) 
+int optionsTemplateDestroyed(void* handle, IpfixRecord::SourceID sourceID, IpfixRecord::OptionsTemplateInfo* optionsTemplateInfo) 
 {
 
         return 0;
@@ -128,11 +128,11 @@ int optionsTemplateDestroyed(void* handle, SourceID sourceID, OptionsTemplateInf
 /**
  * Will be called whenever a new template with SetId 4 arrives.
  * @param handle Control structure
- * @param sourceID SourceID of sending monitoring station
+ * @param sourceID IpfixRecord::SourceID of sending monitoring station
  * @param dataTemplateInfo Struct containing information about the received template
  */
 template <class PacketReader, class Storage>
-int newDataTemplateArrived(void* handle, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) 
+int newDataTemplateArrived(void* handle, IpfixRecord::SourceID sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo) 
 {
         return 0;
 }
@@ -145,9 +145,9 @@ int newDataTemplateArrived(void* handle, SourceID sourceID, DataTemplateInfo* da
  * @param data Received data set
  */
 template <class PacketReader, class Storage> 
-int newDataRecordFixedFieldsArrived(void* handle, SourceID sourceID,
-                                         DataTemplateInfo* ti, uint16_t length,
-                                         FieldData* data) 
+int newDataRecordFixedFieldsArrived(void* handle, IpfixRecord::SourceID sourceID,
+                                         IpfixRecord::DataTemplateInfo* ti, uint16_t length,
+                                         IpfixRecord::Data* data) 
 {
 
         /* same as with new_data_record_arrived */
@@ -188,7 +188,7 @@ int newDataRecordFixedFieldsArrived(void* handle, SourceID sourceID,
  * @param ti Struct containing information about the expired template
  */
 template <class PacketReader, class Storage>
-int dataTemplateDestroyed(void* handle, SourceID sourceID, DataTemplateInfo* dataTemplateInfo) 
+int dataTemplateDestroyed(void* handle, IpfixRecord::SourceID sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo) 
 {
         return 0;
 }

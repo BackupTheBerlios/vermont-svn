@@ -50,13 +50,13 @@ private:
 
 public:
 
-  DirectedIpAddress (byte, byte, byte, byte, int dir);
-  DirectedIpAddress (const byte tab[4], int dir);
+  DirectedIpAddress (uint8_t, uint8_t, uint8_t, uint8_t, int dir);
+  DirectedIpAddress (const uint8_t tab[4], int dir);
   DirectedIpAddress (const IpAddress &, int dir);
   ~DirectedIpAddress () {}
 
-  void setDirectedIpAddress (byte, byte, byte, byte, int dir);
-  void setDirectedIpAddress (const byte tab[4], int dir);
+  void setDirectedIpAddress (uint8_t, uint8_t, uint8_t, uint8_t, int dir);
+  void setDirectedIpAddress (const uint8_t tab[4], int dir);
   void setDirectedIpAddress (const IpAddress &, int dir);
 
   int getDirection () const {return Direction;}
@@ -66,10 +66,10 @@ public:
   // - mask is only temporary
   // warning: netmask is not checked before being applied
   // use only 0 <= m1,m2,m3,m4 <= 255 (or 0x00 and 0xFF)
-  DirectedIpAddress mask (byte, byte, byte, byte);
-  DirectedIpAddress mask (const byte m[4]);
-  void remanent_mask (byte, byte, byte, byte);
-  void remanent_mask (const byte m[4]);
+  DirectedIpAddress mask (uint8_t, uint8_t, uint8_t, uint8_t);
+  DirectedIpAddress mask (const uint8_t m[4]);
+  void remanent_mask (uint8_t, uint8_t, uint8_t, uint8_t);
+  void remanent_mask (const uint8_t m[4]);
 
   // we need an order relation to use DirectedIpAddress
   // as key field in std::map< key, value >, so:

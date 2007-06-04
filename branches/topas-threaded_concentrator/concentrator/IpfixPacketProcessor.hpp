@@ -18,27 +18,31 @@
  *
  */
 
-#ifndef _IPFIX_RECEIVER_UDPIPV4_H_
-#define _IPFIX_RECEIVER_UDPIPV4_H_
-
-#include <pthread.h>
-#include <stdint.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <list>
+#ifndef INCLUDED_IpfixPacketProcessor_hpp
+#define INCLUDED_IpfixPacketProcessor_hpp
 
 #include "IpfixReceiver.hpp"
-#include "IpfixPacketProcessor.hpp"
 
-class IpfixReceiverUdpIpV4 : public IpfixReceiver {
+#include <list>
+#include <pthread.h>
+#include <stdint.h>
+#include <boost/smart_ptr.hpp>
+#include "IpfixRecord.hpp"
+#include "FlowSink.hpp"
+
+class IpfixParser;
+        
+/**
+ * Controls parsing of incoming packets.
+ * Create witch @c createPacketProcessor()
+ */
+class IpfixPacketProcessor {
 	public:
-		IpfixReceiverUdpIpV4(int port);
-		virtual ~IpfixReceiverUdpIpV4();
+		virtual ~IpfixPacketProcessor() {};
+		virtual int processPacket(boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<IpfixRecord::SourceID> sourceId) = 0; /**< process (e.g. parse and enqueue) the given raw network packet */
 
-		virtual void run();
-	private:
-		int listen_socket;
+	protected:
+
 };
 
 #endif

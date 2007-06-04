@@ -21,7 +21,7 @@
 
 
 #include <commonutils/packetstats.h>
-#include <concentrator/rcvIpfix.h>
+#include <concentrator/IpfixReceiver.hpp>
 
 
 class ModuleContainer;
@@ -69,7 +69,7 @@ public:
 	 * @param data IPFIX data (likely one IPFIX packet)
 	 * @param len Length of IPFIX data.
 	 */
-        int exportToSink(IpfixParser* /*ipfixParser*/, const byte* data, uint16_t len);
+        int exportToSink(IpfixParser* /*ipfixParser*/, const uint8_t* data, uint16_t len);
 
 	/**
 	 * Clears all processed data from the data sink.

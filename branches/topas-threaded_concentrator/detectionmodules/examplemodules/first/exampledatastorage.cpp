@@ -30,7 +30,7 @@ ExampleDataStorage::~ExampleDataStorage()
         /* do nothing */
 }
 
-void ExampleDataStorage::addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid) 
+void ExampleDataStorage::addFieldData(int id, uint8_t* fieldData, int fieldDataLength, IpfixRecord::FieldInfo::Type::EnterpriseNo eid) 
 {
         // We subscribed only to the "Destination ip address" field (see ExampleModule::ExampleModule())
         // These ip addresses are stored in a vector

@@ -22,7 +22,7 @@
 #include "modulecontainer.h"
 
 
-#include <concentrator/rcvIpfix.h>
+#include <concentrator/IpfixReceiver.hpp>
 #include <concentrator/msg.h>
 #include <commonutils/global.h>
 #include <commonutils/packetstats.h>
@@ -55,7 +55,7 @@ DetectModExporter::~DetectModExporter()
         delete nps; nps = 0;
 }
 
-int DetectModExporter::exportToSink(IpfixParser*, const byte* data, uint16_t len) {
+int DetectModExporter::exportToSink(IpfixParser*, const uint8_t* data, uint16_t len) {
 
         uint32_t sourceId = ntohl(*(uint32_t*)(data+12)); // see Ipfix-Protocol
 
@@ -223,6 +223,6 @@ void DetectModExporter::setSharedMemorySize(size_t size)
 		throw std::runtime_error(std::string("DetectModExporter: Could not attach shared memory storage area: ") + strerror(errno));
 	}
 
-	IpfixShm::setShmPointer((byte*)shmPtr);
+	IpfixShm::setShmPointer((uint8_t*)shmPtr);
 	IpfixShm::setShmSize(size);
 }

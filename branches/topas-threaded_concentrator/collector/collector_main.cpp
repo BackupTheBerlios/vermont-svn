@@ -22,7 +22,7 @@
 #include <commonutils/global.h>
 #include <commonutils/exceptions.h>
 #include <concentrator/msg.h>
-#include <concentrator/rcvIpfix.h>
+#include <concentrator/IpfixReceiver.hpp>
 
 
 #include <sys/types.h>

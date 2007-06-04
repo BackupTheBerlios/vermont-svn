@@ -34,10 +34,10 @@ public:
         SnortStore();
         ~SnortStore();
 
-        bool recordStart(SourceID);
+        bool recordStart(IpfixRecord::SourceID);
         void recordEnd();
 
-        void addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid = 0); ///< Used by the collector to store data
+        void addFieldData(int id, uint8_t* fieldData, int fieldDataLength, IpfixRecord::FieldInfo::Type::EnterpriseNo eid = 0); ///< Used by the collector to store data
 
 	PcapPacket* get_record(); ///< Used to get the record
 	bool is_valid;	

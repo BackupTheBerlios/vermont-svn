@@ -18,27 +18,29 @@
  *
  */
 
-#ifndef _IPFIX_RECEIVER_UDPIPV4_H_
-#define _IPFIX_RECEIVER_UDPIPV4_H_
+// FIXME: Basic support for NetflowV9 packets, templates and flow records is provided. Will break when fed field types with type ID >= 0x8000.
 
-#include <pthread.h>
-#include <stdint.h>
+#include <stdexcept>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <list>
+#include <netdb.h>
+#include <unistd.h>
+
+/* for ntohll et al */
+//include "ipfixlolib/ipfixlolib.h"
+#include "common.h"
 
 #include "IpfixReceiver.hpp"
+#include "TemplateBuffer.hpp"
+#include "ipfix.hpp"
+
+#include "msg.h"
 #include "IpfixPacketProcessor.hpp"
 
-class IpfixReceiverUdpIpV4 : public IpfixReceiver {
-	public:
-		IpfixReceiverUdpIpV4(int port);
-		virtual ~IpfixReceiverUdpIpV4();
 
-		virtual void run();
-	private:
-		int listen_socket;
-};
-
-#endif

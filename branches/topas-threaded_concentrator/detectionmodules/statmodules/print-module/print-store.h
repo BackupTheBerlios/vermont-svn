@@ -32,9 +32,9 @@ class PrintStore : public DataStore {
   PrintStore();
   ~PrintStore() {}
 
-  bool recordStart(SourceID);
-  void addFieldData(int id, byte* fieldData, int fieldDataLength,
-		    EnterpriseNo eid = 0);
+  bool recordStart(IpfixRecord::SourceID);
+  void addFieldData(int id, uint8_t* fieldData, int fieldDataLength,
+		    IpfixRecord::FieldInfo::Type::EnterpriseNo eid = 0);
   void recordEnd();
 
   // the following members should be private and all have a 'getter',

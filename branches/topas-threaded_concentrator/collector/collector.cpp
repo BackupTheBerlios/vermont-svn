@@ -91,7 +91,7 @@ Collector::Collector()
         exporter = new DetectModExporter();
         man = new Manager(exporter);
         listenPort = config_space::DEFAULT_LISTEN_PORT;
-        receiverType = config_space::DEFAULT_TRANSPORT_PROTO;
+        //receiverType = config_space::DEFAULT_TRANSPORT_PROTO;
 	recorder = new RecorderOff();
 }
 
@@ -320,7 +320,7 @@ void Collector::readRecording(XMLConfObj* config)
 			if (recorder)
 				delete recorder;
 			recorder = new FileRecorder(tmp, FileRecorder::PrepareReplaying);
-			recorder->setPacketCallback(Collector::messageCallBackFunction);
+			recorder->setPacketCallback(this);
 			replaying = true;
 			msg(MSG_INFO, "Collector now starts in replay mode");
 		} else {
@@ -418,19 +418,15 @@ void Collector::run()
 		/* start the collecting process */
 		
 		msg(MSG_INFO, "Initializing IpfixCollector");
-		initializeIpfixCollectors();
-		IpfixCollector* ipfixCollector = createIpfixCollector();
-
-		IpfixReceiver* ipfixReceiver = createIpfixReceiver(receiverType, listenPort);
-		addIpfixReceiver(ipfixCollector, ipfixReceiver);
+		IpfixReceiverUdpIpV4 ipfixReceiver(listenPort);
+		IpfixCollector ipfixCollector;
+		ipfixCollector.addIpfixReceiver(&ipfixReceiver);
 
 		msg(MSG_INFO, "Initializing PacketProcessor");
-		IpfixPacketProcessor* packetProcessor = createIpfixPacketProcessor();
-		packetProcessor->processPacketCallbackFunction = Collector::messageCallBackFunction;
-		
-		addIpfixPacketProcessor(ipfixCollector, packetProcessor);
+		ipfixCollector.addIpfixPacketProcessor(this);
+
 		msg(MSG_INFO, "Starting IpfixCollector");
-		startIpfixCollector(ipfixCollector);
+		ipfixCollector.start();
 
 		while (!terminateCollector) {
 			pause();
@@ -439,9 +435,7 @@ void Collector::run()
 		sleep(2);
 		
 		msg(MSG_INFO, "Shutting down IpfixCollector");
-		
-		stopIpfixCollector(ipfixCollector);
-		deinitializeIpfixCollectors();
+		ipfixCollector.stop();
 
 		/*
 		msg(MSG_INFO, "Waiting for manager to shut down");
@@ -464,12 +458,12 @@ void Collector::run()
 	msg(MSG_INFO, "Manager was successfully shut down");
 }
 
-int Collector::messageCallBackFunction(IpfixParser* ipfixParser, byte* data, uint16_t len) 
+int Collector::processPacket(boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<IpfixRecord::SourceID> sourceId)
 {
 	metering->addValue();
         static int ret;
-	recorder->record(data, len);
-        ret = exporter->exportToSink(ipfixParser, data, len);
+	recorder->record(message.get(), length);
+        ret = exporter->exportToSink(0, message.get(), length);
         man->newPacket();
         return ret;
 }
@@ -487,7 +481,7 @@ void Collector::setListenPort(int port)
         listenPort = port;
 }
 
-void Collector::setReceiverType(Receiver_Type r_t) 
-{
-        receiverType = r_t;
-}
+//void Collector::setReceiverType(Receiver_Type r_t) 
+//{
+//        receiverType = r_t;
+//}

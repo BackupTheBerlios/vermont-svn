@@ -30,8 +30,8 @@
 #include <commonutils/msgstream.h>
 #include <commonutils/idmef/idmefmessage.h>
 #include <commonutils/confobj.h>
-#include <concentrator/ipfix.h>
-#include <concentrator/rcvIpfix.h>
+#include <concentrator/ipfix.hpp>
+#include <concentrator/IpfixReceiver.hpp>
 
 
 #include <fstream>

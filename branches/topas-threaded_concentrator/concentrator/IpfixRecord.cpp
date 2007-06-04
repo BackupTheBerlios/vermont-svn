@@ -18,27 +18,12 @@
  *
  */
 
-#ifndef _IPFIX_RECEIVER_UDPIPV4_H_
-#define _IPFIX_RECEIVER_UDPIPV4_H_
+#include "msg.h"
+#include "IpfixRecord.hpp"
 
-#include <pthread.h>
-#include <stdint.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <list>
+IpfixRecord::IpfixRecord() {
+}
 
-#include "IpfixReceiver.hpp"
-#include "IpfixPacketProcessor.hpp"
+IpfixRecord::~IpfixRecord() {
+}
 
-class IpfixReceiverUdpIpV4 : public IpfixReceiver {
-	public:
-		IpfixReceiverUdpIpV4(int port);
-		virtual ~IpfixReceiverUdpIpV4();
-
-		virtual void run();
-	private:
-		int listen_socket;
-};
-
-#endif

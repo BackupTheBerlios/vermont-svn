@@ -37,9 +37,9 @@ class ExampleDataStorage : public DataStore
         /**
          * Inserts the field with fieldId id into the storage class.
          */
-        void addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid = 0);
+        void addFieldData(int id, uint8_t* fieldData, int fieldDataLength, IpfixRecord::FieldInfo::Type::EnterpriseNo eid = 0);
         
-	bool recordStart(SourceID);
+	bool recordStart(IpfixRecord::SourceID);
 	void recordEnd();
 	
 	const IpAddress& getSourceIP() { return sourceAddress; }

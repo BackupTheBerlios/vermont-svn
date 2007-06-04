@@ -27,7 +27,7 @@ Mutex IpfixFile::listLock;
 std::list<std::string> IpfixFile::fileNames;
 
 
-IpfixFile* IpfixFile::writePacket(const char* filename, const byte* data, uint16_t length)
+IpfixFile* IpfixFile::writePacket(const char* filename, const uint8_t* data, uint16_t length)
 {
         if (!ipfixFile)
                 ipfixFile = new IpfixFile();
@@ -70,9 +70,9 @@ void IpfixFile::proceedOnePacket()
 
 /********************************************************************************/
 
-byte* IpfixShm::startLocation = NULL;
-byte* IpfixShm::writePosition = NULL;
-byte* IpfixShm::readPosition  = NULL;
+uint8_t* IpfixShm::startLocation = NULL;
+uint8_t* IpfixShm::writePosition = NULL;
+uint8_t* IpfixShm::readPosition  = NULL;
 bool  IpfixShm::writeBeforeRead = false;
 size_t IpfixShm::size = 0;
 uint16_t IpfixShm::packetSize = 0;
@@ -83,7 +83,7 @@ IpfixShm::IpfixShm()
 {
 }
 
-IpfixShm* IpfixShm::writePacket(const byte* data, uint16_t len)
+IpfixShm* IpfixShm::writePacket(const uint8_t* data, uint16_t len)
 {
         if (!instance) {
                 instance = new IpfixShm();
@@ -137,7 +137,7 @@ IpfixShm* IpfixShm::writePacket(const byte* data, uint16_t len)
         return instance;
 }
 
-uint16_t IpfixShm::readPacket(byte** data) {
+uint16_t IpfixShm::readPacket(uint8_t** data) {
 	// go to the next packet;
 	// packetSize == 0 for the first packet
 	readPosition += packetSize;
@@ -170,7 +170,7 @@ void IpfixShm::proceedOnePacket()
         readPacket(&readPosition);
 }
 
-void IpfixShm::setShmPointer(byte* ptr)
+void IpfixShm::setShmPointer(uint8_t* ptr)
 {
 	startLocation = writePosition = readPosition = ptr;
 }

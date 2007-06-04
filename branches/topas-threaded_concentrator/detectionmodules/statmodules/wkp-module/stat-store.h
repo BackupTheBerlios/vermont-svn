@@ -23,7 +23,7 @@
 
 #include <datastore.h>
 #include <ipaddress.h>
-#include <concentrator/ipfix.h>
+#include <concentrator/ipfix.hpp>
 #include <map>
 #include <vector>
 #include <algorithm> // <vector> does not have a member function find(...)
@@ -68,10 +68,10 @@ class StatStore : public DataStore {
   ~StatStore();
   // it is ~StatStore which updates PreviousData (PreviousData = Data;)
 
-  bool recordStart(SourceID sourceId);
+  bool recordStart(IpfixRecord::SourceID sourceId);
   void recordEnd();
-  void addFieldData(int id, byte * fieldData, int fieldDataLength,
-		    EnterpriseNo eid = 0);
+  void addFieldData(int id, uint8_t * fieldData, int fieldDataLength,
+		    IpfixRecord::FieldInfo::Type::EnterpriseNo eid = 0);
 
   static std::vector<int>* accept_source_ids;
   std::map<IpAddress,Info> getData() const {return Data;}
@@ -100,7 +100,7 @@ class StatStore : public DataStore {
   // this file is read by Stat::init(), which then initializes
   // MonitoredIpAddresses
 
-  static byte subnetMask[4];
+  static uint8_t subnetMask[4];
   // The file contains hosts and/or networks addresses, but they will all
   // be masked by the same subnet mask, provided by the user in the
   // XML configuration file and initialized by Stat::init()
@@ -115,7 +115,7 @@ class StatStore : public DataStore {
   // This maximal size is defined by the user and set by Stat::init().
   // If forgotten by the user, default max size is provided.
 
-  static std::vector<byte> MonitoredProtocols;
+  static std::vector<uint8_t> MonitoredProtocols;
   // Protocols to monitor. Provided by the user in the XML config file
   // and initialised by Stat::init(). A protocol identifier (1, 6, 17...)
   // is 1 byte (= uint8_t) long, hence the vector<byte>
@@ -129,7 +129,7 @@ class StatStore : public DataStore {
   // If no ports to monitor are provided, Stat::init() will set MonitorAllPorts
   // to "true" ("false" otherwise)
 
-  byte protocol; // useful in StatStore::recordEnd()
+  uint8_t protocol; // useful in StatStore::recordEnd()
 
   static bool BeginMonitoring;
   // Set to "true" by Stat::init() when all the static information about IP,
@@ -157,12 +157,12 @@ class StatStore : public DataStore {
 				IPvector.begin(), IPvector.end());
   }
 
-  static void InitialiseSubnetMask (byte tab[4]) {
+  static void InitialiseSubnetMask (uint8_t tab[4]) {
     subnetMask[0] = tab[0]; subnetMask[1] = tab[1]; 
     subnetMask[2] = tab[2]; subnetMask[3] = tab[3]; 
   }
 
-  static void InitialiseSubnetMask (byte a, byte b, byte c, byte d) {
+  static void InitialiseSubnetMask (uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
     subnetMask[0] = a; subnetMask[1] = b; 
     subnetMask[2] = c; subnetMask[3] = d; 
   }
@@ -175,7 +175,7 @@ class StatStore : public DataStore {
     return IpListMaxSize;
   }
 
-  static void AddProtocolToMonitoredProtocols (byte Protocol_id) {
+  static void AddProtocolToMonitoredProtocols (uint8_t Protocol_id) {
     MonitoredProtocols.push_back(Protocol_id);
   }
 
@@ -194,7 +194,7 @@ class StatStore : public DataStore {
   // and this is a "getter"; it's static too so that it can be used by
   // Stat::init() to mask some addresses
   // ToDo: find something else; it's really an ugly trick
-  static byte * getSubnetMask () {
+  static uint8_t * getSubnetMask () {
     return subnetMask;
   }
 

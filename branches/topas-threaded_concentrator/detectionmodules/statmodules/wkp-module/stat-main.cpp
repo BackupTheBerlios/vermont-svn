@@ -36,12 +36,12 @@
 // Make sure you don't construct DirectedIpAddress with uncommon values
 // for "dir".
 
-DirectedIpAddress::DirectedIpAddress (byte a, byte b, byte c, byte d, int dir)
+DirectedIpAddress::DirectedIpAddress (uint8_t a, uint8_t b, uint8_t c, uint8_t d, int dir)
   : IpAddress (a, b, c, d) {
   Direction = dir;
 }
 
-DirectedIpAddress::DirectedIpAddress (const byte tab[4], int dir)
+DirectedIpAddress::DirectedIpAddress (const uint8_t tab[4], int dir)
   : IpAddress (tab) {
   Direction = dir;
 }
@@ -51,12 +51,12 @@ DirectedIpAddress::DirectedIpAddress (const IpAddress & ip, int dir)
   Direction = dir;
 }
 
-void DirectedIpAddress::setDirectedIpAddress (byte a, byte b, byte c, byte d, int dir) {
+void DirectedIpAddress::setDirectedIpAddress (uint8_t a, uint8_t b, uint8_t c, uint8_t d, int dir) {
   setAddress (a, b, c, d);
   Direction = dir;
 }
 
-void DirectedIpAddress::setDirectedIpAddress (const byte tab[4], int dir) {
+void DirectedIpAddress::setDirectedIpAddress (const uint8_t tab[4], int dir) {
   setAddress (tab);
   Direction = dir;
 }
@@ -108,19 +108,19 @@ std::ostream & operator << (std::ostream & os, const DirectedIpAddress & DirIP) 
 // warning: netmask is not checked before being applied
 // use only 0 <= m1,m2,m3,m4 <= 255 (or 0x00 and 0xFF)
 
-DirectedIpAddress DirectedIpAddress::mask (byte m1, byte m2, byte m3, byte m4){
+DirectedIpAddress DirectedIpAddress::mask (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4){
   return DirectedIpAddress( (*this)[0] & m1, (*this)[1] & m2,
 			    (*this)[2] & m3, (*this)[3] & m4, Direction );
 }
-DirectedIpAddress DirectedIpAddress::mask (const byte m[4]) {
+DirectedIpAddress DirectedIpAddress::mask (const uint8_t m[4]) {
   return DirectedIpAddress( (*this)[0] & m[0], (*this)[1] & m[1],
 			    (*this)[2] & m[2], (*this)[3] & m[3], Direction );
 }
-void DirectedIpAddress::remanent_mask (byte m1, byte m2, byte m3, byte m4) {
+void DirectedIpAddress::remanent_mask (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4) {
   setAddress( (*this)[0] & m1, (*this)[1] & m2,
 	      (*this)[2] & m3, (*this)[3] & m4 );
 }
-void DirectedIpAddress::remanent_mask (const byte m[4]) {
+void DirectedIpAddress::remanent_mask (const uint8_t m[4]) {
   setAddress( (*this)[0] & m[0], (*this)[1] & m[1],
 	      (*this)[2] & m[2], (*this)[3] & m[3] );
 }

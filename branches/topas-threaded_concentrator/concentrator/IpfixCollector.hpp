@@ -18,27 +18,34 @@
  *
  */
 
-#ifndef _IPFIX_RECEIVER_UDPIPV4_H_
-#define _IPFIX_RECEIVER_UDPIPV4_H_
+#ifndef INCLUDED_IpfixCollector_hpp
+#define INCLUDED_IpfixCollector_hpp
 
+#include <list>
 #include <pthread.h>
 #include <stdint.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <list>
-
+#include "FlowSink.hpp"
 #include "IpfixReceiver.hpp"
 #include "IpfixPacketProcessor.hpp"
 
-class IpfixReceiverUdpIpV4 : public IpfixReceiver {
+/**
+ * Represents a collector
+ */
+class IpfixCollector {
 	public:
-		IpfixReceiverUdpIpV4(int port);
-		virtual ~IpfixReceiverUdpIpV4();
+		IpfixCollector();
+		~IpfixCollector();
 
-		virtual void run();
-	private:
-		int listen_socket;
+		int start();
+		int stop();
+
+		void addIpfixPacketProcessor(IpfixPacketProcessor* packetProcessor);
+		void addIpfixReceiver(IpfixReceiver* ipfixReceiver);
+
+	protected:
+		std::list<IpfixReceiver*> ipfixReceivers;
+		std::list<IpfixPacketProcessor*> packetProcessors;
+
 };
 
 #endif

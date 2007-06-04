@@ -66,7 +66,7 @@ class CountStore : public DataStore
 	 * Will be invoked, whenever a new data record starts
 	 * Will be used by @c DetectionBase
 	 */
-	bool recordStart(SourceID);
+	bool recordStart(IpfixRecord::SourceID);
 
 	/**
 	 * Will be invoke, whenever a data record ends
@@ -78,7 +78,7 @@ class CountStore : public DataStore
 	 * Inserts the field with fieldId id into the storage class
 	 * Will be used by DetectionBase
 	 */
-	void addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid = 0);
+	void addFieldData(int id, uint8_t* fieldData, int fieldDataLength, IpfixRecord::FieldInfo::Type::EnterpriseNo eid = 0);
 
 	static void init(uint32_t size, unsigned hashfunctions)
 	{

@@ -59,7 +59,7 @@ static pthread_t log_thread;
  if you, however, change this function to a custom backend, you WILL have to lock
  because msg() can and will be called by concurrent threads!
  */
-void msg(int level, const char *fmt, ...)
+void msg(int level, char *fmt, ...)
 {
         /* nummerically higher value means lower priority */
         if (level > msg_level) {
@@ -88,12 +88,8 @@ void msg_setlevel(int level)
  we need a lock (can be called concurrently) to not clutter it all up
  keep critical section as small as possible
  */
-int msg_stat(int level, const char *fmt, ...)
+int msg_stat(char *fmt, ...)
 {
-        if (level > msg_level) {
-                return 0;
-        }
-                                        
         /* have to check if subsys is on. Else just ignore */
         if(stat_file) {
                 va_list args;

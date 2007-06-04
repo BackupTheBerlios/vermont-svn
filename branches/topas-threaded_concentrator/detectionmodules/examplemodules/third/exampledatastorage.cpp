@@ -31,7 +31,7 @@ ExampleDataStorage::~ExampleDataStorage()
         /* do nothing */
 }
 
-void ExampleDataStorage::addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid) 
+void ExampleDataStorage::addFieldData(int id, uint8_t* fieldData, int fieldDataLength, IpfixRecord::FieldInfo::Type::EnterpriseNo eid) 
 {
 	// only record 4 byte ip addresses
 	if (id == IPFIX_TYPEID_sourceIPv4Address) {
@@ -49,7 +49,7 @@ void ExampleDataStorage::addFieldData(int id, byte* fieldData, int fieldDataLeng
 	}
 }
 
-bool ExampleDataStorage::recordStart(SourceID)
+bool ExampleDataStorage::recordStart(IpfixRecord::SourceID)
 {
 	//std::cout << "new record started" << std::endl;
 	if (recordStarted) {

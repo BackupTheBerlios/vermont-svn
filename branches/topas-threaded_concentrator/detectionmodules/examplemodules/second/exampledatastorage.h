@@ -32,7 +32,7 @@
 class IpAndPort 
 {
 public:
-        byte data[7]; 
+        uint8_t data[7]; 
         bool operator<(const IpAndPort& other) const 
         {
                 return memcmp(data, other.data, 7)<0?true:false;
@@ -53,7 +53,7 @@ class ExampleDataStorage : public DataStore
          * Will be invoked, whenever a new data record starts
          * Will be used by @c DetectionBase
          */
-        bool recordStart(SourceID);
+        bool recordStart(IpfixRecord::SourceID);
 
         /**
          * Will be invoke, whenever a data record ends
@@ -65,7 +65,7 @@ class ExampleDataStorage : public DataStore
          * Inserts the field with fieldId id into the storage class
          * Will be used by DetectionBase
          */
-        void addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid = 0);
+        void addFieldData(int id, uint8_t* fieldData, int fieldDataLength, IpfixRecord::FieldInfo::Type::EnterpriseNo eid = 0);
 
 
         

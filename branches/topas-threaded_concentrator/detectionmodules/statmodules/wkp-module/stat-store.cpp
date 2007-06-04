@@ -43,12 +43,12 @@ StatStore::~StatStore() {
 
 }
 
-bool StatStore::recordStart(SourceID sourceId) {
+bool StatStore::recordStart(IpfixRecord::SourceID sourceId) {
 
   if (BeginMonitoring != true)
     return false;
 
-  if (find(accept_source_ids->begin(),accept_source_ids->end(),(int)sourceId)==accept_source_ids->end()){
+  if (find(accept_source_ids->begin(),accept_source_ids->end(),(int)sourceId.observationDomainId)==accept_source_ids->end()){
     return false;
   }
 
@@ -65,7 +65,7 @@ bool StatStore::recordStart(SourceID sourceId) {
 }
 
 std::vector<int>* StatStore::accept_source_ids = NULL;
-void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, EnterpriseNo eid) {
+void StatStore::addFieldData(int id, uint8_t * fieldData, int fieldDataLength, IpfixRecord::FieldInfo::Type::EnterpriseNo eid) {
 
   // we subscribed to (see Stat::init()):
   // - IPFIX_TYPEID_sourceIPv4Address and IPFIX_TYPEID_destinationIPv4Address
@@ -402,12 +402,12 @@ std::map<IpAddress,Info> StatStore::PreviousData;
 
 std::vector<IpAddress> StatStore::MonitoredIpAddresses;
 
-byte StatStore::subnetMask[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t StatStore::subnetMask[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 
 bool StatStore::MonitorEveryIp = false;
 int StatStore::IpListMaxSize = 0;
 
-std::vector<byte> StatStore::MonitoredProtocols;
+std::vector<uint8_t> StatStore::MonitoredProtocols;
 
 std::vector<uint16_t> StatStore::MonitoredPorts;
 bool StatStore::MonitorAllPorts = false;

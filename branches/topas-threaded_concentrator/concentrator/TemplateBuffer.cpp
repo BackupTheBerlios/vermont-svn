@@ -1,7 +1,20 @@
-/** \file
- * Template Buffer for rcvIpfix.
+/*
+ * IPFIX Concentrator Module Library
+ * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
  *
- * Used by rcvIpfix to store Templates of all kinds
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
@@ -9,165 +22,111 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "templateBuffer.h"
-#include "ipfix.h"
-
+#include "TemplateBuffer.hpp"
+#include "ipfix.hpp"
 #include "msg.h"
-/***** Constants ************************************************************/
-
-#define SUPPORT_NETFLOWV9
-#define NetflowV9_SetId_Template  0
-
-
-/***** Data Types ************************************************************/
-
-
-/***** Global Variables ******************************************************/
-
-
-/***** Internal Functions ****************************************************/
-
-/***** Exported Functions ****************************************************/
 
 /**
- * Returns a TemplateInfo, OptionsTemplateInfo, DataTemplateInfo or NULL
+ * Returns a IpfixRecord::TemplateInfo, IpfixRecord::OptionsTemplateInfo, IpfixRecord::DataTemplateInfo or NULL
  */
-BufferedTemplate* getBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, TemplateID templateId) 
-{
+TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(boost::shared_ptr<IpfixRecord::SourceID> sourceId, TemplateID templateId) {
 	time_t now = time(0);
-	BufferedTemplate* bt = templateBuffer->head;
+	TemplateBuffer::BufferedTemplate* bt = head;
 	while (bt != 0) {
-		if ((bt->sourceID == sourceId) && (bt->templateID == templateId)) {
+		if ((bt->sourceID->observationDomainId == sourceId->observationDomainId) && (bt->templateID == templateId)) {
 			if ((bt->expires) && (bt->expires < now)) {
-				destroyBufferedTemplate(templateBuffer, sourceId, templateId);
+				destroyBufferedTemplate(sourceId, templateId);
 				return 0;
 			}
 			return bt;
 		}
-		bt = (BufferedTemplate*)bt->next;
+		bt = (TemplateBuffer::BufferedTemplate*)bt->next;
 	}
 	return 0;
 }
 
 /**
- * Saves a TemplateInfo, OptionsTemplateInfo, DataTemplateInfo overwriting existing Templates
+ * Saves a IpfixRecord::TemplateInfo, IpfixRecord::OptionsTemplateInfo, IpfixRecord::DataTemplateInfo overwriting existing Templates
  */
-void bufferTemplate(TemplateBuffer* templateBuffer, BufferedTemplate* bt) 
-{
-	destroyBufferedTemplate(templateBuffer, bt->sourceID, bt->templateID);
-	bt->next = templateBuffer->head;
+void TemplateBuffer::bufferTemplate(TemplateBuffer::BufferedTemplate* bt) {
+	destroyBufferedTemplate(bt->sourceID, bt->templateID);
+	bt->next = head;
 	bt->expires = 0;
-	templateBuffer->head = bt;
+	head = bt;
 }
 
 /**
  * Frees memory, marks Template unused.
  */
-void destroyBufferedTemplate(TemplateBuffer* templateBuffer, SourceID sourceId, TemplateID templateId) 
+void TemplateBuffer::destroyBufferedTemplate(boost::shared_ptr<IpfixRecord::SourceID> sourceId, TemplateID templateId) 
 {
-	BufferedTemplate* predecessor = 0;
-	BufferedTemplate* bt = templateBuffer->head;
+	TemplateBuffer::BufferedTemplate* predecessor = 0;
+	TemplateBuffer::BufferedTemplate* bt = head;
 	while (bt != 0) {
-		if ((bt->sourceID == sourceId) && (bt->templateID == templateId)) {
-			break;
-		}
+		if ((bt->sourceID->observationDomainId == sourceId->observationDomainId) && (bt->templateID == templateId)) break;
 		predecessor = bt;
-		bt = (BufferedTemplate*)bt->next;
+		bt = (TemplateBuffer::BufferedTemplate*)bt->next;
 	}
 	if (bt == 0) return;
 	if (predecessor != 0) {
 		predecessor->next = bt->next;
 	} else {
-		templateBuffer->head = (BufferedTemplate*)bt->next;
+		head = (TemplateBuffer::BufferedTemplate*)bt->next;
 	}
 	if (bt->setID == IPFIX_SetId_Template) {
-		free(bt->templateInfo->fieldInfo);
-
 		/* Invoke all registered callback functions */
-		int n;
-		for (n = 0; n < templateBuffer->ipfixParser->callbackCount; n++) {
-			CallbackInfo* ci = &templateBuffer->ipfixParser->callbackInfo[n];
-			if (ci->templateDestructionCallbackFunction) {
-				ci->templateDestructionCallbackFunction(ci->handle, sourceId, bt->templateInfo);
-			}
-		}
-
-		free(bt->templateInfo);
+		boost::shared_ptr<IpfixTemplateDestructionRecord> ipfixRecord(new IpfixTemplateDestructionRecord);
+		ipfixRecord->sourceID = sourceId;
+		ipfixRecord->templateInfo = bt->templateInfo;
+		ipfixParser->push(ipfixRecord);
 	} else
 #ifdef SUPPORT_NETFLOWV9
 		if (bt->setID == NetflowV9_SetId_Template) {
-			free(bt->templateInfo->fieldInfo);
-
 			/* Invoke all registered callback functions */
-			int n;
-			for (n = 0; n < templateBuffer->ipfixParser->callbackCount; n++) {
-				CallbackInfo* ci = &templateBuffer->ipfixParser->callbackInfo[n];
-				if (ci->templateDestructionCallbackFunction) {
-					ci->templateDestructionCallbackFunction(ci->handle, sourceId, bt->templateInfo);
-				}
-			}
-
-			free(bt->templateInfo);
+			boost::shared_ptr<IpfixTemplateDestructionRecord> ipfixRecord(new IpfixTemplateDestructionRecord);
+			ipfixRecord->sourceID = sourceId;
+			ipfixRecord->templateInfo = bt->templateInfo;
+			ipfixParser->push(ipfixRecord);
 		} else
 #endif
 			if (bt->setID == IPFIX_SetId_OptionsTemplate) {
-				free(bt->optionsTemplateInfo->scopeInfo);
-				free(bt->optionsTemplateInfo->fieldInfo);
-
 				/* Invoke all registered callback functions */
-				int n;
-				for (n = 0; n < templateBuffer->ipfixParser->callbackCount; n++) {
-					CallbackInfo* ci = &templateBuffer->ipfixParser->callbackInfo[n];
-					if (ci->optionsTemplateDestructionCallbackFunction) {
-						ci->optionsTemplateDestructionCallbackFunction(ci->handle, sourceId, bt->optionsTemplateInfo);
-					}
-				}
-
-				free(bt->optionsTemplateInfo);
-			} else
+				boost::shared_ptr<IpfixOptionsTemplateDestructionRecord> ipfixRecord(new IpfixOptionsTemplateDestructionRecord);
+				ipfixRecord->sourceID = sourceId;
+				ipfixRecord->optionsTemplateInfo = bt->optionsTemplateInfo;
+				ipfixParser->push(ipfixRecord);
+			} else {
 				if (bt->setID == IPFIX_SetId_DataTemplate) {
-					free(bt->dataTemplateInfo->fieldInfo);
-					free(bt->dataTemplateInfo->dataInfo);
-					free(bt->dataTemplateInfo->data);
-
 					/* Invoke all registered callback functions */
-					int n;          
-					for (n = 0; n < templateBuffer->ipfixParser->callbackCount; n++) {
-						CallbackInfo* ci = &templateBuffer->ipfixParser->callbackInfo[n];
-						if (ci->dataTemplateDestructionCallbackFunction) {
-							ci->dataTemplateDestructionCallbackFunction(ci->handle, sourceId, bt->dataTemplateInfo);
-						}
-					}
+					boost::shared_ptr<IpfixDataTemplateDestructionRecord> ipfixRecord(new IpfixDataTemplateDestructionRecord);
+					ipfixRecord->sourceID = sourceId;
+					ipfixRecord->dataTemplateInfo = bt->dataTemplateInfo;
+					ipfixParser->push(ipfixRecord);
 
-					free(bt->dataTemplateInfo);
 				} else {
 					msg(MSG_FATAL, "Unknown template type requested to be freed: %d", bt->setID);
 				}
-	free(bt);
+			}
+		delete bt;
 }
 
 /**
  * initializes the buffer
  */
-TemplateBuffer* createTemplateBuffer(IpfixParser* parentIpfixParser) {
-	TemplateBuffer* templateBuffer = (TemplateBuffer*)malloc(sizeof(TemplateBuffer));
-
-	templateBuffer->head = 0;
-	templateBuffer->ipfixParser = parentIpfixParser;
-
-	return templateBuffer;
+TemplateBuffer::TemplateBuffer(IpfixParser* parentIpfixParser) {
+	head = 0;
+	ipfixParser = parentIpfixParser;
 }
 
 /**
  * Destroys all buffered templates
  */
-void destroyTemplateBuffer(TemplateBuffer* templateBuffer) {
-	while (templateBuffer->head != 0) {
-		BufferedTemplate* bt = templateBuffer->head;
-		BufferedTemplate* bt2 = (BufferedTemplate*)bt->next;
-		destroyBufferedTemplate(templateBuffer, bt->sourceID, bt->templateID);
-		templateBuffer->head = bt2;
+TemplateBuffer::~TemplateBuffer() {
+	while (head != 0) {
+		TemplateBuffer::BufferedTemplate* bt = head;
+		TemplateBuffer::BufferedTemplate* bt2 = (TemplateBuffer::BufferedTemplate*)bt->next;
+		destroyBufferedTemplate(bt->sourceID, bt->templateID);
+		head = bt2;
 	}
-	free(templateBuffer);
 }
 
