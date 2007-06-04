@@ -99,7 +99,7 @@ void FileRecorder::play()
 {
 	std::string line;
 	FILE* fd;
-	uint8_t* data = new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH];
+	boost::shared_array<uint8_t> data;
 	unsigned int time;
 	unsigned long fileNumber;
 	boost::shared_ptr<IpfixRecord::SourceID> sourceID(new IpfixRecord::SourceID); //FIXME: initialize SourceID to something (remotely) sensible
@@ -112,15 +112,18 @@ void FileRecorder::play()
 
 
 		if (NULL == (fd = fopen(fileName, "rb"))) {
-			delete data; data = 0;
+			data.reset();
 			throw std::runtime_error(std::string("FileRecorder: Could not open file: ") + fileName);
 		}
 
+		//FIXME: If this stays single-threaded, re-using the memory block is way more efficient (pass a no-op delete class to the shared_array for that)
+		data.reset(new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH]);
+
 		uint16_t len;
 		read(fileno(fd), &len, sizeof(uint16_t));
-		read(fileno(fd), data, len);
+		read(fileno(fd), data.get(), len);
 		if (EOF == fclose(fd)) {
-			delete data; data = 0;
+			data.reset();
 			throw std::runtime_error(std::string("FileRecorder: Could not open file: ") + fileName);
 		}
 
@@ -137,9 +140,9 @@ void FileRecorder::play()
 		replayValues   << t    / 1000 << std::endl;
 		
 		if (packetCallback) {
-			packetCallback->processPacket(boost::shared_array<uint8_t>(data), len, sourceID);
+			packetCallback->processPacket(data, len, sourceID);
 		}
 
 	}
-	delete data; data = 0;
+	data.reset();
 }

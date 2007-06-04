@@ -116,11 +116,10 @@ template <
 class PacketReader : public FlowSink {
 public:
         PacketReader()
-                : packetProcessor(NULL), data(NULL)
+                : packetProcessor(NULL)
         {
 		Metering::setDirectoryName("metering/");
 		metering = new Metering("packetreader");
-                data = new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH];
 
                 /*
                   create an packetProcessor and ipfixParser
@@ -133,7 +132,6 @@ public:
         ~PacketReader() 
         {
                 if (packetProcessor) delete packetProcessor;
-                delete data;
 		delete metering;
         }
 
@@ -201,10 +199,12 @@ public:
 						  << std::endl;
 				}
 				
+				//FIXME: If this stays single-threaded, re-using the memory block is way more efficient (pass a no-op delete class to the shared_array for that)
+                		boost::shared_array<uint8_t> data(new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH]);
 				read(fileno(fd), &len, sizeof(uint16_t));
-				read(fileno(fd), data, len);
-				if (isSourceIdInList(*(uint16_t*)(data + 12))) {
-					packetProcessor->processPacket(boost::shared_array<uint8_t>(data), len, sourceID);
+				read(fileno(fd), data.get(), len);
+				if (isSourceIdInList(*(uint16_t*)(data.get() + 12))) {
+					packetProcessor->processPacket(data, len, sourceID);
 					while (ipfixRecords.getCount() > 0) tryProcessIpfixRecord();
 				}
 				metering->addValue();
@@ -214,10 +214,16 @@ public:
 						  << std::endl;
 				}
 			} else {
-				len = IpfixShm::readPacket(&data);
+
+				//FIXME: If this stays single-threaded, re-using the memory block is way more efficient (pass a no-op delete class to the shared_array for that)
+				uint8_t* readFrom;
+				len = IpfixShm::readPacket(&readFrom);
+                		boost::shared_array<uint8_t> data(new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH]);
+				memcpy(data.get(), readFrom, len);
+
                                 metering->addValue();
-				if (isSourceIdInList(*(uint16_t*)(data+12))) {
-					packetProcessor->processPacket(boost::shared_array<uint8_t>(data), len, sourceID);
+				if (isSourceIdInList(*(uint16_t*)(data.get()+12))) {
+					packetProcessor->processPacket(data, len, sourceID);
 					while (ipfixRecords.getCount() > 0) tryProcessIpfixRecord();
 				}
 			}
@@ -240,7 +246,6 @@ protected:
 	std::vector<uint16_t> sourceIdList;
         IpfixPacketProcessor* packetProcessor;
 	Mutex recordMutex;
-        uint8_t* data;
 	Metering* metering;
 
 	virtual Buffer* getBuffer() = 0;
