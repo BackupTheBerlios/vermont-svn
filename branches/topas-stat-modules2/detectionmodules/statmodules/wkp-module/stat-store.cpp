@@ -204,7 +204,7 @@ void StatStore::recordEnd() {
 // Handle EndPoint e_source (with SourceIP and SourcePort)
 
   // Consider only EndPoints we are interested in
-  if (filterEndPoint(e_source) == false) {
+  if (monitorEndPoint(e_source) == true) {
     // EndPoint already known and thus in our List?
     if ( find(EndPointList.begin(), EndPointList.end(), e_source) != EndPointList.end() ) {
       // Since Data is destroyed after every test()-run,
@@ -243,7 +243,7 @@ void StatStore::recordEnd() {
 // Handle EndPoint e_dest (with DestIP and DestPort)
 
   // Consider only EndPoints we are interested in
-  if (filterEndPoint(e_dest) == false) {
+  if (monitorEndPoint(e_dest) == true) {
     // EndPoint already known and thus in our List?
     if ( find(EndPointList.begin(), EndPointList.end(), e_dest) != EndPointList.end() ) {
       // Since Data is destroyed after every test()-run,
@@ -330,25 +330,25 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store)
   return is;
 }
 
-// returns true, if we arent interested in EndPoint e
+// returns true, if we are interested in EndPoint e
 // (false otherwise)
-bool StatStore::filterEndPoint (EndPoint & e) {
+bool StatStore::monitorEndPoint (EndPoint & e) {
 
   std::vector<EndPoint>::iterator it = EndPointFilter.begin();
 
   while ( it != EndPointFilter.end() ) {
-
     // apply netmask of *it (the current wanted endpoint)
     // to e (the tested endpoint)
     // (the netmask will be applied automatically by the call to setNetMask())
-    e.setNetMask(it->getNetMask());
-
-    // compare ip addresses (netmask already applied)
-    if ( !(e.getIpAddress() == it->getIpAddress()) )
-      return true;
-    if  (e.getPortNr() != it->getPortNr() && it->getPortNr() != -1 )
-      return true;
-    if ( e.getProtocolID() != it->getProtocolID() && it->getProtocolID() != -1 )
+    // but only, if netmask is > 0 (Wildcard!) and < 32 (useless)
+    if (it->getNetMask() > 0 && it->getNetMask() < 32)
+      e.setNetMask(it->getNetMask());
+    // compare ip addresses (netmask already applied); wildcard for ip address is netmask = 0
+    // compare port number; wildcard for port is -1
+    // compare protocol id; wildcard for protocol is -1
+    if ( (e.getIpAddress() == it->getIpAddress() || it->getNetMask() == 0)
+      && (e.getPortNr() == it->getPortNr() || it->getPortNr() == -1)
+      && (e.getProtocolID() == it->getProtocolID() || it->getProtocolID() != -1) )
       return true;
     it++;
   }

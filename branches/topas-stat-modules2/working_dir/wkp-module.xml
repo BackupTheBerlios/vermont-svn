@@ -16,9 +16,11 @@
     <warning_verbosity>1</warning_verbosity>
     <accepted_source_ids>all</accepted_source_ids>
     <alarm_time>10</alarm_time>
-    <offline_file>offlinefile.txt</offline_file>
-    <output_dir>results</output_dir>
     <endpoint_key>port protocol</endpoint_key>
+  <offline_file>offlinefile.txt</offline_file>
+  <output_dir>results</output_dir>
+  <endpoints_to_monitor>all</endpoints_to_monitor>
+  <x_frequently_endpoints>5</x_frequently_endpoints>
     <use_pca>true</use_pca>
     <pca_learning_phase>25</pca_learning_phase>
     <metrics>
@@ -44,8 +46,6 @@
     <noise_threshold_packets>0</noise_threshold_packets>
     <noise_threshold_bytes>0</noise_threshold_bytes>
     <endpointlist_maxsize>1000000</endpointlist_maxsize>
-    <endpoints_to_monitor>all</endpoints_to_monitor>
-    <x_frequently_endpoints>5</x_frequently_endpoints>
     <stat_test_frequency>1</stat_test_frequency>
     <report_only_first_attack>true</report_only_first_attack>
     <pause_update_when_attack>3</pause_update_when_attack>

@@ -36,6 +36,14 @@ We cant see from the output, whether an attack ceased. Maybe some kind of "attac
 // for pca (matrix multiplication)
 #include <gsl/gsl_blas.h>
 
+// for directory funtcions (mkdir, chdir ...)
+#ifdef __unix__
+   #include <sys/types.h>
+   #include <sys/stat.h>
+#elif __WIN32__ || _MS_DOS_
+    #include <dir.h>
+#endif
+
 #include<signal.h>
 
 #include "stat-main.h"
@@ -288,8 +296,8 @@ void Stat::init_logfile(XMLConfObj * config) {
   if(!config->nodeExists("logfile")) {
     std::cerr
       << "WARNING: No logfile parameter defined in XML config file!\n"
-      << "  Default outputfile used (wkp_output.txt).\n";
-    logfile.open("wkp_output.txt");
+      << "  Default outputfile used (wkp_log.txt).\n";
+    logfile.open("wkp_log.txt");
   }
   else if (!(config->getValue("logfile")).empty())
     logfile.open(config->getValue("logfile").c_str());
@@ -301,7 +309,7 @@ void Stat::init_logfile(XMLConfObj * config) {
   }
 
   if (!logfile) {
-      std::cerr << "ERROR: could not open output file!\n"
+      std::cerr << "ERROR: could not open wkp-module's logfile!\n"
         << "  Check if you have enough rights to create or write to it.\n"
         << "  Exiting.\n";
       exit(0);
@@ -526,23 +534,21 @@ void Stat::init_offline_file(XMLConfObj * config) {
 
 void Stat::init_output_dir(XMLConfObj * config) {
 
-  if (!config->nodeExists("output_dir")) {
-    createFiles = false;
+  createFiles = false;
+
+  if (!config->nodeExists("output_dir"))
     return;
-  }
-  else if((config->getValue("output_dir")).empty()) {
-    createFiles = false;
+  else if((config->getValue("output_dir")).empty())
     return;
-  }
 
   output_dir = config->getValue("output_dir");
 
-  // TODO:
-  // Verzeichnis öffnen und DirPointer damit verknüpfen?
-  // Im Destruktor dann wieder schließen (falls offen)
+  if (mkdir(output_dir.c_str(), 0777) == -1) {
+    std::cerr << "WARNING: Directory \"" << output_dir << "\" couldn't be created. No output files will be generated!\n";
+    return;
+  }
 
   createFiles = true;
-
   return;
 }
 
@@ -615,18 +621,20 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
   return;
 }
 
-// extract all needed parameters for the pca, if enabled
+// initialize pca
 void Stat::init_pca(XMLConfObj * config) {
 
   if (!config->nodeExists("use_pca")) {
     use_pca = false;
     return;
   }
+  else if ((config->getValue("use_pca").empty())) {
+    use_pca = false;
+    return;
+  }
 
-  std::stringstream Default1, Default2, Default3;
-  Default1
-    << "WARNING: No value for use_pca parameter defined in XML config file!\n"
-    << "  \"true\" assumed.\n";
+
+  std::stringstream Default2, Default3;
   Default2
     << "WARNING: No pca_learning_phase parameter defined in XML config file!\n"
     << "  \"" << DEFAULT_learning_phase_for_pca << "\" assumed.\n";
@@ -635,15 +643,7 @@ void Stat::init_pca(XMLConfObj * config) {
     << "  \"" << DEFAULT_learning_phase_for_pca << "\" assumed.\n";
 
 
-  if ( !(config->getValue("use_pca").empty()) ) {
-    use_pca = ( 0 == strcasecmp("true", config->getValue("use_pca").c_str()) ) ? true:false;
-  }
-  else {
-    std::cerr << Default1.str();
-    if (warning_verbosity==1)
-      logfile << Default1.str() << std::flush;
-    use_pca = true;
-  }
+  use_pca = ( 0 == strcasecmp("true", config->getValue("use_pca").c_str()) ) ? true:false;
 
   // initialize the other parameters only if pca is used
   if (use_pca == true) {
@@ -936,93 +936,88 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
 
 // OFFLINE MODE
 #ifdef OFFLINE_ENABLED
+// if parameter <x_frequently_endpoints> was provided,
 // read data from file and find the most X frequently appearing
 // EndPoints to create EndPointFilter
+// otherwise use the endpoints_to_filter parameter
+  if (config->nodeExists("x_frequently_endpoints")) {
 
-  std::stringstream Default, Warning;
-    Default
-      << "WARNING: x_frequently_endpoints parameter defined in XML config file!\n"
-      << "  \"" << DEFAULT_x_frequent_endpoints << "\" assumed.\n";
-    Warning
+    std::stringstream Warning
       << "WARNING: No value for x_frequently_endpoints parameter defined in XML "
       << "config file!\n"
       << "  \"" << DEFAULT_x_frequent_endpoints << "\" assumed.\n";
 
-  if (!config->nodeExists("x_frequently_endpoints")) {
-    std::cerr << Default.str();
-    if (warning_verbosity==1)
-      logfile << Default.str() << std::flush;
-    x_frequently_endpoints = DEFAULT_x_frequent_endpoints;
-  }
-  else if ((config->getValue("x_frequently_endpoints")).empty()) {
-    std::cerr << Warning.str();
-    if (warning_verbosity==1)
-      logfile << Warning.str() << std::flush;
-    x_frequently_endpoints = DEFAULT_x_frequent_endpoints;
-  }
-  else
-    x_frequently_endpoints = atoi((config->getValue("x_frequently_endpoints")).c_str());
+    if ((config->getValue("x_frequently_endpoints")).empty()) {
+      std::cerr << Warning.str();
+      if (warning_verbosity==1)
+        logfile << Warning.str() << std::flush;
+      x_frequently_endpoints = DEFAULT_x_frequent_endpoints;
+    }
+    else
+      x_frequently_endpoints = atoi((config->getValue("x_frequently_endpoints")).c_str());
 
+    std::ifstream dataFile;
+    dataFile.open(offlineFile);
 
-  std::ifstream dataFile;
-  dataFile.open(offlineFile);
+    bool more = true;
 
-  bool more = true;
+    while (more == true) {
 
-  while (more == true) {
+      std::vector<EndPoint> tmpData;
+      std::string tmp;
+      while ( getline(dataFile, tmp) ) {
+        if (0 == strcasecmp("---",tmp.c_str()) )
+          break;
+        else if ( dataFile.eof() ) {
+          std::cerr << "INFORMATION: All Data read from file.\n";
+          dataFile.close();
+          more = false;
+          break;
+        }
 
-    std::vector<EndPoint> tmpData;
-    std::string tmp;
-    while ( getline(dataFile, tmp) ) {
-      if (0 == strcasecmp("---",tmp.c_str()) )
-        break;
-      else if ( dataFile.eof() ) {
-        std::cerr << "INFORMATION: All Data read from file.\n";
-        dataFile.close();
-        more = false;
-        break;
+        // extract endpoint-data
+        EndPoint e;
+        e.fromString(tmp, false);
+        tmpData.push_back(e);
+
+        tmp.clear();
       }
 
-      // extract endpoint-data
-      EndPoint e;
-      e.fromString(tmp, false);
-      tmpData.push_back(e);
-
-      tmp.clear();
-    }
-
-    // count number of appearings of each EndPoint
-    std::vector<EndPoint>::iterator tmpData_it = tmpData.begin();
-    while (tmpData_it != tmpData.end()) {
-      endPointCount[tmpData_it->first]++;
-      tmpData_it++;
-    }
-
-  }
-
-  // if all data was read
-  // search the X most frequently appeared endpoints
-  std::map<EndPoint,int> mostFrequentEndPoints;
-  for (int j = 0; j < x_frequently_endpoints; j++) {
-    std::pair<EndPoint,int> tmpmax;
-    tmpmax.first = (endPointCount.begin())->first;
-    tmpmax.second = (endPointCount.begin())->second;
-    for (std::map<EndPoint,int>::iterator i = endPointCount.begin(); i != endPointCount.end(); i++) {
-      if (tmpmax.second < i->second) {
-        tmpmax.first = i->first;
-        tmpmax.second = i->second;
+      // count number of appearings of each EndPoint
+      std::vector<EndPoint>::iterator tmpData_it = tmpData.begin();
+      while (tmpData_it != tmpData.end()) {
+        endPointCount[tmpData_it->first]++;
+        tmpData_it++;
       }
-    }
-    mostFrequentEndPoints.insert(tmpmax);
-    endPointCount.erase(tmpmax.first);
-  }
-  // push these endpoints in the endPointFilter
-  std::map<EndPoint,int>::iterator iter;
-  for (iter = mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
-    StatStore::AddEndPointToFilter(iter->first);
 
-#else
-// ONLINE
+    }
+
+    // if all data was read
+    // search the X most frequently appeared endpoints
+    std::map<EndPoint,int> mostFrequentEndPoints;
+    for (int j = 0; j < x_frequently_endpoints; j++) {
+      std::pair<EndPoint,int> tmpmax;
+      tmpmax.first = (endPointCount.begin())->first;
+      tmpmax.second = (endPointCount.begin())->second;
+      for (std::map<EndPoint,int>::iterator i = endPointCount.begin(); i != endPointCount.end(); i++) {
+        if (tmpmax.second < i->second) {
+          tmpmax.first = i->first;
+          tmpmax.second = i->second;
+        }
+      }
+      mostFrequentEndPoints.insert(tmpmax);
+      endPointCount.erase(tmpmax.first);
+    }
+    // push these endpoints in the endPointFilter
+    std::map<EndPoint,int>::iterator iter;
+    for (iter = mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
+      StatStore::AddEndPointToFilter(iter->first);
+
+    return;
+  }
+#endif
+
+// ONLINE MODE + OFFLINE MODE (if no <x_frequently_endpoints> parameter is provided)
 // create EndPointFilter from a file specified in XML config file
 // if no such file is specified --> MonitorEveryEndPoint = true
 // The endpoints in the file are in the format
@@ -1073,8 +1068,6 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
     e.fromString(tmp, true); // with netmask applied
     StatStore::AddEndPointToFilter(e);
   }
-
-#endif
 
   return;
 }
@@ -1769,8 +1762,7 @@ void Stat::test(StatStore * store) {
       else
         fname = "metrics_" + (Data_it->first).toString() + ".txt";
 
-      // TODO:
-      // Erst in das output_dir-Verzeichnis wechseln und die Dateien dort erstellen
+      chdir(output_dir.c_str());
 
       std::ofstream file(fname.c_str(),std::ios_base::app);
 
@@ -1786,6 +1778,9 @@ void Stat::test(StatStore * store) {
       }
 
       file.close();
+
+      chdir("..");
+
     }
 
     Data_it++;
@@ -2076,8 +2071,6 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
   return result;
 }
 
-// TODO:
-// check, what happens, when WkpParams or CusumParams is casted to Params!
 // needed for pca to extract the new values (for learning and testing)
 std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, const Info & prev) {
 
@@ -2498,8 +2491,7 @@ void Stat::stat_test (WkpParams & S) {
       if (i != std::string::npos)
         str_p_pcs.replace(i, 1, 1, ',');
 
-      // TODO
-      // Erst in output_dir-Verzeichnsi wechseln und Dateien dort erstellen!
+      chdir(output_dir.c_str());
 
       std::ofstream file(filename.c_str(), std::ios_base::app);
       // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
@@ -2509,6 +2501,7 @@ void Stat::stat_test (WkpParams & S) {
           << (S.ks_alarms).at(index) << " " << str_p_pcs << " "
           << (S.pcs_alarms).at(index) << " " << test_counter << "\n";
       file.close();
+      chdir("..");
     }
 
     it++;
@@ -2612,8 +2605,7 @@ void Stat::cusum_test(CusumParams & C) {
         filename = "cusumparams_" + C.correspondingEndPoint  + "_pca_component_" + tmp.str() + ".txt";
       }
 
-      // TODO
-      // Erst in output_dir-Verzeichnsi wechseln und Dateien dort erstellen!
+      chdir(output_dir.c_str());
 
       std::ofstream file(filename.c_str(), std::ios_base::app);
       // X  g N alpha beta #alarms counter
@@ -2621,6 +2613,7 @@ void Stat::cusum_test(CusumParams & C) {
           << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
           << " " << (C.cusum_alarms).at(i) << " " << test_counter << "\n";
       file.close();
+      chdir("..");
     }
 
     i++;

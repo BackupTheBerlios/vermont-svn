@@ -39,7 +39,7 @@ std::string EndPoint::toString() const
 // withNetMask = false --> string doesnt contain netmask
 void EndPoint::fromString(const std::string & epstr, bool withNetMask)
 {
-  if (withNetMask == true) {
+  if (withNetMask == true) { // needed for reading endpoints from filter file
     std::string::size_type h = epstr.find('/', 0);
     std::string ipstr(epstr, 0, h);
     std::string::size_type i = epstr.find(':', h);
@@ -51,8 +51,10 @@ void EndPoint::fromString(const std::string & epstr, bool withNetMask)
 
     ipAddr.fromString(ipstr);
     netmask = atoi(netmaskstr.c_str());
-    if (netmask >= 0 && netmask <= 32)
+    if (netmask > 0 && netmask <= 32)
       applyNetMask();
+    else if (netmask == 0)
+      netmask = 0;
     else {
       std::cerr << "Invalid Netmask occured! Netmask may only be a value "
       << "between 0 and 32! Thus, 32 will be assumed for now!" << std::endl;

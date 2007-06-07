@@ -96,8 +96,9 @@ class EndPoint {
     // Destructor
     ~EndPoint() {};
 
+    // for the following two operators, netmask doesnt need to be compared,
+    // because it was already applied to the ip address
 
-    // TODO: consider netmask!
     // Operators (needed for use in maps)
     bool operator==(const EndPoint& e) const {
       return ipAddr[0] == e.ipAddr[0] && ipAddr[1] == e.ipAddr[1]
