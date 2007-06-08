@@ -204,7 +204,7 @@ void StatStore::recordEnd() {
 // Handle EndPoint e_source (with SourceIP and SourcePort)
 
   // Consider only EndPoints we are interested in
-  if (monitorEndPoint(e_source) == true) {
+  if (monitorEndPoint(e_source) == true || MonitorEveryEndPoint == true) {
     // EndPoint already known and thus in our List?
     if ( find(EndPointList.begin(), EndPointList.end(), e_source) != EndPointList.end() ) {
       // Since Data is destroyed after every test()-run,
@@ -243,7 +243,7 @@ void StatStore::recordEnd() {
 // Handle EndPoint e_dest (with DestIP and DestPort)
 
   // Consider only EndPoints we are interested in
-  if (monitorEndPoint(e_dest) == true) {
+  if (monitorEndPoint(e_dest) == true || MonitorEveryEndPoint == true) {
     // EndPoint already known and thus in our List?
     if ( find(EndPointList.begin(), EndPointList.end(), e_dest) != EndPointList.end() ) {
       // Since Data is destroyed after every test()-run,

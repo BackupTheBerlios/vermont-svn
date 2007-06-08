@@ -144,17 +144,22 @@ class Stat
 
   // the following functions are called by the test()-function:
   std::vector<int64_t> extract_data (const Info &, const Info &);
+  std::vector<int64_t> extract_pca_data (Params &, const Info &, const Info &);
   void wkp_update(WkpParams &, const std::vector<int64_t> &);
-  void stat_test(WkpParams &);
+  void wkp_test(WkpParams &);
   void cusum_update(CusumParams &, const std::vector<int64_t> &);
   void cusum_test(CusumParams &);
 
-  // this function is called by stat_test() and cusum_test() to extract a
+  // this function is called by extract_pca_data() to calculate a single entry
+  // of the covariance matrix
+  double covariance (const long long int &, const int &, const int &);
+
+  // this function is called by wkp_test() and cusum_test() to extract a
   // single metric to test from a std::vector<int64_t>
   std::list<int64_t> getSingleMetric(const std::list<std::vector<int64_t> > &, const short &);
   std::string getMetricName(const enum Metric &);
 
-  // the following functions are called by the stat_test()-function
+  // the following functions are called by the wkp_test()-function
   double stat_test_wmw(std::list<int64_t> &, std::list<int64_t> &, bool &);
   double stat_test_ks (std::list<int64_t> &, std::list<int64_t> &, bool &);
   double stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &, bool &);
@@ -177,13 +182,11 @@ class Stat
   bool createFiles;
   std::string output_dir;
 
-
-  // BEGIN TESTING
+  // for metric and params output files
   std::vector<int> cusum_alarms;  // counters for detected attacks
   std::vector<int> wmw_alarms;    // for every metric
   std::vector<int> ks_alarms;     // and avery test
   std::vector<int> pcs_alarms;
-  // END TESTING
 
 
   // here is the params container for the wkp-tests:
@@ -213,17 +216,10 @@ class Stat
   int stat_test_frequency;
   bool report_only_first_attack;
   short pause_update_when_attack;
-
   // fix PCA stuff
-  // config parameters
-  bool use_pca; // is pca activated?
-  int learning_phase_for_pca; // length of the learning phase
-  // functions
-  // calculate the covariance of two metrics
-  // (this will yield one entry for the cov-matrix)
-  double covariance (const long long int &, const int &, const int &);
-  // extract pca metrics
-  std::vector<int64_t> extract_pca_data (Params &, const Info &, const Info &);
+  bool use_pca;
+  int learning_phase_for_pca;
+
 
   // test parameters (defined in the XML config file):
 

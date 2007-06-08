@@ -76,6 +76,8 @@ Stat::Stat(const std::string & configfile)
 
   test_counter = 0;
 
+  std::cout << "Läuft ..." << std::endl;
+
   init(configfile);
 
 #ifdef OFFLINE_ENABLED
@@ -179,8 +181,6 @@ void Stat::init(const std::string & configfile) {
   // all the data will be written into
   init_offline_file(config);
 
-  init_output_dir(config);
-
 #ifndef OFFLINE_ENABLED
   // extracting the key of the endpoints
   // and thus determining, which IPFIX_TYPEIDs we need to subscribe to
@@ -193,6 +193,10 @@ void Stat::init(const std::string & configfile) {
 
   // extracting metrics
   init_metrics(config);
+
+  // extract directory name for
+  // putput files of metrics and test-params
+  init_output_dir(config);
 
   // extracting noise reduction preferences
   init_noise_thresholds(config);
@@ -532,26 +536,6 @@ void Stat::init_offline_file(XMLConfObj * config) {
   return;
 }
 
-void Stat::init_output_dir(XMLConfObj * config) {
-
-  createFiles = false;
-
-  if (!config->nodeExists("output_dir"))
-    return;
-  else if((config->getValue("output_dir")).empty())
-    return;
-
-  output_dir = config->getValue("output_dir");
-
-  if (mkdir(output_dir.c_str(), 0777) == -1) {
-    std::cerr << "WARNING: Directory \"" << output_dir << "\" couldn't be created. No output files will be generated!\n";
-    return;
-  }
-
-  createFiles = true;
-  return;
-}
-
 void Stat::init_endpoint_key(XMLConfObj * config) {
 
   std::stringstream Warning, Error, Default;
@@ -846,6 +830,27 @@ void Stat::init_metrics(XMLConfObj * config) {
   }
 #endif
 
+  return;
+}
+
+void Stat::init_output_dir(XMLConfObj * config) {
+
+  createFiles = false;
+
+  if (!config->nodeExists("output_dir"))
+    return;
+  else if((config->getValue("output_dir")).empty())
+    return;
+
+  output_dir = config->getValue("output_dir");
+
+  if (mkdir(output_dir.c_str(), 0777) == -1) {
+    std::cerr << "WARNING: Directory \"" << output_dir << "\" couldn't be created. It either already "
+      << "exists or you dont't have enough rights.\nNo output files will be generated!\n";
+    return;
+  }
+
+  createFiles = true;
   return;
 }
 
@@ -1587,7 +1592,7 @@ void Stat::test(StatStore * store) {
   // Dumping empty records:
   if (Data.empty()==true) {
     if (logfile_output_verbosity>=3 || warning_verbosity==1)
-      logfile << "INFORMATION: Got empty record; "
+      logfile << std::endl << "INFORMATION: Got empty record; "
         << "dumping it and waiting for another record" << std::endl << std::flush;
     return;
   }
@@ -1599,7 +1604,7 @@ void Stat::test(StatStore * store) {
 #endif
 
   if (logfile_output_verbosity > 0) {
-    logfile
+    logfile << std::endl
       << "####################################################" << std::endl
       << "########## Stat::test(...)-call number: " << test_counter
       << " ##########" << std::endl
@@ -1766,14 +1771,29 @@ void Stat::test(StatStore * store) {
 
       std::ofstream file(fname.c_str(),std::ios_base::app);
 
+      // are we at the beginning of the file?
+      // if yes, write the metric names to the file ...
+      long pos;
+      pos = file.tellp();
+
       if (use_pca == true) {
+        if (pos == 0) {
+          for (int i = 0; i != pca_metric_data.size(); i++)
+            file << "pca_comp_" << i << "\t";
+          file << "Test-Run" << "\n";
+        }
         for (int i = 0; i != pca_metric_data.size(); i++)
-          file << pca_metric_data.at(i) << " ";
+          file << pca_metric_data.at(i) << "\t";
         file << test_counter << "\n";
       }
       else {
+        if (pos == 0) {
+          for (int i = 0; i != metric_data.size(); i++)
+            file << getMetricName(metrics.at(i)) << "\t";
+          file << "Test-Run" << "\n";
+        }
         for (int i = 0; i != metric_data.size(); i++)
-          file << metric_data.at(i) << " ";
+          file << metric_data.at(i) << "\t";
         file << test_counter << "\n";
       }
 
@@ -1786,8 +1806,6 @@ void Stat::test(StatStore * store) {
     Data_it++;
   }
 
-  logfile << std::endl << std::flush;
-
   // 1.5) MAP PRINTING (OPTIONAL, DEPENDS ON VERBOSITY SETTINGS)
 
   // how many endpoints do we already monitor?
@@ -1798,7 +1816,7 @@ void Stat::test(StatStore * store) {
     ep_nr = CusumData.size();
 
   if (logfile_output_verbosity >= 4) {
-    logfile << "#### STATE OF ALL MONITORED ENDPOINTS (" << ep_nr << "):" << std::endl;
+    logfile << std::endl << "#### STATE OF ALL MONITORED ENDPOINTS (" << ep_nr << "):" << std::endl;
 
     if (enable_wkp_test == true) {
       logfile << "### WKP OVERVIEW" << std::endl;
@@ -1826,7 +1844,10 @@ void Stat::test(StatStore * store) {
         CusumData_it++;
       }
     }
+    logfile << std::flush;
   }
+
+
 
   // 2) STATISTICAL TEST
   // (OPTIONAL, DEPENDS ON HOW OFTEN THE USER WISHES TO DO IT)
@@ -1856,7 +1877,7 @@ void Stat::test(StatStore * store) {
           // i.e., learning phase over
           if (logfile_output_verbosity > 0)
             logfile << "\n#### WKP TESTS for EndPoint [[ " << WkpData_it->first << " ]]\n";
-          stat_test ( WkpData_it->second );
+          wkp_test ( WkpData_it->second );
         }
         WkpData_it++;
       }
@@ -1879,7 +1900,7 @@ void Stat::test(StatStore * store) {
   test_counter++;
   // don't forget to free the store-object!
   delete store;
-  logfile << std::endl << std::flush;
+  logfile << std::flush;
   return;
 
 }
@@ -2392,9 +2413,9 @@ void Stat::cusum_update ( CusumParams & C, const std::vector<int64_t> & new_valu
 
 // ------- FUNCTIONS USED TO CONDUCT TESTS ON THE SAMPLES ---------
 
-// statistical test function / wkp-tests
+// statistical test function for wkp-tests
 // (optional, depending on how often the user wishes to do it)
-void Stat::stat_test (WkpParams & S) {
+void Stat::wkp_test (WkpParams & S) {
 
   // Containers for the values of single metrics
   std::list<int64_t> sample_old_single_metric;
@@ -2494,12 +2515,24 @@ void Stat::stat_test (WkpParams & S) {
       chdir(output_dir.c_str());
 
       std::ofstream file(filename.c_str(), std::ios_base::app);
+
+      // are we at the beginning of the file?
+      // if yes, write the param names to the file ...
+      long pos;
+      pos = file.tellp();
+
+      if (pos == 0) {
+        file << "Value" << "\t" << "p (wmw)" << "\t" << "alarms (wmw)" << "\t"
+        << "p (ks)" << "\t" << "alarms (ks)" << "\t" << "p (pcs)" << "\t"
+        << "alarms (pcs)" << "\t" << "Test-Run\n";
+      }
+
       // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
       // p-value(pcs) #alarms(pcs) counter
-      file << sample_new_single_metric.back() << " " << str_p_wmw << " "
-          << (S.wmw_alarms).at(index) << " " << str_p_ks << " "
-          << (S.ks_alarms).at(index) << " " << str_p_pcs << " "
-          << (S.pcs_alarms).at(index) << " " << test_counter << "\n";
+      file << sample_new_single_metric.back() << "\t" << str_p_wmw << "\t"
+          << (S.wmw_alarms).at(index) << "\t" << str_p_ks << "\t"
+          << (S.ks_alarms).at(index) << "\t" << str_p_pcs << "\t"
+          << (S.pcs_alarms).at(index) << "\t" << test_counter << "\n";
       file.close();
       chdir("..");
     }
@@ -2608,10 +2641,22 @@ void Stat::cusum_test(CusumParams & C) {
       chdir(output_dir.c_str());
 
       std::ofstream file(filename.c_str(), std::ios_base::app);
+
+      // are we at the beginning of the file?
+      // if yes, write the param names to the file ...
+      long pos;
+      pos = file.tellp();
+
+      if (pos == 0) {
+        file << "Value" << "\t" << "g" << "\t" << "N" << "\t"
+        << "alpha" << "\t" << "beta" << "\t" << "alarms"
+        << "\t" << "Test-Run\n";
+      }
+
       // X  g N alpha beta #alarms counter
-      file << (int) C.X_curr.at(i) << " " << (int) C.g.at(i)
-          << " " << (int) N << " " << (int) C.alpha.at(i) << " "  << (int) beta
-          << " " << (C.cusum_alarms).at(i) << " " << test_counter << "\n";
+      file << (int) C.X_curr.at(i) << "\t" << (int) C.g.at(i)
+          << "\t" << (int) N << "\t" << (int) C.alpha.at(i) << "\t"  << (int) beta
+          << "\t" << (C.cusum_alarms).at(i) << "\t" << test_counter << "\n";
       file.close();
       chdir("..");
     }
@@ -2630,7 +2675,7 @@ void Stat::cusum_test(CusumParams & C) {
   return;
 }
 
-// functions called by the stat_test()-function
+// functions called by the wkp_test()-function
 std::list<int64_t> Stat::getSingleMetric(const std::list<std::vector<int64_t> > & l, const short & i) {
   std::list<int64_t> result;
   std::list<std::vector<int64_t> >::const_iterator it = l.begin();

@@ -197,7 +197,7 @@ This parameter defines the file, to which data shall be written in ONLINE MODE o
 
 <output_dir>:
 
-If you define this parameter, output files will be generated for the tests of this module. They will be stored in the directory you specify as value for this parameter. If this parameter is omitted, no output files will be generated. There are two kind of output files: those files which hold all the values of the metrics (pca_components) of each endpoint and those files which contain all the parameters of the tests for every metric (pca_component) and every endpoint. Now, you should understand our intention to introduce the filter and x_frequently_endpoints parameters ;)
+If you define this parameter, output files will be generated for the tests of this module. They will be stored in the directory you specify as value for this parameter. If this parameter is omitted, no output files will be generated. If the directory already exists, no output will be generated and a warning message is printed. There are two kinds of output files: those files which hold all the values of the metrics (pca_components) of each endpoint and those files which contain all the parameters of the tests for every metric (pca_component) and every endpoint. Now, you should understand our intention to introduce the filter and x_frequently_endpoints parameters ;)
 
 
 <stat_test_frequency>:

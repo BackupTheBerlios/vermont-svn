@@ -15,7 +15,7 @@
     <logfile_output_verbosity>4</logfile_output_verbosity>
     <warning_verbosity>1</warning_verbosity>
     <accepted_source_ids>all</accepted_source_ids>
-    <alarm_time>10</alarm_time>
+    <alarm_time>0</alarm_time>
     <endpoint_key>port protocol</endpoint_key>
   <offline_file>offlinefile.txt</offline_file>
   <output_dir>results</output_dir>
