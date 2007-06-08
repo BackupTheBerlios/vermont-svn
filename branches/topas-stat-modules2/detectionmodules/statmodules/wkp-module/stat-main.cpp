@@ -18,25 +18,12 @@
 /*                                                                        */
 /**************************************************************************/
 
-/*
-TODO(1)
-handle more protocols
---------------------------------------
-now, only TCP, UDP, ICMP and RAW are inspected
-
-TODO(2)
-Tests
---------------------------------------
-If report_only_first_attack = true:
-We cant see from the output, whether an attack ceased. Maybe some kind of "attack still in progress"-message would be nice ...
-*/
-
 // for pca (eigenvectors etc.)
 #include <gsl/gsl_eigen.h>
 // for pca (matrix multiplication)
 #include <gsl/gsl_blas.h>
 
-// for directory funtcions (mkdir, chdir ...)
+// for directory functions (mkdir, chdir ...)
 #ifdef __unix__
    #include <sys/types.h>
    #include <sys/stat.h>
@@ -74,15 +61,14 @@ Stat::Stat(const std::string & configfile)
   // lock, will be unlocked at the end of init() (cf. StatStore class header):
   StatStore::setBeginMonitoring () = false;
 
-  test_counter = 0;
+  test_counter = 0;  
 
-  std::cout << "Läuft ..." << std::endl;
-
+  // parameter initialization
   init(configfile);
 
 #ifdef OFFLINE_ENABLED
   /* open file with offline data */
-  if(!OfflineInputPolicy<StatStore>::openOfflineFile(offlineFile)) {
+  if(!OfflineInputPolicy<StatStore>::openOfflineFile(offlineFile.c_str())) {
       std::cerr << "ERROR: Could not open offline data file!\n Exiting." << std::endl;
       exit(0);
   }
@@ -265,11 +251,12 @@ void Stat::init(const std::string & configfile) {
     if (warning_verbosity==1)
       logfile << Error.str() << std::flush;
     delete config;
-    exit(0);
+    stop();
   }
 
   /* one should not forget to free "config" after use */
   delete config;
+  std::cout << "init finished " << std::endl;
 }
 
 
@@ -322,6 +309,8 @@ void Stat::init_logfile(XMLConfObj * config) {
   return;
 }
 
+#ifndef OFFLINE_ENABLED
+
 void Stat::init_accepted_source_ids(XMLConfObj * config) {
 
   if (!config->nodeExists("accepted_source_ids")) {
@@ -363,6 +352,9 @@ void Stat::init_accepted_source_ids(XMLConfObj * config) {
 
   return;
 }
+
+#endif
+
 
 void Stat::init_alarm_time(XMLConfObj * config) {
 
@@ -536,6 +528,8 @@ void Stat::init_offline_file(XMLConfObj * config) {
   return;
 }
 
+#ifndef OFFLINE_ENABLED
+
 void Stat::init_endpoint_key(XMLConfObj * config) {
 
   std::stringstream Warning, Error, Default;
@@ -604,6 +598,8 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
 
   return;
 }
+
+#endif
 
 // initialize pca
 void Stat::init_pca(XMLConfObj * config) {
@@ -947,8 +943,8 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
 // otherwise use the endpoints_to_filter parameter
   if (config->nodeExists("x_frequently_endpoints")) {
 
-    std::stringstream Warning
-      << "WARNING: No value for x_frequently_endpoints parameter defined in XML "
+    std::stringstream Warning;
+      Warning << "WARNING: No value for x_frequently_endpoints parameter defined in XML "
       << "config file!\n"
       << "  \"" << DEFAULT_x_frequent_endpoints << "\" assumed.\n";
 
@@ -962,7 +958,7 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
       x_frequently_endpoints = atoi((config->getValue("x_frequently_endpoints")).c_str());
 
     std::ifstream dataFile;
-    dataFile.open(offlineFile);
+    dataFile.open(offlineFile.c_str());    
 
     bool more = true;
 
@@ -971,14 +967,14 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
       std::vector<EndPoint> tmpData;
       std::string tmp;
       while ( getline(dataFile, tmp) ) {
-        if (0 == strcasecmp("---",tmp.c_str()) )
-          break;
-        else if ( dataFile.eof() ) {
+        if ( dataFile.eof() ) {
           std::cerr << "INFORMATION: All Data read from file.\n";
           dataFile.close();
           more = false;
           break;
         }
+        if (0 == strcasecmp("---",tmp.c_str()) )
+          break;
 
         // extract endpoint-data
         EndPoint e;
@@ -991,7 +987,7 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
       // count number of appearings of each EndPoint
       std::vector<EndPoint>::iterator tmpData_it = tmpData.begin();
       while (tmpData_it != tmpData.end()) {
-        endPointCount[tmpData_it->first]++;
+        endPointCount[*tmpData_it]++;
         tmpData_it++;
       }
 
@@ -1582,6 +1578,8 @@ void Stat::init_significance_level(XMLConfObj * config) {
 
 // ============================= TEST FUNCTION ===============================
 void Stat::test(StatStore * store) {
+
+std::cout << "Test" << std::endl;
 
 #ifdef IDMEF_SUPPORT_ENABLED
   idmefMessage = getNewIdmefMessage("wkp-module", "statistical anomaly detection");
@@ -2595,7 +2593,7 @@ void Stat::cusum_test(CusumParams & C) {
               << N << std::endl;
     }
 
-    // TODO(2)
+    // TODO
     // "attack still in progress"-message?
 
     // perform the test and if g > N raise an alarm

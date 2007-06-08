@@ -508,7 +508,7 @@ protected:
 	/**
 	 * Stops the module.
 	 */
-	static void stop() {
+	static void () {
 		state = EXIT;
 	}
 

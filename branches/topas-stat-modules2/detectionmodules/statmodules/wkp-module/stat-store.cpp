@@ -333,7 +333,7 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store)
 // returns true, if we are interested in EndPoint e
 // (false otherwise)
 bool StatStore::monitorEndPoint (EndPoint & e) {
-
+  
   std::vector<EndPoint>::iterator it = EndPointFilter.begin();
 
   while ( it != EndPointFilter.end() ) {

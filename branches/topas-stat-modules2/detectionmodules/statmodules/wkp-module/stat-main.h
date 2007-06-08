@@ -68,7 +68,7 @@ enum Metric {
   BYTES_T_OUT_MINUS_BYTES_T_1_OUT,
 };
 
-// main class: does tests, stores samples,
+// main class: does tests, stores samples and params,
 // reads and stores test parameters...
 
 class Stat
