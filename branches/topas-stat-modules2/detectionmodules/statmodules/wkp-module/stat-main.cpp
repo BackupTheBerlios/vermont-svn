@@ -310,7 +310,6 @@ void Stat::init_logfile(XMLConfObj * config) {
 }
 
 #ifndef OFFLINE_ENABLED
-
 void Stat::init_accepted_source_ids(XMLConfObj * config) {
 
   if (!config->nodeExists("accepted_source_ids")) {
@@ -352,10 +351,9 @@ void Stat::init_accepted_source_ids(XMLConfObj * config) {
 
   return;
 }
-
 #endif
 
-
+#ifndef OFFLINE_ENABLED
 void Stat::init_alarm_time(XMLConfObj * config) {
 
   // extracting alarm_time
@@ -384,6 +382,7 @@ void Stat::init_alarm_time(XMLConfObj * config) {
 
   return;
 }
+#endif
 
 void Stat::init_warning_verbosity(XMLConfObj * config) {
 
@@ -529,7 +528,6 @@ void Stat::init_offline_file(XMLConfObj * config) {
 }
 
 #ifndef OFFLINE_ENABLED
-
 void Stat::init_endpoint_key(XMLConfObj * config) {
 
   std::stringstream Warning, Error, Default;
@@ -598,7 +596,9 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
 
   return;
 }
+#endif
 
+#ifndef OFFLINE_ENABLED
 void Stat::init_netmask(XMLConfObj * config) {
 
   std::stringstream Default, Warning, Error;
@@ -637,7 +637,6 @@ void Stat::init_netmask(XMLConfObj * config) {
 
   return;
 }
-
 #endif
 
 // initialize pca
