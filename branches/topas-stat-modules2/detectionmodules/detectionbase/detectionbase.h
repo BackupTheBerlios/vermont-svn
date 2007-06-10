@@ -60,7 +60,7 @@ template <
         class DataStorage,
         class InputPolicy = BufferedFilesInputPolicy<SemShmNotifier, DataStorage>
 >
-class DetectionBase 
+class DetectionBase
 {
  public:
         typedef enum {
@@ -82,7 +82,7 @@ class DetectionBase
         {
 		if(configFile == "")
 		    return;
-	    
+
 		confObj = new XMLConfObj(configFile, XMLConfObj::XML_FILE);
 
 #ifdef IDMEF_SUPPORT_ENABLED
@@ -104,7 +104,7 @@ class DetectionBase
 							props.push_back(confObj->getNextValue());
 						}
 					} else {
-						std::cerr << "No <" << config_space::XMLBLASTER_PROP 
+						std::cerr << "No <" << config_space::XMLBLASTER_PROP
 							  << "> statement in config file, using default values"
 							  << std::endl;
 					}
@@ -128,11 +128,11 @@ class DetectionBase
 			} else {
 				std::cerr << "No <" << config_space::XMLBLASTER << "> statement in config file" << std::endl;
 			}
-			
+
                 } else {
                         std::cerr << "No <" << config_space::XMLBLASTERS << "> statement in config file" << std::endl;
                 }
-                
+
                 /* connect to all xmlBlaster servers */
                 for (unsigned i = 0; i != xmlBlasters.size(); ++i) {
 			try {
@@ -142,22 +142,22 @@ class DetectionBase
 			} catch (const XmlBlasterException &e) {
 				std::cerr << "Cannot connect to xmlBlaster: " << std::endl
 					  << e.toXml() << std::endl
-					  << "Make sure, the xmlBlaster server is up and running." 
+					  << "Make sure, the xmlBlaster server is up and running."
 					  << std::endl;
 			        throw std::runtime_error("Cannot connect to xmlBlaster: \n" + e.toXml()
 							 + "\nMake sure, the xmlBlaster server is up and running.");
-			}                                    
+			}
                 }
 
                 std::cin >> topasID;
 #endif // IDMEF_SUPPORT_ENABLED
         }
-        
-        
+
+
         /**
          * Destructor...
          */
-        virtual ~DetectionBase() 
+        virtual ~DetectionBase()
         {
 #ifdef IDMEF_SUPPORT_ENABLED
                 for (unsigned i = 0; i != commObjs.size(); ++i) {
@@ -187,7 +187,7 @@ class DetectionBase
          * If the list is empty, all received data will be passed to the module
          * @param id Field ID to be stored in the list
          */
-        void subscribeTypeId(int id)  
+        void subscribeTypeId(int id)
         {
                 inputPolicy.subscribeId(id);
         }
@@ -203,12 +203,12 @@ class DetectionBase
 	{
 		inputPolicy.subscribeSourceId(id);
 	}
-        
+
 
         /**
          * Main routing of the detectionbase. This function is responsible for collecting data from the files
          */
-        int exec() 
+        int exec()
         {
                 state = RUN;
                 pthread_create(&testThread, NULL,
@@ -255,7 +255,7 @@ class DetectionBase
         /**
          * Test-Thread function. This function will run the tests implemented by derived classes.
          */
-        static void* testThreadFunc(void* detectionbase_) 
+        static void* testThreadFunc(void* detectionbase_)
         {
 		unsigned testInterval;
 		time_t testTime, t;
@@ -268,11 +268,11 @@ class DetectionBase
 		// when alarmtime > 0, buffering is used
 		// otherwise each record is seperately passed to the test function
 		while(state == RUN) {
-			// what a ugly hack! substitute this with some 
+			// what a ugly hack! substitute this with some
 			// saved state!!!!!
 			if((testInterval = dbase->getAlarmTime()) > 0) {
 				testTime = time(NULL) + testInterval;
-				
+
 				while(testInterval > 0 && state == RUN) {
 					t = time(NULL);
 					if (t > testTime) {
@@ -296,9 +296,9 @@ class DetectionBase
 								dbase->sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
 							}
 						}
-					}				
+					}
 #endif
-					// get received data into the user data struct 
+					// get received data into the user data struct
 					dbase->test(inputPolicy.getStorage());
 				}
 			}
@@ -319,22 +319,22 @@ class DetectionBase
 						} catch (const exceptions::XMLException &e) {
 							msgStr.print(MsgStream::ERROR, e.what());
 							dbase->sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
-						}						
+						}
 					}
- 				}				
+ 				}
 #endif
 			}
 		}
-                
+
                 return NULL;
         }
 
-        /** 
+        /**
          * Test function. This function will be called, whenever its time to do the test.
          * You should override this function in derived classes.
          * _NEVER_ CALL THIS FUNCTION BY HAND IN AN DERIVED CLASS
          * @param ds Pointer to data structure, containing all data collected since last call
-         *           to test(). 
+         *           to test().
          *           You have to delete the memory allocated for the object.
          */
         virtual void test(DataStorage* ds) {};
@@ -345,7 +345,7 @@ class DetectionBase
 	 * will take effect after the currently running alarm is triggered.
          * @param sec Seconds till next test run
          */
-        void setAlarmTime(unsigned  sec) 
+        void setAlarmTime(unsigned  sec)
         {
                 alarmTime = sec;
         }
@@ -389,14 +389,14 @@ class DetectionBase
                 currentMessage = new IdmefMessage(analyzerName, analyzerId, classification, IdmefMessage::ALERT);
 		currentMessage->setAnalyzerAttr("", topasID, "", "");
                 return *currentMessage;
-        
+
         }
 
         /**
          * Creates and returns a new IdmefMessage. Pointer to older messages will get invalidated
          * @param analyzerName Name of the detection module.
          * @param classification Classification of the detection method.
-         * @return new Idmef message 
+         * @return new Idmef message
          */
         IdmefMessage& getNewIdmefMessage(const std::string& analyzerName, const std::string& classification)
         {
@@ -446,8 +446,8 @@ class DetectionBase
         }
 
 protected:
-	/** 
-         * Register function. This function should be called 
+	/**
+         * Register function. This function should be called
 	 * in the init() function of each detection module.
          * It registers the module and subscribes for update messages.
          * @param analyzerName Name of the detection module.
@@ -478,7 +478,7 @@ protected:
 	{
 		return topasID;
 	}
-	
+
 	/**
 	 * Returns moduleID.
 	 */
@@ -487,7 +487,7 @@ protected:
 		return analyzerName + "-" + analyzerId;
 	}
 
-	/** 
+	/**
          * Update function. This function will be called, whenever a message
          * for subscribed key is received from xmlBlaster.
          * _NEVER_ CALL THIS FUNCTION BY HAND IN AN DERIVED CLASS
@@ -504,16 +504,16 @@ protected:
 	static void restart() {
 		state = RESTART;
 	}
-	
+
 	/**
 	 * Stops the module.
 	 */
-	static void () {
+	static void stop() {
 		state = EXIT;
 	}
 
 
-	
+
 private:
 #ifdef IDMEF_SUPPORT_ENABLED
         IdmefMessage* currentMessage;
@@ -539,7 +539,7 @@ template<class DataStorage, class InputPolicy>
 InputPolicy DetectionBase<DataStorage, InputPolicy>::inputPolicy;
 template<class DataStorage, class InputPolicy>
 volatile typename DetectionBase<DataStorage, InputPolicy>::State
-	DetectionBase<DataStorage, InputPolicy>::state = 
+	DetectionBase<DataStorage, InputPolicy>::state =
 		(typename DetectionBase<DataStorage, InputPolicy>::State)0;
 
 #endif

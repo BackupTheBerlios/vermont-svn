@@ -45,10 +45,9 @@ struct Info {
 // ==================== ENDPOINT CLASS EndPoint ====================
 class EndPoint {
 
-  private:
+  protected:
 
     IpAddress ipAddr;
-    short netmask;
     int portNr;
     int protocolID;
 
@@ -59,23 +58,13 @@ class EndPoint {
     // Constructors
     EndPoint() : ipAddr (0,0,0,0) {
 
-      netmask = 32;
       portNr = 0;
       protocolID = 0;
 
     }
 
-    EndPoint(const IpAddress & ip, short nmask, int port, int protocol) : ipAddr (ip[0], ip[1], ip[2], ip[3]) {
+    EndPoint(const IpAddress & ip, int port, int protocol) : ipAddr (ip[0], ip[1], ip[2], ip[3]) {
 
-      if (nmask >= 0 && nmask <= 32) {
-        netmask = nmask;
-        applyNetMask();
-      }
-      else {
-        std::cerr << "Invalid Netmask occured! Netmask may only be a value "
-        << "between 0 and 32! Thus, 32 will be assumed for now!" << std::endl;
-        netmask = 32;
-      }
       portNr = port;
       protocolID = protocol;
 
@@ -83,10 +72,6 @@ class EndPoint {
 
     // copy constructor
     EndPoint(const EndPoint & e) : ipAddr(e.ipAddr[0], e.ipAddr[1], e.ipAddr[2], e.ipAddr[3]){
-
-      netmask = e.netmask;
-      // no need to apply it, because it was already applied
-      //to the original endpoint
 
       portNr = e.portNr;
       protocolID = e.protocolID;
@@ -128,7 +113,7 @@ class EndPoint {
     }
 
     std::string toString() const;
-    void fromString(const std::string &, bool);
+    void fromString(const std::string &);
 
     // Setters & Getters
     void setIpAddress(const IpAddress & ip) {
@@ -143,24 +128,51 @@ class EndPoint {
       protocolID = pid;
     }
 
-    void setNetMask(const short & n) {
-      if (n >= 0 && n <= 32) {
-        netmask = n;
-        applyNetMask();
-      }
-      else {
-        std::cerr << "Invalid Netmask occured! Netmask may only be a value "
-        << "between 0 and 32! Thus, 32 will be assumed for now!" << std::endl;
-        netmask = 32;
-      }
-    }
-
     IpAddress getIpAddress() const { return ipAddr; }
     int getPortNr() const { return portNr; }
     int getProtocolID() const { return protocolID; }
-    short getNetMask() const { return netmask; }
 
-    void applyNetMask();
+    void applyNetmask(short n) {
+      ipAddr.remanent_mask(n);
+    }
+
+};
+
+// ==================== FILTER CLASS FilterEndPoint ====================
+
+class FilterEndPoint : public EndPoint
+{
+
+  private:
+
+    short nmask;
+
+  public:
+
+    FilterEndPoint() {
+      nmask = 32;
+    }
+
+    ~FilterEndPoint() {};
+
+    // this does the same as the fromString() method of
+    // the base class, but can additionally handle netmask
+    void fromString(const std::string &, bool);
+
+    // Tests, if the endpoint given by the parameter matches with
+    // the FilterEndPoint, after the netmask was applied
+    bool matchesWithEndPoint (const EndPoint &);
+
+    void setNetmask (short n) {
+      if (n >= 0 && n <= 32)
+        nmask = n;
+      else {
+        std::cerr << "WARNING: Invalid netmask supplied for FilterEndPoint::setNetmask()!\n"
+        << "  \"32\" assumed instead.\n";
+        nmask = 32;
+      }
+    }
+    short getNetmask () const { return nmask; }
 
 };
 

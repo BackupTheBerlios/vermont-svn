@@ -17,9 +17,10 @@
     <accepted_source_ids>all</accepted_source_ids>
     <alarm_time>10</alarm_time>
     <endpoint_key>port protocol</endpoint_key>
+    <netmask>32</netmask>
   <offline_file>offlinefile.txt</offline_file>
   <output_dir>results</output_dir>
-  <endpoints_to_monitor>all</endpoints_to_monitor>
+  <endpoints_to_monitor>wkp-eps.txt</endpoints_to_monitor>
   <x_frequently_endpoints>5</x_frequently_endpoints>
     <use_pca>false</use_pca>
     <pca_learning_phase>25</pca_learning_phase>

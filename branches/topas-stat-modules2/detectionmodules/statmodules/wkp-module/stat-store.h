@@ -67,13 +67,18 @@ class StatStore : public DataStore {
   std::map<EndPoint,Info> getData() const {return Data;}
   std::map<EndPoint,Info> getPreviousData() const {return PreviousData;}
 
-  bool monitorEndPoint (EndPoint &);
+  bool monitorEndPoint (const EndPoint &);
 
   friend std::ifstream& operator>>(std::ifstream&, StatStore*);
 
  private:
 
-  static std::vector<EndPoint> EndPointFilter;
+  static short netmask;
+  // will be applied to the ip addresses directly when they are
+  // handled in addFieldData(); this is for aggregating ip addresses
+  // to subnets
+
+  static std::vector<FilterEndPoint> EndPointFilter;
   // EndPoints to monitor. They are provided in a file by the user;
   // this file is read by Stat::init(), which then initializes
   // EndPointFilter.
@@ -109,8 +114,12 @@ class StatStore : public DataStore {
 
   // Public "setters" we just spoke about:
 
-  static void AddEndPointToFilter (EndPoint e) {
-    EndPointFilter.push_back(e);
+  static short & setNetmask () {
+    return netmask;
+  }
+
+  static void AddEndPointToFilter (FilterEndPoint fep) {
+    EndPointFilter.push_back(fep);
   }
 
   static bool & setMonitorEveryEndPoint () {

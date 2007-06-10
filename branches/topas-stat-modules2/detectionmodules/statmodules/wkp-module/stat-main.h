@@ -124,6 +124,7 @@ class Stat
   void init_offline_file(XMLConfObj *);
   void init_output_dir(XMLConfObj *);
   void init_endpoint_key(XMLConfObj *);
+  void init_netmask(XMLConfObj *);
   void init_pca(XMLConfObj *);
   void init_metrics(XMLConfObj *);
   void init_noise_thresholds(XMLConfObj *);
@@ -165,7 +166,10 @@ class Stat
   double stat_test_pcs(std::list<int64_t> &, std::list<int64_t> &, bool &);
 
   // contains endpoints and their number of occurance
-  std::map<EndPoint,int> endPointCount;
+  // (type is FilterEndPoint, because then we dont need two filter containers
+  // in StatStore, one which could hold the x_most_frequently and another one,
+  // which could hold the endpoints from the file ... )
+  std::map<FilterEndPoint,int> endPointCount;
 
   // determines how many endpoints will be considered
   // meaning that only the X most frequently appeared endpoints

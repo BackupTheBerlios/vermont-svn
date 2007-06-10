@@ -119,15 +119,22 @@ public:
 	IpAddress mask (byte m1, byte m2, byte m3, byte m4) {
 	  return IpAddress( address[0] & m1, address[1] & m2, address[2] & m3, address[3] & m4 );
 	}
+
 	IpAddress mask (const byte m[4]) {
 	  return IpAddress( address[0] & m[0], address[1] & m[1], address[2] & m[2], address[3] & m[3] );
 	}
+
+  IpAddress mask (short);
+
 	void remanent_mask (byte m1, byte m2, byte m3, byte m4) {
 	  setAddress( address[0] & m1, address[1] & m2, address[2] & m3, address[3] & m4 );
 	}
+
 	void remanent_mask (const byte m[4]) {
 	  setAddress( address[0] & m[0], address[1] & m[1], address[2] & m[2], address[3] & m[3] );
 	}
+
+  void remanent_mask (short);
 
 
 private:

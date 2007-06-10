@@ -12,6 +12,10 @@ void Params::init(int size) {
       for (int j = 0; j < size; j++)
         sumsOfProducts.at(i).push_back(0);
     }
+
+    learning_phase_nr_for_pca = 0;
+    pca_ready = false;
+
     return;
 
   }

@@ -61,7 +61,7 @@ Stat::Stat(const std::string & configfile)
   // lock, will be unlocked at the end of init() (cf. StatStore class header):
   StatStore::setBeginMonitoring () = false;
 
-  test_counter = 0;  
+  test_counter = 0;
 
   // parameter initialization
   init(configfile);
@@ -70,7 +70,7 @@ Stat::Stat(const std::string & configfile)
   /* open file with offline data */
   if(!OfflineInputPolicy<StatStore>::openOfflineFile(offlineFile.c_str())) {
       std::cerr << "ERROR: Could not open offline data file!\n Exiting." << std::endl;
-      exit(0);
+      stop();
   }
 #else
   if (0 != strcasecmp(offlineFile.c_str(), "none"))
@@ -112,7 +112,7 @@ void Stat::init(const std::string & configfile) {
       << "  Define one, fill it with some parameters and restart.\n"
       << "  Exiting.\n";
     delete config;
-    exit(0);
+    stop();
   }
 
   if (!config->nodeExists("cusum-test-params")) {
@@ -121,7 +121,7 @@ void Stat::init(const std::string & configfile) {
       << "  Define one, fill it with some parameters and restart.\n"
       << "  Exiting.\n";
     delete config;
-    exit(0);
+    stop();
   }
 
   if (!config->nodeExists("wkp-test-params")) {
@@ -130,7 +130,7 @@ void Stat::init(const std::string & configfile) {
       << "  Define one, fill it with some parameters and restart.\n"
       << "  Exiting.\n";
     delete config;
-    exit(0);
+    stop();
   }
 
   // ATTENTION:
@@ -140,7 +140,7 @@ void Stat::init(const std::string & configfile) {
 
   config->enterNode("preferences");
 
-  // extracting logfile's name
+  // extracting logfile's name and output verbosity
   init_logfile(config);
 
 #ifndef OFFLINE_ENABLED
@@ -160,9 +160,6 @@ void Stat::init(const std::string & configfile) {
   // extracting warning verbosity
   init_warning_verbosity(config);
 
-  // extracting output verbosity
-  init_logfile_output_verbosity(config);
-
   // extract filename for the file where
   // all the data will be written into
   init_offline_file(config);
@@ -172,6 +169,10 @@ void Stat::init(const std::string & configfile) {
   // and thus determining, which IPFIX_TYPEIDs we need to subscribe to
   // NOTE: only needed for ONLINE MODE
   init_endpoint_key(config);
+
+  // extracting the netmask, which will be applied
+  // to the ip of each endpoint; for aggregating
+  init_netmask(config);
 #endif
 
   // initialize pca parameters
@@ -256,7 +257,6 @@ void Stat::init(const std::string & configfile) {
 
   /* one should not forget to free "config" after use */
   delete config;
-  std::cout << "init finished " << std::endl;
 }
 
 
@@ -303,7 +303,7 @@ void Stat::init_logfile(XMLConfObj * config) {
       std::cerr << "ERROR: could not open wkp-module's logfile!\n"
         << "  Check if you have enough rights to create or write to it.\n"
         << "  Exiting.\n";
-      exit(0);
+      stop();
   }
 
   return;
@@ -415,7 +415,7 @@ void Stat::init_warning_verbosity(XMLConfObj * config) {
     else {
       std::cerr << Error.str() << Usage.str() << "  Exiting.\n";
       logfile << Error.str() << Usage.str() << "  Exiting.\n" << std::flush;
-      exit(0);
+      stop();
     }
   }
   else {
@@ -464,7 +464,7 @@ void Stat::init_logfile_output_verbosity(XMLConfObj * config) {
       std::cerr << Error.str() << Usage.str() << "  Exiting.\n";
       if (warning_verbosity==1)
         logfile << Error.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
-      exit(0);
+      stop();
     }
   }
   else {
@@ -497,7 +497,7 @@ void Stat::init_offline_file(XMLConfObj * config) {
     std::cerr << Error1.str();
     if (warning_verbosity==1)
       logfile << Error1.str() << std::flush;
-    exit(0);
+    stop();
 #else
     std::cerr << Warning.str();
     if (warning_verbosity==1)
@@ -510,7 +510,7 @@ void Stat::init_offline_file(XMLConfObj * config) {
     std::cerr << Error2.str();
     if (warning_verbosity==1)
       logfile << Error2.str() << std::flush;
-    exit(0);
+    stop();
 #else
     std::cerr << Default.str();
     if (warning_verbosity==1)
@@ -585,7 +585,7 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
         std::cerr << Error.str() << "  Exiting.\n";
         if (warning_verbosity==1)
           logfile << Error.str() << "  Exiting." << std::endl << std::flush;
-        exit(0);
+        stop();
       }
     }
   }
@@ -594,6 +594,45 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
     std::cerr << Default.str() << "\n";
     if (warning_verbosity==1)
       logfile << Default.str() << std::endl << std::flush;
+  }
+
+  return;
+}
+
+void Stat::init_netmask(XMLConfObj * config) {
+
+  std::stringstream Default, Warning, Error;
+  Default
+    << "WARNING: No netmask parameter defined in XML config file!\n"
+    << "  \"32\" assumed.\n";
+  Warning
+    << "WARNING: No value for netmask parameter defined in XML config file!\n"
+    << "  \"32\" assumed.\n";
+  Error
+    << "ERROR: Unknown value for netmask parameter in XML config file!\n"
+    << "  Please choose a value between 0 and 32 and restart.\n"
+    << "  Exiting.\n";
+
+  if (!config->nodeExists("netmask")) {
+    std::cerr << Default.str();
+    if (warning_verbosity == 1)
+      logfile << Default.str();
+    StatStore::setNetmask() = 32;
+  }
+  else if ((config->getValue("netmask")).empty()) {
+    std::cerr << Warning.str();
+    if (warning_verbosity == 1)
+      logfile << Warning.str();
+    StatStore::setNetmask() = 32;
+  }
+
+  if (atoi(config->getValue("netmask").c_str()) >= 0 && atoi(config->getValue("netmask").c_str()) <= 32)
+    StatStore::setNetmask() = atoi(config->getValue("netmask").c_str());
+  else {
+    std::cerr << Error.str();
+    if (warning_verbosity == 1)
+      logfile << Error.str();
+    stop();
   }
 
   return;
@@ -676,7 +715,7 @@ void Stat::init_metrics(XMLConfObj * config) {
     std::cerr << Error1.str() << Usage.str() << "  Exiting.\n";
     if (warning_verbosity==1)
       logfile << Error1.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
-    exit(0);
+    stop();
   }
 
   config->enterNode("metrics");
@@ -693,7 +732,7 @@ void Stat::init_metrics(XMLConfObj * config) {
     std::cerr << Error2.str() << Usage.str() << "  Exiting.\n";
     if (warning_verbosity==1)
       logfile << Error2.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
-    exit(0);
+    stop();
   }
 
   config->leaveNode();
@@ -751,7 +790,7 @@ void Stat::init_metrics(XMLConfObj * config) {
         std::cerr << Error3.str() << Usage.str() << "  Exiting.\n";
         if (warning_verbosity==1)
           logfile << Error3.str() << Usage.str() << "  Exiting." << std::endl << std::flush;
-        exit(0);
+        stop();
       }
     it++;
   }
@@ -958,49 +997,55 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
       x_frequently_endpoints = atoi((config->getValue("x_frequently_endpoints")).c_str());
 
     std::ifstream dataFile;
-    dataFile.open(offlineFile.c_str());    
+    dataFile.open(offlineFile.c_str());
+    if (!dataFile) {
+      std::stringstream Error;
+      Error << "ERROR: Could't open offline file.\n  Exiting.\n";
+      std::cerr << Error.str();
+      if (warning_verbosity==1)
+        logfile << Error.str() << std::flush;
+      stop();
+    }
 
-    bool more = true;
-
-    while (more == true) {
-
-      std::vector<EndPoint> tmpData;
+    while (true) {
+      std::vector<FilterEndPoint> tmpData;
       std::string tmp;
+
+      if ( dataFile.eof() ) {
+        std::cerr << "INFORMATION: All Data read from file.\n";
+        dataFile.close();
+        break;
+      }
+
       while ( getline(dataFile, tmp) ) {
-        if ( dataFile.eof() ) {
-          std::cerr << "INFORMATION: All Data read from file.\n";
-          dataFile.close();
-          more = false;
-          break;
-        }
+
         if (0 == strcasecmp("---",tmp.c_str()) )
           break;
 
         // extract endpoint-data
-        EndPoint e;
-        e.fromString(tmp, false);
-        tmpData.push_back(e);
+        FilterEndPoint fep;
+        fep.fromString(tmp, false);
+        tmpData.push_back(fep);
 
         tmp.clear();
       }
 
       // count number of appearings of each EndPoint
-      std::vector<EndPoint>::iterator tmpData_it = tmpData.begin();
+      std::vector<FilterEndPoint>::iterator tmpData_it = tmpData.begin();
       while (tmpData_it != tmpData.end()) {
         endPointCount[*tmpData_it]++;
         tmpData_it++;
       }
-
     }
 
     // if all data was read
     // search the X most frequently appeared endpoints
-    std::map<EndPoint,int> mostFrequentEndPoints;
+    std::map<FilterEndPoint,int> mostFrequentEndPoints;
     for (int j = 0; j < x_frequently_endpoints; j++) {
-      std::pair<EndPoint,int> tmpmax;
+      std::pair<FilterEndPoint,int> tmpmax;
       tmpmax.first = (endPointCount.begin())->first;
       tmpmax.second = (endPointCount.begin())->second;
-      for (std::map<EndPoint,int>::iterator i = endPointCount.begin(); i != endPointCount.end(); i++) {
+      for (std::map<FilterEndPoint,int>::iterator i = endPointCount.begin(); i != endPointCount.end(); i++) {
         if (tmpmax.second < i->second) {
           tmpmax.first = i->first;
           tmpmax.second = i->second;
@@ -1009,8 +1054,9 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
       mostFrequentEndPoints.insert(tmpmax);
       endPointCount.erase(tmpmax.first);
     }
+
     // push these endpoints in the endPointFilter
-    std::map<EndPoint,int>::iterator iter;
+    std::map<FilterEndPoint,int>::iterator iter;
     for (iter = mostFrequentEndPoints.begin(); iter != mostFrequentEndPoints.end(); iter++)
       StatStore::AddEndPointToFilter(iter->first);
 
@@ -1061,13 +1107,13 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
     std::cerr << Error.str();
     if (warning_verbosity==1)
       logfile << Error.str() << std::flush;
-    exit(0);
+    stop();
   }
   std::string tmp;
   while ( getline(f, tmp) ) {
-    EndPoint e;
-    e.fromString(tmp, true); // with netmask applied
-    StatStore::AddEndPointToFilter(e);
+    FilterEndPoint fep;
+    fep.fromString(tmp, true); // with netmask applied
+    StatStore::AddEndPointToFilter(fep);
   }
 
   return;
@@ -1181,7 +1227,7 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
         std::cerr << Error.str();
         if (warning_verbosity==1)
           logfile << Error.str() << std::flush;
-        exit(0);
+        stop();
         break;
     }
   }
@@ -1303,7 +1349,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
         std::cerr << Error1.str();
         if (warning_verbosity==1)
           logfile << Error1.str() << std::flush;
-        exit(0);
+        stop();
       }
     }
     else {
@@ -1327,7 +1373,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
         std::cerr << Error2.str();
         if (warning_verbosity==1)
           logfile << Error2.str() << std::flush;
-        exit(0);
+        stop();
       }
     }
     else {
@@ -1351,7 +1397,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
         std::cerr << Error3.str();
         if (warning_verbosity==1)
           logfile << Error3.str() << std::flush;
-        exit(0);
+        stop();
       }
     }
     else {
@@ -1542,7 +1588,7 @@ void Stat::init_significance_level(XMLConfObj * config) {
         std::cerr << Error.str();
         if (warning_verbosity==1)
           logfile << Error.str() << std::flush;
-        exit(0);
+        stop();
       }
     }
     else {
@@ -1578,8 +1624,6 @@ void Stat::init_significance_level(XMLConfObj * config) {
 
 // ============================= TEST FUNCTION ===============================
 void Stat::test(StatStore * store) {
-
-std::cout << "Test" << std::endl;
 
 #ifdef IDMEF_SUPPORT_ENABLED
   idmefMessage = getNewIdmefMessage("wkp-module", "statistical anomaly detection");
@@ -1656,16 +1700,21 @@ std::cout << "Test" << std::endl;
         // as limits are implemented in the StatStore class (EndPointListMaxSize)
 
         WkpParams S;
+        S.correspondingEndPoint = (Data_it->first).toString();
+        for (int i=0; i < metrics.size(); i++) {
+          (S.wmw_alarms).push_back(0);
+          (S.ks_alarms).push_back(0);
+          (S.pcs_alarms).push_back(0);
+        }
+
         if (use_pca == true) {
           // initialize pca stuff
           S.init(metrics.size());
-          S.correspondingEndPoint = (Data_it->first).toString();
           pca_metric_data = extract_pca_data(S, Data_it->second, prev);
         }
         else {
           metric_data = extract_data(Data_it->second, prev);
           (S.Old).push_back(metric_data);
-          S.correspondingEndPoint = (Data_it->first).toString();
         }
 
         WkpData[Data_it->first] = S;
@@ -1716,6 +1765,7 @@ std::cout << "Test" << std::endl;
           (C.last_cusum_test_was_attack).push_back(false);
           (C.X_curr).push_back(0);
           (C.X_last).push_back(0);
+          (C.cusum_alarms).push_back(0);
         }
 
         if (use_pca == true) {
@@ -2081,7 +2131,7 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
         << "or it holds an unknown type which isnt supported yet."
         << "But this shouldnt happen as the init_metrics"
         << "-function handles that.\nExiting.\n";
-        exit(0);
+        stop();
     }
 
     it++;
@@ -2560,7 +2610,7 @@ void Stat::cusum_test(CusumParams & C) {
   // we have to store, for which metrics an attack was detected and set
   // the corresponding last_cusum_test_was_attack-flags to true/false
   std::vector<bool> was_attack;
-  for (int i = 0; i!= C.last_cusum_test_was_attack.size(); i++)
+  for (int i = 0; i < metrics.size(); i++)
     was_attack.push_back(false);
   // index, as we cant use the iterator for dereferencing the elements of
   // CusumParams
@@ -2603,12 +2653,12 @@ void Stat::cusum_test(CusumParams & C) {
         || C.last_cusum_test_was_attack.at(i) == false) {
         if (logfile_output_verbosity >= 2) {
           logfile
-            << "    ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+            << "    ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
             << "    " << C.correspondingEndPoint << " for metric " << getMetricName(*it) << "\n"
             << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
             << "    ALARM! ALARM! Women und children first!" << std::endl;
           std::cout
-            << "  ATTACK! ATTACK! ATTACK! (" << test_counter << ")\n"
+            << "  ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
             << "  " << C.correspondingEndPoint << " for metric " << getMetricName(*it) << "\n"
             << "  Cusum test says we're under attack!\n"
             << "  ALARM! ALARM! Women und children first!" << std::endl;
@@ -2725,7 +2775,7 @@ std::string Stat::getMetricName(const enum Metric & m) {
     default:
       std::cerr << "ERROR: Unknown type of Metric in getMetricName().\n"
                 << "Exiting.\n";
-      exit(0);
+      stop();
   }
 }
 
@@ -2752,11 +2802,11 @@ double Stat::stat_test_wmw (std::list<int64_t> & sample_old,
       if (report_only_first_attack == false
 	    || last_wmw_test_was_attack == false) {
        logfile
-          << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
+          << "    ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
 		      << "    Wilcoxon-Mann-Whitney test says we're under attack!\n"
 		      << "    ALARM! ALARM! Women und children first!" << std::endl;
 	      std::cout
-          << "  ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
+          << "  ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
           << "  Wilcoxon-Mann-Whitney test says we're under attack!\n"
 		      << "  ALARM! ALARM! Women und children first!" << std::endl;
       #ifdef IDMEF_SUPPORT_ENABLED
@@ -2812,10 +2862,10 @@ double Stat::stat_test_ks (std::list<int64_t> & sample_old,
     if (significance_level > p) {
       if (report_only_first_attack == false
 	    || last_ks_test_was_attack == false) {
-	      logfile << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
+	      logfile << "    ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
 		      << "    Kolmogorov-Smirnov test says we're under attack!\n"
 		      << "    ALARM! ALARM! Women und children first!" << std::endl;
-	      std::cout << "  ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
+	      std::cout << "  ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
           << "  Kolmogorov-Smirnov test says we're under attack!\n"
           << "  ALARM! ALARM! Women und children first!" << std::endl;
       #ifdef IDMEF_SUPPORT_ENABLED
@@ -2872,10 +2922,10 @@ double Stat::stat_test_pcs (std::list<int64_t> & sample_old,
     if (significance_level > p) {
       if (report_only_first_attack == false
 	    || last_pcs_test_was_attack == false) {
-	      logfile << "    ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
+	      logfile << "    ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
 		      << "    Pearson chi-square test says we're under attack!\n"
 		      << "    ALARM! ALARM! Women und children first!" << std::endl;
-	      std::cout << "  ATTACK! ATTACK! ATTACK!(" << test_counter << ")\n"
+	      std::cout << "  ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
 		      << "  Pearson chi-square test says we're under attack!\n"
 		      << "  ALARM! ALARM! Women und children first!" << std::endl;
       #ifdef IDMEF_SUPPORT_ENABLED

@@ -67,26 +67,19 @@ public:
   bool last_ks_test_was_attack;
   bool last_pcs_test_was_attack;
 
-  // BEGIN TESTING
   // count raised alarms for every metric, endpoint and test seperately
   std::vector<int> wmw_alarms;
   std::vector<int> ks_alarms;
   std::vector<int> pcs_alarms;
-  // END TESTING
 
   WkpParams()
   {
     last_wmw_test_was_attack = false;
     last_ks_test_was_attack = false;
     last_pcs_test_was_attack = false;
-    learning_phase_nr_for_pca = 0;
-    pca_ready = false;
   }
 
-  ~WkpParams() {
-    //if (metricFile.is_open())
-     // metricFile.close();
-  }
+  ~WkpParams() {};
 
 };
 
@@ -121,10 +114,8 @@ public:
   // every metric has its was-attack-flag
   std::vector<bool> last_cusum_test_was_attack;
 
-  // BEGIN TESTING
   // count raised alarms for every metric and endpoint seperately
   std::vector<int> cusum_alarms;
-  // END TESTING
 
   bool ready_to_test;
 
@@ -132,14 +123,9 @@ public:
   {
     ready_to_test = false;
     learning_phase_nr_for_alpha = 0;
-    learning_phase_nr_for_pca = 0;
-    pca_ready = false;
   }
 
-  ~CusumParams() {
-   // if (metricFile.is_open())
-     // metricFile.close();
-  }
+  ~CusumParams() {};
 
 };
 

@@ -1,5 +1,7 @@
                    Wilcoxon-Mann-Whitney, Kolmogorov-Smirnov
                               & Pearson chi-square
+                                      +
+                                    Cusum
                                 detection module
                    =========================================
 
@@ -24,15 +26,16 @@ Table of contents
 =================
 
 I   - Configuration
-II  - How does it work?
-III - Known bugs and limitations
+II  - Some words about testing
+III - How does it work?
+IV  - Known bugs and limitations
 
 
 
 I - Configuration
 =================
 
-The module's XML configuration file must provide the following two sections:
+The module's XML configuration file must provide the following three sections:
 - <preferences>: user's preferences about the module
 - <cusum-test-params>: parameters for the cusum test
 - <wkp-test-params>: parameters for the statistical wkp-tests
@@ -52,7 +55,7 @@ the module will issue an error message and exit.
 <accepted_source_ids>:
 
 comma-seperated list of source ids (of the exporting processes) to be
-accepted. "all" is also psooible. If parameter is omitted or left blank, all source ids will be accepted, too.
+accepted. "all" is also possible. If parameter is omitted or left blank, all source ids will be accepted, too.
 
 
 <alarm_time>:
@@ -61,8 +64,9 @@ time (in sec.) between two "test-runs". A "test-run" is defined as the
 time when the module gathers information from the data-store, updates
 its own samples information, and -- possibly, but not systematically
 (see <stat_test_frequency>) -- runs Wilcoxon and/or Kolmogorov and/or
-Pearson chi-square statistical tests. If no alarm time is given, a
+Pearson chi-square and(or cusum statistical tests. If no alarm time is given, a
 warning message is issued and the DEFAULT_alarm_time will be used.
+!!! NOTE: In OFFLINE MODE, this parameter will be ignored and 0 used instead.
 
 
 <warning_verbosity>:
@@ -85,12 +89,19 @@ O: no output generated
 If not given, a warning message is issued and default 3 is used; if
 something less than 0 or greater than 5 is given, an error message is
 issued and the module exits.
+!!! WARNING: With many tests enabled and a high value for this parameter, the logfile quickly
+reaches sizes up to several hundreds of MB!
 
 
 <endpoint_key>:
 
 The user can choose between ip, port, protocol, any combination of them (seperated by spaces) OR "all" OR "none". This value will form the key of the EndPoints, i. e. that all EndPoints sharing this same key are considered as one EndPoint.
 E. g. if you are only interested in ports and protocols, ip-addresses will be ignored and an EndPoint will look like "0.0.0.0:port|protocol". This enables the user to investigate port/protocol/ip-combination anomalies. If omitted, "none" will be used as default endpoint key, i. e. that there will be only one endpoint, 0.0.0.0:0|0, and a warning message is printed. "all" and "ip port protocol" yield the same result.
+
+
+<netmask>:
+
+This parameter strongly relates toe the endpoint_key parameter. With this netmask, a value between 0 and 32, every ip address will be masked before further investigated. This allows you to aggregate ip addresses to subnets. If omitted, 32 will be used after a warning message, meaning that every ip address will be considered as it is. Please note, that this netmask is a global one for aggregating purposes and has nothing to do with the netmasks provided in the endpoints_to_monitor file! They are for filtering purposes!
 
 
 <use_pca>:
@@ -173,21 +184,19 @@ combination of ip/port/protocol as endpoint_key, you should think about increasi
 
 <endpoints_to_monitor>:
 
-!!! NOTE: In ONLINE MODE, this parameter will always be used. In OFFLINE MODE, the x_frequently_endpoints parameter will be checked first and if defined, used instead !!!
-
 The user can specify a file containing all the endpoints he wants to be considered for the online tests, one endpoint per line. The format of the endpoints has to be:
 ip.ip.ip.ip/netmask:port|protocol
 For example, if we want to monitor the ip-address 172.83.44.3 at port 80 and protocol 6 (= TCP), we have to write 172.83.44.3/32:80|6 in one line of the file. In this case, netmask is 32, i. e. no subnet will be considered, but the ip-address itself.
 With the use of wildcards for ports or protocols, the user can tell the module, that he isnt interested in these two. Wildcards are -1 for both of them. The Wildcard for ip addresses is the value 0 for the netmask. So, 172.83.44.3/32:-1:-1 means, that we are interested in ip-address 172.83.44.3 in general, no matter which port or protocol is used. Every endpoint, containing 172.83.44.3 as ip-address will thus be tested. 172.83.44.3/0:80:-1 would mean, that you are only interested in endpoints containing port 80, no matter which ip-address or protocoll they use.
 "all" can also be used as value for this parameter, meaning that all endpoints will be considered. This is the default value for this parameter, if it is omitted.
-Please note, that this parameter is for filtering endpoints, not for aggregating them! To aggregate endpoints, use the endpoint_key parameter! And be careful to provide endpoints which correspond to your selected endpoint_key! Bad example: You choose "port" as endpoint_key and define 172.83.44.3/32:80|6 as one of the endpoints you are interested in. This endpoint never occurs because all endpoints look like 0.0.0.0:port|0. Good Example: You choose "port" as endpoint_key and define 0.0.0.0/32:80|0 as one of the endpoints you are interested in. You could also choose 172.83.44.3/0:80|-1
+Please note, that this parameter is for filtering endpoints, not for aggregating them! To aggregate endpoints, use the endpoint_key and netmask parameters! And be careful to provide endpoints which correspond to your selected endpoint_key and netmask! Bad example: You choose "port" as endpoint_key and define 172.83.44.3/32:80|6 as one of the endpoints you are interested in. This endpoint never occurs because all endpoints look like 0.0.0.0:port|0. Good Example: You choose "port" as endpoint_key and define 0.0.0.0/32:80|0 as one of the endpoints you are interested in. You could also choose 172.83.44.3/0:80|-1. If you defined a global netmask via the netmask parameter, you should also be careful with your filters. Bad example: You choose 16 as the global netmask and add a filter like 172.83.44.3/32:80|6 --> the last 16 bits of every ip will be set to 0 by the global netmask, so your filter never matches. Good example: Choose 172.83.44.3/16:80|6 or 172.83.0.0/32:80|6 instead.
+!!! NOTE: In ONLINE MODE, this parameter will always be used. In OFFLINE MODE, the x_frequently_endpoints parameter will be checked first and if defined, used instead !!!
 
 
 <x_frequently_endpoints>:
 
+This parameter sets the number of endpoints to be considered for the offline tests. The endpoints are sorted by number of occurances in all the test intervals. That means, if you choose 10 as value for this parameter, tests will be performed only for the 10 most frequently appearing endpoints of your data. This parameter was mainly introduced to reduce the number of output files generated by the tests and thus to keep track of the results. But it is also very useful to be able to test only the most frequently appearing endpoints rather than user defned endpoints. If omitted, DEFAULT_x_frequent_endpoints will be used.
 !!! NOTE: This parameter is only usable in OFFLINE MODE. If defined, it will be used instead of the endpoints_to_monitor parameter !!!
-
-This parameter sets the number of endpoints to be considered for the offline tests. The endpoints are sorted by number of occurances in all the test intervals. That means, if you choose 10 as value for this parameter, tests will be performed only for the 10 most frequently appearing endpoints of your data. This parameter was mainly introduced to reduce the number of output files generated by the tests and thus to keep track of the results. But it is also very useful to be able to test only the most frequently appearing endpoints. If omitted, DEFAULT_x_frequent_endpoints will be used.
 
 
 <offline_file>:
@@ -315,7 +324,73 @@ is given, the module will not display any warning message, nor any
 
 
 
-II - How does it work? (obsolete!!!)
+II - Some words about testing
+=============================
+
+There are testing capacities implemented in the module. This enables the user to
+try finding appropriate test-parameters and settings. The testing mode ist called
+OFFLINE MODE and can be enabled by editing the cmake-configuration. Type
+
+module-home$ make edit_cache
+
+in the module's directory and toggle the OFFLINE option to ON.
+Hit "c" and then "q" to reconfigure and save the changes. Now, call
+
+module-home$ make
+
+to recompile the module. The module will now use another InputPolicy, called
+OfflineInputPolicy, which enables the Stat class to read the data from a file
+and is now indepedent from the alarm_time parameter, meaning that the tests
+are performed as quick as your machine can run the process rather than waiting
+the alarm_time seconds. Datasets with a length in hours can be tested in just a
+few seconds/minutes. Another advantage of the OfflineInputPolicy is that the
+module can now directly be started without the collector. Do so by typing
+
+module-home$ ./wkp-module wkp-module-offline.xml
+
+As you can see, you need to specify the configuration file, as the module cant
+no longer get the path to the file from the collector's preferences. So be sure
+that you put the file in the module's directory. Take also care, that there
+HAS TO BE an offlinefile with the data saved to it from a previous ONLINE-MODE-Run
+of the module. Use the offline_file parameter to specify it.
+
+In OFFLINE MODE, there are two ways of filtering endpoints to be monitored from
+the rest of the data: Either you define a file with these endpoints inside and use
+the endpoints_to_monitor parameter to specify that file or you can use the
+x_frequently_endpoints parameter to say the module to only consider the x most
+frequently appearing endpoints of the data. Feel free to use neither of the both
+and have the tests run on all the endpoints out there (in the dataset).
+
+If you want all the metric-values and different test-parameters to be printed into
+some output files, use the output_dir parameter. If you specify a driectory with this
+parameter, the module will put all these files in there (if possible). So you can have
+a look on the values and params later or you can use these files to visualize some
+of the data. By the way, these output files can also be generated in ONLINE MODE.
+
+Last but not least, i summarize all the parameters involved in either ONLINE
+or OFFLINE MODE or both:
+
+parameter                         ONLINE                     OFFLINE
+---------------------------------------------------------------------------
+<alarm_time>                 used as defined             ignored and set to 0
+<endpoint_key>               used as defined             ignored (endpoints already are in the correct format in the file)
+<netmask>                    used as defined             same as above
+<offline_file>               used as defined             obligatory!
+<x_frequently_endpoints>     ignored                     used as defined (filter; higher priority as endpoints_to_monitor)
+<endpoints_to_monitor>       used as defined (filter)    used as defined (only if x_frequently_endpoints isnt defined!)
+
+All other parameters are the same for ONLINE and OFFLINE MODE.
+
+Please remember: The module's configuration file and the offlinefile have to be in
+the module's directory rather than in the working_dir!
+
+If you have tested enough and want to run the module in ONLINE MODE now or again,
+redo the above steps but set the OFFLINE option to OFF again.
+
+
+
+
+III - How does it work? (horribly obsolete!!!)
 ======================
 
 Wilcoxon-Mann-Whitney, Kolmogorov-Smirnov and Pearson chi-square tests
@@ -512,23 +587,23 @@ Pearson chi-square statistical test.
 shared.h/cpp:
 -------------
 
-A print operator (<<) for lists and vectors; used by all statistical
-tests.
+The EndPoint and FilterEndPoint classes and all their methods. the Info struct
+and some output operators.
 
 
 
-III - Known bugs and limitations
+IV - Known bugs and limitations
 ================================
 
 Two limitations:
 
-- no mechanism of size limitation is provided for the output file (log file),
+- no mechanism of size limitation is provided for the output file (logfile),
   and its size keeps growing ever and ever (fast if output verbosity is set
   to some high value) --> don't run the module for weeks, or find and implement
-  some size limitation mechanism;
+  some size limitation mechanism.
 
-- the tests use /dev/null to send their output when output verbosity is not
-  the maximal output verbosity --> don't run the module on non-Unix machines,
+- the wkp-tests use /dev/null to send their output when logfile_output_verbosity is not
+  the maximal verbosity --> don't run the module on non-Unix machines,
   or find and code a way to emulate a trash bin.
 
 No known bug yet, but there are probably loads of them.
@@ -538,6 +613,6 @@ No known bug yet, but there are probably loads of them.
 --
 
 For any request, comment, bug report, wedding proposal, etc,
-feel free to email romain(.)michalec(at)ensta(.)org.
+feel free to email romain(.)michalec(at)ensta(.)org
 
 2006/09/28

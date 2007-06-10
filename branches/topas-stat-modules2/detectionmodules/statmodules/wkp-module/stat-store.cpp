@@ -26,7 +26,7 @@
 
 
 StatStore::StatStore()
-  : e_source(IpAddress(0,0,0,0),32,0,0), e_dest(IpAddress(0,0,0,0),32,0,0) {
+  : e_source(IpAddress(0,0,0,0),0,0), e_dest(IpAddress(0,0,0,0),0,0) {
 
   packet_nb = byte_nb = 0;
 
@@ -44,7 +44,7 @@ bool StatStore::recordStart(SourceID sourceId) {
     return false;
 
   packet_nb = byte_nb = 0;
-  e_source = e_dest = EndPoint(IpAddress(0,0,0,0),32,0,0);
+  e_source = e_dest = EndPoint(IpAddress(0,0,0,0),0,0);
 
   return true;
 
@@ -85,6 +85,7 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
       }
 
       SourceIP.setAddress(fieldData[0],fieldData[1],fieldData[2],fieldData[3]);
+      SourceIP.remanent_mask(netmask);
       e_source.setIpAddress(SourceIP);
 
       break;
@@ -99,6 +100,7 @@ void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, Ente
       }
 
       DestIP.setAddress(fieldData[0],fieldData[1],fieldData[2],fieldData[3]);
+      DestIP.remanent_mask(netmask);
       e_dest.setIpAddress(DestIP);
 
       break;
@@ -203,8 +205,9 @@ void StatStore::recordEnd() {
 
 // Handle EndPoint e_source (with SourceIP and SourcePort)
 
-  // Consider only EndPoints we are interested in
+  // FILTER: Consider only EndPoints we are interested in
   if (monitorEndPoint(e_source) == true || MonitorEveryEndPoint == true) {
+
     // EndPoint already known and thus in our List?
     if ( find(EndPointList.begin(), EndPointList.end(), e_source) != EndPointList.end() ) {
       // Since Data is destroyed after every test()-run,
@@ -242,8 +245,9 @@ void StatStore::recordEnd() {
 
 // Handle EndPoint e_dest (with DestIP and DestPort)
 
-  // Consider only EndPoints we are interested in
+  // FILTER: Consider only EndPoints we are interested in
   if (monitorEndPoint(e_dest) == true || MonitorEveryEndPoint == true) {
+
     // EndPoint already known and thus in our List?
     if ( find(EndPointList.begin(), EndPointList.end(), e_dest) != EndPointList.end() ) {
       // Since Data is destroyed after every test()-run,
@@ -282,8 +286,12 @@ void StatStore::recordEnd() {
 }
 
 // input from file (for offline usage)
-std::ifstream& operator>>(std::ifstream& is, StatStore* store)
-{
+std::ifstream& operator>>(std::ifstream& is, StatStore* store) {
+
+  std::stringstream Warning;
+  Warning
+  << "WARNING: New EndPoint observed but EndPointListMaxSize reached!\n"
+  << "Couldn't monitor new EndPoint: ";
 
   if ( is.eof() ) {
     std::cerr << "INFORMATION: All Data read from file.\n";
@@ -303,25 +311,45 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store)
     }
 
     // extract endpoint-data
-    std::string::size_type i = tmp.find(':', 0);
-    std::string ipstr(tmp, 0, i);
-    std::string::size_type j = tmp.find('|', i);
-    std::string portstr(tmp, i+1, j-i-1);
-    std::string::size_type k = tmp.find('_', j);
-    std::string protostr(tmp, j+1, k-j-1);
-
-    IpAddress ip = IpAddress(0,0,0,0);
-    ip.fromString(ipstr);
-    EndPoint e = EndPoint(ip, 32, atoi(portstr.c_str()), atoi(protostr.c_str()));
-    //std::cout << "e: " << e << std::endl;
-
+    EndPoint ep;
+    ep.fromString(tmp);
     // extract metric-data
+    std::string::size_type k = tmp.find('_', 0);
     std::stringstream tmp1(tmp.substr(k+1));
     Info info;
     tmp1 >> info.packets_in >> info.packets_out >> info.bytes_in >> info.bytes_out >> info.records_in >> info.records_out;
 
-    // put it into is ...
-    store->Data[e] = info;
+
+    // FILTER: Consider only EndPoints we are interested in
+    if (store->monitorEndPoint(ep) == true || store->MonitorEveryEndPoint == true) {
+      // EndPoint already known and thus in our List?
+      if ( find(store->EndPointList.begin(), store->EndPointList.end(), ep) != store->EndPointList.end() ) {
+        // Since Data is destroyed after every test()-run,
+        // we need to check, if the endpoint was already seen in the
+        // current run
+        std::map<EndPoint,Info>::iterator it = store->Data.find(ep);
+        if ( it != store->Data.end() ) {
+          it->second.packets_in += info.packets_in;
+          it->second.bytes_in += info.bytes_in;
+          it->second.records_in++;
+        }
+        else {
+          store->Data[ep].packets_in += info.packets_in;
+          it = store->Data.find(ep);
+          it->second.bytes_in += info.bytes_in;
+          it->second.records_in++;
+        }
+      }
+      // EndPoint not known, still place to add it?
+      else {
+        if (store->EndPointList.size() < store->EndPointListMaxSize) {
+          store->Data.insert(std::make_pair<EndPoint,Info>(ep, info));
+          store->EndPointList.push_back(ep);
+        }
+        else
+          std::cerr << Warning.str() << ep << std::endl;
+      }
+    }
 
     tmp.clear();
     tmp1.clear();
@@ -332,24 +360,15 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store)
 
 // returns true, if we are interested in EndPoint e
 // (false otherwise)
-bool StatStore::monitorEndPoint (EndPoint & e) {
-  
-  std::vector<EndPoint>::iterator it = EndPointFilter.begin();
+bool StatStore::monitorEndPoint (const EndPoint & e) {
+
+  std::vector<FilterEndPoint>::iterator it = EndPointFilter.begin();
 
   while ( it != EndPointFilter.end() ) {
-    // apply netmask of *it (the current wanted endpoint)
-    // to e (the tested endpoint)
-    // (the netmask will be applied automatically by the call to setNetMask())
-    // but only, if netmask is > 0 (Wildcard!) and < 32 (useless)
-    if (it->getNetMask() > 0 && it->getNetMask() < 32)
-      e.setNetMask(it->getNetMask());
-    // compare ip addresses (netmask already applied); wildcard for ip address is netmask = 0
-    // compare port number; wildcard for port is -1
-    // compare protocol id; wildcard for protocol is -1
-    if ( (e.getIpAddress() == it->getIpAddress() || it->getNetMask() == 0)
-      && (e.getPortNr() == it->getPortNr() || it->getPortNr() == -1)
-      && (e.getProtocolID() == it->getProtocolID() || it->getProtocolID() != -1) )
+
+    if (it->matchesWithEndPoint(e) == true)
       return true;
+
     it++;
   }
 
@@ -364,7 +383,9 @@ std::map<EndPoint,Info> StatStore::PreviousData;
 // by the Stat::init() function, we have to provide some initial values
 // in the implementation file of the related class;
 
-std::vector<EndPoint> StatStore::EndPointFilter;
+short StatStore::netmask = 32;
+
+std::vector<FilterEndPoint> StatStore::EndPointFilter;
 bool StatStore::MonitorEveryEndPoint = false;
 
 std::vector<EndPoint> StatStore::EndPointList;
