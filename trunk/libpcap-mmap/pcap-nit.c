@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-nit.c,v 0.8.3.1 2004/10/01 22:21:35 cpw Exp $ (LBL)";
+    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-nit.c,v 0.9 2005/07/18 16:05:12 cpw Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -241,12 +241,9 @@ nit_setflags(int fd, int promisc, int to_ms, char *ebuf)
 static void
 pcap_close_nit(pcap_t *p)
 {
-	if (p->buffer != NULL)
-		free(p->buffer);
+	pcap_close_common(p);
 	if (p->device != NULL)
 		free(p->device);
-	if (p->fd >= 0)
-		close(p->fd);
 }
 
 pcap_t *
@@ -337,6 +334,7 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 	p->read_op = pcap_read_nit;
 	p->inject_op = pcap_inject_nit;
 	p->setfilter_op = install_bpf_program;	/* no kernel filtering */
+	p->setdirection_op = NULL;	/* Not implemented. */
 	p->set_datalink_op = NULL;	/* can't change data link type */
 	p->getnonblock_op = pcap_getnonblock_fd;
 	p->setnonblock_op = pcap_setnonblock_fd;

@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /n/CVS/sirt/libpcap/lbl/os-solaris2.h,v 0.8.3.1 2004/10/01 22:21:36 cpw Exp $ (LBL)
+ * @(#) $Header: /n/CVS/sirt/libpcap/lbl/os-solaris2.h,v 0.9 2005/07/18 16:07:46 cpw Exp $ (LBL)
  */
 
 /* Prototypes missing in SunOS 5 */

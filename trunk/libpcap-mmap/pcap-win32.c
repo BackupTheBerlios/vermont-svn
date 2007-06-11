@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-win32.c,v 0.8.3.1 2004/10/01 22:21:35 cpw Exp $ (LBL)";
+    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-win32.c,v 0.9 2005/07/18 16:05:12 cpw Exp $ (LBL)";
 #endif
 
 #include <pcap-int.h>
@@ -377,8 +377,7 @@ pcap_inject_win32(pcap_t *p, const void *buf, size_t size){
 static void
 pcap_close_win32(pcap_t *p)
 {
-	if (p->buffer != NULL)
-		free(p->buffer);
+	pcap_close_common(p);
 	if (p->adapter != NULL) {
 		PacketCloseAdapter(p->adapter);
 		p->adapter = NULL;
@@ -412,6 +411,7 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 	
 	if (p->adapter == NULL)
 	{
+		free(p);
 		/* Adapter detected but we are not able to open it. Return failure. */
 		snprintf(ebuf, PCAP_ERRBUF_SIZE, "Error opening adapter: %s", pcap_win32strerror());
 		return NULL;
@@ -497,6 +497,9 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 
 	/* Set the buffer size */
 	p->bufsize = PcapBufSize;
+
+	/* Store the timeout. Used by pcap_setnonblock() */
+	p->timeout= to_ms;
 
 	/* allocate Packet structure used during the capture */
 	if((p->Packet = PacketAllocatePacket())==NULL)
@@ -603,6 +606,8 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 #ifdef HAVE_DAG_API
 	}
 #endif /* HAVE_DAG_API */
+	p->setdirection_op = NULL;	/* Not implemented. */
+	    /* XXX - can this be implemented on some versions of Windows? */
 	p->inject_op = pcap_inject_win32;
 	p->set_datalink_op = NULL;	/* can't change data link type */
 	p->getnonblock_op = pcap_getnonblock_win32;
@@ -632,10 +637,22 @@ static int
 pcap_setfilter_win32_npf(pcap_t *p, struct bpf_program *fp)
 {
 	if(PacketSetBpf(p->adapter,fp)==FALSE){
-		/* kernel filter not installed. */
+		/*
+		 * Kernel filter not installed.
+		 * XXX - fall back on userland filtering, as is done
+		 * on other platforms?
+		 */
 		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "Driver error: cannot set bpf filter: %s", pcap_win32strerror());
 		return (-1);
 	}
+
+	/*
+	 * Discard any previously-received packets, as they might have
+	 * passed whatever filter was formerly in effect, but might
+	 * not pass this filter (BIOCSETF discards packets buffered
+	 * in the kernel, so you can lose packets in any case).
+	 */
+	p->cc = 0;
 	return (0);
 }
 

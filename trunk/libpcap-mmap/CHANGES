@@ -1,4 +1,15 @@
-@(#) $Header: /n/CVS/sirt/libpcap/CHANGES,v 0.8.3.1 2004/10/01 22:21:33 cpw Exp $ (LBL)
+@(#) $Header: /n/CVS/sirt/libpcap/CHANGES,v 0.9 2005/07/18 16:05:07 cpw Exp $ (LBL)
+Mon.   Jul, 11, 2005. cpw@lanl.gov. Merged linux MMAP code into Jul 10 0.9 
+       release.
+
+Tue.   July 5, 2005.  ken@xelerance.com. Summary for 3.9.x tcpdump
+
+       Fixes for compiling on nearly every platform,
+               including improved 64bit support
+       MSDOS Support
+       Add support for sending packets
+       OpenBSD pf format support
+       IrDA capture (Linux only)
 
 Tue.   March 30, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.3 release
 

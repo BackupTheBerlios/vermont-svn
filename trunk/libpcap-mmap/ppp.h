@@ -1,4 +1,4 @@
-/* @(#) $Header: /n/CVS/sirt/libpcap/ppp.h,v 0.8.3.1 2004/10/01 22:21:33 cpw Exp $ (LBL) */
+/* @(#) $Header: /n/CVS/sirt/libpcap/ppp.h,v 0.9 2005/07/18 16:05:13 cpw Exp $ (LBL) */
 /*
  * Point to Point Protocol (PPP) RFC1331
  *
@@ -18,8 +18,8 @@
 #define PPP_ADDRESS	0xff	/* The address byte value */
 #define PPP_CONTROL	0x03	/* The control byte value */
 
-#define PPP_WITHDIRECTION_IN  0x00 /* non-standard for DLT_PPP_WITHDIRECTION */
-#define PPP_WITHDIRECTION_OUT 0x01 /* non-standard for DLT_PPP_WITHDIRECTION */
+#define PPP_PPPD_IN	0x00	/* non-standard for DLT_PPP_PPPD */
+#define PPP_PPPD_OUT	0x01	/* non-standard for DLT_PPP_PPPD */
 
 /* Protocol numbers */
 #define PPP_IP		0x0021	/* Raw IP */

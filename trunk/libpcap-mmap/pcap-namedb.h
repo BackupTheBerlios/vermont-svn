@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /n/CVS/sirt/libpcap/pcap-namedb.h,v 0.8.3.1 2004/10/01 22:21:32 cpw Exp $ (LBL)
+ * @(#) $Header: /n/CVS/sirt/libpcap/pcap-namedb.h,v 0.9 2005/07/18 16:05:12 cpw Exp $ (LBL)
  */
 
-#ifndef lib_pcap_ethers_h
-#define lib_pcap_ethers_h
+#ifndef lib_pcap_namedb_h
+#define lib_pcap_namedb_h
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,8 +65,10 @@ struct addrinfo *pcap_nametoaddrinfo(const char *);
 bpf_u_int32 pcap_nametonetaddr(const char *);
 
 int	pcap_nametoport(const char *, int *, int *);
+int	pcap_nametoportrange(const char *, int *, int *, int *);
 int	pcap_nametoproto(const char *);
 int	pcap_nametoeproto(const char *);
+int	pcap_nametollc(const char *);
 /*
  * If a protocol is unknown, PROTO_UNDEF is returned.
  * Also, pcap_nametoport() returns the protocol along with the port number.

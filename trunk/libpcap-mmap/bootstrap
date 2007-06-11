@@ -5,23 +5,23 @@
 # the tcpdump.org distribution.  The REVISION variable below is associated with
 # the revision component of autoconf versioning information.
 
-CURRENT=1
-REVISION=0	# this is not the contents of the file REVISION
+CURRENT=0
+REVISION=9	# this is not the contents of the file REVISION
 AGE=2		# this version is backward compatible with 0.7
-VERSION=$CURRENT.$REVISION
+x=x
+VERSION=$CURRENT.$REVISION${x}
 # This kludge makes install generate the version found on recent debian systems
 RMAJOR=0
-RMINOR=8
+RMINOR=9
 RREVISION=3
 
 echo $VERSION > .VERSION
-if test -f VERSION; then
-  if diff .VERSION VERSION ; then
-    : # clean as a whistle
-  else
-    echo Changing VERSION `cat VERSION` to `cat .VERSION`
-    mv .VERSION VERSION
-  fi
+if test ! -f VERSION; then touch VERSION; fi
+if diff .VERSION VERSION ; then
+  : # clean as a whistle
+else
+  echo Changing VERSION `cat VERSION` to `cat .VERSION`
+  mv .VERSION VERSION
 fi
 rm -f .VERSION
 
@@ -34,7 +34,7 @@ diff configure.ac.bak configure.ac
 cp Makefile.am Makefile.am.bak
 sed < Makefile.am.bak > Makefile.am \
   -e 's/^CURRENT.*=.*/CURRENT		= '$CURRENT'/' \
-  -e 's/^REVISION.*=.*/REVISION			= '$REVISION'/' \
+  -e 's/^REVISION.*=.*/REVISION		= '$REVISION'/' \
   -e 's/^AGE.*=.*/AGE			= '$AGE'/' \
   -e 's/^RMAJOR.*=.*/RMAJOR		= '$RMAJOR'/' \
   -e 's/^RMINOR.*=.*/RMINOR		= '$RMINOR'/' \
@@ -57,6 +57,7 @@ if test "$N" != "y"; then
 EOF
   exit 1
 fi
+rm -f config.h.in
 if [ ! -d $CONFIG ]; then
   mkdir $CONFIG
   libtoolize
@@ -79,6 +80,14 @@ err=$?
 if test $err != 0; then
   echo automake, wtf! >&2
   exit 1
+fi
+if grep datarootdir Makefile.in >&2; then
+:
+else
+   echo "automake did not create datarootdir, forcing inclusion in Makefile.in" >&2
+   cp Makefile.in .in
+   sed < .in > Makefile.in \
+   -e '/^prefix = @prefix@/a\datarootdir = @datarootdir@'
 fi
 autoconf
 err=$?
@@ -121,9 +130,28 @@ specific pcap version.  I found that judicious symlink's in /usr/lib
 
   such as:
 
-    ln -s libpcap-$RMAJOR.$RMINOR.$RREVISION.so libpcap-0.7.2.so
+    ln -s libpcap.so.$RMAJOR.$RMINOR.$RREVISION libpcap.so.0.7.2
 
   and a ldconfig seems to help.
+
+One more item regarding compilation on 64bit linux:
+
+  You may see something like the following output when running 'bootstrap':
+
+     /usr/share/aclocal/g-wrap.m4:7: warning: underquoted definition of
+       AC_GWRAP_CHECK_GUILE
+     run info '(automake)Extending aclocal'
+     or see http://sources.redhat.com/automake/automake.html#Extending-aclocal
+     /usr/share/aclocal/g-wrap.m4:23: warning: underquoted definition of
+       AM_PATH_GWRAP
+     /usr/share/aclocal/aqhbci.m4:5: warning: underquoted definition of
+       AC_AQHBCI
+     /usr/share/aclocal/ao.m4:9: warning: underquoted definition of
+       XIPH_PATH_AO
+  
+  Bringing the aclocal m4 macros up to date might help, or, try
+  placing '[' and ']' around the first argument to AC_DEFUN in the respective
+  m4 files, or ignore the problem.  It's your call.
 
 EOF
 cat .warrantee

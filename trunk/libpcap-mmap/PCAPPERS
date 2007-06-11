@@ -10,3 +10,5 @@ pcap-enet.c
 pcap-null.c
 pcap-dag.c
 pcap-win32.c
+pcap-dos.c
+pcap-septel.c

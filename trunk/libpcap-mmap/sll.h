@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /n/CVS/sirt/libpcap/sll.h,v 0.8.3.1 2004/10/01 22:21:33 cpw Exp $ (LBL)
+ * @(#) $Header: /n/CVS/sirt/libpcap/sll.h,v 0.9 2005/07/18 16:05:13 cpw Exp $ (LBL)
  */
 
 /*

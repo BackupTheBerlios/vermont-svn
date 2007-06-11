@@ -31,18 +31,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /n/CVS/sirt/libpcap/pcap.h,v 0.8.3.1 2004/10/01 22:21:33 cpw Exp $ (LBL)
+ * @(#) $Header: /n/CVS/sirt/libpcap/pcap.h,v 0.9 2005/07/18 16:05:13 cpw Exp $ (LBL)
  */
 
 #ifndef lib_pcap_h
 #define lib_pcap_h
 
-#ifdef WIN32
-#include <pcap-stdinc.h>
-#else /* WIN32 */
-#include <sys/types.h>
-#include <sys/time.h>
-#endif /* WIN32 */
+#if defined(WIN32)
+  #include <pcap-stdinc.h>
+#elif defined(MSDOS)
+  #include <sys/types.h>
+  #include <sys/socket.h>  /* u_int, u_char etc. */
+#else /* UN*X */
+  #include <sys/types.h>
+  #include <sys/time.h>
+#endif /* WIN32/MSDOS/UN*X */
 
 #ifndef PCAP_DONT_INCLUDE_PCAP_BPF_H
 #include <pcap-bpf.h>
@@ -58,11 +61,6 @@ extern "C" {
 #define PCAP_VERSION_MINOR 4
 
 #define PCAP_ERRBUF_SIZE 256
-
-#define PCAP_FILE 1
-#define PCAP_NET 2
-#define PCAP_RING 3
-#define PCAP_CLOSED 4
 
 /*
  * Compatibility for systems that have a bpf.h that
@@ -122,6 +120,18 @@ struct pcap_file_header {
 	bpf_u_int32 linktype;	/* data link type (LINKTYPE_*) */
 };
 
+typedef enum {
+       PCAP_D_INOUT = 0,
+       PCAP_D_IN,
+       PCAP_D_OUT
+} pcap_direction_t;
+
+/*
+ * This is a timeval as stored in disk in a dumpfile.
+ * It has to use the same types everywhere, independent of the actual
+ * `struct timeval'
+ */
+
 /*
  * Each packet in the dump file is prepended with this generic header.
  * This gets around the problem of different headers for different
@@ -144,6 +154,39 @@ struct pcap_stat {
 	u_int bs_capt;		/* number of packets that reach the application */
 #endif /* WIN32 */
 };
+
+#ifdef MSDOS
+/*
+ * As returned by the pcap_stats_ex()
+ */
+struct pcap_stat_ex {
+       u_long  rx_packets;        /* total packets received       */
+       u_long  tx_packets;        /* total packets transmitted    */
+       u_long  rx_bytes;          /* total bytes received         */
+       u_long  tx_bytes;          /* total bytes transmitted      */
+       u_long  rx_errors;         /* bad packets received         */
+       u_long  tx_errors;         /* packet transmit problems     */
+       u_long  rx_dropped;        /* no space in Rx buffers       */
+       u_long  tx_dropped;        /* no space available for Tx    */
+       u_long  multicast;         /* multicast packets received   */
+       u_long  collisions;
+
+       /* detailed rx_errors: */
+       u_long  rx_length_errors;
+       u_long  rx_over_errors;    /* receiver ring buff overflow  */
+       u_long  rx_crc_errors;     /* recv'd pkt with crc error    */
+       u_long  rx_frame_errors;   /* recv'd frame alignment error */
+       u_long  rx_fifo_errors;    /* recv'r fifo overrun          */
+       u_long  rx_missed_errors;  /* recv'r missed packet         */
+
+       /* detailed tx_errors */
+       u_long  tx_aborted_errors;
+       u_long  tx_carrier_errors;
+       u_long  tx_fifo_errors;
+       u_long  tx_heartbeat_errors;
+       u_long  tx_window_errors;
+     };
+#endif
 
 /*
  * Item in a list of interfaces.
@@ -177,6 +220,7 @@ int	pcap_lookupnet(const char *, bpf_u_int32 *, bpf_u_int32 *, char *);
 pcap_t	*pcap_open_live(const char *, int, int, int, char *);
 pcap_t	*pcap_open_dead(int, int);
 pcap_t	*pcap_open_offline(const char *, char *);
+pcap_t	*pcap_fopen_offline(FILE *, char *);
 void	pcap_close(pcap_t *);
 int	pcap_loop(pcap_t *, int, pcap_handler, u_char *);
 int	pcap_dispatch(pcap_t *, int, pcap_handler, u_char *);
@@ -186,6 +230,7 @@ int 	pcap_next_ex(pcap_t *, struct pcap_pkthdr **, const u_char **);
 void	pcap_breakloop(pcap_t *);
 int	pcap_stats(pcap_t *, struct pcap_stat *);
 int	pcap_setfilter(pcap_t *, struct bpf_program *);
+int 	pcap_setdirection(pcap_t *, pcap_direction_t);
 int	pcap_getnonblock(pcap_t *, char *);
 int	pcap_setnonblock(pcap_t *, int, char *);
 void	pcap_perror(pcap_t *, char *);
@@ -208,27 +253,30 @@ int	pcap_snapshot(pcap_t *);
 int	pcap_is_swapped(pcap_t *);
 int	pcap_major_version(pcap_t *);
 int	pcap_minor_version(pcap_t *);
-/* the following provide linux ring buffer extension */
-void	pcap_live_args(const char *, int, int, int, char *,
-                int, u_int16_t, u_int8_t *, int);
-int	pcap_convert_proto(char *);
-int	pcap_ring_recv(pcap_t *, int, pcap_handler, u_char *);
-int	packet_ring_stats (pcap_t *, int);
-int	pcap_status (pcap_t *);
-void	pcap_pstats (pcap_t *);
-/* end of linux ring buffer interface */
-
-
+#ifdef DO_RING
+void    pcap_live_args(const char *, int, int, int, char *,
+		                int, u_int16_t, u_int8_t *, int);
+int     pcap_convert_proto(char *);
+int     pcap_ring_recv(pcap_t *, int, pcap_handler, u_char *);
+int     packet_ring_stats (pcap_t *, int);
+int     pcap_status (pcap_t *);
+void    pcap_pstats (pcap_t *); 
+FILE *  pcap_stream_open (const char *);
+void    pcap_stream_close (FILE *);
+FILE *  pcap_stream_freopen (const char *, FILE *);
+#endif
 
 /* XXX */
 FILE	*pcap_file(pcap_t *);
 int	pcap_fileno(pcap_t *);
 
 pcap_dumper_t *pcap_dump_open(pcap_t *, const char *);
+pcap_dumper_t *pcap_dump_fopen(pcap_t *, FILE *fp);
+FILE	*pcap_dump_file(pcap_dumper_t *);
+off_t	pcap_dump_ftell(pcap_dumper_t *);
 int	pcap_dump_flush(pcap_dumper_t *);
 void	pcap_dump_close(pcap_dumper_t *);
 void	pcap_dump(u_char *, const struct pcap_pkthdr *, const u_char *);
-FILE	*pcap_dump_file(pcap_dumper_t *);
 
 int	pcap_findalldevs(pcap_if_t **, char *);
 void	pcap_freealldevs(pcap_if_t *);
@@ -241,7 +289,8 @@ int	bpf_validate(struct bpf_insn *f, int len);
 char	*bpf_image(struct bpf_insn *, int);
 void	bpf_dump(struct bpf_program *, int);
 
-#ifdef WIN32
+#if defined(WIN32)
+
 /*
  * Win32 definitions
  */
@@ -253,20 +302,42 @@ int pcap_setmintocopy(pcap_t *p, int size);
 #ifdef WPCAP
 /* Include file with the wpcap-specific extensions */
 #include <Win32-Extensions.h>
-#endif
+#endif /* WPCAP */
 
 #define MODE_CAPT 0
 #define MODE_STAT 1
 #define MODE_MON 2
 
-#else
+#elif defined(MSDOS)
+
+/*
+ * MS-DOS definitions
+ */
+
+int  pcap_stats_ex (pcap_t *, struct pcap_stat_ex *);
+void pcap_set_wait (pcap_t *p, void (*yield)(void), int wait);
+u_long pcap_mac_packets (void);
+
+#else /* UN*X */
+
 /*
  * UN*X definitions
  */
 
 int	pcap_get_selectable_fd(pcap_t *);
 
-#endif /* WIN32 */
+# ifdef DO_RING
+/*
+ * LINUX returns from pcap_status ( pcap_t * p )
+ *   allows programs to determine where their data is coming from if at all
+ */
+# define PCAP_FILE 1
+# define PCAP_NET 2
+# define PCAP_RING 3
+# define PCAP_CLOSED 4
+# endif /* DO_RING */
+
+#endif /* WIN32/MSDOS/UN*X */
 
 #ifdef __cplusplus
 }

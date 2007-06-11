@@ -2,10 +2,10 @@ e Process this file with autoconf to produce a configure script.
 # Based on work done at the University of California at Berkeley during
 # 1994, 1995, 1996, 1997, as well as on going work at "tcpdump.org".
 
-AC_INIT(libpcap,1.8,cpw@lanl.gov)
+AC_INIT(libpcap,1.9,cpw@lanl.gov)
 AC_CONFIG_AUX_DIR(config)
 # AM isms
-AM_INIT_AUTOMAKE(libpcap,1.0.20050129)
+AM_INIT_AUTOMAKE(libpcap,0.9x.20070323)
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(pcap.c)
 
@@ -14,6 +14,7 @@ AC_CANONICAL_HOST
 # Initialize some conditionals
 
 AM_CONDITIONAL(USE_DAG, false)
+AM_CONDITIONAL(USE_SEPTEL, false)
 AM_CONDITIONAL(USE_RING, false)
 
 AC_LBL_C_INIT(V_CCOPT, V_INCLS, V_LIBS)
@@ -66,6 +67,83 @@ AC_PROG_GCC_TRADITIONAL
 AC_HEADER_MAJOR
 AC_TYPE_SIGNAL
 AC_CHECK_FUNCS([ether_hostton strerror strlcpy])
+if test "$ac_cv_func_ether_hostton" = yes; then
+	#
+	# OK, we have ether_hostton().  Do we have <netinet/if_ether.h>?
+	#
+	if test "$ac_cv_header_netinet_if_ether_h" = yes; then
+		#
+		# Yes.  Does it declare ether_hostton()?
+		#
+		AC_CHECK_DECL(ether_hostton,
+		    [
+			AC_DEFINE(NETINET_IF_ETHER_H_DECLARES_ETHER_HOSTTON,,
+			    [Define to 1 if netinet/if_ether.h declares `ether_hostton'])
+		    ],,
+		    [
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+struct mbuf;
+struct rtentry;
+#include <net/if.h>
+#include <netinet/if_ether.h>
+		    ])
+	fi
+	#
+	# Did that succeed?
+	#
+	if test "$ac_cv_have_decl_ether_hostton" != yes; then
+		#
+		# No, how about <netinet/ether.h>, as on Linux?
+		#
+		AC_CHECK_HEADERS(netinet/ether.h)
+		if test "$ac_cv_header_netinet_ether_h" = yes; then
+			#
+			# We have it - does it declare ether_hostton()?
+			# Unset ac_cv_have_decl_ether_hostton so we don't
+			# treat the previous failure as a cached value and
+			# suppress the next test.
+			#
+			unset ac_cv_have_decl_ether_hostton
+			AC_CHECK_DECL(ether_hostton,
+			    [
+				AC_DEFINE(NETINET_ETHER_H_DECLARES_ETHER_HOSTTON,,
+				    [Define to 1 if netinet/ether.h declares `ether_hostton'])
+			    ],,
+			    [
+#include <netinet/ether.h>
+			    ])
+		fi
+	fi
+	#
+	# Is ether_hostton() declared?
+	#
+	if test "$ac_cv_have_decl_ether_hostton" != yes; then
+		#
+		# No, we'll have to declare it ourselves.
+		# Do we have "struct ether_addr"?
+		#
+		AC_CHECK_TYPES(struct ether_addr,,,
+		    [
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+struct mbuf;
+struct rtentry;
+#include <net/if.h>
+#include <netinet/if_ether.h>
+		    ])
+		AC_DEFINE(HAVE_DECL_ETHER_HOSTTON, 0,
+		    [Define to 1 if you have the declaration of `ether_hostton', and to 0 if you
+don't.])
+	else
+		AC_DEFINE(HAVE_DECL_ETHER_HOSTTON, 1,
+		    [Define to 1 if you have the declaration of `ether_hostton', and to 0 if you don't.])
+	fi
+fi
 
 needsnprintf=no
 AC_CHECK_FUNCS(vsnprintf snprintf,,
@@ -245,6 +323,7 @@ dlpi)
 	;;
 
 linux)
+	V_DEFS="$V_DEFS -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
 	AC_MSG_CHECKING(Linux kernel version)
  	if test "$cross_compiling" = yes; then
  		AC_CACHE_VAL(ac_cv_linux_vers,
@@ -264,10 +343,15 @@ linux)
 	AC_LBL_TPACKET_STATS
 	AC_CPW_DO_RING
         AM_CONDITIONAL(USE_RING, test $ac_cv_cpw_ring_method = yes)
+	AC_CPW_TIMESPEC
 	;;
 
 dag)
         V_DEFS="$V_DEFS -DDAG_ONLY"
+        ;;      
+
+septel)
+        V_DEFS="$V_DEFS -DSEPTEL_ONLY"
         ;;      
 
 null)
@@ -288,98 +372,251 @@ if test $ac_cv_lbl_proc_net_dev = yes; then
 fi
 AC_MSG_RESULT($ac_cv_lbl_proc_net_dev)
 
-AC_ARG_WITH(dag, [  --with-dag[=DIR]        include DAG support (located in directory DIR, if supplied).  [default=yes, on BSD and Linux, if present]],
-[
-        if test "$withval" = no
-        then
-                want_dag=no
-        elif test "$withval" = yes
-        then
-                want_dag=yes
-                dag_root=
-        else
-                want_dag=yes
-                dag_root=$withval
-        fi
-],[
-        #
-        # Use DAG API if present, otherwise don't
-        #
-        want_dag=ifpresent
-        dag_root=
-])
-ac_cv_lbl_dag_api=no
 case "$V_PCAP" in
 linux|bpf|dag)
-        #
-        # We support the DAG API on Linux or BSD, or if we're building a
-        # DAG-only libpcap.
-        #
-        ;;
+	#
+	# We support the DAG API if we're on Linux or BSD, or if we're
+	# building a DAG-only libpcap.
+	#
+	;;
 *)
-        #
-        # If the user explicitly requested DAG, tell them it's not
-        # supported.
-        #
-        # If they expressed no preference, don't include it.
-        #
-        if test $want_dag = yes; then
-                AC_MSG_ERROR(DAG support only available with 'linux' 'bpf' and 'dag' packet capture types)
-        elif test $want_dag = yes; then
-                want_dag=no
-        fi
-        ;;
+	#
+	# If the user explicitly requested DAG, tell them it's not
+	# supported.
+	#
+	# If they expressed no preference, don't include it.
+	#
+	if test $want_dag = yes; then
+		AC_MSG_ERROR([DAG support is only available with 'linux' 'bpf' and 'dag' packet capture types])
+	elif test $want_dag = yes; then
+		want_dag=no
+	fi
+	;;
 esac
 
-if test "$with_dag" != no; then
-	AC_MSG_CHECKING(whether we have DAG API)
+ac_cv_lbl_dag_api=no
+if test "$want_dag" != no; then
 
+	AC_MSG_CHECKING([whether we have DAG API headers])
+
+	# If necessary, set default paths for DAG API headers and libraries.
 	if test -z "$dag_root"; then
-		dag_root=$srcdir/../dag
+	    dag_root=/usr/local
 	fi
 
-	if test -r "$dag_root/tools" -a -r "$dag_root/include"; then
-		dag_tools_dir="$dag_root/tools"
+	if test -z "$dag_include_dir"; then
 		dag_include_dir="$dag_root/include"
-	else
-		dag_tools_dir="$dag_root"
-		dag_include_dir="$dag_root"
 	fi
 
-	ac_cv_lbl_dag_api=no
-	if test -r "$dag_include_dir/dagapi.h" -a -r "$dag_tools_dir/dagapi.o" -a -r "$dag_tools_dir/dagopts.o"; then
-	  	V_INCLS="$V_INCLS -I $dag_include_dir"
-		V_LIBS="$V_LIBS $dag_tools_dir/dagapi.o $dag_tools_dir/dagopts.o"
-		if test "$V_PCAP" != dag ; then
-                         SSRC="pcap-dag.c"
-                fi
-                ac_cv_lbl_dag_api=yes
+	if test -z "$dag_lib_dir"; then
+	    dag_lib_dir="$dag_root/lib"
 	fi
-	if test -r "$dag_root/lib/dagreg.c"; then # DAG 2.5.x
-		if test -r "$dag_tools_dir/dagreg.o"; then
-			V_LIBS="$V_LIBS $dag_tools_dir/dagreg.o"
-		else
+	
+	if test -z "$dag_tools_dir"; then
+	    dag_tools_dir="$dag_root/tools"
+		fi
+
+	if test -r $dag_include_dir/dagapi.h; then
+		ac_cv_lbl_dag_api=yes
+	fi
+	AC_MSG_RESULT([$ac_cv_lbl_dag_api ($dag_include_dir)])
+fi
+
+if test $ac_cv_lbl_dag_api = yes; then
+
+	AC_MSG_CHECKING([dagapi.o])	
+	dagapi_obj=no
+	if test -r $dag_tools_dir/dagapi.o; then
+		# 2.4.x.
+		dagapi_obj=$dag_tools_dir/dagapi.o
+	elif test -r $dag_lib_dir/dagapi.o; then
+		# 2.5.x.
+		dagapi_obj=$dag_lib_dir/dagapi.o
+	elif test -r $dag_lib_dir/libdag.a; then
+		# 2.5.x.
+		ar x $dag_lib_dir/libdag.a dagapi.o
+		if test -r ./dagapi.o; then
+		    dagapi_obj=./dagapi.o
+		fi
+	fi
+
+	if test $dagapi_obj = no; then
+		AC_MSG_RESULT([no (checked $dag_lib_dir  $dag_tools_dir  $dag_lib_dir/libdag.a)])
 			ac_cv_lbl_dag_api=no
+	else
+		AC_MSG_RESULT([yes ($dagapi_obj)])
+	fi
+fi
+
+if test $ac_cv_lbl_dag_api = yes; then
+
+	AC_MSG_CHECKING([dagopts.o])	
+	dagopts_obj=no
+	if test -r $dag_tools_dir/dagopts.o; then
+		# 2.4.x.
+		dagopts_obj=$dag_tools_dir/dagopts.o
+	elif test -r $dag_lib_dir/dagopts.o; then
+		# 2.5.x.
+		dagopts_obj=$dag_lib_dir/dagopts.o
+	elif test -r $dag_lib_dir/libdag.a; then
+		# 2.5.x.
+		ar x $dag_lib_dir/libdag.a dagopts.o
+		if test -r ./dagopts.o; then
+		    dagopts_obj=./dagopts.o
 		fi
 	fi
-	dag_version=
-	if test $ac_cv_lbl_dag_api = yes -a -r "$dag_root/VERSION"; then
-		dag_version=" (`cat $dag_root/VERSION`)"
+
+	if test $dagopts_obj = no; then
+		AC_MSG_RESULT([no (checked $dag_lib_dir  $dag_tools_dir  $dag_lib_dir/libdag.a)])
+		ac_cv_lbl_dag_api=no
+	else
+		AC_MSG_RESULT([yes ($dagopts_obj)])
 	fi
-	AC_MSG_RESULT($ac_cv_lbl_dag_api$dag_version)
-	if test $ac_cv_lbl_dag_api = no; then
-		if test "$want_dag" = yes; then
-			AC_MSG_ERROR(DAG API not found under directory $dag_root; use --without-dag)
+fi
+
+if test $ac_cv_lbl_dag_api = yes; then
+	# Under 2.5.x only we need to add dagreg.o.
+	if test -r $dag_include_dir/dagreg.h; then
+		AC_MSG_CHECKING([dagreg.o])	
+		dagreg_obj=no
+		if test -r $dag_lib_dir/dagreg.o; then
+			# Object file is ready and waiting.
+			dagreg_obj=$dag_lib_dir/dagreg.o
+		elif test -r $dag_lib_dir/libdag.a; then
+			# Extract from libdag.a.
+			ar x $dag_lib_dir/libdag.a dagreg.o
+			if test -r ./dagreg.o; then
+				dagreg_obj=./dagreg.o
+			fi
+		fi
+
+		if test $dagreg_obj = no; then
+			AC_MSG_RESULT([no (checked $dag_lib_dir  $dag_lib_dir/libdag.a)])
+			ac_cv_lbl_dag_api=no
+		else
+			AC_MSG_RESULT([yes ($dagreg_obj)])
+		fi
+	fi
+fi
+
+if test $ac_cv_lbl_dag_api = yes; then
+	V_INCLS="$V_INCLS -I$dag_include_dir"
+	V_LIBS="$V_LIBS $dagapi_obj $dagopts_obj $dagreg_obj"
+	if test $V_PCAP != dag ; then
+		 SSRC="pcap-dag.c"
+	fi
+
+	# See if we can find a general version string.
+	# Don't need to save and restore LIBS to prevent -ldag being
+	# included if there's a found-action (arg 3).
+	saved_ldflags=$LDFLAGS
+	LDFLAGS="-L$dag_lib_dir"
+	AC_CHECK_LIB([dag], [dag_attach_stream], [dag_version="2.5.x"], [dag_version="2.4.x"])
+	LDFLAGS=$saved_ldflags
+
+	# See if we can find a specific version string.
+	AC_MSG_CHECKING([the DAG API version])
+	if test -r "$dag_root/VERSION"; then
+		dag_version="`cat $dag_root/VERSION`"
+	fi
+	AC_MSG_RESULT([$dag_version])
+	AC_DEFINE(HAVE_DAG_API, 1, [define if you have the DAG API])
+fi
+
+if test $ac_cv_lbl_dag_api = no; then
+	if test "$want_dag" = yes; then
+        	# User wanted DAG support but we couldn't find it.
+		AC_MSG_ERROR([DAG API requested, but not found at $dag_root: use --without-dag])
+	fi
+
+	if test "$V_PCAP" = dag; then
+		# User requested "dag" capture type but the DAG API wasn't
+		# found.
+		AC_MSG_ERROR([Specifying the capture type as "dag" requires the DAG API to be present; use the --with-dag options to specify the location. (Try "./configure --help" for more information.)])
+	fi
+fi
+
+AC_ARG_WITH(septel, [  --with-septel[[=DIR]]     include Septel support (located in directory DIR, if supplied).  [default=yes, on Linux, if present]],
+[
+	if test "$withval" = no
+	then
+		want_septel=no
+	elif test "$withval" = yes
+	then
+		want_septel=yes
+		septel_root=
+	else
+		want_septel=yes
+		septel_root=$withval
+	fi
+],[
+	#
+	# Use Septel API if present, otherwise don't
+	#
+	want_septel=ifpresent
+	septel_root=./../septel
+])
+ac_cv_lbl_septel_api=no
+case "$V_PCAP" in
+linux|septel)
+	#
+	# We support the Septel API if we're on Linux, or if we're building
+	# a Septel-only libpcap.
+	#
+	;;
+*)
+	#
+	# If the user explicitly requested Septel, tell them it's not
+	# supported.
+	#
+	# If they expressed no preference, don't include it.
+	#
+	if test $want_septel = yes; then
+		AC_MSG_ERROR(Septel support only available with 'linux' and 'septel' packet capture types)
+	elif test $want_septel = yes; then
+		want_septel=no
+	fi
+	;;
+esac
+
+if test "$with_septel" != no; then
+	AC_MSG_CHECKING(whether we have Septel API)
+
+	if test -z "$septel_root"; then
+		septel_root=$srcdir/../septel
+
+	fi
+
+	septel_tools_dir="$septel_root"
+	septel_include_dir="$septel_root/INC"
+	DEF="-DHAVE_SEPTEL_API"
+
+	ac_cv_lbl_septel_api=no
+	if test -r "$septel_include_dir/msg.h"; then
+		V_INCLS="$V_INCLS -I$septel_include_dir"
+		V_DEFS="$V_DEFS $DEF"
+		V_LIBS="$V_LIBS $septel_tools_dir/asciibin.o $septel_tools_dir/bit2byte.o $septel_tools_dir/confirm.o $septel_tools_dir/fmtmsg.o $septel_tools_dir/gct_unix.o $septel_tools_dir/hqueue.o $septel_tools_dir/ident.o $septel_tools_dir/mem.o $septel_tools_dir/pack.o $septel_tools_dir/parse.o $septel_tools_dir/pool.o $septel_tools_dir/sdlsig.o $septel_tools_dir/strtonum.o $septel_tools_dir/timer.o $septel_tools_dir/trace.o "
+
+		if test "$V_PCAP" != septel ; then
+			 SSRC="pcap-septel.c"
+
+		fi
+		ac_cv_lbl_septel_api=yes
+	fi
+
+	AC_MSG_RESULT($ac_cv_lbl_septel_api)
+	if test $ac_cv_lbl_septel_api = no; then
+		if test "$want_septel" = yes; then
+			AC_MSG_ERROR(Septel API not found under directory $septel_root; use --without-septel)
 		fi
 	else
-		AC_DEFINE(HAVE_DAG_API, 1, [define if you have a DAG API])
+		AC_DEFINE(HAVE_SEPTEL_API, 1, [define if you have a Septel API])
 	fi
 fi
 
-if test "$V_PCAP" = dag -a "$ac_cv_lbl_dag_api" = no; then
-	AC_MSG_ERROR(Specifying the capture type as 'dag' requires the DAG API to be present; use --with-dag=DIR)
+if test "$V_PCAP" = septel -a "$ac_cv_lbl_septel_api" = no; then
+	AC_MSG_ERROR(Specifying the capture type as 'septel' requires the Septel API to be present; use --with-septel=DIR)
 fi
-
 
 AC_LBL_LEX_AND_YACC(V_LEX, V_YACC, pcap_)
 if test "$V_LEX" = lex ; then

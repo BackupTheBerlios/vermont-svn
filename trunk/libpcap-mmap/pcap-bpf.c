@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-bpf.c,v 0.8.3.1 2004/10/01 22:21:34 cpw Exp $ (LBL)";
+    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-bpf.c,v 0.9 2005/07/18 16:05:11 cpw Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -59,7 +59,7 @@ static const char rcsid[] _U_ =
 #include <net/if_types.h>		/* for IFT_ values */
 #include <sys/sysconfig.h>
 #include <sys/device.h>
-#include <odmi.h>
+#include <sys/cfgodm.h>
 #include <cf.h>
 
 #ifdef __64BIT__
@@ -105,6 +105,7 @@ static int odmlockid = 0;
 #include "gencode.h"	/* for "no_optimize" */
 
 static int pcap_setfilter_bpf(pcap_t *p, struct bpf_program *fp);
+static int pcap_setdirection_bpf(pcap_t *, pcap_direction_t);
 static int pcap_set_datalink_bpf(pcap_t *p, int dlt);
 
 static int
@@ -142,7 +143,11 @@ pcap_read_bpf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	int cc;
 	int n = 0;
 	register u_char *bp, *ep;
+	u_char *datap;
 	struct bpf_insn *fcode;
+#ifdef PCAP_FDDIPAD
+	register int pad;
+#endif
 
 	fcode = p->md.use_bpf ? NULL : p->fcode.bf_insns;
  again:
@@ -224,6 +229,9 @@ pcap_read_bpf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	 */
 #define bhp ((struct bpf_hdr *)bp)
 	ep = bp + cc;
+#ifdef PCAP_FDDIPAD
+	pad = p->fddipad;
+#endif
 	while (bp < ep) {
 		register int caplen, hdrlen;
 
@@ -249,31 +257,48 @@ pcap_read_bpf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 
 		caplen = bhp->bh_caplen;
 		hdrlen = bhp->bh_hdrlen;
+		datap = bp + hdrlen;
 		/*
 		 * Short-circuit evaluation: if using BPF filter
 		 * in kernel, no need to do it now.
+		 *
+#ifdef PCAP_FDDIPAD
+		 * Note: the filter code was generated assuming
+		 * that p->fddipad was the amount of padding
+		 * before the header, as that's what's required
+		 * in the kernel, so we run the filter before
+		 * skipping that padding.
+#endif
 		 */
 		if (fcode == NULL ||
-		    bpf_filter(fcode, bp + hdrlen, bhp->bh_datalen, caplen)) {
+		    bpf_filter(fcode, datap, bhp->bh_datalen, caplen)) {
+			struct pcap_pkthdr pkthdr;
+
+			pkthdr.ts.tv_sec = bhp->bh_tstamp.tv_sec;
 #ifdef _AIX
 			/*
 			 * AIX's BPF returns seconds/nanoseconds time
 			 * stamps, not seconds/microseconds time stamps.
-			 *
-			 * XXX - I'm guessing here that it's a "struct
-			 * timestamp"; if not, this code won't compile,
-			 * but, if not, you want to send us a bug report
-			 * and fall back on using DLPI.  It's not as if
-			 * BPF used to work right on AIX before this
-			 * change; this change attempts to fix the fact
-			 * that it didn't....
 			 */
-			bhp->bh_tstamp.tv_usec = bhp->bh_tstamp.tv_usec/1000;
+			pkthdr.ts.tv_usec = bhp->bh_tstamp.tv_usec/1000;
+#else
+			pkthdr.ts.tv_usec = bhp->bh_tstamp.tv_usec;
 #endif
-			/*
-			 * XXX A bpf_hdr matches a pcap_pkthdr.
-			 */
-			(*callback)(user, (struct pcap_pkthdr*)bp, bp + hdrlen);
+#ifdef PCAP_FDDIPAD
+			if (caplen > pad)
+				pkthdr.caplen = caplen - pad;
+			else
+				pkthdr.caplen = 0;
+			if (bhp->bh_datalen > pad)
+				pkthdr.len = bhp->bh_datalen - pad;
+			else
+				pkthdr.len = 0;
+			datap += pad;
+#else
+			pkthdr.caplen = caplen;
+			pkthdr.len = bhp->bh_datalen;
+#endif
+			(*callback)(user, &pkthdr, datap);
 			bp += BPF_WORDALIGN(caplen + hdrlen);
 			if (++n >= cnt && cnt > 0) {
 				p->bp = bp;
@@ -298,6 +323,41 @@ pcap_inject_bpf(pcap_t *p, const void *buf, size_t size)
 	int ret;
 
 	ret = write(p->fd, buf, size);
+#ifdef __APPLE__
+	if (ret == -1 && errno == EAFNOSUPPORT) {
+		/*
+		 * In Mac OS X, there's a bug wherein setting the
+		 * BIOCSHDRCMPLT flag causes writes to fail; see,
+		 * for example:
+		 *
+		 *	http://cerberus.sourcefire.com/~jeff/archives/patches/macosx/BIOCSHDRCMPLT-10.3.3.patch
+		 *
+		 * So, if, on OS X, we get EAFNOSUPPORT from the write, we
+		 * assume it's due to that bug, and turn off that flag
+		 * and try again.  If we succeed, it either means that
+		 * somebody applied the fix from that URL, or other patches
+		 * for that bug from
+		 *
+		 *	http://cerberus.sourcefire.com/~jeff/archives/patches/macosx/
+		 *
+		 * and are running a Darwin kernel with those fixes, or
+		 * that Apple fixed the problem in some OS X release.
+		 */
+		u_int spoof_eth_src = 0;
+
+		if (ioctl(p->fd, BIOCSHDRCMPLT, &spoof_eth_src) == -1) {
+			(void)snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "send: can't turn off BIOCSHDRCMPLT: %s",
+			    pcap_strerror(errno));
+			return (-1);
+		}
+
+		/*
+		 * Now try the write again.
+		 */
+		ret = write(p->fd, buf, size);
+	}
+#endif /* __APPLE__ */
 	if (ret == -1) {
 		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "send: %s",
 		    pcap_strerror(errno));
@@ -510,15 +570,6 @@ bpf_open(pcap_t *p, char *errbuf)
 	return (fd);
 }
 
-static void
-pcap_close_bpf(pcap_t *p)
-{
-	if (p->buffer != NULL)
-		free(p->buffer);
-	if (p->fd >= 0)
-		close(p->fd);
-}
-
 /*
  * We include the OS's <net/bpf.h>, not our "pcap-bpf.h", so we probably
  * don't get DLT_DOCSIS defined.
@@ -537,11 +588,13 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 #ifdef BIOCGDLTLIST
 	struct bpf_dltlist bdl;
 #endif
-#if defined(BIOCGHDRCMPLT) && defined(BIOCSHDRCMPLT) && !(__APPLE__)
+#if defined(BIOCGHDRCMPLT) && defined(BIOCSHDRCMPLT)
 	u_int spoof_eth_src = 1;
 #endif
 	u_int v;
 	pcap_t *p;
+	struct bpf_insn total_insn;
+	struct bpf_program total_prog;
 	struct utsname osinfo;
 
 #ifdef HAVE_DAG_API
@@ -675,6 +728,12 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 		break;
 	}
 #endif
+#ifdef PCAP_FDDIPAD
+	if (v == DLT_FDDI)
+		p->fddipad = PCAP_FDDIPAD;
+	else
+		p->fddipad = 0;
+#endif
 	p->linktype = v;
 
 #ifdef BIOCGDLTLIST
@@ -766,25 +825,12 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 		}
 	}
 		
-#if defined(BIOCGHDRCMPLT) && defined(BIOCSHDRCMPLT) && !(__APPLE__)
+#if defined(BIOCGHDRCMPLT) && defined(BIOCSHDRCMPLT)
 	/*
 	 * Do a BIOCSHDRCMPLT, if defined, to turn that flag on, so
 	 * the link-layer source address isn't forcibly overwritten.
 	 * (Should we ignore errors?  Should we do this only if
 	 * we're open for writing?)
-	 *
-	 * We don't do it on Mac OS X, because there's a bug wherein
-	 * setting that flag causes writes to fail; see, for example:
-	 *
-	 *	http://cerberus.sourcefire.com/~jeff/archives/patches/macosx/BIOCSHDRCMPLT-10.3.3.patch
-	 *
-	 * If that bug gets fixed at some point in the future, we could,
-	 * on OS X, do a "uname()" call to see whether we're on a version
-	 * of OS X without the bug and, if so, make the call.  Or we could
-	 * make the call unconditionally and, in the inject routine,
-	 * if the write fails with EAFNOSUPPORT or EPFNOSUPPORT (whichever
-	 * is the error we get if the flag is set), turn the flag off
-	 * and try again.
 	 *
 	 * XXX - I seem to remember some packet-sending bug in some
 	 * BSDs - check CVS log for "bpf.c"?
@@ -896,6 +942,28 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 #endif
 
 	/*
+	 * If there's no filter program installed, there's
+	 * no indication to the kernel of what the snapshot
+	 * length should be, so no snapshotting is done.
+	 *
+	 * Therefore, when we open the device, we install
+	 * an "accept everything" filter with the specified
+	 * snapshot length.
+	 */
+	total_insn.code = (u_short)(BPF_RET | BPF_K);
+	total_insn.jt = 0;
+	total_insn.jf = 0;
+	total_insn.k = snaplen;
+
+	total_prog.bf_len = 1;
+	total_prog.bf_insns = &total_insn;
+	if (ioctl(p->fd, BIOCSETF, (caddr_t)&total_prog) < 0) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "BIOCSETF: %s",
+		    pcap_strerror(errno));
+		goto bad;
+	}
+
+	/*
 	 * On most BPF platforms, either you can do a "select()" or
 	 * "poll()" on a BPF file descriptor and it works correctly,
 	 * or you can do it and it will return "readable" if the
@@ -931,32 +999,27 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 	 *
 	 * XXX - what about AIX?
 	 */
+	p->selectable_fd = p->fd;	/* assume select() works until we know otherwise */
 	if (uname(&osinfo) == 0) {
 		/*
 		 * We can check what OS this is.
 		 */
-		if (strcmp(osinfo.sysname, "FreeBSD") == 0 &&
-		    (strncmp(osinfo.release, "4.3-", 4) == 0 ||
-		     strncmp(osinfo.release, "4.4-", 4) == 0))
-			p->selectable_fd = -1;
-		else
-			p->selectable_fd = p->fd;
-	} else {
-		/*
-		 * We can't find out what OS this is, so assume we can
-		 * do a "select()" or "poll()".
-		 */
-		p->selectable_fd = p->fd;
+		if (strcmp(osinfo.sysname, "FreeBSD") == 0) {
+			if (strncmp(osinfo.release, "4.3-", 4) == 0 ||
+			     strncmp(osinfo.release, "4.4-", 4) == 0)
+				p->selectable_fd = -1;
+		}
 	}
 
 	p->read_op = pcap_read_bpf;
 	p->inject_op = pcap_inject_bpf;
 	p->setfilter_op = pcap_setfilter_bpf;
+	p->setdirection_op = pcap_setdirection_bpf;
 	p->set_datalink_op = pcap_set_datalink_bpf;
 	p->getnonblock_op = pcap_getnonblock_fd;
 	p->setnonblock_op = pcap_setnonblock_fd;
 	p->stats_op = pcap_stats_bpf;
-	p->close_op = pcap_close_bpf;
+	p->close_op = pcap_close_common;
 
 	return (p);
  bad:
@@ -1010,7 +1073,51 @@ pcap_setfilter_bpf(pcap_t *p, struct bpf_program *fp)
 		return (-1);
 	}
 	p->md.use_bpf = 1;	/* filtering in the kernel */
+
+	/*
+	 * Discard any previously-received packets, as they might have
+	 * passed whatever filter was formerly in effect, but might
+	 * not pass this filter (BIOCSETF discards packets buffered
+	 * in the kernel, so you can lose packets in any case).
+	 */
+	p->cc = 0;
 	return (0);
+}
+
+/*
+ * Set direction flag: Which packets do we accept on a forwarding
+ * single device? IN, OUT or both?
+ */
+static int
+pcap_setdirection_bpf(pcap_t *p, pcap_direction_t d)
+{
+#ifdef BIOCSSEESENT
+	u_int seesent;
+#endif
+
+	/*
+	 * We don't support PCAP_D_OUT.
+	 */
+	if (d == PCAP_D_OUT) {
+		snprintf(p->errbuf, sizeof(p->errbuf),
+		    "Setting direction to PCAP_D_OUT is not supported on BPF");
+		return -1;
+	}
+#ifdef BIOCSSEESENT
+	seesent = (d == PCAP_D_INOUT);
+	if (ioctl(p->fd, BIOCSSEESENT, &seesent) == -1) {
+		(void) snprintf(p->errbuf, sizeof(p->errbuf),
+		    "Cannot set direction to %s: %s",
+		        (d == PCAP_D_INOUT) ? "PCAP_D_INOUT" : "PCAP_D_IN",
+			strerror(errno));
+		return (-1);
+	}
+	return (0);
+#else
+	(void) snprintf(p->errbuf, sizeof(p->errbuf),
+	    "This system doesn't support BIOCSSEESENT, so the direction can't be set");
+	return (-1);
+#endif
 }
 
 static int

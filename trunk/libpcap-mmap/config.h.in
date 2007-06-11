@@ -6,8 +6,15 @@
 /* defined if linux allows shared ring buffer */
 #undef DO_RING
 
-/* define if you have a DAG API */
+/* defined if linux has 64 bit time_t */
+#undef HAVE_64BIT_TIME_T
+
+/* define if you have the DAG API */
 #undef HAVE_DAG_API
+
+/* Define to 1 if you have the declaration of `ether_hostton', and to 0 if you
+   don't. */
+#undef HAVE_DECL_ETHER_HOSTTON
 
 /* define if you have a /dev/dlpi */
 #undef HAVE_DEV_DLPI
@@ -46,6 +53,9 @@
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 
+/* Define to 1 if you have the <netinet/ether.h> header file. */
+#undef HAVE_NETINET_ETHER_H
+
 /* Define to 1 if you have the <netinet/if_ether.h> header file. */
 #undef HAVE_NETINET_IF_ETHER_H
 
@@ -54,6 +64,9 @@
 
 /* define if you have a /proc/net/dev */
 #undef HAVE_PROC_NET_DEV
+
+/* define if you have a Septel API */
+#undef HAVE_SEPTEL_API
 
 /* Define to 1 if you have the `snprintf' function. */
 #undef HAVE_SNPRINTF
@@ -84,6 +97,9 @@
 
 /* Define to 1 if you have the `strlcpy' function. */
 #undef HAVE_STRLCPY
+
+/* Define to 1 if the system has the type `struct ether_addr'. */
+#undef HAVE_STRUCT_ETHER_ADDR
 
 /* Define to 1 if `st_rdev' is member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_RDEV
@@ -139,6 +155,12 @@
 /* Define to 1 if `major', `minor', and `makedev' are declared in
    <sysmacros.h>. */
 #undef MAJOR_IN_SYSMACROS
+
+/* Define to 1 if netinet/ether.h declares `ether_hostton' */
+#undef NETINET_ETHER_H_DECLARES_ETHER_HOSTTON
+
+/* Define to 1 if netinet/if_ether.h declares `ether_hostton' */
+#undef NETINET_IF_ETHER_H_DECLARES_ETHER_HOSTTON
 
 /* do not use protochain */
 #undef NO_PROTOCHAIN
@@ -200,7 +222,7 @@
 #undef inline
 #endif
 
-/* Define to `long' if <sys/types.h> does not define. */
+/* Define to `long int' if <sys/types.h> does not define. */
 #undef off_t
 
 /* Define to `int' if <sys/types.h> does not define. */
@@ -209,7 +231,7 @@
 /* on sinix */
 #undef sinix
 
-/* Define to `unsigned' if <sys/types.h> does not define. */
+/* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
 
 /* if we have u_int16_t */

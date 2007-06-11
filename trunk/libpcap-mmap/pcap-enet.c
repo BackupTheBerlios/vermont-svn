@@ -8,7 +8,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-enet.c,v 0.8.3.1 2004/10/01 22:21:34 cpw Exp $";
+    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-enet.c,v 0.9 2005/07/18 16:05:11 cpw Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H

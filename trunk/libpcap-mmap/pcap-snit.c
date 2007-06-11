@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-snit.c,v 0.8.3.1 2004/10/01 22:21:35 cpw Exp $ (LBL)";
+    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-snit.c,v 0.9 2005/07/18 16:05:12 cpw Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -261,15 +261,6 @@ nit_setflags(int fd, int promisc, int to_ms, char *ebuf)
 	return (0);
 }
 
-static void
-pcap_close_snit(pcap_t *p)
-{
-	if (p->buffer != NULL)
-		free(p->buffer);
-	if (p->fd >= 0)
-		close(p->fd);
-}
-
 pcap_t *
 pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
     char *ebuf)
@@ -406,11 +397,12 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 	p->read_op = pcap_read_snit;
 	p->inject_op = pcap_inject_snit;
 	p->setfilter_op = install_bpf_program;	/* no kernel filtering */
+	p->setdirection_op = NULL;	/* Not implemented. */
 	p->set_datalink_op = NULL;	/* can't change data link type */
 	p->getnonblock_op = pcap_getnonblock_fd;
 	p->setnonblock_op = pcap_setnonblock_fd;
 	p->stats_op = pcap_stats_snit;
-	p->close_op = pcap_close_snit;
+	p->close_op = pcap_close_common;
 
 	return (p);
  bad:

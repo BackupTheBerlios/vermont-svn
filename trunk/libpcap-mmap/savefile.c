@@ -30,21 +30,14 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /n/CVS/sirt/libpcap/savefile.c,v 0.8.3.1 2004/10/01 22:21:32 cpw Exp $ (LBL)";
+    "@(#) $Header: /n/CVS/sirt/libpcap/savefile.c,v 0.9 2005/07/18 16:05:13 cpw Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#ifdef linux
-#define _FILE_OFFSET_BITS 64
-#define _LARGEFILE64_SOURCE
-#endif
-
-#include <sys/types.h>
-#include <sys/time.h>
-
+#include <unistd.h>
 #include <errno.h>
 #include <memory.h>
 #include <stdio.h>
@@ -74,6 +67,12 @@ static const char rcsid[] _U_ =
 #define FMESQUITA_TCPDUMP_MAGIC	0xa1b234cd
 
 /*
+ * Navtel Communcations' format, with nanosecond timestamps,
+ * as per a request from Dumas Hwang <dumas.hwang@navtelcom.com>.
+ */
+#define NAVTEL_TCPDUMP_MAGIC	0xa12b3c4d
+
+/*
  * We use the "receiver-makes-right" approach to byte order,
  * because time is at a premium when we are writing the file.
  * In other words, the pcap_file_header and pcap_pkthdr,
@@ -95,6 +94,19 @@ static const char rcsid[] _U_ =
 #define SFERR_BADVERSION	2
 #define SFERR_BADF		3
 #define SFERR_EOF		4 /* not really an error, just a status */
+
+/*
+ * Setting O_BINARY on DOS/Windows is a bit tricky
+ */
+#if defined(WIN32)
+  #define SET_BINMODE(f)  _setmode(_fileno(f), _O_BINARY)
+#elif defined(MSDOS)
+  #if defined(__HIGHC__)
+  #define SET_BINMODE(f)  setmode(f, O_BINARY)
+  #else
+  #define SET_BINMODE(f)  setmode(fileno(f), O_BINARY)
+  #endif
+#endif
 
 /*
  * We don't write DLT_* values to the capture file header, because
@@ -258,10 +270,10 @@ static const char rcsid[] _U_ =
 
 #define LINKTYPE_APPLE_IP_OVER_IEEE1394 138	/* Apple IP-over-IEEE 1394 cooked header */
 
-#define LINKTYPE_RAWSS7         139             /* see rawss7.h for */
-#define LINKTYPE_RAWSS7_MTP2    140	        /* information  on these */
-#define LINKTYPE_RAWSS7_MTP3    141             /* definitions */
-#define LINKTYPE_RAWSS7_SCCP    142
+#define LINKTYPE_MTP2_WITH_PHDR	139
+#define LINKTYPE_MTP2		140
+#define LINKTYPE_MTP3		141
+#define LINKTYPE_SCCP		142
 
 #define LINKTYPE_DOCSIS		143		/* DOCSIS MAC frames */
 
@@ -342,12 +354,64 @@ static const char rcsid[] _U_ =
 #define LINKTYPE_BACNET_MS_TP	165
 
 /*
- * another PPP variant as per request from Karsten Keil <kkeil@suse.de>
- * the first byte (0xff) of the PPP header (0xff03) is tweaked to accomodate
- * the direction 0x00 = IN, 0x01 = OUT
+ * Another PPP variant as per request from Karsten Keil <kkeil@suse.de>.
+ *
+ * This is used in some OSes to allow a kernel socket filter to distinguish
+ * between incoming and outgoing packets, on a socket intended to
+ * supply pppd with outgoing packets so it can do dial-on-demand and
+ * hangup-on-lack-of-demand; incoming packets are filtered out so they
+ * don't cause pppd to hold the connection up (you don't want random
+ * input packets such as port scans, packets from old lost connections,
+ * etc. to force the connection to stay up).
+ *
+ * The first byte of the PPP header (0xff03) is modified to accomodate
+ * the direction - 0x00 = IN, 0x01 = OUT.
  */
-#define LINKTYPE_PPP_WITHDIRECTION 166
+#define LINKTYPE_PPP_PPPD	166
 
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>.  The DLT_s are used
+ * for passing on chassis-internal metainformation such as
+ * QOS profiles, cookies, etc..
+ */
+#define LINKTYPE_JUNIPER_PPPOE     167
+#define LINKTYPE_JUNIPER_PPPOE_ATM 168
+
+#define LINKTYPE_GPRS_LLC	169		/* GPRS LLC */
+#define LINKTYPE_GPF_T		170		/* GPF-T (ITU-T G.7041/Y.1303) */
+#define LINKTYPE_GPF_F		171		/* GPF-T (ITU-T G.7041/Y.1303) */
+
+/*
+ * Requested by Oolan Zimmer <oz@gcom.com> for use in Gcom's T1/E1 line
+ * monitoring equipment.
+ */
+#define LINKTYPE_GCOM_T1E1	172
+#define LINKTYPE_GCOM_SERIAL	173
+
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>.  The DLT_ is used
+ * for internal communication to Physical Interface Cards (PIC)
+ */
+#define LINKTYPE_JUNIPER_PIC_PEER    174
+
+/*
+ * Link types requested by Gregor Maier <gregor@endace.com> of Endace
+ * Measurement Systems.  They add an ERF header (see
+ * http://www.endace.com/support/EndaceRecordFormat.pdf) in front of
+ * the link-layer header.
+ */
+#define LINKTYPE_ERF_ETH	175	/* Ethernet */
+#define LINKTYPE_ERF_POS	176	/* Packet-over-SONET */
+
+/*
+ * Requested by Daniele Orlandi <daniele@orlandi.com> for raw LAPD
+ * for vISDN (http://www.orlandi.com/visdn/).  Its link-layer header
+ * includes additional information before the LAPD header, so it's
+ * not necessarily a generic LAPD header.
+ */
+#define LINKTYPE_LINUX_LAPD	177
 
 static struct linktype_map {
 	int	dlt;
@@ -475,6 +539,12 @@ static struct linktype_map {
 	/* Apple IP-over-IEEE 1394 cooked header */
 	{ DLT_APPLE_IP_OVER_IEEE1394, LINKTYPE_APPLE_IP_OVER_IEEE1394 },
 
+	/* SS7 */
+	{ DLT_MTP2_WITH_PHDR,	LINKTYPE_MTP2_WITH_PHDR },
+	{ DLT_MTP2,		LINKTYPE_MTP2 },
+	{ DLT_MTP3,		LINKTYPE_MTP3 },
+	{ DLT_SCCP,		LINKTYPE_SCCP },
+
 	/* DOCSIS MAC frames */
 	{ DLT_DOCSIS,		LINKTYPE_DOCSIS },
 
@@ -513,8 +583,34 @@ static struct linktype_map {
 	/* BACnet MS/TP */
 	{ DLT_BACNET_MS_TP,	LINKTYPE_BACNET_MS_TP },
 
-        /* PPP with direction flag in the PPP header */
-        { DLT_PPP_WITHDIRECTION,LINKTYPE_PPP_WITHDIRECTION},
+	/* PPP for pppd, with direction flag in the PPP header */
+	{ DLT_PPP_PPPD,		LINKTYPE_PPP_PPPD},
+
+	/* Juniper-internal chassis encapsulation */
+        { DLT_JUNIPER_PPPOE,    LINKTYPE_JUNIPER_PPPOE },
+        { DLT_JUNIPER_PPPOE_ATM,LINKTYPE_JUNIPER_PPPOE_ATM },
+
+	/* GPRS LLC */
+	{ DLT_GPRS_LLC,		LINKTYPE_GPRS_LLC },
+
+	/* Transparent Generic Framing Procedure (ITU-T G.7041/Y.1303) */
+	{ DLT_GPF_T,		LINKTYPE_GPF_T },
+
+	/* Framed Generic Framing Procedure (ITU-T G.7041/Y.1303) */
+	{ DLT_GPF_F,		LINKTYPE_GPF_F },
+
+	{ DLT_GCOM_T1E1,	LINKTYPE_GCOM_T1E1 },
+	{ DLT_GCOM_SERIAL,	LINKTYPE_GCOM_SERIAL },
+
+        /* Juniper-internal chassis encapsulation */
+        { DLT_JUNIPER_PIC_PEER, LINKTYPE_JUNIPER_PIC_PEER },
+
+	/* Endace types */
+	{ DLT_ERF_ETH,		LINKTYPE_ERF_ETH },
+	{ DLT_ERF_POS,		LINKTYPE_ERF_POS },
+
+	/* viSDN LAPD */
+	{ DLT_LINUX_LAPD,	LINKTYPE_LINUX_LAPD },
 
 	{ -1,			-1 }
 };
@@ -622,6 +718,18 @@ sf_inject(pcap_t *p, const void *buf _U_, size_t size _U_)
 	return (-1);
 }
 
+/*
+ * Set direction flag: Which packets do we accept on a forwarding
+ * single device? IN, OUT or both?
+ */
+static int
+sf_setdirection(pcap_t *p, pcap_direction_t d)
+{
+	snprintf(p->errbuf, sizeof(p->errbuf),
+	    "Setting direction is not supported on savefiles");
+	return (-1);
+}
+
 static void
 sf_close(pcap_t *p)
 {
@@ -634,9 +742,46 @@ sf_close(pcap_t *p)
 pcap_t *
 pcap_open_offline(const char *fname, char *errbuf)
 {
+	FILE *fp;
+	pcap_t *p;
+
+	if (fname[0] == '-' && fname[1] == '\0')
+	{
+		fp = stdin;
+#if defined(WIN32) || defined(MSDOS)
+		/*
+		 * We're reading from the standard input, so put it in binary
+		 * mode, as savefiles are binary files.
+		 */
+		SET_BINMODE(fp);
+#endif
+	}
+	else {
+#if !defined(WIN32) && !defined(MSDOS)
+		fp = fopen(fname, "r");
+#else
+		fp = fopen(fname, "rb");
+#endif
+		if (fp == NULL) {
+			snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s: %s", fname,
+			    pcap_strerror(errno));
+			return (NULL);
+		}
+	}
+	p = pcap_fopen_offline(fp, errbuf);
+	if (p == NULL) {
+		if (fp != stdin)
+			fclose(fp);
+	}
+	return (p);
+}
+
+pcap_t *
+pcap_fopen_offline(FILE *fp, char *errbuf)
+{
 	register pcap_t *p;
-	register FILE *fp;
 	struct pcap_file_header hdr;
+	size_t amt_read;
 	bpf_u_int32 magic;
 	int linklen;
 
@@ -648,23 +793,18 @@ pcap_open_offline(const char *fname, char *errbuf)
 
 	memset((char *)p, 0, sizeof(*p));
 
-	if (fname[0] == '-' && fname[1] == '\0')
-		fp = stdin;
-	else {
-#ifndef WIN32
-		fp = fopen(fname, "r");
-#else
-		fp = fopen(fname, "rb");
-#endif
-		if (fp == NULL) {
-			snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s: %s", fname,
+	amt_read = fread((char *)&hdr, 1, sizeof(hdr), fp);
+	if (amt_read != sizeof(hdr)) {
+		if (ferror(fp)) {
+			snprintf(errbuf, PCAP_ERRBUF_SIZE,
+			    "error reading dump file: %s",
 			    pcap_strerror(errno));
-			goto bad;
+		} else {
+			snprintf(errbuf, PCAP_ERRBUF_SIZE,
+			    "truncated dump file; tried to read %lu file header bytes, only got %lu",
+			    (unsigned long)sizeof(hdr),
+			    (unsigned long)amt_read);
 		}
-	}
-	if (fread((char *)&hdr, sizeof(hdr), 1, fp) != 1) {
-		snprintf(errbuf, PCAP_ERRBUF_SIZE, "fread: %s",
-		    pcap_strerror(errno));
 		goto bad;
 	}
 	magic = hdr.magic;
@@ -743,8 +883,8 @@ pcap_open_offline(const char *fname, char *errbuf)
 	p->sf.version_major = hdr.version_major;
 	p->sf.version_minor = hdr.version_minor;
 #ifdef PCAP_FDDIPAD
-	/* XXX padding only needed for kernel fcode */
-	pcap_fddipad = 0;
+	/* Padding only needed for live capture fcode */
+	p->fddipad = 0;
 #endif
 
 	/*
@@ -777,7 +917,7 @@ pcap_open_offline(const char *fname, char *errbuf)
 		break;
 	}
 
-#ifndef WIN32
+#if !defined(WIN32) && !defined(MSDOS)
 	/*
 	 * You can do "select()" and "poll()" on plain files on most
 	 * platforms, and should be able to do so on pipes.
@@ -791,6 +931,7 @@ pcap_open_offline(const char *fname, char *errbuf)
 	p->read_op = pcap_offline_read;
 	p->inject_op = sf_inject;
 	p->setfilter_op = install_bpf_program;
+	p->setdirection_op = sf_setdirection;
 	p->set_datalink_op = NULL;	/* we don't support munging link-layer headers */
 	p->getnonblock_op = sf_getnonblock;
 	p->setnonblock_op = sf_setnonblock;
@@ -799,8 +940,6 @@ pcap_open_offline(const char *fname, char *errbuf)
 
 	return (p);
  bad:
-	if(fp)
-		fclose(fp);
 	free(p);
 	return (NULL);
 }
@@ -879,6 +1018,7 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, u_int buflen)
 		break;
 	}
 
+// THIS IS SHIT
 	if (hdr->caplen > buflen) {
 		/*
 		 * This can happen due to Solaris 2.3 systems tripping
@@ -889,9 +1029,19 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, u_int buflen)
 		static u_char *tp = NULL;
 		static size_t tsize = 0;
 
-		if (hdr->caplen > 65535) {
+		if (hdr->caplen > 65535)  {
+			char *flkit = "";
+                        tp = (u_char *)hdr;
+                        fprintf (stderr, "hdr:");
+                        while (tsize < sizeof (struct pcap_pkthdr)) 
+                        {
+                          fprintf (stderr, "%c%2.2x", (u_char)*tp++);
+			  flkit = ":";
+                          tsize++;
+                        }
+                        fprintf (stderr, " %d\n", tsize);
 			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-			    "bogus savefile header");
+			    "pcap hdr caplen gt 65535!");
 			return (-1);
 		}
 
@@ -956,7 +1106,7 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, u_int buflen)
 int
 pcap_offline_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
-	struct bpf_insn *fcode = p->fcode.bf_insns;
+	struct bpf_insn *fcode;
 	int status = 0;
 	int n = 0;
 
@@ -987,7 +1137,7 @@ pcap_offline_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 			return (status);
 		}
 
-		if (fcode == NULL ||
+		if ((fcode = p->fcode.bf_insns) == NULL ||
 		    bpf_filter(fcode, p->buffer, h.len, h.caplen)) {
 			(*callback)(user, &h, p->buffer);
 			if (++n >= cnt && cnt > 0)
@@ -1017,6 +1167,82 @@ pcap_dump(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	(void)fwrite((char *)sp, h->caplen, 1, f);
 }
 
+static pcap_dumper_t *
+pcap_setup_dump(pcap_t *p, int linktype, FILE *f, const char *fname)
+{
+
+#if defined(WIN32) || defined(MSDOS)
+	/*
+	 * If we're writing to the standard output, put it in binary
+	 * mode, as savefiles are binary files.
+	 *
+	 * Otherwise, we turn off buffering.
+	 * XXX - why?  And why not on the standard output?
+	 */
+	if (f == stdout)
+		SET_BINMODE(f);
+	else
+		setbuf(f, NULL);
+#endif
+	if (sf_write_header(f, linktype, p->tzoff, p->snapshot) == -1) {
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "Can't write to %s: %s",
+		    fname, pcap_strerror(errno));
+		if (f != stdout)
+			(void)fclose(f);
+		return (NULL);
+	}
+	return ((pcap_dumper_t *)f);
+}
+
+
+#ifdef _LARGEFILE_SOURCE
+FILE *
+pcap_stream_freopen(const char *fname, FILE *f)
+{
+	FILE *stream;
+        off_t t = ftello (f);
+        int fd = fileno (f);
+
+//      if (err) fprintf (stderr, "pcap_stream_close: fflush failed\n");
+//      else {
+          (void)ftruncate64 (fd, t);
+//      }
+
+        stream = freopen64 (fname, "r+", f);
+	if (!stream) {
+	        stream = freopen64 (fname, "w", f);
+	}
+	return (stream);
+}
+
+FILE *
+pcap_stream_open(const char *fname)
+{
+        FILE *stream;
+	
+	stream = fopen64 (fname, "r+");
+	if (!stream)
+	{
+	        stream = fopen64 (fname, "w");
+        }
+	return (stream);
+}
+
+void
+pcap_stream_close(FILE *p)
+{
+//	int err = fflush (p);
+        off_t t = ftello (p);
+        int fd = fileno (p);
+
+//	if (err) fprintf (stderr, "pcap_stream_close: fflush failed\n");
+//	else {
+          (void)ftruncate64 (fd, t);
+//	}
+        (void)fclose (p);
+}
+#endif /*_LARGEFILE_SOURCE*/
+
 /*
  * Initialize so that sf_write() will output to the file named 'fname'.
  */
@@ -1025,6 +1251,7 @@ pcap_dump_open(pcap_t *p, const char *fname)
 {
 	FILE *f;
 	int linktype;
+	int l;
 
 	linktype = dlt_to_linktype(p->linktype);
 	if (linktype == -1) {
@@ -1036,12 +1263,18 @@ pcap_dump_open(pcap_t *p, const char *fname)
 
 	if (fname[0] == '-' && fname[1] == '\0') {
 		f = stdout;
-#ifdef WIN32
-		_setmode(_fileno(f), _O_BINARY);
-#endif
+		fname = "standard output";
 	} else {
-#ifndef WIN32
+#if !defined(WIN32) && !defined(MSDOS)
+#  ifdef _LARGEFILE_SOURCE
+		f = pcap_stream_open(fname);
+		l = strlen (fname);
+		if (l > (BUFSIZ-1)) { exit (2); }
+		if (!p->rg.fname) { p->rg.fname = (char *) calloc (1, l+1);} 
+		strncpy (p->rg.fname, fname, l);
+#  else
 		f = fopen(fname, "w");
+#  endif /*_LARGEFILE_SOURCE*/
 #else
 		f = fopen(fname, "wb");
 #endif
@@ -1050,18 +1283,47 @@ pcap_dump_open(pcap_t *p, const char *fname)
 			    fname, pcap_strerror(errno));
 			return (NULL);
 		}
-#ifdef WIN32
-		setbuf(f, NULL);	/* XXX - why? */
+#ifdef BIGBUFSIZ
+		{ 
+		 char * stdio_buffer = malloc(BIGBUFSIZ);
+		 if (stdio_buffer) {
+			setbuffer(f, stdio_buffer, BIGBUFSIZ);
+		}
+		}
 #endif
 	}
-	(void)sf_write_header(f, linktype, p->tzoff, p->snapshot);
-	return ((pcap_dumper_t *)f);
+	return (pcap_setup_dump(p, linktype, f, fname));
+}
+
+/*
+ * Initialize so that sf_write() will output to the given stream.
+ */
+pcap_dumper_t *
+pcap_dump_fopen(pcap_t *p, FILE *f)
+{	
+	int linktype;
+
+	linktype = dlt_to_linktype(p->linktype);
+	if (linktype == -1) {
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		    "stream: link-layer type %d isn't supported in savefiles",
+		    linktype);
+		return (NULL);
+	}
+
+	return (pcap_setup_dump(p, linktype, f, "stream"));
 }
 
 FILE *
 pcap_dump_file(pcap_dumper_t *p)
 {
 	return ((FILE *)p);
+}
+
+off_t
+pcap_dump_ftell(pcap_dumper_t *p)
+{
+	return (ftello((FILE *)p));
 }
 
 int
@@ -1077,11 +1339,46 @@ pcap_dump_flush(pcap_dumper_t *p)
 void
 pcap_dump_close(pcap_dumper_t *p)
 {
+#ifdef _LARGEFILE_SOURCE
+	off_t t;
+	int f;
+	int fd; 
+        int e;
+
+//        if (pcap_dump_flush(p)) {
+//	  fprintf (stderr, "pcap_dump_close: fflush failed\n");
+//	} else {
+          t = pcap_dump_ftell (p);
+	  if (t < 0) {
+	    fprintf (stderr, "pcap_dump_close: ftell failed\n");
+          } else {
+            fd = fileno ((FILE *)p);
+            e = ftruncate64 (fd,t);
+            if (e) {
+  		int errsv = errno;
+                char buf[128];
+
+                fprintf (stderr, "pcap_dump_close: ftruncate failed, %s\n",
+                        strerror(errsv));
+            }
+	  }
+//	}
+#endif /* _LARGEFILE_SOURCE */
 
 #ifdef notyet
 	if (ferror((FILE *)p))
 		return-an-error;
-	/* XXX should check return from fclose() too */
 #endif
-	(void)fclose((FILE *)p);
+
+#ifdef _LARGEFILE_SOURCE
+	if (fclose((FILE *)p)) {
+		int errsv = errno;
+		char buf[128];
+		
+		strerror_r (errsv, buf, 128);
+		fprintf (stderr, "pcap_dump_close: fclose failed, %s\n", buf);
+        }
+#else
+        (void)fclose((FILE *)p);
+#endif /* _LARGEFILE_SOURCE */
 }

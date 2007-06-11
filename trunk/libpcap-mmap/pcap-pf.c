@@ -24,7 +24,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-pf.c,v 0.8.3.1 2004/10/01 22:21:34 cpw Exp $ (LBL)";
+    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-pf.c,v 0.9 2005/07/18 16:05:12 cpw Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -129,10 +129,7 @@ pcap_read_pf(pcap_t *pc, int cnt, pcap_handler callback, u_char *user)
 	 */
 	n = 0;
 #ifdef PCAP_FDDIPAD
-	if (pc->linktype == DLT_FDDI)
-		pad = pcap_fddipad;
-	else
-		pad = 0;
+	pad = pc->fddipad;
 #endif
 	while (cc > 0) {
 		/*
@@ -182,10 +179,6 @@ pcap_read_pf(pcap_t *pc, int cnt, pcap_handler callback, u_char *user)
 		inc = ENALIGN(buflen + sp->ens_stamplen);
 		cc -= inc;
 		bp += inc;
-#ifdef PCAP_FDDIPAD
-		p += pad;
-		buflen -= pad;
-#endif
 		pc->md.TotPkts++;
 		pc->md.TotDrops += sp->ens_dropped;
 		pc->md.TotMissed = sp->ens_ifoverflows;
@@ -195,6 +188,14 @@ pcap_read_pf(pcap_t *pc, int cnt, pcap_handler callback, u_char *user)
 		/*
 		 * Short-circuit evaluation: if using BPF filter
 		 * in kernel, no need to do it now.
+		 *
+#ifdef PCAP_FDDIPAD
+		 * Note: the filter code was generated assuming
+		 * that pc->fddipad was the amount of padding
+		 * before the header, as that's what's required
+		 * in the kernel, so we run the filter before
+		 * skipping that padding.
+#endif
 		 */
 		if (fcode == NULL ||
 		    bpf_filter(fcode, p, sp->ens_count, buflen)) {
@@ -205,6 +206,10 @@ pcap_read_pf(pcap_t *pc, int cnt, pcap_handler callback, u_char *user)
 			h.len = sp->ens_count - pad;
 #else
 			h.len = sp->ens_count;
+#endif
+#ifdef PCAP_FDDIPAD
+			p += pad;
+			buflen -= pad;
 #endif
 			h.caplen = buflen;
 			(*callback)(user, &h, p);
@@ -277,15 +282,6 @@ pcap_stats_pf(pcap_t *p, struct pcap_stat *ps)
 	ps->ps_drop = p->md.TotDrops;
 	ps->ps_ifdrop = p->md.TotMissed - p->md.OrigMissed;
 	return (0);
-}
-
-static void
-pcap_close_pf(pcap_t *p)
-{
-	if (p->buffer != NULL)
-		free(p->buffer);
-	if (p->fd >= 0)
-		close(p->fd);
 }
 
 /*
@@ -451,9 +447,13 @@ your system may not be properly configured; see the packetfilter(4) man page\n",
 	}
 	/* set truncation */
 #ifdef PCAP_FDDIPAD
-	if (p->linktype == DLT_FDDI)
+	if (p->linktype == DLT_FDDI) {
+		p->fddipad = PCAP_FDDIPAD;
+
 		/* packetfilter includes the padding in the snapshot */
-		snaplen += pcap_fddipad;
+		snaplen += PCAP_FDDIPAD;
+	} else
+		p->fddipad = 0;
 #endif
 	if (ioctl(p->fd, EIOCTRUNCATE, (caddr_t)&snaplen) < 0) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE, "EIOCTRUNCATE: %s",
@@ -497,11 +497,12 @@ your system may not be properly configured; see the packetfilter(4) man page\n",
 	p->read_op = pcap_read_pf;
 	p->inject_op = pcap_inject_pf;
 	p->setfilter_op = pcap_setfilter_pf;
+	p->setdirection_op = NULL;	/* Not implemented. */
 	p->set_datalink_op = NULL;	/* can't change data link type */
 	p->getnonblock_op = pcap_getnonblock_fd;
 	p->setnonblock_op = pcap_setnonblock_fd;
 	p->stats_op = pcap_stats_pf;
-	p->close_op = pcap_close_pf;
+	p->close_op = pcap_close_common;
 
 	return (p);
  bad:
@@ -567,6 +568,16 @@ pcap_setfilter_pf(pcap_t *p, struct bpf_program *fp)
 			 */
 			fprintf(stderr, "tcpdump: Using kernel BPF filter\n");
 			p->md.use_bpf = 1;
+
+			/*
+			 * Discard any previously-received packets,
+			 * as they might have passed whatever filter
+			 * was formerly in effect, but might not pass
+			 * this filter (BIOCSETF discards packets buffered
+			 * in the kernel, so you can lose packets in any
+			 * case).
+			 */
+			p->cc = 0;
 			return (0);
 		}
 

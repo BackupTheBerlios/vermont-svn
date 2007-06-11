@@ -1,4 +1,4 @@
-/* @(#) $Header: /n/CVS/sirt/libpcap/Win32/Include/Gnuc.h,v 0.8.3.1 2004/10/01 22:21:37 cpw Exp $ (LBL) */
+/* @(#) $Header: /n/CVS/sirt/libpcap/Win32/Include/Gnuc.h,v 0.9 2005/07/18 16:06:16 cpw Exp $ (LBL) */
 
 /* Define __P() macro, if necessary */
 

@@ -29,7 +29,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @(#) $Header: /n/CVS/sirt/libpcap/atmuni31.h,v 0.8.3.1 2004/10/01 22:21:32 cpw Exp $ (LBL)
+ * @(#) $Header: /n/CVS/sirt/libpcap/atmuni31.h,v 0.9 2005/07/18 16:05:09 cpw Exp $ (LBL)
  */
 
 /* Based on UNI3.1 standard by ATM Forum */

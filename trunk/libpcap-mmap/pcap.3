@@ -1,4 +1,4 @@
-.\" @(#) $Header: /n/CVS/sirt/libpcap/pcap.3,v 0.8.3.1 2004/10/01 22:21:34 cpw Exp $
+.\" @(#) $Header: /n/CVS/sirt/libpcap/pcap.3,v 0.9 2005/07/18 16:05:12 cpw Exp $
 .\"
 .\" Copyright (c) 1994, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
@@ -10,12 +10,12 @@
 .\" this paragraph in its entirety in the documentation or other materials
 .\" provided with the distribution, and (3) all advertising materials mentioning
 .\" features or use of this software display the following acknowledgement:
-.\" ``This product includes software developed by the University of California,
-.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors. Neither the name of
 .\" the University nor the names of its contributors may be used to endorse
 .\" or promote products derived from this software without specific prior
 .\" written permission.
-.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" THIS SOFTWARE IS PROVIDED AS IS AND WITHOUT ANY EXPRESS OR IMPLIED
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
@@ -39,7 +39,9 @@ pcap_t *pcap_open_live(const char *device, int snaplen,
 int promisc, int to_ms, char *errbuf)
 pcap_t *pcap_open_dead(int linktype, int snaplen)
 pcap_t *pcap_open_offline(const char *fname, char *errbuf)
+pcap_t *pcap_fopen_offline(FILE *fp, char *errbuf)
 pcap_dumper_t *pcap_dump_open(pcap_t *p, const char *fname)
+pcap_dumper_t *pcap_dump_fopen(pcap_t *p, FILE *fp)
 .ft
 .LP
 .ft B
@@ -57,10 +59,17 @@ bpf_u_int32 *maskp, char *errbuf)
 .ft
 .LP
 .ft B
+typedef void (*pcap_handler)(u_char *user, const struct pcap_pkthdr *h,
+.ti +8
+			     const u_char *bytes);
+.ft B
 int pcap_dispatch(pcap_t *p, int cnt,
 .ti +8
 pcap_handler callback, u_char *user)
 int pcap_loop(pcap_t *p, int cnt,
+.ti +8
+pcap_handler callback, u_char *user)
+int pcap_ring_recv(pcap_t *p, int cnt,
 .ti +8
 pcap_handler callback, u_char *user)
 void pcap_dump(u_char *user, struct pcap_pkthdr *h,
@@ -73,7 +82,8 @@ int pcap_compile(pcap_t *p, struct bpf_program *fp,
 .ti +8
 char *str, int optimize, bpf_u_int32 netmask)
 int pcap_setfilter(pcap_t *p, struct bpf_program *fp)
-void pcap_freecode(struct bpf_program *);
+void pcap_freecode(struct bpf_program *)
+int pcap_setdirection(pcap_t *p, pcap_direction_t d)
 .ft
 .LP
 .ft B
@@ -116,6 +126,7 @@ const char *pcap_lib_version(void)
 .ft B
 void pcap_close(pcap_t *p)
 int pcap_dump_flush(pcap_dumper_t *p)
+off_t pcap_dump_ftell(pcap_dumper_t *p)
 FILE *pcap_dump_file(pcap_dumper_t *p)
 void pcap_dump_close(pcap_dumper_t *p)
 .ft
@@ -133,6 +144,7 @@ in
 .BR pcap_open_live() ,
 .BR pcap_open_dead() ,
 .BR pcap_open_offline() ,
+.BR pcap_fopen_offline() ,
 .BR pcap_setnonblock() ,
 .BR pcap_getnonblock() ,
 .BR pcap_findalldevs() ,
@@ -141,7 +153,7 @@ and
 .B pcap_lookupnet()
 is assumed to be able to hold at least
 .B PCAP_ERRBUF_SIZE
-chars.
+chars. (See pcap.h for just how large that is)
 .PP
 .B pcap_open_live()
 is used to obtain a packet capture descriptor to look
@@ -175,15 +187,33 @@ is seen, but that it wait for some amount of time to allow more packets
 to arrive and to read multiple packets from the OS kernel in one
 operation.  Not all platforms support a read timeout; on platforms that
 don't, the read timeout is ignored.  A zero value for
-.IR to_ms ,
-on platforms that support a read timeout,
+.I to_ms
+, on platforms that support a read timeout,
 will cause a read to wait forever to allow enough packets to
 arrive, with no timeout.
-A value of -1 for
-.IR to_ms ,
-on linux platforms using a kernel ring buffer will return whenever the
-the ring buffer is empty.  This is useful for applications that have
-multiple outstanding events on pollable file descriptors.
+On linux systems, using a mmap shared memory ring buffer, the 
+.I to_ms
+takes on these specific meanings:
+.PP
+.in +0.3i
+With a positive timeout a read will return if either, enough polls have been
+called to exhaust the timeout value based on the packet time, or the timeout
+expires and no packets have been received.
+.PP
+.in +0.3i
+With a zero timeout, a read will never return.  The timeout is considered
+infinite.  Of course callbacks will continue for each packet that arrives.
+The PCAP_TIMEOUT environment variable can be used to signal an error of
+ETIMEDOUT which
+.B will
+cause the read to terminate.  A nice clean way to quit at a certain time
+in a script.
+.PP
+.in +0.3i
+With a value of -1, the read will return if either, there were no packets on the
+ring, or the packets that have been queued on the ring have all been processed.
+This is essentially non-blocking.
+.PP
 .I errbuf
 is used to return error or warning text.  It will be set to error text when
 .B pcap_open_live()
@@ -207,7 +237,7 @@ structure to use when calling the other functions in libpcap.  It is
 typically used when just using libpcap for compiling BPF code.
 .PP
 .B pcap_open_offline()
-is called to open a ``savefile'' for reading.
+is called to open a pcap savefile for reading.
 .I fname
 specifies the name of the file to open. The file has
 the same format as those used by
@@ -216,14 +246,21 @@ and
 .BR tcpslice(1) .
 The name "-" in a synonym for
 .BR stdin .
+Alternatively, you may call
+.B pcap_fopen_offline()
+to read dumped data from an existing open stream
+.IR fp .
+Note that on Windows, that stream should be opened in binary mode.
 .I errbuf
 is used to return error text and is only set when
 .B pcap_open_offline()
+or
+.B pcap_fopen_offline()
 fails and returns
 .BR NULL .
 .PP
 .B pcap_dump_open()
-is called to open a ``savefile'' for writing. The name "-" in a synonym
+is called to open a pcap savefile for writing. The name "-" in a synonym
 for
 .BR stdout .
 .B NULL
@@ -236,26 +273,36 @@ struct as returned by
 or
 .BR pcap_open_live() .
 .I fname
-specifies the name of the file to open.
+specifies the name of the file to open. Alternatively, you may call
+.B pcap_dump_fopen()
+to write data to an existing open stream
+.IR fp .
+Note that on Windows, that stream should be opened in binary mode.
 If
 .B NULL
 is returned,
 .B pcap_geterr()
 can be used to get the error text.
 .PP
+.PP
 .B pcap_setnonblock()
 puts a capture descriptor, opened with
 .BR pcap_open_live() ,
-into ``non-blocking'' mode, or takes it out of ``non-blocking'' mode,
+into
+.I non-blocking
+mode, or takes it out of
+.I non-blocking
+mode,
 depending on whether the
 .I nonblock
-argument is non-zero or zero.  It has no effect on ``savefiles''.
+argument is non-zero or zero.  It has no effect on pcap savefiles.
 If there is an error, \-1 is returned and
 .I errbuf
 is filled in with an appropriate error message; otherwise, 0 is
 returned.
 In
-``non-blocking'' mode, an attempt to read from the capture descriptor
+.I non-blocking
+mode, an attempt to read from the capture descriptor
 with
 .B pcap_dispatch()
 will, if no packets are currently available to be read, return 0
@@ -263,11 +310,16 @@ immediately rather than blocking waiting for packets to arrive.
 .B pcap_loop()
 and
 .B pcap_next()
-will not work in ``non-blocking'' mode.
+will not work in
+.I non-blocking
+mode.
 .PP
 .B pcap_getnonblock()
-returns the current ``non-blocking'' state of the capture descriptor; it
-always returns 0 on ``savefiles''.
+returns the current
+.I non-blocking
+state of the capture descriptor; it
+always returns 0 on
+.I savefiles.
 If there is an error, \-1 is returned and
 .I errbuf
 is filled in with an appropriate error message.
@@ -419,7 +471,7 @@ packets may be processed. A
 .I cnt
 of \-1 processes all the packets received in one buffer when reading a
 live capture, or all the packets in the file when reading a
-``savefile''.
+.I savefile.
 .I callback
 specifies a routine to be called with three arguments:
 a
@@ -473,7 +525,9 @@ or if, on platforms that support a read timeout that starts before any
 packets arrive, the timeout expires before any packets arrive, or if the
 file descriptor for the capture device is in non-blocking mode and no
 packets were available to be read) or if no more packets are available
-in a ``savefile.'' A return of \-1 indicates
+in a 
+.I savefile.
+A return of \-1 indicates
 an error in which case
 .B pcap_perror()
 or
@@ -497,7 +551,9 @@ doesn't start until at least one packet arrives.  This means that the
 read timeout should
 .B NOT
 be used in, for example, an interactive application, to allow the packet
-capture loop to ``poll'' for user input periodically, as there's no
+capture loop to
+.I poll
+for user input periodically, as there's no
 guarantee that
 .B pcap_dispatch()
 will return after the timeout expires.
@@ -533,6 +589,98 @@ make sure that you explicitly check for \-1 and \-2, rather than just
 checking for a return value < 0.
 .ft R
 .PP
+.B pcap_ring_recv()
+, a linux enhancement,
+is similar to pcap_loop, except it treats the following arguements differently.
+A negative
+.I cnt
+causes it to loop forever unless the
+.I to_ms 
+value in pcap_open_live was set to a positive number.
+In that case, the delta time between packets is used to decrement the
+number of milliseconds arguement (which was passed to pcap_open_live).
+When the milliseconds value goes negative
+.B pcap_ring_recv()
+will return with a count of how many packets were read.  If
+.I cnt
+is positive then
+.B pcap_ring_recv()
+will return after
+.I cnt
+packets were read.  It happens to be used by all the other live packet read
+routines.  Consequently, it is possible to coerce pcap based applications 
+that are accessing the pcap library via the shared library mechanism to
+improve there performance with the judicious selection of special environment
+variables.  The following variables:
+.RS 
+.nf 
+.sp .5
+\s-2\f(CW
+PCAP_FRAMES  Please see linux kernel source file:
+               .../Documentation/networking/packet_mmap.txt
+PCAP_MEMORY  ditto
+PCAP_SNAPLEN Set to the largest packet you expect, or less
+             to truncate.
+PCAP_PROMISC Set to -1 for promiscous, -2 not promiscuous
+PCAP_TO_MS   See the discussion related to this variable.
+PCAP_RAW     2 is for cooked mode, I would leave it alone.
+PCAP_PROTO   ip,ipv6,arp,rarp,802.2,802.3,lat,dec,atalk,aarp,
+             ipx,x25.  Defaults to ip.
+PCAP_MADDR   hexstring overides PCAP_PROMISC not for the
+             uninitiated.  Hey Alexey, try this one.
+PCAP_TIMEOUT return errno ETIMEDOUT when the packet time
+             is greater than secs.
+PCAP_PERIOD  milliseconds between pcap stats generation.
+PCAP_STATS   dump selected pcap stats to stderr every PCAP_PERIOD
+             microseconds.  PCAP_STATS=-1 will pretty print
+             all the statistics.  You could possible lose quite
+             a few packets on a heavily loaded network waiting
+             for your teletype to finish punching out the numbers.
+\fR\s+2
+.fi
+.RE
+.PP
+can be used to modify the behavior of a linux pcap based application.
+The format for PCAP_STATS is a 32 bit mask.  See pcap-ring.h for
+field definitions.  If a bit is set in this mask, then the corresonding
+value will be printed.  The values are separated by a space.
+Bit 0 is defined to be 0x00000001.  So, if you wanted to print the
+time followed by the number of packets dropped by the kernel and
+seen by the device, you would set PCAP_STATS=0x24.  The following
+table defines each bit starting with the least significant.
+.RS 
+.nf 
+.sp .5
+\s-2\f(CW
+ 0  Start date and time
+ 1  Packets processed
+ 2  Packets dropped
+ 3  Packets total
+ 4  Packets ignored
+ 5  Packets seen by device (in and out)
+ 6  Bytes seen by device (in and out)
+ 7  Bytes received 
+ 8  Number of times poll system call called
+ 9  Current ring buffer index
+10  Maximum number of frames pulled from ring
+    before having to poll
+11  Specious signal to pull frames from ring
+12  Elapsed time between first and last packet
+    seen during sample time
+13  Received errors
+14  Received drops
+15  Transfer errors
+16  Transfer drops
+17  Multicast packet count
+    (the Packets total includes this number)
+\fR\s+2
+.fi
+.RE
+.PP
+By setting PCAP_STATS=0x021fff, the ring statistics line would print 
+items  0 through 12 and item 17 in that order.  I have been known to
+use PCAP_STATS=0x21fff.
+.PP
 .B pcap_next()
 reads the next packet (by calling
 .B pcap_dispatch()
@@ -550,7 +698,9 @@ the packet filter, or if, on platforms that support a read timeout that
 starts before any packets arrive, the timeout expires before any packets
 arrive, or if the file descriptor for the capture device is in
 non-blocking mode and no packets were available to be read), or if no
-more packets are available in a ``savefile.''  Unfortunately, there is
+more packets are available in a
+.I savefile.
+Unfortunately, there is
 no way to determine whether an error occured or not.
 .PP
 .B pcap_next_ex()
@@ -567,8 +717,9 @@ packets are being read from a live capture, and the timeout expired
 an error occurred while reading the packet
 .TP
 \-2
-packets are being read from a ``savefile'', and there are no more
-packets to read from the savefile.
+packets are being read from a
+.I savefile,
+and there are no more packets to read from the savefile.
 .RE
 .PP
 If the packet was read without problems, the pointer pointed to by the
@@ -685,7 +836,9 @@ comes from OpenBSD;
 comes from WinPcap.  Both are provided for compatibility.)
 .PP
 .B pcap_dump()
-outputs a packet to the ``savefile'' opened with
+outputs a packet to the
+.I savefile
+opened with
 .BR pcap_dump_open() .
 Note that its calling arguments are suitable for use with
 .B pcap_dispatch()
@@ -763,6 +916,33 @@ when that BPF program is no longer needed, for example after it
 has been made the filter program for a pcap structure by a call to
 .BR pcap_setfilter() .
 .PP
+.B pcap_setdirection()
+is used to specify a direction that packets will be captured.
+.I pcap_direction_t 
+is one of the constants
+.BR PCAP_D_IN ,
+.B PCAP_D_OUT
+or 
+.BR PCAP_D_INOUT .
+.B PCAP_D_IN
+will only capture packets received by the device,
+.B PCAP_D_OUT
+will only capture packets sent by the device and
+.B PCAP_D_INOUT
+will capture packets received by or sent by the device.
+.B PCAP_D_INOUT
+is the default setting if this function is not called.  This isn't
+necessarily supported on all platforms; some platforms might return an
+error, and some other platforms might not support
+.BR PCAP_D_OUT .
+This operation is not supported if a 
+.I savefile
+is being read.
+.B \-1
+is returned on failure,
+.B 0
+is returned on success.
+.PP
 .B pcap_datalink()
 returns the link layer type; link layer types it can return include:
 .PP
@@ -775,13 +955,18 @@ byte order, containing a PF_ value from
 .B socket.h
 for the network-layer protocol of the packet.
 .IP
-Note that ``host byte order'' is the byte order of the machine on which
+Note that 
+.I host byte order
+is the byte order of the machine on which
 the packets are captured, and the PF_ values are for the OS of the
 machine on which the packets are captured; if a live capture is being
-done, ``host byte order'' is the byte order of the machine capturing the
+done, 
+.I host byte order
+is the byte order of the machine capturing the
 packets, and the PF_ values are those of the OS of the machine capturing
-the packets, but if a ``savefile'' is being read, the byte order and PF_
-values are
+the packets, but if a 
+.I savefile
+is being read, the byte order and PF_ values are
 .I not
 necessarily those of the machine reading the capture file.
 .TP 5
@@ -866,7 +1051,9 @@ byte order, containing a PF_ value from OpenBSD's
 .B socket.h
 for the network-layer protocol of the packet.
 .IP
-Note that, if a ``savefile'' is being read, those PF_ values are
+Note that, if a
+.I savefile
+is being read, those PF_ values are
 .I not
 necessarily those of the machine reading the capture file.
 .TP 5
@@ -1078,8 +1265,9 @@ returns the snapshot length specified when
 was called.
 .PP
 .B pcap_is_swapped()
-returns true if the current ``savefile'' uses a different byte order
-than the current system.
+returns true if the current
+.I savefile
+uses a different byte order than the current system.
 .PP
 .B pcap_major_version()
 returns the major number of the file format of the savefile;
@@ -1088,7 +1276,10 @@ returns the minor number of the file format of the savefile.  The
 version number is stored in the header of the savefile.
 .PP
 .B pcap_file()
-returns the standard I/O stream of the ``savefile,'' if a ``savefile''
+returns the standard I/O stream of the
+.I savefile,
+if a 
+.I savefile
 was opened with
 .BR pcap_open_offline() ,
 or NULL, if a network device was opened with
@@ -1105,15 +1296,20 @@ the error text can be obtained with
 or
 .BR pcap_geterr() .
 .B pcap_stats()
-is supported only on live captures, not on ``savefiles''; no statistics
-are stored in ``savefiles'', so no statistics are available when reading
-from a ``savefile''.
+is supported only on live captures, not on
+.I savefiles;
+no statistics are stored in
+.I savefiles,
+so no statistics are available when reading from a
+.I savefile.
 .PP
 .B pcap_fileno()
 returns the file descriptor number from which captured packets are read,
 if a network device was opened with
 .BR pcap_open_live() ,
-or \-1, if a ``savefile'' was opened with
+or \-1, if a 
+.I savefile
+was opened with
 .BR pcap_open_offline() .
 .PP
 .B pcap_get_selectable_fd()
@@ -1209,19 +1405,35 @@ closes the files associated with
 and deallocates resources.
 .PP
 .B pcap_dump_file()
-returns the standard I/O stream of the ``savefile'' opened by
+returns the standard I/O stream of the
+.I savefile
+opened by
 .BR pcap_dump_open().
 .PP
 .B pcap_dump_flush()
-flushes the output buffer to the ``savefile,'' so that any packets
-written with
+flushes the output buffer to the
+.I savefile,
+so that any packets written with
 .B pcap_dump()
-but not yet written to the ``savefile'' will be written.
+but not yet written to the
+.I savefile
+will be written.
 .B \-1
 is returned on error, 0 on success.
 .PP
+.B pcap_dump_ftell()
+returns the current file position for the
+.I savefile,
+representing the number of bytes written by
+.B pcap_dump_open()
+and
+.BR pcap_dump() .
+.B \-1
+is returned on error.
+.PP
 .B pcap_dump_close()
-closes the ``savefile.''
+closes the
+.I savefile.
 .PP
 .SH SEE ALSO
 tcpdump(1), tcpslice(1)

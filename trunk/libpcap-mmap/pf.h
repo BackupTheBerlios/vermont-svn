@@ -26,7 +26,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @(#) $Header: /n/CVS/sirt/libpcap/pf.h,v 0.8.3.1 2004/10/01 22:21:33 cpw Exp $ (LBL)
+ * @(#) $Header: /n/CVS/sirt/libpcap/pf.h,v 0.9 2005/07/18 16:05:13 cpw Exp $ (LBL)
  */
 
 /*	from $OpenBSD: pfvar.h,v 1.170 2003/08/22 21:50:34 david Exp $ */

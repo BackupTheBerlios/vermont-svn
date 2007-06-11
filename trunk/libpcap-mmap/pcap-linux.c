@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-linux.c,v 0.8.3.1 2004/10/01 22:21:31 cpw Exp $ (LBL)";
+    "@(#) $Header: /n/CVS/sirt/libpcap/pcap-linux.c,v 0.10 2005/07/18 16:05:12 cpw Exp $ (LBL)";
 #endif
 
 /*
@@ -84,6 +84,10 @@ static const char rcsid[] _U_ =
 #include "pcap-dag.h"
 #endif /* HAVE_DAG_API */
 
+#ifdef HAVE_SEPTEL_API
+#include "pcap-septel.h"
+#endif /* HAVE_SEPTEL_API */
+	  
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -161,6 +165,16 @@ typedef int		socklen_t;
 #define MSG_TRUNC	0x20
 #endif
 
+#ifndef SOL_PACKET
+/*
+ * This is being compiled on a system that lacks SOL_PACKET; define it
+ * with the value it has in the 2.2 and later kernels, so that we can
+ * set promiscuous mode in the good modern way rather than the old
+ * 2.0-kernel crappy way.
+ */
+#define SOL_PACKET	263
+#endif
+
 #define MAX_LINKHEADER_SIZE	256
 
 /*
@@ -181,15 +195,15 @@ static int pcap_read_packet(pcap_t *, pcap_handler, u_char *);
 static int pcap_inject_linux(pcap_t *, const void *, size_t);
 static int pcap_stats_linux(pcap_t *, struct pcap_stat *);
 static int pcap_setfilter_linux(pcap_t *, struct bpf_program *);
+static int pcap_setdirection_linux(pcap_t *, pcap_direction_t);
 static void pcap_close_linux(pcap_t *);
-/*
- * ring stuff
- */
+#ifdef DO_RING
 static char * pcap_socketype (int);
 static int pcap_getenv(live_args *);
 static int iface_set_mode (pcap_t *, int);
-static pcap_t * pcap_open_extr(live_args *);
 extern char pcap_version[];
+#endif /* DO_RING */
+
 
 /*
  * Wrap some ioctl calls
@@ -200,9 +214,9 @@ static int	iface_get_id(int fd, const char *device, char *ebuf);
 static int	iface_get_mtu(int fd, live_args *);
 static int 	iface_get_arptype(int fd, const char *device, char *ebuf);
 #ifdef HAVE_PF_PACKET_SOCKETS
-static int	iface_bind(pcap_t *handle, int ifindex, char *ebuf);
+static int 	iface_bind(pcap_t *handle, int ifindex, char *ebuf);
 #endif
-static int	iface_bind_old(int fd, const char *device, char *ebuf);
+static int 	iface_bind_old(int fd, const char *device, char *ebuf);
 
 #ifdef SO_ATTACH_FILTER
 static int	fix_program(pcap_t *handle, struct sock_fprog *fcode);
@@ -216,21 +230,60 @@ static struct sock_fprog	total_fcode
 	= { 1, &total_insn };
 #endif
 
+/*
+ *  Get a handle for a live capture from the given device. You can
+ *  pass NULL as device to get all packages (without link level
+ *  information of course). If you pass 1 as promisc the interface
+ *  will be set to promiscous mode (XXX: I think this usage should
+ *  be deprecated and functions be added to select that later allow
+ *  modification of that values -- Torsten).
+ *
+ *  See also pcap(3).
+ */
 pcap_t *
-pcap_open_extr( live_args *ra )
+pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
+    char *ebuf)
 {
     pcap_t		*handle;
     int			mtu;
     int			err;
     int			live_open_ok = 0;
     struct utsname	utsname;
+    live_args *ra = (live_args *) malloc (sizeof (struct live_args));
+
+#ifdef HAVE_DAG_API
+       if (strstr(device, "dag")) {
+               return dag_open_live(device, snaplen, promisc, to_ms, ebuf);
+       }
+#endif /* HAVE_DAG_API */
+
+#ifdef HAVE_SEPTEL_API
+       if (strstr(device, "septel")) {
+               return septel_open_live(device, snaplen, promisc, to_ms, ebuf);
+       }
+#endif /* HAVE_SEPTEL_API */
+
+    ra->device = device;
+    ra->snaplen = snaplen;
+    ra->promisc = promisc ? -1 : -2;
+    ra->to_ms = to_ms;
+    ra->ebuf = ebuf;
+    if (strncmp(ra->head, "R0", 2))
+    {
+        ra->raw = DEFLT_RAW;
+        ra->proto = DEFLT_PROTO;
+        ra->maddr = DEFLT_MADDR;
+        ra->max_mem = 0;
+	ra->frame_ct = DEFLT_FRAMES;
+    }
 
     if ((pcap_getenv (ra)) < 0)
-	    return NULL;
+	return NULL;
     *ra->ebuf = '\0';
 
     /* Allocate a handle for this session. */
     handle = calloc(1, sizeof(pcap_t));
+
     if (handle == NULL) {
        snprintf(ra->ebuf, PCAP_ERRBUF_SIZE, "malloc: %s",
 			 pcap_strerror(errno));
@@ -252,26 +305,19 @@ pcap_open_extr( live_args *ra )
 #ifdef DO_RING
     handle->md.open_timeout  = ra->to_ms; /*save this incase need to reset*/
                                           /*could be hazardous to pcap_loop*/
-    /* no limits you are on your own
-    * if (ra->frame_ct > MAX_IOVEC_SIZE)
-    * {
-    *    snprintf(ra->ebuf, PCAP_ERRBUF_SIZE,
-    *        "pcap_open_extr: ring size greater than %d", MAX_IOVEC_SIZE);
-    *    free(handle);
-    *    return NULL;
-    *}
-    */
-
-    handle->rg.proto = ra->proto;
-    handle->rg.ct = ra->frame_ct;
-    handle->rg.maddr = ra->maddr;
-    handle->rg.statbits = ra->statbits;
-    handle->rg.timeout = ra->timeout;
+    handle->rg.proto	= ra->proto;
+    handle->rg.ct	= ra->frame_ct;
+    handle->rg.mem	= ra->max_mem;	  /* in K bytes */
+    handle->rg.maddr	= ra->maddr;
+    handle->rg.statbits	= ra->statbits;
+    handle->rg.timeout	= ra->timeout;
     if (handle->rg.statbits)
     {
-        handle->rg.statperiod = (!ra->statperiod) ? ra->to_ms : ra->statperiod;
+/* rg.statperiod must be in seconds if you try to do less than stats will not be kept */
+        handle->rg.statperiod = (!ra->statperiod) ? ra->to_ms/1000 : ra->statperiod/1000;
+        handle->rg.tea = 0; /* dont know this value till we start */
     }
-#endif
+#endif /* DO_RING */
 
     /*
      * NULL and "any" are special devices which give us the hint to
@@ -280,8 +326,15 @@ pcap_open_extr( live_args *ra )
     if (!ra->device || strcmp(ra->device, "any") == 0) {
         ra->device = NULL;
 	handle->md.device = strdup("any");
+        if (handle->md.promisc) {
+            handle->md.promisc = 0;
+            /* Just a warning. */
+            snprintf(ebuf, PCAP_ERRBUF_SIZE,
+                        "Promiscuous mode not supported on the \"any\" device");
+        }
+
     } else
-        handle->md.device    = strdup(ra->device);
+        handle->md.device = strdup(ra->device);
 
     if (handle->md.device == NULL) {
         snprintf(ra->ebuf, PCAP_ERRBUF_SIZE, "strdup: %s",
@@ -313,9 +366,7 @@ pcap_open_extr( live_args *ra )
          * up and report our failure (ebuf is expected to be
          * set by the functions above).
          */
-
-        free(handle->md.device);
-	free(handle);
+	pcap_close_linux(handle);
 	return NULL;
     }
 
@@ -372,18 +423,13 @@ pcap_open_extr( live_args *ra )
 	 */
         mtu = iface_get_mtu(handle->fd, ra);
 	if (mtu == -1) {
-	    close(handle->fd);
-	    free(handle->md.device);
-	    free(handle);
+	    pcap_close_linux(handle);
 	    return NULL;
 	}
 	handle->bufsize = MAX_LINKHEADER_SIZE + mtu;
-	if (handle->bufsize < handle->snapshot) {
+	if (handle->bufsize < handle->snapshot)
 	       	handle->bufsize = handle->snapshot;
-	}
-    }
-    else
-    {
+    } else {
         /*
          * This is a 2.2[.x] or later kernel (we know that
 	 * either because we're not using a SOCK_PACKET
@@ -403,7 +449,7 @@ pcap_open_extr( live_args *ra )
     handle->buffer = NULL;
     err = packet_tring_setup(handle);
     if ((ra->raw&2) || err == -1) /* err == -2, means hard failure ring wise */
-#endif
+#endif /* DO_RING */
     {
         handle->buffer = malloc(handle->bufsize + handle->offset);
 	err = !handle->buffer;
@@ -412,9 +458,7 @@ pcap_open_extr( live_args *ra )
     {
         snprintf(ra->ebuf, PCAP_ERRBUF_SIZE,
 	        "malloc: %s", pcap_strerror(errno));
-        close(handle->fd);
-        free(handle->md.device);
-        free(handle);
+	pcap_close_linux(handle);
         return NULL;
     }
 
@@ -427,6 +471,7 @@ pcap_open_extr( live_args *ra )
 	handle->read_op = pcap_read_linux;
 	handle->inject_op = pcap_inject_linux;
 	handle->setfilter_op = pcap_setfilter_linux;
+	handle->setdirection_op = pcap_setdirection_linux;
 	handle->set_datalink_op = NULL;	/* can't change data link type */
 	handle->getnonblock_op = pcap_getnonblock_fd;
 	handle->setnonblock_op = pcap_setnonblock_fd;
@@ -435,135 +480,32 @@ pcap_open_extr( live_args *ra )
 #ifdef DO_RING
     handle->rg.rs.r_start.tv_sec = 0;
     handle->rg.rs.r_stop.tv_sec = 0;
-#endif
+#endif /* DO_RING */
     if (handle->md.cooked == 0)
     {
         int device_id;
 
         device_id = iface_get_id(handle->fd, ra->device, ra->ebuf);
-        if (device_id == -1) return NULL;
+        if (device_id == -1) {
+	    pcap_close_linux(handle);
+	    return NULL;
+	}
 	if ((err = iface_bind(handle, device_id, ra->ebuf)) < 0)
 	{
-          if (handle->dlt_list != NULL)
-		  free (handle->dlt_list);
-	  return NULL;
+            if (handle->dlt_list != NULL) {
+		free (handle->dlt_list);
+		pcap_close_linux(handle);
+	  	return NULL;
+	    }
 	}
 	handle->md.protocol = err;
-	if (iface_set_mode (handle, device_id) < 0) return NULL;
+	if (iface_set_mode (handle, device_id) < 0) {
+	    pcap_close_linux(handle);
+	    return NULL;
+	}
     }
 
     return handle;
-}
-
-pcap_t *
-pcap_open_live(const char *device, int snaplen, int promisc, int to_ms, char *ebuf)
-{
-    live_args *ra = (live_args *) ebuf;
-
-#ifdef HAVE_DAG_API
-	if (strstr(device, "dag")) {
-		return dag_open_live(device, snaplen, promisc, to_ms, ebuf);
-	}
-#endif /* HAVE_DAG_API */
-
-    ra->device = device;
-    ra->snaplen = snaplen;
-    ra->promisc = promisc ? -1 : -2;
-    ra->to_ms = to_ms;
-    ra->ebuf = ebuf;
-    if (strncmp(ra->head, "R0", 2))
-    {
-        ra->raw = DEFLT_RAW;
-        ra->proto = DEFLT_PROTO;
-        ra->maddr = DEFLT_MADDR;
-        ra->frame_ct = DEFLT_FRAMES;
-    }
-    return pcap_open_extr(ra);
-}
-
-/*
- * pcap_getenv assumes that the live_args structure has been initialized
- * with arguments from the command line.  It will check the environment
- * and change any fields in the live_args structure.  Consequently,
- * the environment overrides the switches explicitly set on command
- * lines to activatate pcap applications.
- * More can be added in the future.  There is a variable in the
- * live_args structure itself that represents the version of the pcap
- * library.
- */
-
-int
-pcap_getenv(live_args *ra)
-{
-    char *snaplen = getenv("PCAP_SNAPLEN");
-    char *promisc = getenv("PCAP_PROMISC");
-    char *to_ms   = getenv("PCAP_TO_MS");
-    char *proto   = getenv("PCAP_PROTO");
-    char *maddr   = getenv("PCAP_MADDR");
-    char *frames  = getenv("PCAP_FRAMES");
-    char *verbose = getenv("PCAP_VERBOSE");
-    char *stats   = getenv("PCAP_STATS");
-    char *timeout = getenv("PCAP_TIMEOUT");
-    char *statperiod = getenv("PCAP_PERIOD");
-
-    /* set by pcap_open_live call */
-    if (snaplen)  ra->snaplen = atoi(snaplen);
-    if (promisc)  ra->promisc = atoi(promisc);
-    if (to_ms)    ra->to_ms = atoi(to_ms);
-    if (proto)    ra->proto = pcap_convert_proto(proto);
-
-    /* set by setenv only */
-    ra->verbose  = (verbose) ? atoi(verbose) : 0;
-    ra->statbits = (stats) ? strtoul(stats,NULL,0) : 0;
-    ra->timeout = (timeout) ? strtoul(timeout,NULL,0) : 0;
-    ra->statperiod = (statperiod) ? strtoul(statperiod,NULL,0) : 0;
-    if (!ra->statperiod && to_ms)
-	    ra->statperiod = ra->to_ms;
-
-    /* set by pcap_live_args */
-    if (maddr)
-    {
-        u_char *ptr;
-        int len = ra->promisc * 2;
-        u_char c1, c2;
-        u_char m;
-
-        if (ra->promisc <= 0 || ra->promisc&1 || strlen(maddr) != len)
-        {
-            snprintf(ra->ebuf, PCAP_ERRBUF_SIZE, "pcap_getenv: maddr, %s?",
-			    maddr);
-	    return -1;
-        }
-        if((ra->maddr = malloc (ra->promisc)) == NULL)
-        {
-            snprintf(ra->ebuf, PCAP_ERRBUF_SIZE, "pcap_getenv: malloc(%d)?",
-			   ra->promisc);
-            return -1;
-        }
-
-        ptr = ra->maddr;
-        while ((c1 = *maddr++))
-        {
-            c2 = *maddr++;
-            m = ((c1 - '0')<<4) + (c2 - '0');
-            *ptr++ = m;
-        }
-    }
-
-    /* set frames on the ring buffer */
-    if (frames)
-    {
-        if (!strncmp (frames, "max", 3) || !strncmp (frames, "MAX", 3))
-        {
-            ra->frame_ct = -1;
-        }
-        else
-        {
-            ra->frame_ct = atoi (frames);
-        }
-        ra->raw = 1;
-    }
-    return (1);
 }
 
 /*
@@ -576,9 +518,10 @@ pcap_read_linux(pcap_t *handle, int max_packets, pcap_handler callback, u_char *
 {
 
 #ifdef DO_RING
-    if (handle->buffer == NULL)
-        return pcap_ring_recv(handle, max_packets, callback, user);
-#endif
+	if (handle->buffer == NULL)
+		return pcap_ring_recv(handle, max_packets, callback, user);
+#endif /* DO_RING */
+
 	/*
 	 * Currently, on Linux only one packet is delivered per read,
 	 * so we don't loop.
@@ -605,9 +548,26 @@ pcap_read_packet(pcap_t *handle, pcap_handler callback, u_char *userdata)
 	int			packet_len, caplen;
 	struct pcap_pkthdr	pcap_header;
 
+#ifdef HAVE_PF_PACKET_SOCKETS
+	/*
+	 * If this is a cooked device, leave extra room for a
+	 * fake packet header.
+	 */
+	if (handle->md.cooked)
+		handle->md.offset = SLL_HDR_LEN;
+	else
+		handle->md.offset = 0;
+#else
+	/*
+	 * This system doesn't have PF_PACKET sockets, so it doesn't
+	 * support cooked devices.
+	 */
+	handle->md.offset = 0;
+#endif
+
 	/* Receive a single packet from the kernel */
 
-	bp = handle->buffer + handle->offset;
+	bp = handle->buffer + handle->md.offset;
 	do {
 		/*
 		 * Has "pcap_breakloop()" been called?
@@ -641,19 +601,37 @@ pcap_read_packet(pcap_t *handle, pcap_handler callback, u_char *userdata)
 	}
 
 #ifdef HAVE_PF_PACKET_SOCKETS
-	/*
-	 * If this is from the loopback device, reject outgoing packets;
-	 * we'll see the packet as an incoming packet as well, and
-	 * we don't want to see it twice.
-	 *
-	 * We can only do this if we're using PF_PACKET; the address
-	 * returned for SOCK_PACKET is a "sockaddr_pkt" which lacks
-	 * the relevant packet type information.
-	 */
-	if (!handle->md.sock_packet &&
-	    from.sll_ifindex == handle->md.lo_ifindex &&
-	    from.sll_pkttype == PACKET_OUTGOING)
-		return 0;
+	if (!handle->md.sock_packet) {
+		/*
+		 * Do checks based on packet direction.
+		 * We can only do this if we're using PF_PACKET; the
+		 * address returned for SOCK_PACKET is a "sockaddr_pkt"
+		 * which lacks the relevant packet type information.
+		 */
+		if (from.sll_pkttype == PACKET_OUTGOING) {
+			/*
+			 * Outgoing packet.
+			 * If this is from the loopback device, reject it;
+			 * we'll see the packet as an incoming packet as well,
+			 * and we don't want to see it twice.
+			 */
+			if (from.sll_ifindex == handle->md.lo_ifindex)
+				return 0;
+
+			/*
+			 * If the user only wants incoming packets, reject it.
+			 */
+			if (handle->direction == PCAP_D_IN)
+				return 0;
+		} else {
+			/*
+			 * Incoming packet.
+			 * If the user only wants outgoing packets, reject it.
+			 */
+			if (handle->direction == PCAP_D_OUT)
+				return 0;
+		}
+	}
 #endif
 
 #ifdef HAVE_PF_PACKET_SOCKETS
@@ -852,7 +830,7 @@ pcap_inject_linux(pcap_t *handle, const void *buf, size_t size)
 		return (-1);
 	}
 	return (ret);
-}
+}                           
 
 /*
  *  Get the statistics for the given packet capture handle.
@@ -865,12 +843,11 @@ pcap_inject_linux(pcap_t *handle, const void *buf, size_t size)
 static int
 pcap_stats_linux(pcap_t *handle, struct pcap_stat *stats)
 {
+
 #ifdef HAVE_TPACKET_STATS
 	struct tpacket_stats kstats = {0};
 	socklen_t len = sizeof (struct tpacket_stats);
-#endif
 
-#ifdef HAVE_TPACKET_STATS
 	/*
 	 * Try to get the packet counts from the kernel.
 	 */
@@ -899,23 +876,26 @@ pcap_stats_linux(pcap_t *handle, struct pcap_stat *stats)
 		 * platforms, but the best approximation is to return
 		 * "tp_packets" as the count of packets and "tp_drops"
 		 * as the count of drops.
-		 *
-		 * Keep a running total because each call to
-		 *    getsockopt(handle->fd, SOL_PACKET, PACKET_STATISTICS, ....
-		 * resets the counters to zero.
-		 */
-
-                /*
-                 * Keep a running total because each call to
-                 *    getsockopt(handle->fd, SOL_PACKET, PACKET_STATISTICS, ....
-                 * resets the counters to zero.
+                 *
+                 * kstats_total.tp_packets contains how many packets were
+		 *   placed on the ring buffer.
+                 * kstats_total.tp_drops contains how many packets were
+		 *   dropped due to the ring being full.
+                 * kstats.tp_{packets,drops} were just obtained by the the call
+                 *   to getsockopt (above).  The call clears the kernel's memory
+                 *   about such things. (which is why there is a kstats_total
+                 *   structure).
+                 *   we add in whatever accumulated in the kernel since the
+                 *   last time a getsockopt for packet stats was called like
+                 *   so:
                  */
 
-                handle->md.kstats_total.tp_packets += kstats.tp_packets;
-                handle->md.kstats_total.tp_drops += kstats.tp_drops;
-
-                handle->md.stat.ps_recv = kstats.tp_packets;
-                handle->md.stat.ps_drop = kstats.tp_drops;
+		handle->md.stat.ps_recv = handle->md.kstats_total.tp_packets
+					  + kstats.tp_packets;
+		handle->md.stat.ps_drop = handle->md.kstats_total.tp_drops
+                                          + kstats.tp_drops;
+                handle->md.kstats_total.tp_packets = 0;
+                handle->md.kstats_total.tp_drops = 0;
 	}
 	else
 	{
@@ -931,8 +911,13 @@ pcap_stats_linux(pcap_t *handle, struct pcap_stat *stats)
 			    "pcap_stats: %s", pcap_strerror(errno));
 			return -1;
 		}
-                handle->md.stat.ps_drop = -1; /* 0 is just not the right answer */
+	        handle->md.stat.ps_drop = -1;
 	}
+#else
+	handle->md.stat.ps_drop = -1;
+	/*
+         * zero just doesn't get the point across!
+         */
 #endif
 	/*
 	 * On systems where the PACKET_STATISTICS "getsockopt()" argument
@@ -983,6 +968,11 @@ pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 		return (-1);
 #endif /* HAVE_DAG_API */
 
+#ifdef HAVE_SEPTEL_API
+	if (septel_platform_finddevs(alldevsp, errbuf) < 0)
+		return (-1);
+#endif /* HAVE_SEPTEL_API */
+
 	return (0);
 }
 
@@ -993,229 +983,228 @@ static int
 pcap_setfilter_linux(pcap_t *handle, struct bpf_program *filter)
 {
 #ifdef SO_ATTACH_FILTER
-    struct sock_fprog	fcode;
-    int	                can_filter_in_kernel;
-    int			discarded = 0;
-    char                *sfilter, *sproto, *smode, *spacket;
+	struct sock_fprog	fcode;
+	int			can_filter_in_kernel = 0;
+	int			err = 0;
+	int			discarded = 0;
+	char			*sfilter, *sproto, *smode, *spacket;
 #endif
 
-    if (!handle)
-        return -1;
-    if (!filter) {
-        strncpy(handle->errbuf, "setfilter: No filter specified",
+	if (!handle)
+		return -1;
+	if (!filter) {
+	        strncpy(handle->errbuf, "setfilter: No filter specified",
 			sizeof(handle->errbuf));
-        return -1;
-    }
+		return -1;
+	}
 
-    /* Make our private copy of the filter */
-    if (install_bpf_program(handle, filter) < 0)
-	    /* install_bpf_program() filled in errbuf */
+	/* Make our private copy of the filter */
+
+	if (install_bpf_program(handle, filter) < 0)
+		/* install_bpf_program() filled in errbuf */
 		return -1;
 
-    /*
-     * Run user level packet filter by default. Will be overriden if
-     * installing a kernel filter succeeds.
-     *
-     * handle->md.use_bpf = 0;
-     */
-
-    /*
-     * If we're reading from a savefile, don't try to install
-     * a kernel filter.
-     */
-    if (handle->sf.rfile != NULL)
-	    return 0;
-
-    /* Install kernel level filter if possible */
-
-#ifdef SO_ATTACH_FILTER
-#  ifdef USHRT_MAX
-    if (handle->fcode.bf_len > USHRT_MAX) {
 	/*
-	 * fcode.len is an unsigned short for current kernel.
-	 * I have yet to see BPF-Code with that much
-	 * instructions but still it is possible. So for the
-	 * sake of correctness I added this check.
+	 * Run user level packet filter by default. Will be overriden if
+	 * installing a kernel filter succeeds.
+	 * calloc clears this when handle is calloc'd
 	 */
-	fprintf(stderr, "Warning: Filter too complex for kernel\n");
-	fcode.filter = NULL;
-	can_filter_in_kernel = 0;
-    } else
-#  endif /* USHRT_MAX */
-    {
-       /*
-        * Oh joy, the Linux kernel uses struct sock_fprog instead
-        * of struct bpf_program and of course the length field is
-        * of different size. Pointed out by Sebastian
-        * Thanks, Sebastian.
-        * Oh, and we also need to fix it up so that all "ret"
-        * instructions with non-zero operands have 65535 as the
-        * operand, and so that, if we're in cooked mode, all
-        * memory-reference instructions use special magic offsets
-        * in references to the link-layer header and assume that
-        * the link-layer payload begins at 0; "fix_program()"
-        * will do that.
-        */
-        switch (fix_program(handle, &fcode)) {
+	handle->md.use_bpf = 0; 
 
-	    case -1:
-	    default:
+	if (handle->sf.rfile == NULL) { /* attempt to set kernel filter? */
+	/* Install kernel level filter if possible */
+
+	sfilter = (char *)malloc(sizeof ("User level filter")+10);
+#ifdef SO_ATTACH_FILTER
+# ifdef USHRT_MAX
+	if (handle->fcode.bf_len > USHRT_MAX) {
 		/*
-		 * Fatal error; just quit.
-		 * (The "default" case shouldn't happen; we
-		 * return -1 for that reason.)
+		 * fcode.len is an unsigned short for current kernel.
+		 * I have yet to see BPF-Code with that much
+		 * instructions but still it is possible. So for the
+		 * sake of correctness I added this check.
 		 */
+		fprintf(stderr, "Warning: Filter too complex for kernel\n");
+		fcode.filter = NULL;
+	} else
+# endif /* USHRT_MAX */
+	{
+		/*
+		 * Oh joy, the Linux kernel uses struct sock_fprog instead
+		 * of struct bpf_program and of course the length field is
+		 * of different size. Pointed out by Sebastian
+		 *
+		 * Oh, and we also need to fix it up so that all "ret"
+		 * instructions with non-zero operands have 65535 as the
+		 * operand, and so that, if we're in cooked mode, all
+		 * memory-reference instructions use special magic offsets
+		 * in references to the link-layer header and assume that
+		 * the link-layer payload begins at 0; "fix_program()"
+		 * will do that.
+		 */
+		switch (fix_program(handle, &fcode)) {
+
+		case -1:
+		default:
+			/*
+			 * Fatal error; just quit.
+			 * (The "default" case shouldn't happen; we
+			 * return -1 for that reason.)
+			 */
+			return -1;
+
+		case 0:
+			/*
+			 * The program performed checks that we can't make
+			 * work in the kernel.
+			 */
+			break;
+
+		case 1:
+			/*
+			 * We have a filter that'll work in the kernel.
+			 */
+			can_filter_in_kernel = 1;
+			break;
+		}
+	} 
+
+	if (can_filter_in_kernel) {
+		if ((err = set_kernel_filter(handle, &fcode)) == 0)
+		{
+			/* Installation succeded - using kernel filter. */
+			handle->md.use_bpf = 1;
+			handle->fcode.bf_insns = NULL; /* filter handled in kernel XXX */
+			sprintf (sfilter, "Kernel filter");
+
+		}
+		else if (err == -1)	/* Non-fatal error */
+		{
+			/*
+			 * Print a warning if we weren't able to install
+			 * the filter for a reason other than "this kernel
+			 * isn't configured to support socket filters.
+			 */
+			if (errno != ENOPROTOOPT && errno != EOPNOTSUPP) {
+				fprintf(stderr,
+				    "Warning: Kernel filter failed: %s\n",
+					pcap_strerror(errno));
+			}
+		}
+	}
+	}
+
+	/*
+	 * If we're not using the kernel filter, get rid of any kernel
+	 * filter that might've been there before, e.g. because the
+	 * previous filter could work in the kernel, or because some other
+	 * code attached a filter to the socket by some means other than
+	 * calling "pcap_setfilter()".  Otherwise, the kernel filter may
+	 * filter out packets that would pass the new userland filter.
+	 */
+	if (!handle->md.use_bpf)
+		reset_kernel_filter(handle);
+
+	/*
+	 * Free up the copy of the filter that was made by "fix_program()".
+	 */
+	if (fcode.filter != NULL)
+		free(fcode.filter);
+
+	if (err == -2)
+		/* Fatal error */
 		return -1;
-
-	    case 0:
-		/*
-		 * The program performed checks that we can't make
-		 * work in the kernel.
-		 */
-		can_filter_in_kernel = 0;
-		break;
-
-	    case 1:
-		/*
-		 * We have a filter that'll work in the kernel.
-		 */
-		can_filter_in_kernel = 1;
-		break;
-        }
-    }
-
-    sfilter = (char *)malloc(sizeof ("User level filter")+10);
-    if (can_filter_in_kernel)
-    {
-        if (set_kernel_filter(handle, &fcode) == 0)
-	{
-	    /*
-	     * Installation succeded - using kernel filter.
-	     */
-	    handle->md.use_bpf = 1;
-            handle->fcode.bf_insns = NULL; /* filter handled in kernel XXX */
-            sprintf (sfilter, "Kernel filter");
-	}
-        else
-	{
-	    /*
-	     * Print a warning if we weren't able to install
-	     * the filter for a reason other than "this kernel
-	     * isn't configured to support socket filters.
-	     */
-	    if (errno != ENOPROTOOPT && errno != EOPNOTSUPP) {
-		fprintf(stderr, "Warning: Kernel filter failed: %s\n",
-			pcap_strerror(errno));
-	    }
-	}
-    }
 #endif /* SO_ATTACH_FILTER */
 
-    /*
-     * If we're not using the kernel filter, get rid of any kernel
-     * filter that might've been there before, e.g. because the
-     * previous filter could work in the kernel, or because some other
-     * code attached a filter to the socket by some means other than
-     * calling "pcap_setfilter()".  Otherwise, the kernel filter may
-     * filter out packets that would pass the new userland filter.
-     */
-    if (!handle->md.use_bpf)
-    	reset_kernel_filter(handle);
-    /*
-     * Free up the copy of the filter that was made by "fix_program()".
-     */
-    if (fcode.filter != NULL)
-	    free(fcode.filter);
+	sproto = (char *)malloc(16);
+	smode = malloc (64);
+	if (!(strncmp(handle->md.device, "any", 3)))
+	{
 
-    sproto = (char *)malloc(16);
-    smode = malloc (64);
-    if (!(strncmp(handle->md.device, "any", 3)))
-    {
-
-        sprintf (sproto, "Protocol cooked");
-        if (handle->buffer == NULL)
+	    sprintf (sproto, "Protocol cooked");
+	    if (handle->buffer == NULL)
 	{
 #ifdef DO_RING
 # ifdef PACKET_TRECV
-            sprintf(smode, "Ubiquitous TURBO mode (%d frames, snapshot %d)",
-            handle->rg.iovmax+1, handle->snapshot);
+	    	sprintf(smode, "Ubiquitous TURBO mode (%d frames, snapshot %d)",
+	    	handle->rg.iovmax+1, handle->snapshot);
 # endif
 # ifdef PACKET_RX_RING
-            sprintf(smode, "Ubiquitous MMAP mode (%d frames, snapshot %d)",
-            handle->rg.iovmax+1, handle->snapshot);
+	    	sprintf(smode, "Ubiquitous MMAP mode (%d frames, snapshot %d)",
+	    	handle->rg.iovmax+1, handle->snapshot);
 # endif
 #else
-            sprintf(smode, "Ubiquitous WALDO mode (snapshot %d)", handle->snapshot);
+	    	sprintf(smode, "Ubiquitous WALDO mode (snapshot %d)", handle->snapshot);
 #endif /* DO_RING */
-        }
+	    }
 	else
 	{
-            sprintf (smode, "Ubiquitous NORMAL mode (snapshot %d)", handle->snapshot);
+	    	sprintf (smode, "Ubiquitous NORMAL mode (snapshot %d)", handle->snapshot);
 	}
-    }
-    else
-    {
-        if (handle->md.protocol == ETH_P_ALL)
-        {
-            sprintf (sproto, "Protocol ALL");
-        }
-        else
-        {
-            sprintf(sproto, "Protocol %04x", handle->md.protocol);
-        }
+	}
+	else
+	{
+	    if (handle->md.protocol == ETH_P_ALL)
+	    {
+	    	sprintf (sproto, "Protocol ALL");
+	    }
+	    else
+	    {
+	    	sprintf(sproto, "Protocol %04x", handle->md.protocol);
+	    }
 
-        if (handle->buffer == NULL)
-        {
+	    if (handle->buffer == NULL)
+	    {
 #ifdef DO_RING
 # ifdef PACKET_TRECV
-            sprintf(smode, "TURBO mode (%d frames, snapshot %d)",
-            handle->rg.iovmax+1, handle->snapshot);
+	    	sprintf(smode, "TURBO mode (%d frames, snapshot %d)",
+	    	handle->rg.iovmax+1, handle->snapshot);
 # endif
 # ifdef PACKET_RX_RING
-            sprintf(smode, "MMAP mode (%d frames, snapshot %d)",
-            handle->rg.iovmax+1, handle->snapshot);
+	    	sprintf(smode, "MMAP mode (%d frames, snapshot %d)",
+	    	handle->rg.iovmax+1, handle->snapshot);
 # endif
 #else
-            sprintf(smode, "WALDO mode (snapshot %d)", handle->snapshot);
+	    	sprintf(smode, "WALDO mode (snapshot %d)", handle->snapshot);
 #endif /* DO_RING */
-        }
-        else
-        {
-            sprintf(smode, "NORMAL mode (snapshot %d)", handle->snapshot);
-        }
-    }
-    if (1)
-    {
-        int type;
-        int tlen = sizeof(type);
-        spacket = (char *) malloc (64);
-        if (getsockopt(handle->fd, SOL_SOCKET, SO_TYPE, (char*)&type,
-                &tlen))
-        {
-            sprintf(spacket, "socket type: Unknown");
-        }
-        else
-        {
-            sprintf(spacket, "socket type: %s", pcap_socketype(type));
-        }
-        sprintf(handle->errbuf, "libpcap version: %s\n%s, %s, %s, %s",
-			    pcap_version, sfilter, sproto, smode, spacket);
-        if (handle->md.verbose)
-        {
-            fprintf (stderr, "%s\n", handle->errbuf);
-            handle->errbuf[0] = 0;
-        }
-        if (!handle->rg.ct
-    	    && (handle->rg.statbits || handle->rg.timeout
-		    || handle->rg.statperiod))
-        {
-    	    fprintf (stderr,
+	    }
+	    else
+	    {
+	    	sprintf(smode, "NORMAL mode (snapshot %d)", handle->snapshot);
+	    }
+	}
+	if (1)
+	{
+	    int type;
+	    socklen_t tlen = sizeof(type);
+	    spacket = (char *) malloc (64);
+	    if (getsockopt(handle->fd, SOL_SOCKET, SO_TYPE, (char*)&type,
+	    		&tlen))
+	    {
+	    	sprintf(spacket, "socket type: Unknown");
+	    }
+	    else
+	    {
+	    	sprintf(spacket, "socket type: %s", pcap_socketype(type));
+	    }
+	    sprintf(handle->errbuf, "libpcap version: %s\n%s, %s, %s, %s",
+	    		pcap_version, sfilter, sproto, smode, spacket);
+	    if (handle->md.verbose)
+	    {
+	    	fprintf (stderr, "%s\n", handle->errbuf);
+	    	handle->errbuf[0] = 0;
+	    }
+	    if (!handle->rg.ct
+	    	&& (handle->rg.statbits || handle->rg.timeout
+	    	|| handle->rg.statperiod))
+	    {
+	    	fprintf (stderr,
 	      "WARNING: Packet statistics unavailable, frame count is zero.\n");
-        }
-    }
-
-    return 0;
+	    }
+	}
+	return 0;
 }
+
 char *socket_type [] = {"Invalid", "Stream", "Datagram", "Raw", "Reliably Delivered", "Sequenced, reliable, connection-based datagrams", "Invalid",  "Invalid", "Invalid", "Invalid", "Linux packet(rarp)"};
 
 char *
@@ -1224,6 +1213,28 @@ pcap_socketype (int type)
 
     type = (type > 0 && type < 11) ? type : 0;
     return (socket_type[type]);
+}
+
+/*
+ * Set direction flag: Which packets do we accept on a forwarding
+ * single device? IN, OUT or both?
+ */
+static int
+pcap_setdirection_linux(pcap_t *handle, pcap_direction_t d)
+{
+#ifdef HAVE_PF_PACKET_SOCKETS
+	if (!handle->md.sock_packet) {
+		handle->direction = d;
+		return 0;
+	}
+#endif
+	/*
+	 * We're not using PF_PACKET sockets, so we can't determine
+	 * the direction of the packet.
+	 */
+	snprintf(handle->errbuf, sizeof(handle->errbuf),
+	    "Setting direction is not supported on SOCK_PACKET sockets");
+	return -1;
 }
 
 /*
@@ -1238,9 +1249,11 @@ pcap_socketype (int type)
  *  (If the offset isn't set here, it'll be 0; add code as appropriate
  *  for cases where it shouldn't be 0.)
  *
- *  Returns -1 if unable to map the type; we print a message and,
- *  if we're using PF_PACKET/SOCK_RAW rather than PF_INET/SOCK_PACKET,
- *  we fall back on using PF_PACKET/SOCK_DGRAM.
+ *  If "cooked_ok" is non-zero, we can use DLT_LINUX_SLL and capture
+ *  in cooked mode; otherwise, we can't use cooked mode, so we have
+ *  to pick some type that works in raw mode, or fail.
+ *
+ *  Sets the link type to -1 if unable to map the type.
  */
 static void map_arphrd_to_dlt(pcap_t *handle, int arptype, int cooked_ok)
 {
@@ -1313,7 +1326,6 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype, int cooked_ok)
 #ifndef ARPHRD_FDDI	/* From Linux 2.2.13 */
 #define ARPHRD_FDDI	774
 #endif
-
 	case ARPHRD_FDDI:
 		handle->linktype = DLT_FDDI;
 		handle->offset = 3;
@@ -1491,6 +1503,9 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype, int cooked_ok)
 		handle->linktype = DLT_IP_OVER_FC;
 		break;
 
+#ifndef ARPHRD_IRDA
+#define ARPHRD_IRDA	783
+#endif
 	case ARPHRD_IRDA:
 		/* Don't expect IP packet out of this interfaces... */
 		handle->linktype = DLT_LINUX_IRDA;
@@ -1739,12 +1754,12 @@ iface_set_mode (pcap_t *handle, int device_id)
             mr.mr_type = PACKET_MR_MULTICAST;
             mr.mr_alen = handle->md.promisc;
             memcpy(&mr.mr_address, handle->rg.maddr, handle->md.promisc);
-#else
+#else /* DO_RING */
 	    if (handle->md.promisc) {
 		mr.mr_type    = PACKET_MR_PROMISC;
 	    }
             else mr.mr_type = PACKET_MR_ALLMULTI;
-#endif
+#endif /* DO_RING */
             break;
         }
         if (setsockopt(handle->fd, SOL_PACKET,
@@ -1759,7 +1774,6 @@ iface_set_mode (pcap_t *handle, int device_id)
 }
 
 #endif
-
 #ifdef HAVE_PF_PACKET_SOCKETS
 /*
  *  Return the index of the given device name. Fill ebuf and return
@@ -1806,7 +1820,7 @@ iface_bind(pcap_t *handle, int ifindex, char *ebuf)
     {
         sll.sll_protocol = handle->rg.proto;
     }
-#else
+#else /* DO_RING */
     sll.sll_protocol = htons(ETH_P_ALL);
 #endif /* DO_RING */
 
@@ -1833,7 +1847,6 @@ iface_bind(pcap_t *handle, int ifindex, char *ebuf)
 
     return sll.sll_protocol&0xFFFF;
 }
-
 #endif
 
 
@@ -1863,7 +1876,7 @@ static struct pcap *pcaps_to_close;
  */
 static int did_atexit;
 
-static void	pcap_close_all(void)
+static void pcap_close_all(void)
 {
 	struct pcap *handle;
 
@@ -1871,15 +1884,15 @@ static void	pcap_close_all(void)
 		pcap_close(handle);
 }
 
-static void	pcap_close_linux( pcap_t *handle )
+static void pcap_close_linux( pcap_t *handle )
 {
 	struct pcap	*p, *prevp;
 	struct ifreq	ifr;
 
 #ifdef DO_RING
-        packet_ring_close (handle);
+	packet_ring_close (handle);
 	fflush (stderr);
-#endif
+#endif /* DO_RING */
 	if (handle->md.clear_promisc) {
 		/*
 		 * We put the interface into promiscuous mode; take
@@ -1940,13 +1953,11 @@ static void	pcap_close_linux( pcap_t *handle )
 			}
 		}
 	}
+
 	if (handle->md.device != NULL)
 		free(handle->md.device);
 	handle->md.device = NULL;
-	if (handle->buffer != NULL)
-		free(handle->buffer);
-	if (handle->fd >= 0)
-		close(handle->fd);
+	pcap_close_common(handle);
 }
 
 /*
@@ -2074,6 +2085,7 @@ live_open_old(pcap_t *handle, const char *device, int promisc,
 	pcap_close_linux(handle);
 	return 0;
 }
+
 /*
  *  Bind the socket associated with FD to the given device using the
  *  interface of the old kernels.
@@ -2082,8 +2094,8 @@ static int
 iface_bind_old(int fd, const char *device, char *ebuf)
 {
 	struct sockaddr	saddr;
-	int             err;
-	socklen_t       errlen = sizeof(err);
+	int		err;
+	socklen_t	errlen = sizeof(err);
 
 	memset(&saddr, 0, sizeof(saddr));
 	strncpy(saddr.sa_data, device, sizeof(saddr.sa_data));
@@ -2092,22 +2104,24 @@ iface_bind_old(int fd, const char *device, char *ebuf)
 			 "bind: %s", pcap_strerror(errno));
 		return -1;
 	}
+
 	/* Any pending errors, e.g., network is down? */
 
 	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &errlen) == -1) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
-		"getsockopt: %s", pcap_strerror(errno));
+			"getsockopt: %s", pcap_strerror(errno));
 		return -1;
-	} 
- 
+	}
+
 	if (err > 0) {
-		snprintf(ebuf, PCAP_ERRBUF_SIZE, 
-		"bind: %s", pcap_strerror(err));
- 		return -1;
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+			"bind: %s", pcap_strerror(err));
+		return -1;
 	}
 
 	return 0;
 }
+
 
 /* ===== System calls available on all supported kernels ============== */
 
@@ -2318,7 +2332,6 @@ set_kernel_filter(pcap_t *handle, struct sock_fprog *fcode)
 	 * the filtering done in userland even if it could have been
 	 * done in the kernel.
 	 */
-
 	if (setsockopt(handle->fd, SOL_SOCKET, SO_ATTACH_FILTER,
 		       &total_fcode, sizeof(total_fcode)) == 0) {
 		char drain[1];
@@ -2327,16 +2340,16 @@ set_kernel_filter(pcap_t *handle, struct sock_fprog *fcode)
 		 * Note that we've put the total filter onto the socket.
 		 */
 		total_filter_on = 1;
-
 #ifdef DO_RING
-        	if (handle->rg.iovec)
-	    		(void) packet_discard (handle);
-		else {
-#endif
+               if (handle->rg.iovec)
+                       (void) packet_discard (handle);
+               else {
+#endif /* DO_RING */
+
 		/*
 		 * Save the socket's current mode, and put it in
 		 * non-blocking mode; we drain it by reading packets
-         	 * until we get an error (which is normally a
+		 * until we get an error (which is normally a
 		 * "nothing more to be read" error).
 		 */
 		save_mode = fcntl(handle->fd, F_GETFL, 0);
@@ -2347,18 +2360,17 @@ set_kernel_filter(pcap_t *handle, struct sock_fprog *fcode)
 				;
 			save_errno = errno;
 			fcntl(handle->fd, F_SETFL, save_mode);
-                        if (save_errno != EAGAIN) {
-                                /* Fatal error */
-                                reset_kernel_filter(handle);
-                                snprintf(handle->errbuf, sizeof(handle->errbuf),
-                                 "recv: %s", pcap_strerror(save_errno));
-                                return -2;
+			if (save_errno != EAGAIN) {
+				/* Fatal error */
+				reset_kernel_filter(handle);
+				snprintf(handle->errbuf, sizeof(handle->errbuf),
+				 "recv: %s", pcap_strerror(save_errno));
+				return -2;
 			}
-
 		}
 #ifdef DO_RING
-		}
-#endif
+                }
+#endif /* DO_RING */
 	}
 
 	/*
@@ -2401,3 +2413,112 @@ reset_kernel_filter(pcap_t *handle)
 				   &dummy, sizeof(dummy));
 }
 #endif
+
+#ifdef DO_RING
+/*
+ * pcap_getenv assumes that the live_args structure has been initialized
+ * with arguments from the command line.  It will check the environment
+ * and change any fields in the live_args structure.  Consequently,
+ * the environment overrides the switches explicitly set on command
+ * lines to activatate pcap applications.
+ * More can be added in the future.  There is a variable in the
+ * live_args structure itself that represents the version of the pcap
+ * library.
+ */
+
+int
+pcap_getenv(live_args *ra)
+{
+    char *snaplen = getenv("PCAP_SNAPLEN");
+    char *promisc = getenv("PCAP_PROMISC");
+    char *to_ms   = getenv("PCAP_TO_MS");
+    char *proto   = getenv("PCAP_PROTO");
+    char *maddr   = getenv("PCAP_MADDR");
+    char *memory  = getenv("PCAP_MEMORY");
+    char *frames  = getenv("PCAP_FRAMES");
+    char *verbose = getenv("PCAP_VERBOSE");
+    char *stats   = getenv("PCAP_STATS");
+    char *timeout = getenv("PCAP_TIMEOUT");
+    char *statperiod = getenv("PCAP_PERIOD");
+
+    /* set by pcap_open_live call */
+    if (snaplen)  ra->snaplen = atoi(snaplen);
+    if (promisc)  ra->promisc = atoi(promisc);
+    if (to_ms)    ra->to_ms = atoi(to_ms);
+    if (proto)    ra->proto = pcap_convert_proto(proto);
+
+    /* set by setenv only */
+    ra->verbose  = (verbose) ? atoi(verbose) : 0;
+    ra->statbits = (stats) ? strtoul(stats,NULL,0) : 0;
+    ra->timeout = (timeout) ? strtoul(timeout,NULL,0) : 0;
+    ra->statperiod = (statperiod) ? strtoul(statperiod,NULL,0) : 0;
+    if (!ra->statperiod && to_ms)
+	    ra->statperiod = ra->to_ms;
+
+    /* set by pcap_live_args */
+    if (maddr)
+    {
+        u_char *ptr;
+        int len = ra->promisc * 2;
+        u_char c1, c2;
+        u_char m;
+
+        if (ra->promisc <= 0 || ra->promisc&1 || strlen(maddr) != len)
+        {
+            snprintf(ra->ebuf, PCAP_ERRBUF_SIZE, "pcap_getenv: maddr, %s?",
+			    maddr);
+	    return -1;
+        }
+        if((ra->maddr = malloc (ra->promisc)) == NULL)
+        {
+            snprintf(ra->ebuf, PCAP_ERRBUF_SIZE, "pcap_getenv: malloc(%d)?",
+			   ra->promisc);
+            return -1;
+        }
+
+        ptr = ra->maddr;
+        while ((c1 = *maddr++))
+        {
+            c2 = *maddr++;
+            m = ((c1 - '0')<<4) + (c2 - '0');
+            *ptr++ = m;
+        }
+    }
+
+    /* set maximum memory allotted for ring */
+    if (memory)
+    {
+        if (!strncmp (memory, "max", 3) || !strncmp (memory, "MAX", 3))
+        {
+            ra->max_mem = -1;
+        }
+        else
+        {
+            ra->max_mem = atoi (memory);
+        }
+        ra->raw = 1;
+    } else {
+      /* set maximum frames allotted for ring */
+      if (frames)
+      {
+	  int m;
+	  int debgu;
+
+          ra->frame_ct = 0;
+          if (!strncmp (frames, "max", 3) || !strncmp (frames, "MAX", 3))
+          {
+              ra->max_mem = -1;
+          }
+          else
+          {
+              m = atoi (frames);
+	      debgu =  ((TPACKET_ALIGN(TPACKET_HDRLEN) + TPACKET_ALIGN(ra->snaplen)));
+              //fprintf (stderr, "DEBUG: debgu = %d, m = %d\n", debgu, m);
+              ra->max_mem = (m * ((TPACKET_ALIGN(TPACKET_HDRLEN) + TPACKET_ALIGN(ra->snaplen)))+1023)/1024;
+          }
+          ra->raw = 1;
+      }
+    }
+    return (1);
+}
+#endif /* DO_RING */

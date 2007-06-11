@@ -1,22 +1,31 @@
-/* PCAP_Ring.c -- repository for linux mmap'd ring implimentation
-   Copyright (C) 2001 Phil Wood for Alexey Kuznetsov
-  
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-  
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-  
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*Copyright (c) 2006, Regents of the University of California All rights reserved.
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+   
+     * Redistributions of source code must retain the above copyright
+       notice, this list of conditions and the following disclaimer.
+     * Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+     * Neither the name of the Los Alamos National Laboratory nor the
+       names of its contributors may be used to endorse or promote products
+       derived from this software without specific prior written permission.
+   
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+   TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+   PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+   LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #ifndef lint
-static const char rcsid[] _U_ = "@#( $Header: /n/CVS/sirt/libpcap/pcap-ring.c,v 0.8.3.1 2004/10/01 22:21:34 cpw Exp $ (CPW)";
+static const char rcsid[] _U_ = "@#( $Header: /n/CVS/sirt/libpcap/pcap-ring.c,v 0.9 2005/06/10 23:06:31 cpw Exp $ (CPW)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -31,12 +40,16 @@ static const char rcsid[] _U_ = "@#( $Header: /n/CVS/sirt/libpcap/pcap-ring.c,v 
 # include <sys/ioctl.h>
 # include <sys/poll.h>
 # include <sys/mman.h>
-# include <asm/system.h>
+#ifdef  HAVE_64BIT_TIME_T
+#define LOCK_PREFIX "lock ; "
+#endif
 # include <linux/if_ether.h>
 # include <netinet/in.h>
 
 #include "pcap-int.h"
 #include "sll.h"
+
+#include <sys/utsname.h>
 
 #ifdef DO_RING
 
@@ -45,132 +58,63 @@ static const char rcsid[] _U_ = "@#( $Header: /n/CVS/sirt/libpcap/pcap-ring.c,v 
 
 #define LOST_MY_HEAD 2    /* find iovhead if pollAgain == LOST_MY_HEAD */
 
-
-#ifdef PACKET_TRECV
-int
-packet_tring_setup(pcap_t *p)
-{
-    int i, k, idx;
-    int framesz = TPACKET_ALIGN(TPACKET_HDRLEN)+TPACKET_ALIGN(p->snapshot + p->md.offset);
-    int pg_size = getpagesize();
-    struct iovec *ring;
-    int frames_per_pg = pg_size/framesz;
-    int pgs;
-    unsigned long int devstats[IFACE_MAXFIELDS];
-
-    if (p->rg.ct <= 0)
-	    return -1; /* PCAP_FRAMES=0 negates mmaped mode */
-
-    if (!frames_per_pg)
-	    return -1; /* something is rotten in memory */
-
-    if (p->rg.ct > MAX_IOVEC_SIZE)
-	    p->rg.ct = MAX_IOVEC_SIZE;
-
-    p->rg.ct = (p->rg.ct) ? p->rg.ct : 576; /* rough guess */
-    pgs = (p->rg.ct + frames_per_pg -1 ) / frames_per_pg;
-    p->rg.ct = frames_per_pg * pgs;
-
-    if (p->rg.ct > MAX_IOVEC_SIZE)
-    {
-        pgs--;
-        p->rg.ct = pgs * frames_per_pg;
-    }
-
-    p->rg.buf = (void*)mmap(NULL, pgs*pg_size,
-                    PROT_READ|PROT_WRITE|PROT_EXEC,
-                    MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-    if ((long)p->rg.buf == -1L) {
-        perror("mmap");
-        p->rg.buf=NULL;
-        return -2;
-    }
-    if (mlock(p->rg.buf, pgs*pg_size)) {
-        perror("mlock");
-        munmap(p->rg.buf, pgs*pg_size);
-        p->rg.buf=NULL;
-        return -2;
-    }
-    ring = (struct iovec *) malloc(p->rg.ct*sizeof(struct iovec));
-
-    idx=0;
-    for (i=0; i<pgs; i++) {
-        for (k=0; k<frames_per_pg; k++) {
-            ring[idx].iov_base = p->rg.buf + pg_size*i + k*framesz;
-            ring[idx].iov_len = framesz;
-            *(unsigned long*)ring[idx].iov_base = 0;
-            idx++;
-        }
-    }
-
-    if (setsockopt(p->fd, SOL_PACKET, PACKET_TRECV,
-               (void*)ring, p->rg.ct*sizeof(struct iovec))) {
-        perror("Warning: setsockopt(PACKET_TRECV)");
-        munmap(p->rg.buf, pgs*pg_size);
-        p->rg.buf=NULL;
-        free(ring);
-        return -2;
-    }
-
-    p->rg.bufsize = pgs * pg_size;
-    p->rg.iovhead = 0;
-    p->rg.iovmax = p->rg.ct - 1;
-    p->rg.iovec = ring;
-    p->rg.pollAgain = 0;
-    START_SECS(p) = 0;
-    if (packet_dev_stats(p, &devstats[0]))
-    {
-      p->rg.ifpkts = devstats[tx_packets] + devstats[rx_packets];
-      p->rg.ifbytes = devstats[tx_bytes] + devstats[rx_bytes];
-      p->rg.multi = devstats[rx_multicast];
-      p->rg.rxerrs = devstats[rx_errors];
-      p->rg.rxdrops = devstats[rx_dropped];
-      p->rg.txerrs = devstats[tx_errors];
-      p->rg.txdrops = devstats[tx_dropped];
-      p->rg.have_ds = 1;
-    }
-    else
-    {
-      p->rg.have_ds = 0;
-    }
-    return 0;
-}
-#endif /* PACKET_TRECV */
-
-#define MAX_SIZE 131072  // valid for 2.4 and 2.6 kernels 
-
 #ifdef PACKET_RX_RING
+#define MAX_SLAB_SIZE 131072  // valid for 2.4 and 2.6 kernels; /proc/slabinfo
+#define MAX_RING_MEMORY ((unsigned long)(2147483648))  // max ring size
+#define MAX_ORDER 8 /* #include kernel source <linux/mmzone.h> */
 int
 packet_tring_setup(pcap_t *p)
 {
-    int i, k, idx;
-    int framesz = TPACKET_ALIGN(TPACKET_HDRLEN)+TPACKET_ALIGN(p->snapshot+p->md.offset);
-    int pg_size = getpagesize();
-    struct iovec *ring;
-    int frames_per_pg = pg_size/framesz;
-    int pgs;
+    int i, k, idx, frames_per_block;
     struct tpacket_req req;
-    unsigned long int devstats[IFACE_MAXFIELDS];
+    unsigned long mem;
 
-    if (p->rg.ct == 0)
-        return -1; /* PCAP_FRAMES=0 negates mmaped mode */
+    req.tp_frame_size = TPACKET_ALIGN(TPACKET_HDRLEN) + TPACKET_ALIGN(p->snapshot+p->md.offset);
 
-    if (!frames_per_pg)
-        return -1;
-
-    if (p->rg.ct < 0) { /* calculate the max */
-         pgs = MAX_SIZE / (sizeof (void *));
-         p->rg.ct = pgs * frames_per_pg;
+    if (p->rg.mem > 0) { /* use user-defined max */
+      mem = p->rg.mem * 1024;
+    } else if (p->rg.mem == 0) {
+      return -1; /* PCAP_MEMORY=0 negates mmaped mode */
+    } else {
+      struct utsname utsbuf;
+      if (uname(&utsbuf)) { mem = 65536; }
+      else {
+        if (utsbuf.release[0] == '2' && utsbuf.release[2] == '4') { 
+ 	  mem=275219456;
+        } else if (utsbuf.release[0] == '2' && utsbuf.release[2] == '6') {
+          mem=MAX_RING_MEMORY; /* 2147483648 */
+        } else {
+          mem= 1048576;
+        }
+      }
     }
 
-    p->rg.ct = (p->rg.ct) ? p->rg.ct : 576; /* default to a minimum ring size */
-    pgs = (p->rg.ct + frames_per_pg - 1) / frames_per_pg;
-    p->rg.ct = frames_per_pg * pgs;
+    /* Use as many blocks as possible */
+    req.tp_block_nr = MAX_SLAB_SIZE / sizeof(void*);
+    /* In case we compile 32-bit, but run on a 64-bit kernel, scale by 2 */
+    req.tp_block_nr /= 2;
+    /* Get lower-bound of block size */
+    req.tp_block_size = mem / req.tp_block_nr;
 
-    req.tp_frame_nr = p->rg.ct;
-    req.tp_frame_size = framesz;
-    req.tp_block_nr = pgs;
-    req.tp_block_size = pg_size;
+    /* Now round up to nearest order of page size */
+    int order;
+    for (order = 0; order <= MAX_ORDER; order++) {
+	if ( (getpagesize() << order) >= req.tp_block_size) {
+		break;
+	}
+    }
+    req.tp_block_size = getpagesize() << order;
+
+    /* And then recompute number of blocks precisely */
+    req.tp_block_nr = mem / req.tp_block_size;
+    /* Round-up rather than down */
+    if (req.tp_block_nr * req.tp_block_size < mem) req.tp_block_nr++;
+
+    frames_per_block = req.tp_block_size / req.tp_frame_size;
+    req.tp_frame_nr = frames_per_block * req.tp_block_nr;
+    p->rg.ct = req.tp_frame_nr;
+
+    //fprintf (stderr, "DEBUG(exit):block_size = %d, block_nr = %d, frame_size = %d, frame_nr = %d, mem = %g\n", req.tp_block_size, req.tp_block_nr, req.tp_frame_size, req.tp_frame_nr, (double)req.tp_block_size * req.tp_block_nr);
 
     if (setsockopt(p->fd, SOL_PACKET, PACKET_RX_RING, (void*)&req,
                             sizeof(req))) {
@@ -178,6 +122,8 @@ packet_tring_setup(pcap_t *p)
         return -2;
     }
 
+    struct iovec *ring;
+    unsigned long int devstats[IFACE_MAXFIELDS];
     ring = (struct iovec *) malloc(p->rg.ct * sizeof(struct iovec));
     if (!ring)
     {
@@ -185,7 +131,7 @@ packet_tring_setup(pcap_t *p)
         return -2;
     }
 
-    p->rg.buf = (void*)mmap(0, pgs*pg_size, PROT_READ|PROT_WRITE|PROT_EXEC,
+    p->rg.buf = (void*)mmap(0, req.tp_block_nr * req.tp_block_size, PROT_READ|PROT_WRITE,
                     MAP_SHARED, p->fd, 0);
     if ((long)p->rg.buf == -1L) {
         perror("Error: Could not allocate shared memory");
@@ -201,19 +147,20 @@ packet_tring_setup(pcap_t *p)
     }
 
     idx=0;
-    for (i=0; i<pgs; i++) {
-        for (k=0; k<frames_per_pg; k++) {
-            ring[idx].iov_base = p->rg.buf + pg_size*i + k*framesz;
-            ring[idx].iov_len = framesz;
+    for (i=0; i<req.tp_block_nr; i++) {
+        for (k=0; k<frames_per_block; k++) {
+            ring[idx].iov_base = p->rg.buf + req.tp_block_size*i + k*req.tp_frame_size;
+            ring[idx].iov_len = req.tp_frame_size;
             *(unsigned long*)ring[idx].iov_base = 0;
             idx++;
         }
     }
 
-    p->rg.bufsize = pgs * pg_size;
+    p->rg.bufsize = req.tp_block_nr * req.tp_block_size;
     p->rg.iovhead = 0;
     p->rg.iovmax = p->rg.ct - 1;
     p->rg.iovec = ring;
+    p->rg.fname = NULL;
     p->rg.pollAgain = 0;
     START_SECS(p) = 0;
     if (packet_dev_stats(p, &devstats[0]))
@@ -241,27 +188,24 @@ int
 pcap_ring_recv(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
   struct iovec *ring = p->rg.iovec;
-  unsigned long	  poll_timeout = 0;
-  int     pdelta = 0;				/* ditto */
-  int     md_timeout = p->md.timeout * 1000;	/* ditto */
-  int     n = 0;
+  time_t	poll_timeout = 0; /* milliseconds */
+  int		n = 0;
 #ifdef RING_STATS
-  int consec = 0;
-  int     period = p->rg.statperiod * 1000;	/* microseconds */
+  /* p->md.timeout is in milliseconds */
+  time_t	pdelta = 0; /* seconds */
+  int		consec = 0;
 
-    if (!period)
+    if (!p->rg.statperiod)
     {
-      if ((md_timeout) || (cnt>0) ) START_SECS(p) = 0;
-    } else {
-      START_SECS(p) = 0;
+      if ((p->md.timeout) || (cnt>0) ) START_SECS(p) = 0;
     }
-#else  /*RING_STATS*/
-    if ((md_timeout) || (cnt>0) ) START_SECS(p) = 0;
+    /*       else {
+     *       START_SECS(p) = 0;
+     *   }
+2006 */
+#else  /*RING_STATS not defined*/
+    if ((p->md.timeout) || (cnt>0) ) START_SECS(p) = 0;
 #endif /*RING_STATS*/
-
-#ifdef RING_DEBUG
-  fprintf (stderr, "\n*** ring_recv, period is %d\n\n", period);
-#endif /*RING_DEBUG*/
 
   if (!p->rg.iovec) return (-1); /* called inappropriately (no ring defined) */
 
@@ -275,7 +219,7 @@ pcap_ring_recv(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
       struct sockaddr_ll *sll = (void*)h + TPACKET_ALIGN(sizeof(*h));
       unsigned char *bp = (unsigned char*)h + h->tp_mac;
       int delta; // recomputed for each packet
-      struct pcap_sf_patched_pkthdr h1;
+      struct pcap_pkthdr h1;
       struct sll_header       *hdrp;
 
       p->md.stat.ps_recv++;
@@ -351,23 +295,18 @@ pcap_ring_recv(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		sll->sll_pkttype == PACKET_OUTGOING)
 	)
       {
-  
-        h1.index = (p->md.device == NULL) ? sll->sll_ifindex : 0;
-        h1.protocol = sll->sll_protocol;
-        h1.pkt_type = sll->sll_pkttype;
         h1.ts.tv_sec = h->tp_sec;
         h1.ts.tv_usec = h->tp_usec;
-        h1.len = h->tp_len;
         h1.caplen = h->tp_snaplen;
-
-	/*
+        h1.len = h->tp_len;
+/*
         if (p->md.use_bpf == 2)
         {
             h1.caplen += 14;
             h1.len    += 14;
             bp    -= 14;
         }
-	*/
+*/
 	if (p->md.cooked)
 	{
 	    h1.caplen += p->md.offset;
@@ -383,10 +322,11 @@ pcap_ring_recv(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
           p->rg.rs.r_ignore++;
       }
 #endif
-      if (!START_SECS(p))
+      if (!(START_SECS(p)))
       {
           START_SECS(p) = h->tp_sec;
           START_USECS(p) = h->tp_usec;
+	  if (!p->rg.tea) p->rg.tea = h->tp_sec + p->rg.statperiod;
       }
       STOP_SECS(p) = h->tp_sec;
       STOP_USECS(p) = h->tp_usec;
@@ -396,14 +336,14 @@ pcap_ring_recv(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 #endif
 
       h->tp_status = 0;
-      mb();
+      /* mb(); */
       p->rg.iovhead = (p->rg.iovhead == p->rg.iovmax) ? 0 : p->rg.iovhead+1;
 
       /* check for user specified timeout (in seconds) PCAP_TIMEOUT > 0 */
       if (p->rg.timeout)
       {
         delta = (STOP_SECS(p)) - p->rg.timeout;
-	if (delta >=0 )
+	if (delta >= 0 )
 	{
 #ifdef RING_STATS
           if (p->rg.statperiod)
@@ -418,21 +358,25 @@ pcap_ring_recv(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
       }
 
 #ifdef RING_STATS
-      /* check to see if should dump a stat line out */
-      if (p->rg.statperiod)
       {
-          delta = ((STOP_SECS(p) - START_SECS(p))*1000000)
-			+(STOP_USECS(p) - START_USECS(p));
-	  if ((delta > 0) && ((period - delta) <= 0))
-	  {
-	          pdelta += delta;
+	//struct timeval tdelta = {0};
+
+	//TV_SUB(p->rg.rs.r_stop, p->rg.rs.r_start, tdelta)
+	if (p->rg.statperiod)
+        if (STOP_SECS(p) >= p->rg.tea)
+	{
+		do {
+			p->rg.tea += p->rg.statperiod;
+			pdelta += p->rg.statperiod;
+		} while ( p->rg.tea < STOP_SECS(p) );
 #ifdef RING_DEBUG
-		  fprintf (stderr, "dump: p->md.timeout == %d, pdelta: %d, period: %d\n",
-				  p->md.timeout, pdelta, period);
+	fprintf (stderr, "dump: p->rg.tea: %d, START_SECS: %d, STOP_SECS: %d, pdelta: %d, statperiod: %d\n",
+				  p->rg.tea, START_SECS(p), STOP_SECS(p), pdelta, p->rg.statperiod);
 #endif /*RING_DEBUG*/
-              (void) packet_ring_stats (p, p->rg.statbits);
-              consec = 0;
-	  }
+		(void) packet_ring_stats (p, p->rg.statbits);
+		fflush (stderr);
+		consec = 0;
+	}
       }
 #endif /*RING_STATS*/
 
@@ -448,11 +392,11 @@ pcap_ring_recv(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	{
               if (pdelta > 0)
 	      {
-	          poll_timeout = (md_timeout - pdelta);
+	          poll_timeout = (p->md.timeout - (pdelta * 1000));
 #ifdef RING_DEBUG
-	     fprintf (stderr, "stat: md_timeout: %d, pdelta: %d, poll_timeout: %d\n", md_timeout, pdelta, poll_timeout);
+	     fprintf (stderr, "stat: md.timeout: %d, pdelta: %d, poll_timeout: %d\n", p->md.timeout, pdelta, poll_timeout);
 #endif /*RING_DEBUG*/
-	         if ((poll_timeout) < 0) return n;
+	         if ((poll_timeout) <= 0) return n;
 	      }
 	}
 	/* nope, calculate the time gone by */
@@ -464,11 +408,11 @@ pcap_ring_recv(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		
 		if (delta > 0)
 		{
-		    poll_timeout = md_timeout - delta;
+		    poll_timeout = p->md.timeout - (delta/1000);
 #ifdef RING_DEBUG
-		    fprintf (stderr, "goneby: md_timeout: %d, delta: %d, poll_timeout: %d\n", md_timeout, delta, poll_timeout);
+		    fprintf (stderr, "goneby: md.timeout: %d, delta: %d, poll_timeout: %d\n", p->md.timeout, delta, poll_timeout);
 #endif
-		    if ((poll_timeout) < 0)
+		    if ((poll_timeout) <= 0)
 			return n;
 		}
 	}
@@ -552,7 +496,7 @@ pollagain:
       }
       else
       { /* check if we have polled enough to exhaust the timeout */
-	delta = (p->md.timeout - (poll_timeout/1000));
+	delta = (p->md.timeout - poll_timeout);
 
 #ifdef RING_DEBUG
 	fprintf (stderr, "poll: p->md.timeout == %d, delta: %d, poll_timeout: %d.\n",
@@ -627,7 +571,7 @@ pollagain:
         }
         { /* we have a packet event, pres > 0 and bad news */
           int err;
-          int elen = sizeof(err);
+          socklen_t elen = sizeof(err);
 
           if (getsockopt(p->fd, SOL_SOCKET, SO_ERROR, &err, &elen))
           {
@@ -727,7 +671,7 @@ packet_ring_stats (pcap_t * p, int opt)
 #endif
 #ifdef HAVE_TPACKET_STATS
     struct tpacket_stats ks = {0};
-    int l;
+    socklen_t l;
 
     l = sizeof (struct tpacket_stats);
 
@@ -993,7 +937,7 @@ packet_ring_stats (pcap_t * p, int opt)
 struct timeval *
 packet_ring_diff (struct timeval *d, struct timeval *s, struct timeval *e)
 {
-    int delta;
+    long int delta;
 
     d->tv_usec = ((e->tv_sec - s->tv_sec)*1000000) + e->tv_usec - s->tv_usec;
     if (d->tv_usec >= 1000000)
@@ -1053,7 +997,7 @@ packet_discard (pcap_t * p)
 {
     struct iovec *ring = p->rg.iovec;
     struct tpacket_stats tps = {0};
-    int olen = sizeof (tps);
+    socklen_t olen = sizeof (tps);
     int    i, head;
     int    discarded = 0;
 
@@ -1085,7 +1029,7 @@ pcap_pstats (pcap_t *p)
 {
 #ifdef PACKET_STATISTICS
   struct tpacket_stats tps = {0};
-  int olen = sizeof(tps);
+  socklen_t olen = sizeof(tps);
   struct timeval tv;
   struct timezone tz;
 

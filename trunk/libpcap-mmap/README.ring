@@ -69,9 +69,8 @@ the ring buffer:
 
      PCAP_SNAPLEN think tcpdump -s
      PCAP_PROMISC -1 = promiscous -2 = not promiscuous
-     PCAP_TO_MS   variable meanings, think milliseconds(ms) to wait for pkt,
-                  or how long to loop reading packets and calling the user
-                  supplied callback.
+     PCAP_TO_MS   variable meanings, think milliseconds(ms) to wait for a
+                  packet, but read the note regarding to_ms above.
      PCAP_RAW     2 = cooked mode
      PCAP_PROTO   ip,ipv6,arp,rarp,802.2,802.3,lat,dec,atalk,aarp,ipx,x25
      PCAP_MADDR   requires hex string which will override PCAP_PROMISC 
@@ -115,7 +114,7 @@ the ring buffer:
 
       By setting PCAP_STATS=0x021fff, the ring statistics line would print 
       items  0 through 12 and item 17 in that order.  I've been known to
-      use PCAP_STATS=0x21fff.
+      use PCAP_STATS=0x1fff.
 
 2. If static libraries are being used the the application will need to be
    re-loaded.

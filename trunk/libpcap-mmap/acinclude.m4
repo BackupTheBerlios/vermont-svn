@@ -42,7 +42,7 @@ dnl	LDFLAGS
 dnl	ac_cv_lbl_gcc_vers
 dnl	LBL_CFLAGS
 dnl
-AC_DEFUN(AC_LBL_C_INIT,
+AC_DEFUN([AC_LBL_C_INIT],
     [AC_PREREQ(2.12)
     AC_BEFORE([$0], [AC_PROG_CC])
     AC_BEFORE([$0], [AC_LBL_FIXINCLUDES])
@@ -174,7 +174,7 @@ dnl	$2 (incls appended)
 dnl	LIBS
 dnl	LBL_LIBS
 dnl
-AC_DEFUN(AC_LBL_LIBPCAP,
+AC_DEFUN([AC_LBL_LIBPCAP],
     [AC_REQUIRE([AC_LBL_LIBRARY_NET])
     dnl
     dnl save a copy before locating libpcap.a
@@ -242,7 +242,7 @@ dnl
 dnl	RETSIGTYPE (defined)
 dnl	RETSIGVAL (defined)
 dnl
-AC_DEFUN(AC_LBL_TYPE_SIGNAL,
+AC_DEFUN([AC_LBL_TYPE_SIGNAL],
     [AC_BEFORE([$0], [AC_LBL_LIBPCAP])
     AC_TYPE_SIGNAL
     if test "$ac_cv_type_signal" = void ; then
@@ -272,7 +272,7 @@ dnl usage:
 dnl
 dnl	AC_LBL_FIXINCLUDES
 dnl
-AC_DEFUN(AC_LBL_FIXINCLUDES,
+AC_DEFUN([AC_LBL_FIXINCLUDES],
     [if test "$GCC" = yes ; then
 	    AC_MSG_CHECKING(for ANSI ioctl definitions)
 	    AC_CACHE_VAL(ac_cv_lbl_gcc_fixincludes,
@@ -318,7 +318,7 @@ dnl	$1 (lex set)
 dnl	$2 (yacc appended)
 dnl	$3 (optional flex and bison -P prefix)
 dnl
-AC_DEFUN(AC_LBL_LEX_AND_YACC,
+AC_DEFUN([AC_LBL_LEX_AND_YACC],
     [AC_ARG_WITH(flex, [  --without-flex          don't use flex])
     AC_ARG_WITH(bison, [  --without-bison         don't use bison])
     if test "$with_flex" = no ; then
@@ -371,7 +371,7 @@ dnl results:
 dnl
 dnl	DECLWAITSTATUS (defined)
 dnl
-AC_DEFUN(AC_LBL_UNION_WAIT,
+AC_DEFUN([AC_LBL_UNION_WAIT],
     [AC_MSG_CHECKING(if union wait is used)
     AC_CACHE_VAL(ac_cv_lbl_union_wait,
 	AC_TRY_COMPILE([
@@ -400,7 +400,7 @@ dnl results:
 dnl
 dnl	HAVE_SOCKADDR_SA_LEN (defined)
 dnl
-AC_DEFUN(AC_LBL_SOCKADDR_SA_LEN,
+AC_DEFUN([AC_LBL_SOCKADDR_SA_LEN],
     [AC_MSG_CHECKING(if sockaddr struct has sa_len member)
     AC_CACHE_VAL(ac_cv_lbl_sockaddr_has_sa_len,
 	AC_TRY_COMPILE([
@@ -425,7 +425,7 @@ dnl results:
 dnl
 dnl	HAVE_SOCKADDR_STORAGE (defined)
 dnl
-AC_DEFUN(AC_LBL_SOCKADDR_STORAGE,
+AC_DEFUN([AC_LBL_SOCKADDR_STORAGE],
     [AC_MSG_CHECKING(if sockaddr_storage struct exists)
     AC_CACHE_VAL(ac_cv_lbl_has_sockaddr_storage,
 	AC_TRY_COMPILE([
@@ -458,7 +458,7 @@ dnl we conclude it doesn't have that member (which is OK, as either we
 dnl won't be using code that would use that member, or we wouldn't
 dnl compile in any case).
 dnl
-AC_DEFUN(AC_LBL_HP_PPA_INFO_T_DL_MODULE_ID_1,
+AC_DEFUN([AC_LBL_HP_PPA_INFO_T_DL_MODULE_ID_1],
     [AC_MSG_CHECKING(if dl_hp_ppa_info_t struct has dl_module_id_1 member)
     AC_CACHE_VAL(ac_cv_lbl_dl_hp_ppa_info_t_has_dl_module_id_1,
 	AC_TRY_COMPILE([
@@ -484,7 +484,7 @@ dnl results:
 dnl
 dnl	ac_cv_lbl_have_run_path (yes or no)
 dnl
-AC_DEFUN(AC_LBL_HAVE_RUN_PATH,
+AC_DEFUN([AC_LBL_HAVE_RUN_PATH],
     [AC_MSG_CHECKING(for ${CC-cc} -R)
     AC_CACHE_VAL(ac_cv_lbl_have_run_path,
 	[echo 'main(){}' > conftest.c
@@ -510,7 +510,7 @@ dnl
 dnl	int32_t (defined)
 dnl	u_int32_t (defined)
 dnl
-AC_DEFUN(AC_LBL_CHECK_TYPE,
+AC_DEFUN([AC_LBL_CHECK_TYPE],
     [AC_MSG_CHECKING(for $1 using $CC)
     AC_CACHE_VAL(ac_cv_lbl_have_$1,
 	AC_TRY_COMPILE([
@@ -539,7 +539,7 @@ dnl results:
 dnl
 dnl	LBL_ALIGN (DEFINED)
 dnl
-AC_DEFUN(AC_LBL_UNALIGNED_ACCESS,
+AC_DEFUN([AC_LBL_UNALIGNED_ACCESS],
     [AC_MSG_CHECKING(if unaligned accesses fail)
     AC_CACHE_VAL(ac_cv_lbl_unaligned_fail,
 	[case "$host_cpu" in
@@ -613,7 +613,7 @@ dnl	$1 (copt appended)
 dnl	HAVE_OS_PROTO_H (defined)
 dnl	os-proto.h (symlinked)
 dnl
-AC_DEFUN(AC_LBL_DEVEL,
+AC_DEFUN([AC_LBL_DEVEL],
     [rm -f os-proto.h
     if test "${LBL_CFLAGS+set}" = set; then
 	    $1="$$1 ${LBL_CFLAGS}"
@@ -745,7 +745,7 @@ dnl The check for libresolv is in case you are attempting to link
 dnl statically and happen to have a libresolv.a lying around (and no
 dnl libnsl.a).
 dnl
-AC_DEFUN(AC_LBL_LIBRARY_NET, [
+AC_DEFUN([AC_LBL_LIBRARY_NET], [
     # Most operating systems have gethostbyname() in the default searched
     # libraries (i.e. libc):
     AC_CHECK_FUNC(gethostbyname, ,
@@ -771,7 +771,7 @@ dnl
 dnl Test for __attribute__
 dnl
 
-AC_DEFUN(AC_C___ATTRIBUTE__, [
+AC_DEFUN([AC_C___ATTRIBUTE__], [
 AC_MSG_CHECKING(for __attribute__)
 AC_CACHE_VAL(ac_cv___attribute__, [
 AC_TRY_COMPILE([
@@ -803,7 +803,7 @@ dnl If so then pcap-linux.c can use this to report proper statistics.
 dnl
 dnl -Scott Barron
 dnl
-AC_DEFUN(AC_LBL_TPACKET_STATS,
+AC_DEFUN([AC_LBL_TPACKET_STATS],
    [AC_MSG_CHECKING(if if_packet.h has tpacket_stats defined)
    AC_CACHE_VAL(ac_cv_lbl_tpacket_stats,
    AC_TRY_COMPILE([
@@ -825,7 +825,7 @@ dnl as it just tests whether a function returning "int" can be inlined;
 dnl at least some versions of HP's C compiler can inline that, but can't
 dnl inline a function that returns a struct pointer.
 dnl
-AC_DEFUN(AC_LBL_C_INLINE,
+AC_DEFUN([AC_LBL_C_INLINE],
     [AC_MSG_CHECKING(for inline)
     AC_CACHE_VAL(ac_cv_lbl_inline, [
 	ac_cv_lbl_inline=""
@@ -867,7 +867,7 @@ dnl If so then supporting code is included in tcpdump.c
 dnl
 dnl -Phil Wood
 dnl
-AC_DEFUN(AC_CPW_DO_RING,
+AC_DEFUN([AC_CPW_DO_RING],
    [AC_MSG_CHECKING(if if_packet.h allows shared memory ring buffer)
    AC_ARG_WITH(stats, [  --without-stats         don't maintain ring stats])
    AC_CACHE_VAL(ac_cv_cpw_ring_method,
@@ -915,4 +915,44 @@ EOF
      if test x"$with_stats" = xyes -o x"$with_stats" = x; then
        AC_DEFINE(RING_STATS,1,[defined to collect packet capture statistics])
      fi
+   fi])
+dnl
+dnl Finds out the size of a timespec
+dnl
+dnl -Phil Wood
+dnl
+AC_DEFUN([AC_CPW_TIMESPEC],
+   [AC_MSG_CHECKING(if hardware supports 64bit longs)
+   AC_CACHE_VAL(ac_cv_cpw_timespec_method,
+   [case "$host_os" in
+
+   linux*)
+      cat > conftest.c <<EOF
+   #include <stdlib.h>
+   main()
+   {
+     int i = sizeof (struct timeval);
+     exit (i == 128);
+   }
+EOF
+      ${CC-cc} -o conftest $CFLAGS $CPPFLAGS $LDFLAGS \
+            conftest.c $LIBS >/dev/null 2>&1
+      if test ! -x conftest; then
+         ac_cv_cpw_timespec_method=no,
+      else
+         if ./conftest ; then
+              ac_cv_cpw_timespec_method=yes
+         else
+	      	ac_cv_cpw_timespec_method=no
+         fi
+      fi
+      rm -f conftest* core core.conftest
+      ;;
+   *)
+      ac_cv_cpw_timespec_method=no
+     ;;
+   esac])
+   AC_MSG_RESULT($ac_cv_cpw_timespec_method)
+   if test $ac_cv_cpw_timespec_method = yes ; then
+     AC_DEFINE(HAVE_64BIT_TIME_T,1,[defined if linux has 64 bit time_t])
    fi])

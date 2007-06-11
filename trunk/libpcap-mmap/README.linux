@@ -78,51 +78,11 @@ reported by pcap_stats on Linux are as follows:
 =====
 ps_recv   Number of packets that were accepted by the pcap filter
 ps_drops  Always 0, this statistic is not gatherd on this platform
-	  (Note: see README.ring for exception to this statement.)
 
 2.4.x
 =====
-ps_recv   Number of packets that were accepted by the pcap filter
+ps_rec    Number of packets that were accepted by the pcap filter
 ps_drops  Number of packets that had passed filtering but were not
           passed on to pcap due to things like buffer shortage, etc.
 			 This is useful because these are packets you are interested in
 			 but won't be reported by, for example, tcpdump output.
-          (Note: see README.ring for a slightly different approach.)
-
-NOTE: If you see this error message:
-
-         ERROR: /usr/include/linux/if_packet.h is old!
-
-      during the .configure step, then you need to get yourself the
-      the 2.>3.* kernel source, extract it into someplace/linux, build a kernel
-      with CONFIG_PACKET and CONFIG_FILTER, AND, do this:
-
-#!/bin/sh
-
-INCLUDE=/usr/include
-KSRCDIR=/kernel/src
-
-function dolnkdir()
-{
-      if [ ! -L $dirname -a -d $dirname ]; then
-         mv $dirname $dirname.orig
-         ln -s $KSRCDIR/linux/include/$dirname $dirname
-      else
-         if [ -L $dirname ]; then
-           rm $dirname
-           ln -s $KSRCDIR/linux/include/$dirname $dirname
-         else
-           echo I be lost in a desert of dogshit
-         fi
-      fi
-}
-
-if [ -d $KSRCDIR/linux/include/linux ]; then
-pushd $INCLUDE
-  for dirname in asm linux; do
-    dolnkdir $dirname
-  done
-popd
-else
-  echo the kernel source is not in $KSRCDIR/linux
-fi
