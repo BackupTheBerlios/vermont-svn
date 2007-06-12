@@ -40,10 +40,10 @@ void MsgStream::printIntro(MsgLevel level)
 	    std::cout << "ERROR [" << name << "]: ";
 	    break;
 	case WARN:
-	    std::cout << "WARN  [" << name << "]: ";
+	    std::cout << "WARNING [" << name << "]: ";
 	    break;
 	case INFO:
-	    std::cout << "INFO  [" << name << "]: ";
+	    std::cout << "INFORMATION [" << name << "]: ";
 	    break;
 	case DEBUG:
 	    std::cout << "DEBUG [" << name << "]: ";
@@ -51,12 +51,57 @@ void MsgStream::printIntro(MsgLevel level)
     }
 }
 
-void MsgStream::print(MsgLevel level, const std::string& msg)
+std::ostream& MsgStream::printIntro(MsgLevel level, std::ostream& of, bool both)
 {
-    if(level <= outputLevel)
-    {
-	printIntro(level);
-	std::cout << msg << std::endl;
-    }
+  switch(level){
+    case FATAL:
+      of << "FATAL [" << name << "]: ";
+      if (both == true)
+        std::cout << "FATAL [" << name << "]: ";
+      break;
+    case ERROR:
+      of << "ERROR [" << name << "]: ";
+      if (both == true)
+        std::cout << "ERROR [" << name << "]: ";
+      break;
+    case WARN:
+      of << "WARNING [" << name << "]: ";
+      if (both == true)
+        std::cout << "WARNING [" << name << "]: ";
+      break;
+    case INFO:
+      of << "INFORMATION [" << name << "]: ";
+      if (both == true)
+        std::cout << "INFORMATION [" << name << "]: ";
+      break;
+    case DEBUG:
+      of << "DEBUG [" << name << "]: ";
+      if (both == true)
+        std::cout << "DEBUG [" << name << "]: ";
+      break;
+  }
+
+  return of;
 }
 
+void MsgStream::print(MsgLevel level, const std::string& msg)
+{
+  if(level <= outputLevel)
+  {
+    printIntro(level);
+    std::cout << msg << std::endl;
+  }
+}
+
+std::ostream& MsgStream::print(MsgLevel level, const std::string& msg, std::ostream& of, bool both)
+{
+  if(level <= outputLevel)
+  {
+    printIntro(level, of, both);
+    of << msg << "\n" << std::flush;
+    if (both == true)
+      std::cout << msg << std::endl;
+  }
+
+  return of;
+}

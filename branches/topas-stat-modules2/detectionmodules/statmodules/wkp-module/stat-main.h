@@ -31,7 +31,7 @@
 // ========================== CLASS Stat ==========================
 
 #define DEFAULT_alarm_time 10
-#define DEFAULT_warning_verbosity 0
+#define DEFAULT_warning_verbosity 3
 #define DEFAULT_logfile_output_verbosity 3
 #define DEFAULT_noise_threshold_packets 0
 #define DEFAULT_noise_threshold_bytes 0
@@ -210,7 +210,6 @@ class Stat
 
   // user's preferences (defined in the XML config file):
   std::ofstream logfile;
-  int warning_verbosity;
   int logfile_output_verbosity;
   // holds the constants for the (splitted) metrics
   std::vector<Metric> metrics;

@@ -319,6 +319,15 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store) {
     Info info;
     tmp1 >> info.packets_in >> info.packets_out >> info.bytes_in >> info.bytes_out >> info.records_in >> info.records_out;
 
+    // AGGREGATION: Use endpoint_key and netmask parameters to aggregate endpoints
+    if (store->ip_monitoring == false)
+      ep.setIpAddress(IpAddress(0,0,0,0));
+    else // apply global netmask
+      ep.applyNetmask(store->netmask);
+    if (store->port_monitoring == false)
+      ep.setPortNr(0);
+    if (store->protocol_monitoring == false)
+      ep.setProtocolID(0);
 
     // FILTER: Consider only EndPoints we are interested in
     if (store->monitorEndPoint(ep) == true || store->MonitorEveryEndPoint == true) {
@@ -358,17 +367,17 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store) {
   return is;
 }
 
-// returns true, if we are interested in EndPoint e
-// (false otherwise)
-bool StatStore::monitorEndPoint (const EndPoint & e) {
+// returns true, if we are interested in EndPoint ep.
+// That means, that ep matches one of the FilterEndPoints defined
+// in EndPointFilter (initialized either by x_frequently_endpoints
+// or endpoints_to_monitor file
+// (returns false otherwise)
+bool StatStore::monitorEndPoint (const EndPoint & ep) {
 
   std::vector<FilterEndPoint>::iterator it = EndPointFilter.begin();
-
   while ( it != EndPointFilter.end() ) {
-
-    if (it->matchesWithEndPoint(e) == true)
+    if (it->matchesWithEndPoint(ep, netmask) == true)
       return true;
-
     it++;
   }
 
@@ -384,6 +393,9 @@ std::map<EndPoint,Info> StatStore::PreviousData;
 // in the implementation file of the related class;
 
 short StatStore::netmask = 32;
+bool StatStore::ip_monitoring = false;
+bool StatStore::port_monitoring = false;
+bool StatStore::protocol_monitoring = false;
 
 std::vector<FilterEndPoint> StatStore::EndPointFilter;
 bool StatStore::MonitorEveryEndPoint = false;

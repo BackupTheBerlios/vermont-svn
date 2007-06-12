@@ -53,6 +53,12 @@ void EndPoint::fromString(const std::string & epstr) {
   return;
 }
 
+std::ostream& operator << (std::ostream& ost, const EndPoint& e)
+{
+        ost << e.ipAddr <<  ":" << e.portNr << "|" << (uint16_t) e.protocolID;
+        return ost;
+}
+
 // ============== SOME METHODS FOR CLASS FilterEndPoint ================
 
 void FilterEndPoint::fromString(const std::string & fepstr, bool withNetmask) {
@@ -84,18 +90,24 @@ void FilterEndPoint::fromString(const std::string & fepstr, bool withNetmask) {
     portNr = atoi(portstr.c_str());
     protocolID = atoi(protostr.c_str());
   }
-  else
+  else {
     this->EndPoint::fromString(fepstr);
+    nmask = 32;
+  }
 
   return;
 }
 
-bool FilterEndPoint::matchesWithEndPoint (const EndPoint & ep) {
+// Compares EndPoint ep with itself amd returns true, if they match
+// and false otherwise
+bool FilterEndPoint::matchesWithEndPoint (const EndPoint & ep, const short & netmask) {
   EndPoint tmp = ep;
-
-  if (nmask > 0 && nmask < 32)
+  // apply the local netmask of the FilterEndPoint only,
+  // if it is smaller than the global netmask
+  // (otherwise, nothing would be changed)
+  if ( nmask < netmask && nmask > 0 && nmask < 32)
     tmp.applyNetmask(nmask);
-
+  // compare the members and watch out for wildcards
   if ( (tmp.getIpAddress() == ipAddr || nmask == 0)
     && (tmp.getPortNr() == portNr || portNr == -1)
     && (tmp.getProtocolID() == protocolID || protocolID == -1) )
@@ -104,13 +116,13 @@ bool FilterEndPoint::matchesWithEndPoint (const EndPoint & ep) {
   return false;
 }
 
-// ======================== Output Operators ========================
-
-std::ostream& operator << (std::ostream& ost, const EndPoint& e)
+std::ostream& operator << (std::ostream& ost, const FilterEndPoint& fep)
 {
-        ost << e.ipAddr <<  ":" << e.portNr << "|" << (uint16_t) e.protocolID;
+        ost << fep.getIpAddress() << "/" << fep.getNetmask() <<  ":" << fep.getPortNr() << "|" << (uint16_t) fep.getProtocolID();
         return ost;
 }
+
+// ======================== Output Operators ========================
 
 std::ostream & operator << (std::ostream & os, const std::map<EndPoint,Info> & m) {
   std::map<EndPoint,Info>::const_iterator it = m.begin();

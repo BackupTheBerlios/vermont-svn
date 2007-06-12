@@ -78,6 +78,14 @@ class StatStore : public DataStore {
   // handled in addFieldData(); this is for aggregating ip addresses
   // to subnets
 
+  static bool ip_monitoring;
+  static bool port_monitoring;
+  static bool protocol_monitoring;
+  // these flags will be used for aggregating endpoints in OFFLINE MODE
+  // they are initially set to false, i. e. the correspondig member of
+  // the endppoint will be set to 0. If the endpoint_key contains the
+  // appropriate keys, they are set to true.
+
   static std::vector<FilterEndPoint> EndPointFilter;
   // EndPoints to monitor. They are provided in a file by the user;
   // this file is read by Stat::init(), which then initializes
@@ -118,6 +126,18 @@ class StatStore : public DataStore {
     return netmask;
   }
 
+  static bool & setIpMonitoring () {
+    return ip_monitoring;
+  }
+
+  static bool & setPortMonitoring () {
+    return port_monitoring;
+  }
+
+  static bool & setProtocolMonitoring () {
+    return protocol_monitoring;
+  }
+
   static void AddEndPointToFilter (FilterEndPoint fep) {
     EndPointFilter.push_back(fep);
   }
@@ -133,6 +153,14 @@ class StatStore : public DataStore {
   static bool & setBeginMonitoring () {
     return BeginMonitoring;
   }
+
+  // Public "getters"
+  static short getNetmask () { return netmask; }
+
+  static bool getIpMonitoring () { return ip_monitoring; }
+  static bool getPortMonitoring () { return port_monitoring; }
+  static bool getProtocolMonitoring () { return protocol_monitoring; }
+
 
 };
 

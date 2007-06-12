@@ -30,7 +30,7 @@
  * Currently, five messaging levels are defined in enum type MsgLevel:
  *   FATAL, ERROR, WARN, INFO, DEBUG
  * The default level is WARN, which means that FATAL, ERROR and WARN level
- * messages are printed. You can change the messaging level with 
+ * messages are printed. You can change the messaging level with
  * setLevel(MsgLevel).
  * The method setName(const std::string&) sets a name (typically the module or
  * program name) which is included in every output.
@@ -38,26 +38,26 @@
  * (i)  Use the method print(MsgLevel level, const std::string& msg) to print
  *      a string.
  * (ii) Use the streaming operator << to generate more flexible output.
- *      The first input to the stream should be the level of the message, i.e. 
+ *      The first input to the stream should be the level of the message, i.e.
  *      MsgStream::FATAL. To terminate the line, use MsgStream::endl.
- *      
+ *
  * Usage example:
  *   MsgStream ms;
  *   ms.setLevel(MsgStream::INFO);
  *   ms.setName("my module");
  *   ms.print(MsgStream::INFO, "Just a short note.");
  *   ms << MsgStream::FATAL << "I have to die!" << MsgStream::endl;
- * 
+ *
  */
 
 class MsgStream {
 public:
 	typedef enum {
-	    FATAL=1, ERROR=2, WARN=3, INFO=4, DEBUG=5
+	    NONE = 0, FATAL=1, ERROR=2, WARN=3, INFO=4, DEBUG=5
 	} MsgLevel;
-	
+
 	typedef enum {endl} MsgControl;
-	
+
 	/**
 	 * Creates a new message stream.
 	 */
@@ -87,24 +87,26 @@ public:
 	 * @msg message to print
 	 */
 	void print(MsgLevel level, const std::string& msg);
+  std::ostream& print(MsgLevel level, const std::string& msg, std::ostream&, bool);
 
+  friend MsgStream& operator<<(MsgStream&, MsgStream::MsgLevel);
+  friend MsgStream& operator<<(MsgStream&, MsgStream::MsgControl);
+  friend MsgStream& operator<<(MsgStream&, const std::string&);
+  friend MsgStream& operator<<(MsgStream&, int16_t);
+  friend MsgStream& operator<<(MsgStream&, uint16_t);
+  friend MsgStream& operator<<(MsgStream&, int32_t);
+  friend MsgStream& operator<<(MsgStream&, uint32_t);
+  friend MsgStream& operator<<(MsgStream&, int64_t);
+  friend MsgStream& operator<<(MsgStream&, uint64_t);
 
 private:
 	void printIntro(MsgLevel level);
-	    
+  std::ostream& printIntro(MsgLevel level, std::ostream&, bool);
+
 	MsgLevel outputLevel;
 	std::string name;
 	bool printThis;
 
-	friend MsgStream& operator<<(MsgStream&, MsgStream::MsgLevel);
-	friend MsgStream& operator<<(MsgStream&, MsgStream::MsgControl);
-	friend MsgStream& operator<<(MsgStream&, const std::string&);
-	friend MsgStream& operator<<(MsgStream&, int16_t);
-	friend MsgStream& operator<<(MsgStream&, uint16_t);
-	friend MsgStream& operator<<(MsgStream&, int32_t);
-	friend MsgStream& operator<<(MsgStream&, uint32_t);
-	friend MsgStream& operator<<(MsgStream&, int64_t);
-	friend MsgStream& operator<<(MsgStream&, uint64_t);
 };
 
 inline MsgStream& operator<<(MsgStream& ms, MsgStream::MsgLevel input)
@@ -174,4 +176,4 @@ inline MsgStream& operator<<(MsgStream& ms, uint64_t input)
     return ms;
 }
 
-#endif 
+#endif

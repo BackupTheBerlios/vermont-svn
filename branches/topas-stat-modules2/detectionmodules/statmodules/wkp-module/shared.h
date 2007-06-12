@@ -147,6 +147,8 @@ class FilterEndPoint : public EndPoint
 
     short nmask;
 
+    friend std::ostream& operator << (std::ostream&, const FilterEndPoint&);
+
   public:
 
     FilterEndPoint() {
@@ -161,7 +163,7 @@ class FilterEndPoint : public EndPoint
 
     // Tests, if the endpoint given by the parameter matches with
     // the FilterEndPoint, after the netmask was applied
-    bool matchesWithEndPoint (const EndPoint &);
+    bool matchesWithEndPoint (const EndPoint &, const short &);
 
     void setNetmask (short n) {
       if (n >= 0 && n <= 32)
