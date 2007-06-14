@@ -240,6 +240,49 @@ void Stat::init(const std::string & configfile) {
     stop();
   }
 
+  // create file which contains all relevant config params
+  if (createFiles == true){
+    chdir(output_dir.c_str());
+    std::ofstream file("CONFIG");
+    if (use_pca == true) {
+      file << "PCA\n"
+           << "learning_phase_for_pca = " << learning_phase_for_pca << "\n";
+    }
+    else
+      file << "NORMAL\n";
+    file << "Metrics:\n";
+    for(int i = 0; i < metrics.size(); i++)
+      file << " - " << getMetricName(metrics.at(i)) << "\n";
+    file << "pause_update_when_attack = " << pause_update_when_attack << "\n"
+         << "report_only_first_attack = " << report_only_first_attack << "\n"
+         << "stat_test_frequency = " << stat_test_frequency << "\n";
+    config->enterNode("preferences");
+    file << "endpoint_key = " << config->getValue("endpoint_key") << "\n";
+    config->leaveNode();
+    file << "netmask = " << StatStore::getNetmask() << "\n"
+         << "noise_thresholds: packets = " << noise_threshold_packets
+         << "; bytes = " << noise_threshold_bytes << "\n\n";
+
+    if (enable_cusum_test == true) {
+      file << "CUSUM-PARAMS:\n";
+      file << "amplitude_percentage = " << amplitude_percentage << "\n"
+           << "repetition_factor = " << repetition_factor << "\n"
+           << "learning_phase_for_alpha = " << learning_phase_for_alpha << "\n"
+           << "smoothing_constant = " << smoothing_constant << "\n\n";
+    }
+    if (enable_wkp_test == true) {
+      file << "WKP-PARAMS:\n";
+      file << "sample_old_size = " << sample_old_size << "\n"
+           << "sample_new_size = " << sample_new_size << "\n"
+           << "two_sided = " << two_sided << "\n"
+           << "significance_level = " << significance_level << "\n";
+    }
+
+    file.close();
+
+    chdir("..");
+  }
+
   /* one should not forget to free "config" after use */
   delete config;
   msgStr.print(MsgStream::INFO, "Initialization complete.", logfile, true);
@@ -351,6 +394,38 @@ void Stat::init_logfile(XMLConfObj * config) {
       stop();
   }
 
+  std::stringstream Usage;
+  Usage
+    << "  O: no output generated\n"
+    << "  1: only p-values and attacks are recorded\n"
+    << "  2: same as 1, plus some cosmetics\n"
+    << "  3: same as 2, plus learning phases, updates and empty records events\n"
+    << "  4: same as 3, plus sample printing\n"
+    << "  5: same as 4, plus all details from statistical tests\n";
+
+  // extracting logfile output verbosity
+  if(!config->nodeExists("logfile_output_verbosity")) {
+    std::stringstream Warning;
+    Warning << "No logfile_output_verbosity parameter defined in XML config file! \"" << DEFAULT_logfile_output_verbosity << "\" assumed.\n";
+    msgStr.print(MsgStream::WARN, Warning.str() + Usage.str(), logfile, true);
+    logfile_output_verbosity = DEFAULT_logfile_output_verbosity;
+  }
+  else if (!(config->getValue("logfile_output_verbosity")).empty()) {
+    if ( 0 <= atoi( config->getValue("logfile_output_verbosity").c_str() )
+      && 5 >= atoi( config->getValue("logfile_output_verbosity").c_str() ) )
+      logfile_output_verbosity = atoi( config->getValue("logfile_output_verbosity").c_str() );
+    else {
+      msgStr.print(MsgStream::ERROR, "logfile_output_verbosity parameter defined in XML config file should be between 0 and 5. Please define it that way and restart.\n" + Usage.str() , logfile, true);
+      stop();
+    }
+  }
+  else {
+    std::stringstream Warning;
+    Warning << "No value for logfile_output_verbosity parameter defined in XML config file! \"" << DEFAULT_logfile_output_verbosity << "\" assumed.\n";
+    msgStr.print(MsgStream::WARN, Warning.str() + Usage.str(), logfile, true);
+    logfile_output_verbosity = DEFAULT_logfile_output_verbosity;
+  }
+
   return;
 }
 
@@ -417,46 +492,6 @@ void Stat::init_alarm_time(XMLConfObj * config) {
 }
 #endif
 
-
-void Stat::init_logfile_output_verbosity(XMLConfObj * config) {
-
-  std::stringstream Usage;
-  Usage
-    << "  O: no output generated\n"
-	  << "  1: only p-values and attacks are recorded\n"
-	  << "  2: same as 1, plus some cosmetics\n"
-	  << "  3: same as 2, plus learning phases, updates and empty records events\n"
-	  << "  4: same as 3, plus sample printing\n"
-	  << "  5: same as 4, plus all details from statistical tests\n";
-
-  // extracting output verbosity
-  if(!config->nodeExists("logfile_output_verbosity")) {
-    std::stringstream Warning;
-    Warning << "No logfile_output_verbosity parameter defined in XML config file! \"" << DEFAULT_logfile_output_verbosity << "\" assumed.";
-    msgStr.print(MsgStream::WARN, Warning.str(), logfile, true);
-    msgStr.print(MsgStream::WARN, Usage.str(), logfile, true);
-    logfile_output_verbosity = DEFAULT_logfile_output_verbosity;
-  }
-  else if (!(config->getValue("logfile_output_verbosity")).empty()) {
-    if ( 0 <= atoi( config->getValue("logfile_output_verbosity").c_str() )
-      && 5 >= atoi( config->getValue("logfile_output_verbosity").c_str() ) )
-      logfile_output_verbosity = atoi( config->getValue("logfile_output_verbosity").c_str() );
-    else {
-      msgStr.print(MsgStream::ERROR, "logfile_output_verbosity parameter defined in XML config file should be between 0 and 5. Please define it that way and restart." , logfile, true);
-      msgStr.print(MsgStream::ERROR, Usage.str(), logfile, true);
-      stop();
-    }
-  }
-  else {
-    std::stringstream Warning;
-    Warning << "No value for logfile_output_verbosity parameter defined in XML config file! \"" << DEFAULT_logfile_output_verbosity << "\" assumed.";
-    msgStr.print(MsgStream::WARN, Warning.str(), logfile, true);
-    msgStr.print(MsgStream::WARN, Usage.str() , logfile, true);
-    logfile_output_verbosity = DEFAULT_logfile_output_verbosity;
-  }
-
-  return;
-}
 
 void Stat::init_offline_file(XMLConfObj * config) {
 
@@ -635,8 +670,7 @@ void Stat::init_metrics(XMLConfObj * config) {
     << "  bytes_out(t)-bytes_out(t-1).\n";
 
   if (!config->nodeExists("metrics")) {
-    msgStr.print(MsgStream::ERROR, "No metrics parameter in XML config file! Please define one and restart.", logfile, true);
-    msgStr.print(MsgStream::ERROR, Usage.str(), logfile, true);
+    msgStr.print(MsgStream::ERROR, "No metrics parameter in XML config file! Please define one and restart.\n" + Usage.str(), logfile, true);
     stop();
   }
 
@@ -651,8 +685,7 @@ void Stat::init_metrics(XMLConfObj * config) {
       tmp_monitored_data.push_back(config->getNextValue());
   }
   else {
-    msgStr.print(MsgStream::ERROR, "No value parameter(s) defined for metrics in XML config file! Please define at least one and restart.", logfile, true);
-    msgStr.print(MsgStream::ERROR, Usage.str(), logfile, true);
+    msgStr.print(MsgStream::ERROR, "No value parameter(s) defined for metrics in XML config file! Please define at least one and restart.\n" + Usage.str(), logfile, true);
     stop();
   }
 
@@ -708,8 +741,7 @@ void Stat::init_metrics(XMLConfObj * config) {
            || 0 == strcasecmp("bytes_out(t)-bytes_out(t-1)",(*it).c_str()) )
       metrics.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
     else {
-        msgStr.print(MsgStream::ERROR, "Unknown value parameter(s) defined for metrics in XML config file! Please provide only valid <value>-parameters.", logfile, true);
-        msgStr.print(MsgStream::ERROR, Usage.str(), logfile, true);
+        msgStr.print(MsgStream::ERROR, "Unknown value parameter(s) defined for metrics in XML config file! Please provide only valid <value>-parameters.\n" + Usage.str(), logfile, true);
         stop();
       }
     it++;
@@ -957,7 +989,7 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
       uint16_t x_tmp = x_frequently_endpoints;
       x_frequently_endpoints = endPointCount.size();
       std::stringstream Warning;
-      Warning << "There are less than " << x_tmp << " (= x_frequently_endpoints) EndPoints to be monitored, thus only these " << endPointCount.size()
+      Warning << "There are less than " << x_tmp << " (= x_frequently_endpoints) EndPoints to be monitored, thus only those " << endPointCount.size()
         << " will be monitored.";
       msgStr.print(MsgStream::WARN, Warning.str(), logfile, true);
     }
@@ -1570,44 +1602,51 @@ void Stat::test(StatStore * store) {
 
       std::string fname;
 
-      if (use_pca == true)
-        fname = "pca_metrics_" + (Data_it->first).toString() + ".txt";
+      if (use_pca == true) {
+        // pca: don't create file(-name) until learning phase is over
+        if (pca_metric_data.size() > 0)
+          fname = "pca_metrics_" + (Data_it->first).toString() + ".txt";
+      }
       else
         fname = "metrics_" + (Data_it->first).toString() + ".txt";
 
-      chdir(output_dir.c_str());
+      // this check is needed, because if pca is enabled,
+      // files shouldn't be created until learning phase is over
+      if (!fname.empty()) {
+        chdir(output_dir.c_str());
 
-      std::ofstream file(fname.c_str(),std::ios_base::app);
+        std::ofstream file(fname.c_str(),std::ios_base::app);
 
-      // are we at the beginning of the file?
-      // if yes, write the metric names to the file ...
-      long pos;
-      pos = file.tellp();
+        // are we at the beginning of the file?
+        // if yes, write the metric names to the file ...
+        long pos;
+        pos = file.tellp();
 
-      if (use_pca == true) {
-        if (pos == 0) {
-          for (int i = 0; i != pca_metric_data.size(); i++)
-            file << "pca_comp_" << i << "\t";
-          file << "Test-Run" << "\n";
+        if (use_pca == true) {
+          if (pos == 0) {
+            for (int i = 0; i < pca_metric_data.size(); i++)
+              file << "pca_comp_" << i << "\t";
+            file << "Test-Run" << "\n";
+          }
+          for (int i = 0; i < pca_metric_data.size(); i++)
+            file << pca_metric_data.at(i) << "\t";
+          file << test_counter << "\n";
         }
-        for (int i = 0; i != pca_metric_data.size(); i++)
-          file << pca_metric_data.at(i) << "\t";
-        file << test_counter << "\n";
-      }
-      else {
-        if (pos == 0) {
-          for (int i = 0; i != metric_data.size(); i++)
-            file << getMetricName(metrics.at(i)) << "\t";
-          file << "Test-Run" << "\n";
+        else {
+          if (pos == 0) {
+            for (int i = 0; i < metric_data.size(); i++)
+              file << getMetricName(metrics.at(i)) << "\t";
+            file << "Test-Run" << "\n";
+          }
+          for (int i = 0; i < metric_data.size(); i++)
+            file << metric_data.at(i) << "\t";
+          file << test_counter << "\n";
         }
-        for (int i = 0; i != metric_data.size(); i++)
-          file << metric_data.at(i) << "\t";
-        file << test_counter << "\n";
+
+        file.close();
+
+        chdir("..");
       }
-
-      file.close();
-
-      chdir("..");
 
     }
 
@@ -2239,6 +2278,7 @@ void Stat::wkp_test (WkpParams & S) {
   // as the tests can be performed for several metrics, we have to
   // store, if at least one metric raised an alarm and if so, set
   // the last_test_was_attack-flag to true
+  // (otherwise, the last_test...-flag would be overwritten all the time)
   bool wmw_was_attack = false;
   bool ks_was_attack = false;
   bool pcs_was_attack = false;
@@ -2262,8 +2302,10 @@ void Stat::wkp_test (WkpParams & S) {
 
     // Wilcoxon-Mann-Whitney test:
     if (enable_wmw_test == true) {
+      // we need this copy, because the original gets overwritten before we check it ...
+      bool tmp = S.last_wmw_test_was_attack;
       p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
-      if (significance_level > p_wmw)
+      if (significance_level > p_wmw && (report_only_first_attack == false || tmp == false))
         (S.wmw_alarms).at(index)++;
       if (S.last_wmw_test_was_attack == true)
         wmw_was_attack = true;
@@ -2271,8 +2313,10 @@ void Stat::wkp_test (WkpParams & S) {
 
     // Kolmogorov-Smirnov test:
     if (enable_ks_test == true) {
+      // we need this copy, because the original gets overwritten before we check it ...
+      bool tmp = S.last_ks_test_was_attack;
       p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
-      if (significance_level > p_ks)
+      if (significance_level > p_ks && (report_only_first_attack == false || tmp == false))
         (S.ks_alarms).at(index)++;
       if (S.last_ks_test_was_attack == true)
         ks_was_attack = true;
@@ -2280,8 +2324,9 @@ void Stat::wkp_test (WkpParams & S) {
 
     // Pearson chi-square test:
     if (enable_pcs_test == true) {
+      bool tmp = S.last_pcs_test_was_attack;
       p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
-      if (significance_level > p_pcs)
+      if (significance_level > p_pcs && (report_only_first_attack == false || tmp == false))
         (S.pcs_alarms).at(index)++;
       if (S.last_pcs_test_was_attack == true)
         pcs_was_attack = true;
@@ -2322,6 +2367,13 @@ void Stat::wkp_test (WkpParams & S) {
       if (i != std::string::npos)
         str_p_pcs.replace(i, 1, 1, ',');
 
+      std::stringstream tmp4;
+      tmp4 << significance_level;
+      std::string slevel = tmp4.str();
+      i = slevel.find('.',0);
+      if (i != std::string::npos)
+        slevel.replace(i, 1, 1, ',');
+
       chdir(output_dir.c_str());
 
       std::ofstream file(filename.c_str(), std::ios_base::app);
@@ -2334,7 +2386,7 @@ void Stat::wkp_test (WkpParams & S) {
       if (pos == 0) {
         file << "Value" << "\t" << "p (wmw)" << "\t" << "alarms (wmw)" << "\t"
         << "p (ks)" << "\t" << "alarms (ks)" << "\t" << "p (pcs)" << "\t"
-        << "alarms (pcs)" << "\t" << "Test-Run\n";
+        << "alarms (pcs)" << "\t" << "Slevel" << "\t" << "Test-Run\n";
       }
 
       // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
@@ -2342,7 +2394,8 @@ void Stat::wkp_test (WkpParams & S) {
       file << sample_new_single_metric.back() << "\t" << str_p_wmw << "\t"
           << (S.wmw_alarms).at(index) << "\t" << str_p_ks << "\t"
           << (S.ks_alarms).at(index) << "\t" << str_p_pcs << "\t"
-          << (S.pcs_alarms).at(index) << "\t" << test_counter << "\n";
+          << (S.pcs_alarms).at(index) << "\t" << slevel << "\t"
+          << test_counter << "\n";
       file.close();
       chdir("..");
     }
@@ -2413,6 +2466,9 @@ void Stat::cusum_test(CusumParams & C) {
 
       if (report_only_first_attack == false
         || C.last_cusum_test_was_attack.at(i) == false) {
+
+        (C.cusum_alarms).at(i)++;
+
         if (logfile_output_verbosity >= 2) {
           logfile
             << "    ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
@@ -2427,6 +2483,7 @@ void Stat::cusum_test(CusumParams & C) {
         }
         if (logfile_output_verbosity == 1) {
           logfile << "cusum: attack for metric " << getMetricName(*it) << " detected!\n" << std::flush;
+          std::cout << "cusum: attack for metric " << getMetricName(*it) << " detected!\n" << std::endl;
         }
         #ifdef IDMEF_SUPPORT_ENABLED
           idmefMessage.setAnalyzerAttr("", "", "cusum-test", "");
@@ -2435,7 +2492,6 @@ void Stat::cusum_test(CusumParams & C) {
         #endif
       }
 
-      (C.cusum_alarms).at(i)++;
       was_attack.at(i) = true;
 
     }

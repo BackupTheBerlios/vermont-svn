@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+
 	<xmlBlasters>
 	  <xmlBlaster>
 		  <prop>managerID module-manager</prop>
@@ -10,20 +11,25 @@
 		  <prop>log4cplus.rootLogger WARN, STDOUT</prop>
 		</xmlBlaster>
 	</xmlBlasters>
+
 	<preferences>
     <logfile>wkp.log</logfile>
-    <logfile_output_verbosity>0</logfile_output_verbosity>
-    <warning_verbosity>1</warning_verbosity>
+    <logfile_output_verbosity>3</logfile_output_verbosity>
+    <warning_verbosity>5</warning_verbosity>
     <accepted_source_ids>all</accepted_source_ids>
     <alarm_time>10</alarm_time>
-    <endpoint_key>ip</endpoint_key>
-  <netmask>32</netmask>
-  <offline_file>offlinefile.txt</offline_file>
-  <output_dir>results</output_dir>
-  <endpoints_to_monitor>wkp-eps.txt</endpoints_to_monitor>
-  <x_frequently_endpoints>5</x_frequently_endpoints>
+
+    <endpoint_key>all</endpoint_key>
+    <netmask>32</netmask>
+
+    <offline_file>darpa2_all_10.txt</offline_file>
+    <output_dir></output_dir>
+    <endpoints_to_monitor>all</endpoints_to_monitor>
+    <x_frequently_endpoints>5</x_frequently_endpoints>
+
     <use_pca>false</use_pca>
     <pca_learning_phase>25</pca_learning_phase>
+
     <metrics>
       <value>packets_in</value>
       <value>packets_out</value>
@@ -44,6 +50,7 @@
       <value>bytes_in(t)-bytes_in(t-1)</value>
       <value>bytes_out(t)-bytes_out(t-1)</value>
     </metrics>
+
     <noise_threshold_packets>0</noise_threshold_packets>
     <noise_threshold_bytes>0</noise_threshold_bytes>
     <endpointlist_maxsize>1000000</endpointlist_maxsize>
@@ -51,6 +58,7 @@
     <report_only_first_attack>true</report_only_first_attack>
     <pause_update_when_attack>3</pause_update_when_attack>
 	</preferences>
+
   <cusum-test-params>
     <cusum_test>true</cusum_test>
     <amplitude_percentage>1.66</amplitude_percentage>
@@ -58,6 +66,7 @@
     <learning_phase_for_alpha>50</learning_phase_for_alpha>
     <smoothing_constant>0.05</smoothing_constant>
   </cusum-test-params>
+
 	<wkp-test-params>
 		<wilcoxon_test>true</wilcoxon_test>
 		<kolmogorov_test>true</kolmogorov_test>
@@ -67,4 +76,5 @@
 		<two_sided>false</two_sided>
 		<significance_level>0.01</significance_level>
 	</wkp-test-params>
+
 </configuration>

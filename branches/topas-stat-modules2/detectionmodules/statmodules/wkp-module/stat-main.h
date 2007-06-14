@@ -120,7 +120,6 @@ class Stat
   void init_accepted_source_ids(XMLConfObj *);
   void init_alarm_time(XMLConfObj *);
   void init_warning_verbosity(XMLConfObj *);
-  void init_logfile_output_verbosity(XMLConfObj *);
   void init_offline_file(XMLConfObj *);
   void init_output_dir(XMLConfObj *);
   void init_endpoint_key(XMLConfObj *);
