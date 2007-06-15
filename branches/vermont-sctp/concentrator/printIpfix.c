@@ -77,6 +77,7 @@ void stopIpfixPrinter(IpfixPrinter* ipfixPrinter) {
 int printTemplate(void* ipfixPrinter, SourceID* sourceID, TemplateInfo* templateInfo) {
 	printf("\n-+--- Template\n");
 	printf(" `---\n\n");
+	printf("    TepmlateID : %d \n\n",templateInfo->templateId);
 
 	return 0;
 }

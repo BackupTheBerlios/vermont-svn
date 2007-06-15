@@ -202,9 +202,15 @@ enum ipfix_transport_protocol {UDP, TCP, SCTP};
 /*
  * These indicate, if a field is commited (i.e. can be used)
  * unused or unclean (i.e. data is not complete yet)
- *
  */
 enum ipfix_validity {UNUSED, UNCLEAN, COMMITED};
+
+/*
+ * NEW Template is new and ready to be sent
+ * SENT (Template was sent) and WiTHDRAWN (Template destroyed) are used with SCTP, since Templates are 
+ * sent only once
+ */
+enum ipfix_sctp_validity {INVALID, NEW, SENT, WITHDRAWN};
 
 /*
  * Manages a record set
@@ -266,6 +272,7 @@ typedef struct {
  */
 typedef struct{
 	enum ipfix_validity valid; // indicates, wheter this template is valid.
+	enum ipfix_sctp_validity sctp_valid; // validity used by SCTP
 	uint16_t template_id;
 	uint16_t field_count;
 	int fields_length;
@@ -281,6 +288,7 @@ typedef struct {
 	uint32_t sequence_number;
 	uint32_t source_id;
 	ipfix_sendbuffer *template_sendbuffer;
+	ipfix_sendbuffer *sctp_template_sendbuffer;
 	ipfix_sendbuffer *data_sendbuffer;
 	int collector_num; // number of currently listening collectors
 	int collector_max_num; // maximum available collector
@@ -293,6 +301,10 @@ typedef struct {
 	uint32_t template_transmission_timer;
 	// lifetime of an SCTP data packet
 	uint32_t sctp_lifetime;
+	// indicates whether new templates or withdrawal messages are available
+	// in the template_sendbuffer (only used by SCTP)
+	int template_sendbuffer_changed;
+
 	int ipfix_lo_template_maxsize;
 	int ipfix_lo_template_current_count;
 	ipfix_lo_template *template_arr;
