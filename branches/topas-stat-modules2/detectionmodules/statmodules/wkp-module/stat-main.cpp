@@ -52,10 +52,10 @@ Stat::Stat(const std::string & configfile)
 
   // signal handlers
   if (signal(SIGTERM, sigTerm) == SIG_ERR) {
-    msg(MSG_ERROR, "wkp-module: Couldn't install signal handler for SIGTERM.\n ");
+    msg(MSG_ERROR, "wkp-module: Couldn't install signal handler for SIGTERM. Exiting. ");
   }
   if (signal(SIGINT, sigInt) == SIG_ERR) {
-    msg(MSG_ERROR, "wkp-module: Couldn't install signal handler for SIGINT.\n ");
+    msg(MSG_ERROR, "wkp-module: Couldn't install signal handler for SIGINT. Exiting. ");
   }
 
   // lock, will be unlocked at the end of init() (cf. StatStore class header):
@@ -235,7 +235,7 @@ void Stat::init(const std::string & configfile) {
 
   // if no test is enabled, it doesnt make sense to run the module
   if (enable_wkp_test == false && enable_cusum_test == false) {
-    msgStr.print(MsgStream::ERROR, "There is no test enabled! Please enable at least one test and restart! Exiting...", logfile, true);
+    msgStr.print(MsgStream::ERROR, "There is no test enabled! Please enable at least one test and restart! Exiting.", logfile, true);
     delete config;
     stop();
   }
@@ -320,7 +320,7 @@ void Stat::init_warning_verbosity(XMLConfObj * config) {
     << "No value for warning_verbosity parameter defined in XML config file!"
     << " \"" << DEFAULT_warning_verbosity << "\" assumed.\n";
   Usage
-    << "  O: no module messages\n"
+    << "  0: no module messages\n"
     << "  1: fatal errors only\n"
     << "  2: same as 1 + normal errors\n"
     << "  3: same as 2 + warnings\n"
@@ -339,7 +339,7 @@ void Stat::init_warning_verbosity(XMLConfObj * config) {
         && atoi(config->getValue("warning_verbosity").c_str()) <= 5 )
       warning_verbosity = atoi(config->getValue("warning_verbosity").c_str());
     else {
-      msgStr.print(MsgStream::ERROR, "Value of warning_verbosity parameter defined in XML config file should be between 0 and 5. Please define it that way and restart.\n" + Usage.str());
+      msgStr.print(MsgStream::ERROR, "Value of warning_verbosity parameter defined in XML config file should be between 0 and 5. Please define it that way and restart.\n" + Usage.str() + "\nExiting.");
       stop();
     }
   }
@@ -396,7 +396,7 @@ void Stat::init_logfile(XMLConfObj * config) {
 
   std::stringstream Usage;
   Usage
-    << "  O: no output generated\n"
+    << "  0: no output generated\n"
     << "  1: only p-values and attacks are recorded\n"
     << "  2: same as 1, plus some cosmetics\n"
     << "  3: same as 2, plus learning phases, updates and empty records events\n"
@@ -415,7 +415,7 @@ void Stat::init_logfile(XMLConfObj * config) {
       && 5 >= atoi( config->getValue("logfile_output_verbosity").c_str() ) )
       logfile_output_verbosity = atoi( config->getValue("logfile_output_verbosity").c_str() );
     else {
-      msgStr.print(MsgStream::ERROR, "logfile_output_verbosity parameter defined in XML config file should be between 0 and 5. Please define it that way and restart.\n" + Usage.str() , logfile, true);
+      msgStr.print(MsgStream::ERROR, "logfile_output_verbosity parameter defined in XML config file should be between 0 and 5. Please define it that way and restart.\n" + Usage.str() + "Exiting." , logfile, true);
       stop();
     }
   }
@@ -581,7 +581,7 @@ void Stat::init_endpoint_key(XMLConfObj * config) {
       #endif
       }
       else {
-        msgStr.print(MsgStream::ERROR, "Unknown value defined for endpoint_key parameter in XML config file! Value should be either port, ip, protocol OR any combination of them (seperated via spaces) OR \"all\" OR \"none\".", logfile, true);
+        msgStr.print(MsgStream::ERROR, "Unknown value defined for endpoint_key parameter in XML config file! Value should be either port, ip, protocol OR any combination of them (seperated via spaces) OR \"all\" OR \"none\". Exiting.", logfile, true);
         stop();
       }
     }
@@ -609,7 +609,7 @@ void Stat::init_netmask(XMLConfObj * config) {
   if (atoi(config->getValue("netmask").c_str()) >= 0 && atoi(config->getValue("netmask").c_str()) <= 32)
     StatStore::setNetmask() = atoi(config->getValue("netmask").c_str());
   else {
-    msgStr.print(MsgStream::ERROR, "Unknown value for netmask parameter in XML config file! Please choose a value between 0 and 32 and restart.", logfile, true);
+    msgStr.print(MsgStream::ERROR, "Unknown value for netmask parameter in XML config file! Please choose a value between 0 and 32 and restart. Exiting.", logfile, true);
     stop();
   }
 
@@ -670,7 +670,7 @@ void Stat::init_metrics(XMLConfObj * config) {
     << "  bytes_out(t)-bytes_out(t-1).\n";
 
   if (!config->nodeExists("metrics")) {
-    msgStr.print(MsgStream::ERROR, "No metrics parameter in XML config file! Please define one and restart.\n" + Usage.str(), logfile, true);
+    msgStr.print(MsgStream::ERROR, "No metrics parameter in XML config file! Please define one and restart.\n" + Usage.str() + "Exiting.", logfile, true);
     stop();
   }
 
@@ -685,7 +685,7 @@ void Stat::init_metrics(XMLConfObj * config) {
       tmp_monitored_data.push_back(config->getNextValue());
   }
   else {
-    msgStr.print(MsgStream::ERROR, "No value parameter(s) defined for metrics in XML config file! Please define at least one and restart.\n" + Usage.str(), logfile, true);
+    msgStr.print(MsgStream::ERROR, "No value parameter(s) defined for metrics in XML config file! Please define at least one and restart.\n" + Usage.str() + "Exiting.", logfile, true);
     stop();
   }
 
@@ -741,7 +741,7 @@ void Stat::init_metrics(XMLConfObj * config) {
            || 0 == strcasecmp("bytes_out(t)-bytes_out(t-1)",(*it).c_str()) )
       metrics.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
     else {
-        msgStr.print(MsgStream::ERROR, "Unknown value parameter(s) defined for metrics in XML config file! Please provide only valid <value>-parameters.\n" + Usage.str(), logfile, true);
+        msgStr.print(MsgStream::ERROR, "Unknown value parameter(s) defined for metrics in XML config file! Please provide only valid <value>-parameters.\n" + Usage.str() + "Exiting.", logfile, true);
         stop();
       }
     it++;
@@ -1045,7 +1045,7 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
 
   std::ifstream f(config->getValue("endpoints_to_monitor").c_str());
   if (f.is_open() == false) {
-    msgStr.print(MsgStream::ERROR, "The endpoints_to_monitor file (" + config->getValue("endpoints_to_monitor") + ") couldnt be opened! Please define the correct filter file or set this parameter to \"all\" to consider every EndPoint.", logfile, true);
+    msgStr.print(MsgStream::ERROR, "The endpoints_to_monitor file (" + config->getValue("endpoints_to_monitor") + ") couldnt be opened! Please define the correct filter file or set this parameter to \"all\" to consider every EndPoint. Exiting.", logfile, true);
     stop();
   }
   std::string tmp;
@@ -1135,7 +1135,7 @@ void Stat::init_pause_update_when_attack(XMLConfObj * config) {
           << "  0: no pausing\n"
           << "  1: pause, if one test detected an attack\n"
           << "  2: pause, if all tests detected an attack\n"
-          << "  3: pause for every metric individually (for cusum only)\n";
+          << "  3: pause for every metric individually (for cusum only)\nExiting.";
         msgStr.print(MsgStream::ERROR, Error.str(), logfile, true);
         stop();
         break;
@@ -1222,7 +1222,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
       if ( atoi(config->getValue("learning_phase_for_alpha").c_str()) > 0)
         learning_phase_for_alpha = atoi(config->getValue("learning_phase_for_alpha").c_str());
       else {
-        msgStr.print(MsgStream::ERROR, "Value for learning_phase_for_alpha parameter is zero or negative. Please define a positive value and restart!", logfile, true);
+        msgStr.print(MsgStream::ERROR, "Value for learning_phase_for_alpha parameter is zero or negative. Please define a positive value and restart. Exiting.", logfile, true);
         stop();
       }
     }
@@ -1240,7 +1240,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
       if ( atof(config->getValue("smoothing_constant").c_str()) > 0.0)
         smoothing_constant = atof(config->getValue("smoothing_constant").c_str());
       else {
-        msgStr.print(MsgStream::ERROR, "Value for smoothing_constant parameter is zero or negative. Please define a positive value and restart!", logfile, true);
+        msgStr.print(MsgStream::ERROR, "Value for smoothing_constant parameter is zero or negative. Please define a positive value and restart. Exiting.", logfile, true);
         stop();
       }
     }
@@ -1258,7 +1258,7 @@ void Stat::init_cusum_test(XMLConfObj * config) {
       if ( atoi(config->getValue("repetition_factor").c_str()) > 0)
         repetition_factor = atoi(config->getValue("repetition_factor").c_str());
       else {
-        msgStr.print(MsgStream::ERROR, "Value for repetition_factor parameter is zero or negative. Please define a positive integer value and restart!", logfile, true);
+        msgStr.print(MsgStream::ERROR, "Value for repetition_factor parameter is zero or negative. Please define a positive integer value and restart. Exiting.", logfile, true);
         stop();
       }
     }
@@ -1391,7 +1391,7 @@ void Stat::init_significance_level(XMLConfObj * config) {
         && 1 >= atof( config->getValue("significance_level").c_str() ) )
         significance_level = atof( config->getValue("significance_level").c_str() );
       else {
-        msgStr.print(MsgStream::ERROR, "significance_level parameter should be between 0 and 1!", logfile, true);
+        msgStr.print(MsgStream::ERROR, "significance_level parameter should be between 0 and 1. Exiting.", logfile, true);
         stop();
       }
     }
@@ -1605,10 +1605,10 @@ void Stat::test(StatStore * store) {
       if (use_pca == true) {
         // pca: don't create file(-name) until learning phase is over
         if (pca_metric_data.size() > 0)
-          fname = "pca_metrics_" + (Data_it->first).toString() + ".txt";
+          fname = (Data_it->first).toString() + "_pca_metrics.txt";
       }
       else
-        fname = "metrics_" + (Data_it->first).toString() + ".txt";
+        fname = (Data_it->first).toString() + "_metrics.txt";
 
       // this check is needed, because if pca is enabled,
       // files shouldn't be created until learning phase is over
@@ -1926,10 +1926,7 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
         break;
 
       default:
-        std::cerr << "ERROR: metrics seems to be empty "
-        << "or it holds an unknown type which isnt supported yet."
-        << "But this shouldnt happen as the init_metrics"
-        << "-function handles that.\nExiting.\n";
+        msgStr.print(MsgStream::ERROR, "metrics seems to be empty or it holds an unknown type which isnt supported yet. But this shouldnt happen as the init_metrics function handles that. Please ckeck your configuration file. Exiting.", logfile, true);
         stop();
     }
 
@@ -2337,13 +2334,14 @@ void Stat::wkp_test (WkpParams & S) {
 
       std::string filename;
       if (use_pca == false)
-        filename = "wkpparams_" + S.correspondingEndPoint + "_" + getMetricName(*it) + ".txt";
+        filename = S.correspondingEndPoint + "." + getMetricName(*it) + "_metric.wkpparams.txt";
       else {
         std::stringstream tmp;
         tmp << index;
-        filename = "wkpparams_" + S.correspondingEndPoint  + "_pca_component_" + tmp.str() + ".txt";
+        filename = S.correspondingEndPoint + "." + tmp.str() + "_pca_component.wkpparams.txt";
       }
 
+/*
       // replace the decimal point by a comma
       // (open office cant handle points in decimal numbers ;) )
       std::stringstream tmp1;
@@ -2373,6 +2371,7 @@ void Stat::wkp_test (WkpParams & S) {
       i = slevel.find('.',0);
       if (i != std::string::npos)
         slevel.replace(i, 1, 1, ',');
+*/
 
       chdir(output_dir.c_str());
 
@@ -2384,11 +2383,12 @@ void Stat::wkp_test (WkpParams & S) {
       pos = file.tellp();
 
       if (pos == 0) {
-        file << "Value" << "\t" << "p (wmw)" << "\t" << "alarms (wmw)" << "\t"
-        << "p (ks)" << "\t" << "alarms (ks)" << "\t" << "p (pcs)" << "\t"
-        << "alarms (pcs)" << "\t" << "Slevel" << "\t" << "Test-Run\n";
+        file << "#Value" << "\t" << "p(wmw)" << "\t" << "alarms(wmw)" << "\t"
+        << "p(ks)" << "\t" << "alarms(ks)" << "\t" << "p(pcs)" << "\t"
+        << "alarms(pcs)" << "\t" << "Slevel" << "\t" << "Test-Run\n";
       }
 
+/*
       // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
       // p-value(pcs) #alarms(pcs) counter
       file << sample_new_single_metric.back() << "\t" << str_p_wmw << "\t"
@@ -2396,6 +2396,15 @@ void Stat::wkp_test (WkpParams & S) {
           << (S.ks_alarms).at(index) << "\t" << str_p_pcs << "\t"
           << (S.pcs_alarms).at(index) << "\t" << slevel << "\t"
           << test_counter << "\n";
+*/
+      // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
+      // p-value(pcs) #alarms(pcs) counter
+      file << sample_new_single_metric.back() << "\t" << p_wmw << "\t"
+          << (S.wmw_alarms).at(index) << "\t" << p_ks << "\t"
+          << (S.ks_alarms).at(index) << "\t" << p_pcs << "\t"
+          << (S.pcs_alarms).at(index) << "\t" << significance_level << "\t"
+          << test_counter << "\n";
+
       file.close();
       chdir("..");
     }
@@ -2500,11 +2509,11 @@ void Stat::cusum_test(CusumParams & C) {
 
       std::string filename;
       if (use_pca == false)
-        filename = "cusumparams_" + C.correspondingEndPoint  + "_" + getMetricName(*it) + ".txt";
+        filename = C.correspondingEndPoint  + "." + getMetricName(*it) + "_metric.cusumparams.txt";
       else {
         std::stringstream tmp;
         tmp << i;
-        filename = "cusumparams_" + C.correspondingEndPoint  + "_pca_component_" + tmp.str() + ".txt";
+        filename = C.correspondingEndPoint  + "." + tmp.str() + "_pca_component.cusumparams.txt";
       }
 
       chdir(output_dir.c_str());
@@ -2517,7 +2526,7 @@ void Stat::cusum_test(CusumParams & C) {
       pos = file.tellp();
 
       if (pos == 0) {
-        file << "Value" << "\t" << "g" << "\t" << "N" << "\t"
+        file << "#Value" << "\t" << "g" << "\t" << "N" << "\t"
         << "alpha" << "\t" << "beta" << "\t" << "alarms"
         << "\t" << "Test-Run\n";
       }
@@ -2594,8 +2603,7 @@ std::string Stat::getMetricName(const enum Metric & m) {
     case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
       return std::string("bytes_out(t)-bytes_out(t-1)");
     default:
-      std::cerr << "ERROR: Unknown type of Metric in getMetricName().\n"
-                << "Exiting.\n";
+      msgStr.print(MsgStream::ERROR, "Unknown type of Metric in getMetricName(). Exiting.", logfile, true);
       stop();
   }
 }
