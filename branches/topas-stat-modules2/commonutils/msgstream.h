@@ -144,7 +144,7 @@ inline MsgStream& operator<<(MsgStream& ms, int16_t input)
 inline MsgStream& operator<<(MsgStream& ms, uint16_t input)
 {
     if(ms.printThis)
-	std::cout << input;
+ std::cout << input;
     return ms;
 }
 

@@ -665,9 +665,9 @@ void Stat::init_metrics(XMLConfObj * config) {
     << "  packets_in, packets_out, bytes_in, bytes_out, records_in, records_out, "
     << "  bytes_in/packet_in, bytes_out/packet_out, packets_in/record_in, "
     << "  packets_out/record_out, bytes_in/record_in, bytes_out/record_out, "
-    << "  packets_out-packets_in, bytes_out-bytes_in, packets_in(t)-packets_in(t-1), "
-    << "  packets_out(t)-packets_out(t-1), bytes_in(t)-bytes_in(t-1) or "
-    << "  bytes_out(t)-bytes_out(t-1).\n";
+    << "  packets_out-packets_in, bytes_out-bytes_in, records_out-records_in, packets_in(t)-packets_in(t-1), "
+    << "  packets_out(t)-packets_out(t-1), bytes_in(t)-bytes_in(t-1), bytes_out(t)-bytes_out(t-1),"
+    << "  records_in(t)-records_in(t-1) or records_out(t)-records_out(t-1).\n";
 
   if (!config->nodeExists("metrics")) {
     msgStr.print(MsgStream::ERROR, "No metrics parameter in XML config file! Please define one and restart.\n" + Usage.str() + "Exiting.", logfile, true);
@@ -730,6 +730,8 @@ void Stat::init_metrics(XMLConfObj * config) {
     else if ( 0 == strcasecmp("octets_out-octets_in",(*it).c_str())
            || 0 == strcasecmp("bytes_out-bytes_in",(*it).c_str()) )
       metrics.push_back(BYTES_OUT_MINUS_BYTES_IN);
+    else if( 0 == strcasecmp("records_out-records_in",(*it).c_str()) )
+      metrics.push_back(RECORDS_OUT_MINUS_RECORDS_IN);
     else if ( 0 == strcasecmp("packets_in(t)-packets_in(t-1)",(*it).c_str()) )
       metrics.push_back(PACKETS_T_IN_MINUS_PACKETS_T_1_IN);
     else if ( 0 == strcasecmp("packets_out(t)-packets_out(t-1)",(*it).c_str()) )
@@ -740,6 +742,10 @@ void Stat::init_metrics(XMLConfObj * config) {
     else if ( 0 == strcasecmp("octets_out(t)-octets_out(t-1)",(*it).c_str())
            || 0 == strcasecmp("bytes_out(t)-bytes_out(t-1)",(*it).c_str()) )
       metrics.push_back(BYTES_T_OUT_MINUS_BYTES_T_1_OUT);
+    else if ( 0 == strcasecmp("records_in(t)-records_in(t-1)",(*it).c_str()) )
+      metrics.push_back(RECORDS_T_IN_MINUS_RECORDS_T_1_IN);
+    else if ( 0 == strcasecmp("records_out(t)-records_out(t-1)",(*it).c_str()) )
+      metrics.push_back(RECORDS_T_OUT_MINUS_RECORDS_T_1_OUT);
     else {
         msgStr.print(MsgStream::ERROR, "Unknown value parameter(s) defined for metrics in XML config file! Please provide only valid <value>-parameters.\n" + Usage.str() + "Exiting.", logfile, true);
         stop();
@@ -1874,10 +1880,13 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
           result.push_back(0);
         break;
 
+      // NOTE: for the following 8 metrics, we use the absolute value to get
+      // better results with our tests (negative values causes bias)
+
       case PACKETS_OUT_MINUS_PACKETS_IN:
         if (info.packets_out >= noise_threshold_packets
          || info.packets_in  >= noise_threshold_packets )
-          result.push_back(info.packets_out - info.packets_in);
+          result.push_back(abs(info.packets_out - info.packets_in));
         else
           result.push_back(0);
         break;
@@ -1885,9 +1894,13 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
       case BYTES_OUT_MINUS_BYTES_IN:
         if (info.bytes_out >= noise_threshold_bytes
          || info.bytes_in  >= noise_threshold_bytes )
-          result.push_back(info.bytes_out - info.bytes_in);
+          result.push_back(abs(info.bytes_out - info.bytes_in));
         else
           result.push_back(0);
+        break;
+
+      case RECORDS_OUT_MINUS_RECORDS_IN:
+        result.push_back(abs(info.records_out - info.records_in));
         break;
 
       case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
@@ -1896,7 +1909,7 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
           // prev holds the data for the same EndPoint as info
           // from the last call to test()
           // it is updated at the beginning of the while-loop in test()
-          result.push_back(info.packets_in - prev.packets_in);
+          result.push_back(abs(info.packets_in - prev.packets_in));
         else
           result.push_back(0);
         break;
@@ -1904,7 +1917,7 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
       case PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
         if (info.packets_out >= noise_threshold_packets
          || prev.packets_out >= noise_threshold_packets)
-          result.push_back(info.packets_out - prev.packets_out);
+          result.push_back(abs(info.packets_out - prev.packets_out));
         else
           result.push_back(0);
         break;
@@ -1912,7 +1925,7 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
       case BYTES_T_IN_MINUS_BYTES_T_1_IN:
         if (info.bytes_in >= noise_threshold_bytes
          || prev.bytes_in >= noise_threshold_bytes)
-          result.push_back(info.bytes_in - prev.bytes_in);
+          result.push_back(abs(info.bytes_in - prev.bytes_in));
         else
           result.push_back(0);
         break;
@@ -1920,9 +1933,17 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
       case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
         if (info.bytes_out >= noise_threshold_bytes
          || prev.bytes_out >= noise_threshold_bytes)
-          result.push_back(info.bytes_out - prev.bytes_out);
+          result.push_back(abs(info.bytes_out - prev.bytes_out));
         else
           result.push_back(0);
+        break;
+
+      case RECORDS_T_IN_MINUS_RECORDS_T_1_IN:
+        result.push_back(abs(info.records_in - prev.records_in));
+        break;
+
+      case RECORDS_T_OUT_MINUS_RECORDS_T_1_OUT:
+        result.push_back(abs(info.records_out - prev.records_out));
         break;
 
       default:
@@ -2594,6 +2615,8 @@ std::string Stat::getMetricName(const enum Metric & m) {
       return std::string("packets_out-packets_in");
     case BYTES_OUT_MINUS_BYTES_IN:
       return std::string("bytes_out-bytes_in");
+    case RECORDS_OUT_MINUS_RECORDS_IN:
+      return std::string("records_out-records_in");
     case PACKETS_T_IN_MINUS_PACKETS_T_1_IN:
       return std::string("packets_in(t)-packets_in(t-1)");
     case PACKETS_T_OUT_MINUS_PACKETS_T_1_OUT:
@@ -2602,6 +2625,10 @@ std::string Stat::getMetricName(const enum Metric & m) {
       return std::string("bytes_in(t)-bytes_in(t-1)");
     case BYTES_T_OUT_MINUS_BYTES_T_1_OUT:
       return std::string("bytes_out(t)-bytes_out(t-1)");
+    case RECORDS_T_IN_MINUS_RECORDS_T_1_IN:
+      return std::string("records_in(t)-records_in(t-1)");
+    case RECORDS_T_OUT_MINUS_RECORDS_T_1_OUT:
+      return std::string("records_out(t)-records_out(t-1)");
     default:
       msgStr.print(MsgStream::ERROR, "Unknown type of Metric in getMetricName(). Exiting.", logfile, true);
       stop();
