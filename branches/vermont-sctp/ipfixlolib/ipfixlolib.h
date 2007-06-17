@@ -202,15 +202,11 @@ enum ipfix_transport_protocol {UDP, TCP, SCTP};
 /*
  * These indicate, if a field is commited (i.e. can be used)
  * unused or unclean (i.e. data is not complete yet)
+ * SENT (Template was sent) and WiTHDRAWN (Template destroyed) 
+ * are used with SCTP, since Templates are sent only once
+ * TOBEDELETED templates will be deleted the next time when the buffer is updated
  */
-enum ipfix_validity {UNUSED, UNCLEAN, COMMITED};
-
-/*
- * NEW Template is new and ready to be sent
- * SENT (Template was sent) and WiTHDRAWN (Template destroyed) are used with SCTP, since Templates are 
- * sent only once
- */
-enum ipfix_sctp_validity {INVALID, NEW, SENT, WITHDRAWN};
+enum ipfix_validity {UNUSED, UNCLEAN, COMMITED, SENT, WITHDRAWN, TOBEDELETED};
 
 /*
  * Manages a record set
@@ -262,8 +258,8 @@ typedef struct {
 	char ipv4address[16];
 	int port_number;
 	enum ipfix_transport_protocol protocol;
-	// warning! To use SCTP, we will need several ports! ALEX: Only one Port needed for SCTP 
 	int data_socket; // socket data is sent to
+	struct sockaddr_in addr;
 	int template_socket; // socket, templates are sent to
 } ipfix_receiving_collector;
 
@@ -272,7 +268,6 @@ typedef struct {
  */
 typedef struct{
 	enum ipfix_validity valid; // indicates, wheter this template is valid.
-	enum ipfix_sctp_validity sctp_valid; // validity used by SCTP
 	uint16_t template_id;
 	uint16_t field_count;
 	int fields_length;
@@ -301,9 +296,6 @@ typedef struct {
 	uint32_t template_transmission_timer;
 	// lifetime of an SCTP data packet
 	uint32_t sctp_lifetime;
-	// indicates whether new templates or withdrawal messages are available
-	// in the template_sendbuffer (only used by SCTP)
-	int template_sendbuffer_changed;
 
 	int ipfix_lo_template_maxsize;
 	int ipfix_lo_template_current_count;
