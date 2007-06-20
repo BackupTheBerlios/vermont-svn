@@ -29,6 +29,8 @@ static const char rcsid[] _U_ =
 #include "config.h"
 #endif
 
+#define yylval pcap_lval
+
 #ifdef WIN32
 #include <pcap-stdinc.h>
 #else /* WIN32 */
