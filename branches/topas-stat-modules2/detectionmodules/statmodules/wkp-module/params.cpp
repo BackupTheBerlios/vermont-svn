@@ -15,6 +15,7 @@ void Params::init(int size) {
 
     learning_phase_nr_for_pca = 0;
     pca_ready = false;
+    updated = false;
 
     return;
 

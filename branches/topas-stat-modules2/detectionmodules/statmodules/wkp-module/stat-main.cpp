@@ -2137,6 +2137,7 @@ void Stat::wkp_update ( WkpParams & S, const std::vector<int64_t> & new_value ) 
       }
     }
   }
+  S.updated = true;
 
   logfile << std::flush;
   return;
@@ -2274,6 +2275,7 @@ void Stat::cusum_update ( CusumParams & C, const std::vector<int64_t> & new_valu
   if (logfile_output_verbosity >= 4)
     logfile << C.alpha << "\n";
 
+  C.updated = true;
   logfile << std::flush;
   return;
 }
@@ -2420,11 +2422,20 @@ void Stat::wkp_test (WkpParams & S) {
 */
       // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
       // p-value(pcs) #alarms(pcs) counter
-      file << sample_new_single_metric.back() << "\t" << p_wmw << "\t"
+      if(S.updated) {
+        file << sample_new_single_metric.back() << "\t" << p_wmw << "\t"
           << (S.wmw_alarms).at(index) << "\t" << p_ks << "\t"
           << (S.ks_alarms).at(index) << "\t" << p_pcs << "\t"
           << (S.pcs_alarms).at(index) << "\t" << significance_level << "\t"
           << test_counter << "\n";
+      }
+      else {
+        file << "0" << "\t" << p_wmw << "\t"
+          << (S.wmw_alarms).at(index) << "\t" << p_ks << "\t"
+          << (S.ks_alarms).at(index) << "\t" << p_pcs << "\t"
+          << (S.pcs_alarms).at(index) << "\t" << significance_level << "\t"
+          << test_counter << "\n";
+      }
 
       file.close();
       chdir("..");
@@ -2443,6 +2454,7 @@ void Stat::wkp_test (WkpParams & S) {
   if (pcs_was_attack == true)
     S.last_pcs_test_was_attack = true;
 
+  S.updated = false;
   logfile << std::flush;
   return;
 
@@ -2492,7 +2504,7 @@ void Stat::cusum_test(CusumParams & C) {
     // "attack still in progress"-message?
 
     // perform the test and if g > N raise an alarm
-    if ( cusum(C.X_curr.at(i), beta, C.g.at(i)) > N ) {
+    if ( C.updated && (cusum(C.X_curr.at(i), beta, C.g.at(i)) > N )) {
 
       if (report_only_first_attack == false
         || C.last_cusum_test_was_attack.at(i) == false) {
@@ -2553,9 +2565,16 @@ void Stat::cusum_test(CusumParams & C) {
       }
 
       // X  g N alpha beta #alarms counter
+      if (C.updated) {
       file << (int) C.X_curr.at(i) << "\t" << (int) C.g.at(i)
           << "\t" << (int) N << "\t" << (int) C.alpha.at(i) << "\t"  << (int) beta
           << "\t" << (C.cusum_alarms).at(i) << "\t" << test_counter << "\n";
+      }
+      else {
+      file << "0" << "\t" << (int) C.g.at(i)
+        << "\t" << (int) N << "\t" << (int) C.alpha.at(i) << "\t"  << (int) beta
+        << "\t" << (C.cusum_alarms).at(i) << "\t" << test_counter << "\n";
+      }
       file.close();
       chdir("..");
     }
@@ -2569,7 +2588,8 @@ void Stat::cusum_test(CusumParams & C) {
     else
       C.last_cusum_test_was_attack.at(i) = false;
   }
-
+  
+  C.updated = false;
   logfile << std::flush;
   return;
 }

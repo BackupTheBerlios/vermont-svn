@@ -36,6 +36,8 @@ public:
   // (needed for creating file names for params output files)
   std::string correspondingEndPoint;
 
+  bool updated;
+
   Params() {}
 
   ~Params() {}

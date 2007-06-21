@@ -30,7 +30,7 @@ do
   echo set title \'$datafile\' >> graphs.gnuplot
   # plot all graphs
   echo plot \'$datafile\' using 7:2 title \'g\' with lines, \'$datafile\' using 7:3 title \'N\' with lines,\
-       \'$datafile\' using 7:4 title \'alpha\' with lines >> graphs.gnuplot
+       \'$datafile\' using 7:1 title \'Value\' with lines >> graphs.gnuplot
   # pause to look at plot (RETURN to resume)
   echo pause -1 >> graphs.gnuplot
 done
