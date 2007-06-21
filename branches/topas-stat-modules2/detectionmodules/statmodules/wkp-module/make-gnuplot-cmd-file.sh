@@ -38,12 +38,20 @@ done
 # entries for wkpparams @ metrics
 for datafile in *_metric.wkpparams.txt
 do
+  # WMW
   # set title of graph
   echo set title \'$datafile\' >> graphs.gnuplot
   # plot all graphs
-  echo plot \'$datafile\' using 9:1 title \'Value\' with lines, \'$datafile\' using 9:2 title \'p\(wmw\)\' axes x1y2 with lines,\
-       \'$datafile\' using 9:4 title \'p\(ks\)\' axes x1y2 with lines, \'$datafile\' using 9:6 title \'p\(pcs\)\' axes x1y2 with lines  >> graphs.gnuplot
+  echo plot \'$datafile\' using 9:1 title \'Value\' with lines, \'$datafile\' using 9:2 title \'p\(wmw\)\' axes x1y2 with lines >> graphs.gnuplot
   # pause to look at plot (RETURN to resume)
+  echo pause -1 >> graphs.gnuplot
+  # KS
+  echo set title \'$datafile\' >> graphs.gnuplot
+  echo plot \'$datafile\' using 9:1 title \'Value\' with lines, \'$datafile\' using 9:4 title \'p\(ks\)\' axes x1y2 with lines >> graphs.gnuplot
+  echo pause -1 >> graphs.gnuplot
+  # PCS
+  echo set title \'$datafile\' >> graphs.gnuplot
+  echo plot \'$datafile\' using 9:1 title \'Value\' with lines, \'$datafile\' using 9:6 title \'p\(pcs\)\' axes x1y2 with lines >> graphs.gnuplot
   echo pause -1 >> graphs.gnuplot
 done
 

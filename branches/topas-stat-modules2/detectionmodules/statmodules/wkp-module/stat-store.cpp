@@ -393,6 +393,7 @@ std::map<EndPoint,Info> StatStore::PreviousData;
 // in the implementation file of the related class;
 
 short StatStore::netmask = 32;
+// for OFFLINE MODE
 bool StatStore::ip_monitoring = false;
 bool StatStore::port_monitoring = false;
 bool StatStore::protocol_monitoring = false;
