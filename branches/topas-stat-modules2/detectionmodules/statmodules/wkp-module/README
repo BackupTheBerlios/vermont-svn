@@ -133,10 +133,10 @@ per <value></value>-Tag. The possible values are:
 <value>records_out</value>
 <value>bytes_in/packet_in</value>
 <value>bytes_out/packet_out</value>
-<value>packets_in/record_in</value>
-<value>packets_out/record_out</value>
-<value>bytes_in/record_in</value>
-<value>bytes_out/record_out</value>
+<value>1000_times_records_in_per_packets_in</value>
+<value>1000_times_records_out_per_packets_out</value>
+<value>1000_times_records_in_per_bytes_in</value>
+<value>1000_times_records_out_per_bytes_out</value>
 <value>packets_out-packets_in</value>
 <value>bytes_out-bytes_in</value>
 <value>records_out-records_in</value>
@@ -160,10 +160,10 @@ error message. Please note that the module does in fact NOT handle
 octets/packet, but rather 1000*octets/packet, the result being an
 integer: this trick enables to "simulate" a float division and
 increase precision, without re-writing loads of existing code.
-Another special case are the four metrics packets_in/record_in,
-packets_out/record_out, bytes_in/record_in and bytes_out/record_out.
-In case of an anomaly, the values of these metrics will decrease, but our
-algorithms only consider anomalies which metrics increase. Therefor, these
+Another special case are the metrics 1000_times_records_in_per_packets_in etc.
+They represent the metrics packets_in/record_in etc. and are needed, because in case of
+an anomaly, the values of these metrics would decrease, but the
+cusum-algorithm only considers anomalies with increasing metrics. Therefor, these
 metrics will be calculated by records_in * 1000 / packets_in etc.
 
 

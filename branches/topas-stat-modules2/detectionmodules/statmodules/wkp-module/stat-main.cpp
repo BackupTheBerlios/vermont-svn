@@ -715,15 +715,15 @@ void Stat::init_metrics(XMLConfObj * config) {
     else if ( 0 == strcasecmp("octets_out/packet_out",(*it).c_str())
            || 0 == strcasecmp("bytes_out/packet_out",(*it).c_str()) )
       metrics.push_back(BYTES_OUT_PER_PACKET_OUT);
-    else if ( 0 == strcasecmp("packets_in/record_in",(*it).c_str()) )
+    else if ( 0 == strcasecmp("1000_times_records_in_per_packets_in",(*it).c_str()) )
       metrics.push_back(PACKETS_IN_PER_RECORD_IN);
-    else if ( 0 == strcasecmp("packets_out/record_out",(*it).c_str()) )
+    else if ( 0 == strcasecmp("1000_times_records_out_per_packets_out",(*it).c_str()) )
       metrics.push_back(PACKETS_OUT_PER_RECORD_OUT);
-    else if ( 0 == strcasecmp("octets_in/record_in",(*it).c_str())
-           || 0 == strcasecmp("bytes_in/record_in",(*it).c_str()) )
+    else if ( 0 == strcasecmp("1000_times_records_out_per_octets_out",(*it).c_str())
+           || 0 == strcasecmp("1000_times_records_in_per_bytes_in",(*it).c_str()) )
       metrics.push_back(BYTES_IN_PER_RECORD_IN);
-    else if ( 0 == strcasecmp("octets_out/record_out",(*it).c_str())
-           || 0 == strcasecmp("bytes_out/record_out",(*it).c_str()) )
+    else if ( 0 == strcasecmp("1000_times_records_out_per_octets_out",(*it).c_str())
+           || 0 == strcasecmp("1000_times_records_out_per_bytes_out",(*it).c_str()) )
       metrics.push_back(BYTES_OUT_PER_RECORD_OUT);
     else if ( 0 == strcasecmp("packets_out-packets_in",(*it).c_str()) )
       metrics.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
@@ -1881,7 +1881,7 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
         break;
 
       // NOTE: for the following 8 metrics, we use the absolute value to get
-      // better results with our tests (negative values causes bias)
+      // better results with our tests (negative values cause bias)
 
       case PACKETS_OUT_MINUS_PACKETS_IN:
         if (info.packets_out >= noise_threshold_packets
@@ -2588,7 +2588,7 @@ void Stat::cusum_test(CusumParams & C) {
     else
       C.last_cusum_test_was_attack.at(i) = false;
   }
-  
+
   C.updated = false;
   logfile << std::flush;
   return;
@@ -2624,13 +2624,13 @@ std::string Stat::getMetricName(const enum Metric & m) {
     case BYTES_OUT_PER_PACKET_OUT:
       return std::string("bytes_out_per_packet_out");
     case PACKETS_IN_PER_RECORD_IN:
-      return std::string("packets_in_per_record_in");
+      return std::string("1000_times_records_in_per_packets_in");
     case PACKETS_OUT_PER_RECORD_OUT:
-      return std::string("packets_out_per_record_out");
+      return std::string("1000_times_records_out_per_packets_out");
     case BYTES_IN_PER_RECORD_IN:
-      return std::string("bytes_in_per_record_in");
+      return std::string("1000_times_records_in_per_bytes_in");
     case BYTES_OUT_PER_RECORD_OUT:
-      return std::string("bytes_out_per_record_out");
+      return std::string("1000_times_records_out_per_bytes_out");
     case PACKETS_OUT_MINUS_PACKETS_IN:
       return std::string("packets_out-packets_in");
     case BYTES_OUT_MINUS_BYTES_IN:

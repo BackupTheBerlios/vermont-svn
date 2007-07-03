@@ -340,13 +340,19 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store) {
         if ( it != store->Data.end() ) {
           it->second.packets_in += info.packets_in;
           it->second.bytes_in += info.bytes_in;
-          it->second.records_in++;
+          it->second.records_in += info.records_in;
+          it->second.packets_out += info.packets_out;
+          it->second.bytes_out += info.bytes_out;
+          it->second.records_out += info.records_out;
         }
         else {
           store->Data[ep].packets_in += info.packets_in;
           it = store->Data.find(ep);
           it->second.bytes_in += info.bytes_in;
-          it->second.records_in++;
+          it->second.records_in += info.records_in;
+          it->second.packets_out += info.packets_out;
+          it->second.bytes_out += info.bytes_out;
+          it->second.records_out += info.records_out;
         }
       }
       // EndPoint not known, still place to add it?
