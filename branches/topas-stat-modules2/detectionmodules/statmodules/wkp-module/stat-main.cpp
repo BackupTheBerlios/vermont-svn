@@ -663,8 +663,8 @@ void Stat::init_metrics(XMLConfObj * config) {
   Usage
     << "  Use for each <value>-Tag one of the following metrics:\n"
     << "  packets_in, packets_out, bytes_in, bytes_out, records_in, records_out, "
-    << "  bytes_in/packet_in, bytes_out/packet_out, packets_in/record_in, "
-    << "  packets_out/record_out, bytes_in/record_in, bytes_out/record_out, "
+    << "  bytes_in/packet_in, bytes_out/packet_out, 1000*records_in/packets_in, "
+    << "  1000*records_out/packets_out, 1000*records_in/bytes_in, 1000*records_out/bytes_out, "
     << "  packets_out-packets_in, bytes_out-bytes_in, records_out-records_in, packets_in(t)-packets_in(t-1), "
     << "  packets_out(t)-packets_out(t-1), bytes_in(t)-bytes_in(t-1), bytes_out(t)-bytes_out(t-1),"
     << "  records_in(t)-records_in(t-1) or records_out(t)-records_out(t-1).\n";
@@ -715,15 +715,15 @@ void Stat::init_metrics(XMLConfObj * config) {
     else if ( 0 == strcasecmp("octets_out/packet_out",(*it).c_str())
            || 0 == strcasecmp("bytes_out/packet_out",(*it).c_str()) )
       metrics.push_back(BYTES_OUT_PER_PACKET_OUT);
-    else if ( 0 == strcasecmp("1000_times_records_in_per_packets_in",(*it).c_str()) )
+    else if ( 0 == strcasecmp("1000*records_in/packets_in",(*it).c_str()) )
       metrics.push_back(PACKETS_IN_PER_RECORD_IN);
-    else if ( 0 == strcasecmp("1000_times_records_out_per_packets_out",(*it).c_str()) )
+    else if ( 0 == strcasecmp("1000*records_out/packets_out",(*it).c_str()) )
       metrics.push_back(PACKETS_OUT_PER_RECORD_OUT);
-    else if ( 0 == strcasecmp("1000_times_records_out_per_octets_out",(*it).c_str())
-           || 0 == strcasecmp("1000_times_records_in_per_bytes_in",(*it).c_str()) )
+    else if ( 0 == strcasecmp("1000*records_out/octets_out",(*it).c_str())
+           || 0 == strcasecmp("1000*records_in/bytes_in",(*it).c_str()) )
       metrics.push_back(BYTES_IN_PER_RECORD_IN);
-    else if ( 0 == strcasecmp("1000_times_records_out_per_octets_out",(*it).c_str())
-           || 0 == strcasecmp("1000_times_records_out_per_bytes_out",(*it).c_str()) )
+    else if ( 0 == strcasecmp("1000*records_out/octets_out",(*it).c_str())
+           || 0 == strcasecmp("1000*records_out/bytes_out",(*it).c_str()) )
       metrics.push_back(BYTES_OUT_PER_RECORD_OUT);
     else if ( 0 == strcasecmp("packets_out-packets_in",(*it).c_str()) )
       metrics.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
@@ -1431,9 +1431,11 @@ void Stat::test(StatStore * store) {
 
   // Dumping empty records:
   if (Data.empty()==true) {
-    if (logfile_output_verbosity>=3)
+    if (logfile_output_verbosity>=3) {
       logfile << std::endl << "INFORMATION: Got empty record; "
         << "dumping it and waiting for another record" << std::endl << std::flush;
+    }
+    test_counter++;
     return;
   }
 
@@ -1630,6 +1632,7 @@ void Stat::test(StatStore * store) {
 
         if (use_pca == true) {
           if (pos == 0) {
+            file << "# ";
             for (int i = 0; i < pca_metric_data.size(); i++)
               file << "pca_comp_" << i << "\t";
             file << "Test-Run" << "\n";
@@ -1640,6 +1643,7 @@ void Stat::test(StatStore * store) {
         }
         else {
           if (pos == 0) {
+            file << "# ";
             for (int i = 0; i < metric_data.size(); i++)
               file << getMetricName(metrics.at(i)) << "\t";
             file << "Test-Run" << "\n";
@@ -2624,13 +2628,13 @@ std::string Stat::getMetricName(const enum Metric & m) {
     case BYTES_OUT_PER_PACKET_OUT:
       return std::string("bytes_out_per_packet_out");
     case PACKETS_IN_PER_RECORD_IN:
-      return std::string("1000_times_records_in_per_packets_in");
+      return std::string("1000*records_in/packets_in");
     case PACKETS_OUT_PER_RECORD_OUT:
-      return std::string("1000_times_records_out_per_packets_out");
+      return std::string("1000*records_out/packets_out");
     case BYTES_IN_PER_RECORD_IN:
-      return std::string("1000_times_records_in_per_bytes_in");
+      return std::string("1000*records_in/bytes_in");
     case BYTES_OUT_PER_RECORD_OUT:
-      return std::string("1000_times_records_out_per_bytes_out");
+      return std::string("1000*records_out/bytes_out");
     case PACKETS_OUT_MINUS_PACKETS_IN:
       return std::string("packets_out-packets_in");
     case BYTES_OUT_MINUS_BYTES_IN:

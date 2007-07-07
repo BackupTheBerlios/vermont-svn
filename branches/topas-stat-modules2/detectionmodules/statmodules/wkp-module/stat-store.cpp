@@ -384,6 +384,7 @@ bool StatStore::monitorEndPoint (const EndPoint & ep) {
   while ( it != EndPointFilter.end() ) {
     if (it->matchesWithEndPoint(ep, netmask) == true)
       return true;
+//    std::cout << *it << "\t | \t" << ep << std::endl;
     it++;
   }
 
