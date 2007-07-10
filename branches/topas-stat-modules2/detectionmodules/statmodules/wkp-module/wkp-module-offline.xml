@@ -23,9 +23,8 @@
     <netmask>32</netmask>
 
     <offline_file>darpa1_all_10.txt</offline_file>
-    <output_dir>metrics_d1_port_proto_cusum_1.66_3_50_0.05_wkp_100_10_false_0.01</output_dir>
-    <endpoints_to_monitor>all</endpoints_to_monitor>
-    <x_frequently_endpoints>3</x_frequently_endpoints>
+    <output_dir>d1_1</output_dir>
+    <endpoints_to_monitor>eps.txt</endpoints_to_monitor>
 
     <use_pca>false</use_pca>
     <pca_learning_phase>25</pca_learning_phase>

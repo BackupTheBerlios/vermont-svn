@@ -64,7 +64,9 @@ public:
   std::list<std::vector<int64_t> > Old;
   std::list<std::vector<int64_t> > New;
 
-  // every metric has its was-attack-flag for every test
+  // every test has its was-attack flag
+  // TODO: Remember those flags for each metric AND each of the three tests individually
+  // This will horribly complicate the wkp_update-function!
   bool last_wmw_test_was_attack;
   bool last_ks_test_was_attack;
   bool last_pcs_test_was_attack;

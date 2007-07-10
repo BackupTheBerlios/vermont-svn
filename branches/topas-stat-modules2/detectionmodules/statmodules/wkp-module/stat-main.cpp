@@ -2141,6 +2141,7 @@ void Stat::wkp_update ( WkpParams & S, const std::vector<int64_t> & new_value ) 
       }
     }
   }
+
   S.updated = true;
 
   logfile << std::flush;
@@ -2307,6 +2308,11 @@ void Stat::wkp_test (WkpParams & S) {
   bool ks_was_attack = false;
   bool pcs_was_attack = false;
 
+  // storing the last-test flags
+  bool tmp_wmw = S.last_wmw_test_was_attack;
+  bool tmp_ks = S.last_ks_test_was_attack;
+  bool tmp_pcs = S.last_pcs_test_was_attack;
+
   while (it != metrics.end()) {
 
     if (logfile_output_verbosity == 5) {
@@ -2323,34 +2329,30 @@ void Stat::wkp_test (WkpParams & S) {
     sample_new_single_metric = getSingleMetric(S.New, index);
 
     double p_wmw, p_ks, p_pcs;
+    p_wmw = p_ks = p_pcs = 1.0;
 
     // Wilcoxon-Mann-Whitney test:
-    if (enable_wmw_test == true) {
-      // we need this copy, because the original gets overwritten before we check it ...
-      bool tmp = S.last_wmw_test_was_attack;
+    if (enable_wmw_test == true && S.updated) {
       p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
-      if (significance_level > p_wmw && (report_only_first_attack == false || tmp == false))
+      if (significance_level > p_wmw && (report_only_first_attack == false || tmp_wmw == false))
         (S.wmw_alarms).at(index)++;
       if (S.last_wmw_test_was_attack == true)
         wmw_was_attack = true;
     }
 
     // Kolmogorov-Smirnov test:
-    if (enable_ks_test == true) {
-      // we need this copy, because the original gets overwritten before we check it ...
-      bool tmp = S.last_ks_test_was_attack;
+    if (enable_ks_test == true && S.updated) {
       p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
-      if (significance_level > p_ks && (report_only_first_attack == false || tmp == false))
+      if (significance_level > p_ks && (report_only_first_attack == false || tmp_ks == false))
         (S.ks_alarms).at(index)++;
       if (S.last_ks_test_was_attack == true)
         ks_was_attack = true;
     }
 
     // Pearson chi-square test:
-    if (enable_pcs_test == true) {
-      bool tmp = S.last_pcs_test_was_attack;
+    if (enable_pcs_test == true && S.updated) {
       p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
-      if (significance_level > p_pcs && (report_only_first_attack == false || tmp == false))
+      if (significance_level > p_pcs && (report_only_first_attack == false || tmp_pcs == false))
         (S.pcs_alarms).at(index)++;
       if (S.last_pcs_test_was_attack == true)
         pcs_was_attack = true;
@@ -2368,38 +2370,6 @@ void Stat::wkp_test (WkpParams & S) {
         filename = S.correspondingEndPoint + "." + tmp.str() + "_pca_component.wkpparams.txt";
       }
 
-/*
-      // replace the decimal point by a comma
-      // (open office cant handle points in decimal numbers ;) )
-      std::stringstream tmp1;
-      tmp1 << p_wmw;
-      std::string str_p_wmw = tmp1.str();
-      std::string::size_type i = str_p_wmw.find('.',0);
-      if (i != std::string::npos)
-        str_p_wmw.replace(i, 1, 1, ',');
-
-      std::stringstream tmp2;
-      tmp2 << p_ks;
-      std::string str_p_ks = tmp2.str();
-      i = str_p_ks.find('.',0);
-      if (i != std::string::npos)
-        str_p_ks.replace(i, 1, 1, ',');
-
-      std::stringstream tmp3;
-      tmp3 << p_pcs;
-      std::string str_p_pcs = tmp3.str();
-      i = str_p_pcs.find('.',0);
-      if (i != std::string::npos)
-        str_p_pcs.replace(i, 1, 1, ',');
-
-      std::stringstream tmp4;
-      tmp4 << significance_level;
-      std::string slevel = tmp4.str();
-      i = slevel.find('.',0);
-      if (i != std::string::npos)
-        slevel.replace(i, 1, 1, ',');
-*/
-
       chdir(output_dir.c_str());
 
       std::ofstream file(filename.c_str(), std::ios_base::app);
@@ -2415,15 +2385,6 @@ void Stat::wkp_test (WkpParams & S) {
         << "alarms(pcs)" << "\t" << "Slevel" << "\t" << "Test-Run\n";
       }
 
-/*
-      // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
-      // p-value(pcs) #alarms(pcs) counter
-      file << sample_new_single_metric.back() << "\t" << str_p_wmw << "\t"
-          << (S.wmw_alarms).at(index) << "\t" << str_p_ks << "\t"
-          << (S.ks_alarms).at(index) << "\t" << str_p_pcs << "\t"
-          << (S.pcs_alarms).at(index) << "\t" << slevel << "\t"
-          << test_counter << "\n";
-*/
       // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
       // p-value(pcs) #alarms(pcs) counter
       if(S.updated) {
@@ -2451,12 +2412,14 @@ void Stat::wkp_test (WkpParams & S) {
 
   // if there was at least one alarm, set the corresponding
   // flag to true
+
   if (wmw_was_attack == true)
     S.last_wmw_test_was_attack = true;
   if (ks_was_attack == true)
     S.last_ks_test_was_attack = true;
   if (pcs_was_attack == true)
     S.last_pcs_test_was_attack = true;
+
 
   S.updated = false;
   logfile << std::flush;
@@ -2541,6 +2504,8 @@ void Stat::cusum_test(CusumParams & C) {
       was_attack.at(i) = true;
 
     }
+    else if (!C.updated) // reset g to 0 if no new value for that Endpoint occurred
+      C.g.at(i) = 0;
 
     if (createFiles == true) {
 
@@ -2586,11 +2551,13 @@ void Stat::cusum_test(CusumParams & C) {
     i++;
   }
 
-  for (int i = 0; i != was_attack.size(); i++) {
-    if (was_attack.at(i) == true)
-      C.last_cusum_test_was_attack.at(i) = true;
-    else
-      C.last_cusum_test_was_attack.at(i) = false;
+  if (C.updated) {
+    for (int i = 0; i != was_attack.size(); i++) {
+      if (was_attack.at(i) == true)
+        C.last_cusum_test_was_attack.at(i) = true;
+      else
+        C.last_cusum_test_was_attack.at(i) = false;
+    }
   }
 
   C.updated = false;
