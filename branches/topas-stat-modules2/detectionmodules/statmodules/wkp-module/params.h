@@ -64,24 +64,22 @@ public:
   std::list<std::vector<int64_t> > Old;
   std::list<std::vector<int64_t> > New;
 
-  // every test has its was-attack flag
-  // TODO: Remember those flags for each metric AND each of the three tests individually
-  // This will horribly complicate the wkp_update-function!
-  bool last_wmw_test_was_attack;
-  bool last_ks_test_was_attack;
-  bool last_pcs_test_was_attack;
+  // every test has its was-attack flag for every metric
+  // (needed to count the alarms correctly)
+  // (Formerly, if e. g. WMW raised an alarm for packets_in
+  // and in the next test-run, it detects another one for
+  // bytes_out, this wont be updated, because its last test-flag
+  // was true ...)
+  std::vector<bool> last_wmw_test_was_attack;
+  std::vector<bool> last_ks_test_was_attack;
+  std::vector<bool> last_pcs_test_was_attack;
 
   // count raised alarms for every metric, endpoint and test seperately
   std::vector<int> wmw_alarms;
   std::vector<int> ks_alarms;
   std::vector<int> pcs_alarms;
 
-  WkpParams()
-  {
-    last_wmw_test_was_attack = false;
-    last_ks_test_was_attack = false;
-    last_pcs_test_was_attack = false;
-  }
+  WkpParams() {};
 
   ~WkpParams() {};
 

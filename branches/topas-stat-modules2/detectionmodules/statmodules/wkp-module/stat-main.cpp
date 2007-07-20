@@ -1502,6 +1502,9 @@ void Stat::test(StatStore * store) {
         WkpParams S;
         S.correspondingEndPoint = (Data_it->first).toString();
         for (int i=0; i < metrics.size(); i++) {
+          (S.last_wmw_test_was_attack).push_back(false);
+          (S.last_ks_test_was_attack).push_back(false);
+          (S.last_pcs_test_was_attack).push_back(false);
           (S.wmw_alarms).push_back(0);
           (S.ks_alarms).push_back(0);
           (S.pcs_alarms).push_back(0);
@@ -2102,17 +2105,41 @@ void Stat::wkp_update ( WkpParams & S, const std::vector<int64_t> & new_value ) 
 
   // Learning phase over: update
 
-  // pausing update for old sample,
-  // if 1 of the last tests was an attack and parameter is 1
-  // or all of the last tests were an attack and parameter is 2
+  // pausing update for old sample
+
+  bool at_least_one_wmw_test_was_attack = false;
+  bool at_least_one_ks_test_was_attack = false;
+  bool at_least_one_pcs_test_was_attack = false;
+  for (int i = 0; i < S.last_wmw_test_was_attack.size(); i++) {
+    if (S.last_wmw_test_was_attack.at(i) == true)
+      at_least_one_wmw_test_was_attack = true;
+    if (S.last_ks_test_was_attack.at(i) == true)
+      at_least_one_ks_test_was_attack = true;
+    if (S.last_pcs_test_was_attack.at(i) == true)
+      at_least_one_pcs_test_was_attack = true;
+  }
+/*
+  bool all_wmw_tests_were_attacks = true;
+  bool all_ks_tests_were_attacks = true;
+  bool all_pcs_tests_were_attacks = true;
+  for (int i = 0; i < S.last_wmw_test_was_attack.size(); i++) {
+    if (S.last_wmw_test_was_attack.at(i) == false)
+      all_wmw_tests_were_attacks = false;
+    if (S.last_ks_test_was_attack.at(i) == false)
+      all_ks_tests_were_attacks = false;
+    if (S.last_pcs_test_was_attack.at(i) == false)
+      all_pcs_tests_were_attacks = false;
+  }
+*/
+
   if ( (pause_update_when_attack == 1
-        && ( S.last_wmw_test_was_attack == true
-          || S.last_ks_test_was_attack  == true
-          || S.last_pcs_test_was_attack == true ))
+        && ( at_least_one_wmw_test_was_attack == true
+          || at_least_one_ks_test_was_attack  == true
+          || at_least_one_pcs_test_was_attack == true ))
     || (pause_update_when_attack == 2
-        && ( S.last_wmw_test_was_attack == true
-          && S.last_ks_test_was_attack  == true
-          && S.last_pcs_test_was_attack == true )) ) {
+        && ( at_least_one_wmw_test_was_attack == true
+          && at_least_one_ks_test_was_attack  == true
+          && at_least_one_pcs_test_was_attack == true )) ) {
 
     S.New.pop_front();
     S.New.push_back(new_value);
@@ -2300,18 +2327,6 @@ void Stat::wkp_test (WkpParams & S) {
   // for every value (represented by *it) in metrics,
   // do the tests
   short index = 0;
-  // as the tests can be performed for several metrics, we have to
-  // store, if at least one metric raised an alarm and if so, set
-  // the last_test_was_attack-flag to true
-  // (otherwise, the last_test...-flag would be overwritten all the time)
-  bool wmw_was_attack = false;
-  bool ks_was_attack = false;
-  bool pcs_was_attack = false;
-
-  // storing the last-test flags
-  bool tmp_wmw = S.last_wmw_test_was_attack;
-  bool tmp_ks = S.last_ks_test_was_attack;
-  bool tmp_pcs = S.last_pcs_test_was_attack;
 
   while (it != metrics.end()) {
 
@@ -2325,6 +2340,11 @@ void Stat::wkp_test (WkpParams & S) {
       }
     }
 
+    // storing the last-test flags
+    bool tmp_wmw = S.last_wmw_test_was_attack.at(index);
+    bool tmp_ks = S.last_ks_test_was_attack.at(index);
+    bool tmp_pcs = S.last_pcs_test_was_attack.at(index);
+
     sample_old_single_metric = getSingleMetric(S.Old, index);
     sample_new_single_metric = getSingleMetric(S.New, index);
 
@@ -2333,29 +2353,33 @@ void Stat::wkp_test (WkpParams & S) {
 
     // Wilcoxon-Mann-Whitney test:
     if (enable_wmw_test == true && S.updated) {
-      p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, S.last_wmw_test_was_attack);
-      if (significance_level > p_wmw && (report_only_first_attack == false || tmp_wmw == false))
+      p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, tmp_wmw);
+      // New anomaly?
+      if (significance_level > p_wmw && (report_only_first_attack == false || S.last_wmw_test_was_attack.at(index) == false))
         (S.wmw_alarms).at(index)++;
-      if (S.last_wmw_test_was_attack == true)
-        wmw_was_attack = true;
+      S.last_wmw_test_was_attack.at(index) = tmp_wmw;
     }
 
     // Kolmogorov-Smirnov test:
     if (enable_ks_test == true && S.updated) {
-      p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, S.last_ks_test_was_attack);
-      if (significance_level > p_ks && (report_only_first_attack == false || tmp_ks == false))
+      p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, tmp_ks);
+      if (significance_level > p_ks && (report_only_first_attack == false || S.last_ks_test_was_attack.at(index) == false))
         (S.ks_alarms).at(index)++;
-      if (S.last_ks_test_was_attack == true)
-        ks_was_attack = true;
+      S.last_ks_test_was_attack.at(index) = tmp_ks;
     }
 
     // Pearson chi-square test:
     if (enable_pcs_test == true && S.updated) {
-      p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, S.last_pcs_test_was_attack);
-      if (significance_level > p_pcs && (report_only_first_attack == false || tmp_pcs == false))
+      p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, tmp_pcs);
+      if (significance_level > p_pcs && (report_only_first_attack == false || S.last_pcs_test_was_attack.at(index) == false))
         (S.pcs_alarms).at(index)++;
-      if (S.last_pcs_test_was_attack == true)
-        pcs_was_attack = true;
+      S.last_pcs_test_was_attack.at(index) = tmp_pcs;
+    }
+
+    if (S.updated == false) {
+      S.last_wmw_test_was_attack.at(index) = false;
+      S.last_ks_test_was_attack.at(index) = false;
+      S.last_pcs_test_was_attack.at(index) = false;
     }
 
     // generate output files, if wished
@@ -2409,17 +2433,6 @@ void Stat::wkp_test (WkpParams & S) {
     it++;
     index++;
   }
-
-  // if there was at least one alarm, set the corresponding
-  // flag to true
-
-  if (wmw_was_attack == true)
-    S.last_wmw_test_was_attack = true;
-  if (ks_was_attack == true)
-    S.last_ks_test_was_attack = true;
-  if (pcs_was_attack == true)
-    S.last_pcs_test_was_attack = true;
-
 
   S.updated = false;
   logfile << std::flush;
@@ -2558,6 +2571,10 @@ void Stat::cusum_test(CusumParams & C) {
       else
         C.last_cusum_test_was_attack.at(i) = false;
     }
+  }
+  else {
+    for (int i = 0; i != C.last_cusum_test_was_attack.size(); i++)
+      C.last_cusum_test_was_attack.at(i) = false;
   }
 
   C.updated = false;
