@@ -1,9 +1,0 @@
-- Topas: logging ueberarbeiten 
-- Manager: Update-Messages werden nur dann abgearbeitet, wenn records ankommen 
-- Snortmodule:  - init-Funktion ueberarbeiten 
-	        - snort.conf etnhaelt nicht XML-konforme Zeichenketten, parsen schlaegt fehl
-- Topas: automatisches Senden von Heartbeat-Nachrichten (collector und Module)
-- Topas: Nachrichten-Format fuer topas, module -> manager ueberarbeiten
-- Detectionmodule: Topic von Angriffsmeldungen in der Konfig-Datei festlegen
-- Detectionbase: beim Modulnamen Gross- Kleinschreibung ignorieren
-
