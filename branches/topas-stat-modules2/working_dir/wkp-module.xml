@@ -14,7 +14,7 @@
 
 	<preferences>
     <logfile>wkp.log</logfile>
-    <logfile_output_verbosity>3</logfile_output_verbosity>
+    <logfile_output_verbosity>0</logfile_output_verbosity>
     <warning_verbosity>5</warning_verbosity>
     <accepted_source_ids>all</accepted_source_ids>
     <alarm_time>10</alarm_time>
@@ -23,9 +23,7 @@
     <netmask>32</netmask>
 
     <offline_file>darpa2_all_10.txt</offline_file>
-    <output_dir></output_dir>
     <endpoints_to_monitor>all</endpoints_to_monitor>
-    <x_frequently_endpoints>5</x_frequently_endpoints>
 
     <use_pca>false</use_pca>
     <pca_learning_phase>25</pca_learning_phase>
@@ -37,18 +35,6 @@
       <value>bytes_out</value>
       <value>records_in</value>
       <value>records_out</value>
-      <value>bytes_in/packet_in</value>
-      <value>bytes_out/packet_out</value>
-      <value>packets_in/record_in</value>
-      <value>packets_out/record_out</value>
-      <value>bytes_in/record_in</value>
-      <value>bytes_out/record_out</value>
-      <value>packets_out-packets_in</value>
-      <value>bytes_out-bytes_in</value>
-      <value>packets_in(t)-packets_in(t-1)</value>
-      <value>packets_out(t)-packets_out(t-1)</value>
-      <value>bytes_in(t)-bytes_in(t-1)</value>
-      <value>bytes_out(t)-bytes_out(t-1)</value>
     </metrics>
 
     <noise_threshold_packets>0</noise_threshold_packets>
@@ -56,7 +42,7 @@
     <endpointlist_maxsize>1000000</endpointlist_maxsize>
     <stat_test_frequency>1</stat_test_frequency>
     <report_only_first_attack>true</report_only_first_attack>
-    <pause_update_when_attack>3</pause_update_when_attack>
+    <pause_update_when_attack>0</pause_update_when_attack>
 	</preferences>
 
   <cusum-test-params>
@@ -68,9 +54,9 @@
   </cusum-test-params>
 
 	<wkp-test-params>
-		<wilcoxon_test>true</wilcoxon_test>
-		<kolmogorov_test>true</kolmogorov_test>
-		<pearson_chi-square_test>true</pearson_chi-square_test>
+		<wilcoxon_test>false</wilcoxon_test>
+		<kolmogorov_test>false</kolmogorov_test>
+		<pearson_chi-square_test>false</pearson_chi-square_test>
 		<sample_old_size>100</sample_old_size>
 		<sample_new_size>10</sample_new_size>
 		<two_sided>false</two_sided>

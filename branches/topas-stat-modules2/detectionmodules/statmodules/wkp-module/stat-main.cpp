@@ -663,8 +663,8 @@ void Stat::init_metrics(XMLConfObj * config) {
   Usage
     << "  Use for each <value>-Tag one of the following metrics:\n"
     << "  packets_in, packets_out, bytes_in, bytes_out, records_in, records_out, "
-    << "  bytes_in/packet_in, bytes_out/packet_out, 1000*records_in/packets_in, "
-    << "  1000*records_out/packets_out, 1000*records_in/bytes_in, 1000*records_out/bytes_out, "
+    << "  bytes_in/packet_in, bytes_out/packet_out, packets_in/record_in, "
+    << "  packets_out/record_out, bytes_in/record_in, bytes_out/record_out, "
     << "  packets_out-packets_in, bytes_out-bytes_in, records_out-records_in, packets_in(t)-packets_in(t-1), "
     << "  packets_out(t)-packets_out(t-1), bytes_in(t)-bytes_in(t-1), bytes_out(t)-bytes_out(t-1),"
     << "  records_in(t)-records_in(t-1) or records_out(t)-records_out(t-1).\n";
@@ -715,15 +715,15 @@ void Stat::init_metrics(XMLConfObj * config) {
     else if ( 0 == strcasecmp("octets_out/packet_out",(*it).c_str())
            || 0 == strcasecmp("bytes_out/packet_out",(*it).c_str()) )
       metrics.push_back(BYTES_OUT_PER_PACKET_OUT);
-    else if ( 0 == strcasecmp("1000*records_in/packets_in",(*it).c_str()) )
+    else if ( 0 == strcasecmp("packets_in/record_in",(*it).c_str()) )
       metrics.push_back(PACKETS_IN_PER_RECORD_IN);
-    else if ( 0 == strcasecmp("1000*records_out/packets_out",(*it).c_str()) )
+    else if ( 0 == strcasecmp("packets_out/record_out",(*it).c_str()) )
       metrics.push_back(PACKETS_OUT_PER_RECORD_OUT);
-    else if ( 0 == strcasecmp("1000*records_out/octets_out",(*it).c_str())
-           || 0 == strcasecmp("1000*records_in/bytes_in",(*it).c_str()) )
+    else if ( 0 == strcasecmp("octets_in/record_in",(*it).c_str())
+           || 0 == strcasecmp("bytes_in/record_in",(*it).c_str()) )
       metrics.push_back(BYTES_IN_PER_RECORD_IN);
-    else if ( 0 == strcasecmp("1000*records_out/octets_out",(*it).c_str())
-           || 0 == strcasecmp("1000*records_out/bytes_out",(*it).c_str()) )
+    else if ( 0 == strcasecmp("octets_out/record_out",(*it).c_str())
+           || 0 == strcasecmp("bytes_out/record_out",(*it).c_str()) )
       metrics.push_back(BYTES_OUT_PER_RECORD_OUT);
     else if ( 0 == strcasecmp("packets_out-packets_in",(*it).c_str()) )
       metrics.push_back(PACKETS_OUT_MINUS_PACKETS_IN);
@@ -1845,10 +1845,10 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
 
       case PACKETS_IN_PER_RECORD_IN:
         if ( info.packets_in >= noise_threshold_packets) {
-          if (info.packets_in == 0)
+          if (info.records_in == 0)
             result.push_back(0);
           else
-            result.push_back((info.records_in * 1000) / info.packets_in );
+            result.push_back(info.packets_in / info.records_in );
         }
         else
           result.push_back(0);
@@ -1856,10 +1856,10 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
 
       case PACKETS_OUT_PER_RECORD_OUT:
         if ( info.packets_out >= noise_threshold_packets) {
-          if (info.packets_out == 0)
+          if (info.records_out == 0)
             result.push_back(0);
           else
-            result.push_back((info.records_out * 1000) / info.packets_out);
+            result.push_back(info.packets_out / info.records_out);
         }
         else
           result.push_back(0);
@@ -1867,10 +1867,10 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
 
       case BYTES_IN_PER_RECORD_IN:
         if ( info.bytes_in >= noise_threshold_bytes) {
-          if (info.bytes_in == 0)
+          if (info.records_in == 0)
             result.push_back(0);
           else
-            result.push_back((info.records_in * 1000) / info.bytes_in);
+            result.push_back(info.bytes_in / info.records_in);
         }
         else
           result.push_back(0);
@@ -1878,10 +1878,10 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
 
       case BYTES_OUT_PER_RECORD_OUT:
         if ( info.bytes_out >= noise_threshold_bytes) {
-          if (info.bytes_out == 0)
+          if (info.records_out == 0)
             result.push_back(0);
           else
-            result.push_back((info.records_out * 1000) / info.bytes_out);
+            result.push_back(info.bytes_out / info.records_out);
         }
         else
           result.push_back(0);
@@ -2612,13 +2612,13 @@ std::string Stat::getMetricName(const enum Metric & m) {
     case BYTES_OUT_PER_PACKET_OUT:
       return std::string("bytes_out_per_packet_out");
     case PACKETS_IN_PER_RECORD_IN:
-      return std::string("1000*records_in/packets_in");
+      return std::string("packets_in_per_record_in");
     case PACKETS_OUT_PER_RECORD_OUT:
-      return std::string("1000*records_out/packets_out");
+      return std::string("packets_out_per_record_out");
     case BYTES_IN_PER_RECORD_IN:
-      return std::string("1000*records_in/bytes_in");
+      return std::string("bytes_in_per_record_in");
     case BYTES_OUT_PER_RECORD_OUT:
-      return std::string("1000*records_out/bytes_out");
+      return std::string("bytes_out_per_record_out");
     case PACKETS_OUT_MINUS_PACKETS_IN:
       return std::string("packets_out-packets_in");
     case BYTES_OUT_MINUS_BYTES_IN:
