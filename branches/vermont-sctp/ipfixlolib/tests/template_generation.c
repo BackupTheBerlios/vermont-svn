@@ -16,7 +16,7 @@
 #define MY_SOURCE_ID 70538
 #define TEST_INIT_LOOP 1
 #define TEST_TEMPLATE_LOOP 1
-#define TEST_ITERATIONS 1024
+#define TEST_ITERATIONS 10
 
 int main(int argc, char *argv[])
 {

@@ -74,7 +74,7 @@ extern "C" {
  * 30 seconds:
  * can be specified by user
  */
-#define IPFIX_DEFAULT_TEMPLATE_TIMER 30
+#define IPFIX_DEFAULT_TEMPLATE_TIMER 5
 
 #define TRUE 1
 #define FALSE 0

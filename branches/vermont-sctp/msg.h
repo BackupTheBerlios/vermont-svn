@@ -21,6 +21,7 @@ typedef void (*LOGFUNCTION)(void *);
 #define MAX_LOG_FUNCTIONS 256
   
 /* well-know DPRINTF() - will be left out if DEBUG not set */
+#define DEBUG 1
 #ifdef DEBUG
 #define DPRINTF(fmt, args...) printf("-DBG- " fmt, ##args)
 #else

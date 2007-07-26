@@ -89,7 +89,7 @@ int printTemplate(void* ipfixPrinter, SourceID* sourceID, TemplateInfo* template
  * @param dataTemplateInfo Pointer to a structure defining the DataTemplate used
  */
 int printTemplateDestruction(void* ipfixPrinter, SourceID* sourceID, TemplateInfo* templateInfo) {
-	printf("Destroyed a Template\n");
+	printf("Destroyed a Template with ID: %d\n", templateInfo->templateId);
 
 	return 0;
 }

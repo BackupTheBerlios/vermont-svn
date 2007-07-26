@@ -2,9 +2,9 @@ CC=gcc
 CFLAGS=-O -Wall -lpthread
 INCLUDES=-I.. -I../..
 
-TARGET=init_deinit template_generation identifier_naming
+TARGET=init_deinit template_generation identifier_naming test_everything
 
-all: $(TARGET)
+all: $(TARGET) 
 
 clean:
 	rm -f $(TARGET) *.o
@@ -22,3 +22,6 @@ template_generation: template_generation.c
 
 identifier_naming: identifier_naming.c
 	$(CC) $(INCLUDES) $(CFLAGS)  -o identifier_naming identifier_naming.c ../libipfixlo.a ../../msg.o
+
+test_everything: test_everything.c
+	$(CC) $(INCLUDES) $(CFLAGS)  -o test_everything test_everything.c ../libipfixlo.a ../../msg.o
