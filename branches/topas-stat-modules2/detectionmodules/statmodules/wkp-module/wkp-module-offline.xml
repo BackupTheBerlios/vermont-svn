@@ -19,11 +19,11 @@
     <accepted_source_ids>all</accepted_source_ids>
     <alarm_time>10</alarm_time>
 
-    <endpoint_key>port protocol</endpoint_key>
+    <endpoint_key>ip</endpoint_key>
     <netmask>32</netmask>
 
     <offline_file>darpa1_all_10.txt</offline_file>
-    <output_dir>d1_D_1</output_dir>
+    <output_dir>d1_D_4</output_dir>
     <endpoints_to_monitor>eps.txt</endpoints_to_monitor>
 
     <use_pca>false</use_pca>
