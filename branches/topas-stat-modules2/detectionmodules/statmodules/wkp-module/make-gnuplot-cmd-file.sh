@@ -15,8 +15,8 @@ do
   # set title of graph
   echo set title \'$datafile\' >> graphs.gnuplot
   # plot all graphs
-  echo plot \'$datafile\' using 7:2 title \'g\' with lines, \'$datafile\' using 7:3 title \'N\' with lines,\
-       \'$datafile\' using 7:1 title \'Value\' with lines >> graphs.gnuplot
+  echo plot \'$datafile\' using 7:1 title \'Value\' with lines, \'$datafile\' using 7:2 title \'g\' axes x1y2 with lines,\
+         \'$datafile\' using 7:3 title \'N\'axes x1y2  with lines >> graphs.gnuplot
   # pause to look at plot (RETURN to resume)
   echo pause -1 >> graphs.gnuplot
 done
