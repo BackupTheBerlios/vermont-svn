@@ -953,7 +953,7 @@ void Stat::init_endpoints_to_monitor(XMLConfObj * config) {
 
       while ( getline(dataFile, tmp) ) {
 
-        if (0 == strcasecmp("---",tmp.c_str()) )
+        if (0 == strncmp("---",tmp.c_str(),3) )
           break;
 
         // extract endpoint-data
@@ -1429,6 +1429,12 @@ void Stat::test(StatStore * store) {
 
   std::map<EndPoint,Info> Data = store->getData();
 
+#ifndef OFFLINE_ENABLED
+  if (storefile.is_open() == true)
+    // store data storage for offline use
+    storefile << Data << "--- " << test_counter << std::endl << std::flush;
+#endif
+
   // Dumping empty records:
   if (Data.empty()==true) {
     if (logfile_output_verbosity>=3) {
@@ -1438,12 +1444,6 @@ void Stat::test(StatStore * store) {
     test_counter++;
     return;
   }
-
-#ifndef OFFLINE_ENABLED
-  if (storefile.is_open() == true)
-    // store data storage for offline use
-    storefile << Data;
-#endif
 
   if (logfile_output_verbosity > 0) {
     logfile << std::endl

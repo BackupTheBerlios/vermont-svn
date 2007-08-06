@@ -302,7 +302,7 @@ std::ifstream& operator>>(std::ifstream& is, StatStore* store) {
   std::string tmp;
   store->Data.clear();
   while ( getline(is, tmp) ) {
-    if (0 == strcasecmp(tmp.c_str(), "---") )
+    if (0 == strncmp("---",tmp.c_str(),3) )
       break;
     else if ( is.eof() ) {
       std::cerr << "INFORMATION: All Data read from file.\n";

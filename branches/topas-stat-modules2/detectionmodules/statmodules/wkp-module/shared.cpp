@@ -130,7 +130,6 @@ std::ostream & operator << (std::ostream & os, const std::map<EndPoint,Info> & m
     os << it->first << "_" << it->second.packets_in << " " << it->second.packets_out << " " << it->second.bytes_in << " " << it->second.bytes_out << " " << it->second.records_in << " " << it->second.records_out << "\n";
     it++;
   }
-  os << "---" << "\n" << std::flush;
   return os;
 }
 
