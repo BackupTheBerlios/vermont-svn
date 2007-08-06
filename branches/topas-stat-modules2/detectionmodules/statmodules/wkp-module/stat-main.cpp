@@ -32,6 +32,7 @@
 #endif
 
 #include<signal.h>
+#include<math.h>
 
 #include "stat-main.h"
 #include "wmw-test.h"
@@ -1609,58 +1610,48 @@ void Stat::test(StatStore * store) {
 
     // Create metric files, if wished so
     // (this can be done here, because metrics are the same for both tests)
-    if (createFiles == true) {
+    // in case of pca: don't create file until learning phase is over
+    if ((createFiles == true) && ((use_pca == false) || (pca_metric_data.size() > 0))) {
 
       std::string fname;
 
+      fname = (Data_it->first).toString() + "_metrics.txt";
+
+      chdir(output_dir.c_str());
+
+      std::ofstream file(fname.c_str(),std::ios_base::app);
+
+      // are we at the beginning of the file?
+      // if yes, write the metric names to the file ...
+      long pos;
+      pos = file.tellp();
+
       if (use_pca == true) {
-        // pca: don't create file(-name) until learning phase is over
-        if (pca_metric_data.size() > 0)
-          fname = (Data_it->first).toString() + "_metrics.txt";
+	  if (pos == 0) {
+	      file << "# ";
+	      for (int i = 0; i < pca_metric_data.size(); i++)
+		  file << "pca_comp_" << i << "\t";
+	      file << "Test-Run" << "\n";
+	  }
+	  for (int i = 0; i < pca_metric_data.size(); i++)
+	      file << pca_metric_data.at(i) << "\t";
+	  file << test_counter << "\n";
       }
-      else
-        fname = (Data_it->first).toString() + "_metrics.txt";
-
-      // this check is needed, because if pca is enabled,
-      // files shouldn't be created until learning phase is over
-      if (!fname.empty()) {
-        chdir(output_dir.c_str());
-
-        std::ofstream file(fname.c_str(),std::ios_base::app);
-
-        // are we at the beginning of the file?
-        // if yes, write the metric names to the file ...
-        long pos;
-        pos = file.tellp();
-
-        if (use_pca == true) {
-          if (pos == 0) {
-            file << "# ";
-            for (int i = 0; i < pca_metric_data.size(); i++)
-              file << "pca_comp_" << i << "\t";
-            file << "Test-Run" << "\n";
-          }
-          for (int i = 0; i < pca_metric_data.size(); i++)
-            file << pca_metric_data.at(i) << "\t";
-          file << test_counter << "\n";
-        }
-        else {
-          if (pos == 0) {
-            file << "# ";
-            for (int i = 0; i < metric_data.size(); i++)
-              file << getMetricName(metrics.at(i)) << "\t";
-            file << "Test-Run" << "\n";
-          }
-          for (int i = 0; i < metric_data.size(); i++)
-            file << metric_data.at(i) << "\t";
-          file << test_counter << "\n";
-        }
-
-        file.close();
-
-        chdir("..");
+      else {
+	  if (pos == 0) {
+	      file << "# ";
+	      for (int i = 0; i < metric_data.size(); i++)
+		  file << getMetricName(metrics.at(i)) << "\t";
+	      file << "Test-Run" << "\n";
+	  }
+	  for (int i = 0; i < metric_data.size(); i++)
+	      file << metric_data.at(i) << "\t";
+	  file << test_counter << "\n";
       }
 
+      file.close();
+
+      chdir("..");
     }
 
     Data_it++;
@@ -2467,8 +2458,8 @@ void Stat::cusum_test(CusumParams & C) {
     }
 
     // Calculate N and beta
-    N = repetition_factor * (amplitude_percentage * C.alpha.at(i) / 2.0);
-    beta = C.alpha.at(i) + (amplitude_percentage * C.alpha.at(i) / 2.0);
+    N = repetition_factor * (amplitude_percentage * fabs(C.alpha.at(i)) / 2.0);
+    beta = C.alpha.at(i) + (amplitude_percentage * fabs(C.alpha.at(i)) / 2.0);
 
     if (logfile_output_verbosity == 5) {
       logfile << " Cusum test returned:\n"

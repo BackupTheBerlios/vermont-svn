@@ -38,7 +38,7 @@ do
       echo set xrange [0:] writeback >> graphs.gnuplot
       echo set logscale y2 >> graphs.gnuplot
       echo "plot '$METRICSFILE' using $TESTRUNCOLUMN:$COLUMN title 'Value' with lines, \
-        '$METRICSFILE' using $TESTRUNCOLUMN:(\$$COLUMN>0 ? \$$COLUMN : -\$$COLUMN) title 'Value (log)' axes x1y2 with points" >> graphs.gnuplot
+        '$METRICSFILE' using $TESTRUNCOLUMN:(\$$COLUMN>0 ? \$$COLUMN : (\$$COLUMN<0 ? -\$$COLUMN : 1)) title 'Value (log)' axes x1y2 with points" >> graphs.gnuplot
       # CUSUM parameters from CUSUMFILE
       #echo set title \'CUSUM parameters\' >> graphs.gnuplot
       echo unset logscale y2 >> graphs.gnuplot
