@@ -1616,7 +1616,7 @@ void Stat::test(StatStore * store) {
       if (use_pca == true) {
         // pca: don't create file(-name) until learning phase is over
         if (pca_metric_data.size() > 0)
-          fname = (Data_it->first).toString() + "_pca_metrics.txt";
+          fname = (Data_it->first).toString() + "_metrics.txt";
       }
       else
         fname = (Data_it->first).toString() + "_metrics.txt";
@@ -1822,10 +1822,7 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
           if (info.packets_in == 0)
             result.push_back(0);
           else
-            result.push_back((1000 * info.bytes_in) / info.packets_in);
-            // the multiplier 1000 enables us to increase precision and "simulate"
-            // a float result, while keeping an integer result: thanks to this trick,
-            // we do not have to write new versions of the tests to support floats
+            result.push_back(info.bytes_in / info.packets_in);
         }
         else
           result.push_back(0);
@@ -1837,7 +1834,7 @@ std::vector<int64_t>  Stat::extract_data (const Info & info, const Info & prev) 
           if (info.packets_out == 0)
             result.push_back(0);
           else
-            result.push_back((1000 * info.bytes_out) / info.packets_out);
+            result.push_back(info.bytes_out / info.packets_out);
         }
         else
           result.push_back(0);
@@ -2387,11 +2384,11 @@ void Stat::wkp_test (WkpParams & S) {
 
       std::string filename;
       if (use_pca == false)
-        filename = S.correspondingEndPoint + "." + getMetricName(*it) + "_metric.wkpparams.txt";
+        filename = S.correspondingEndPoint + "." + getMetricName(*it) + ".wkpparams.txt";
       else {
         std::stringstream tmp;
         tmp << index;
-        filename = S.correspondingEndPoint + "." + tmp.str() + "_pca_component.wkpparams.txt";
+        filename = S.correspondingEndPoint + ".pca_comp_" + tmp.str() + ".wkpparams.txt";
       }
 
       chdir(output_dir.c_str());
@@ -2524,11 +2521,11 @@ void Stat::cusum_test(CusumParams & C) {
 
       std::string filename;
       if (use_pca == false)
-        filename = C.correspondingEndPoint  + "." + getMetricName(*it) + "_metric.cusumparams.txt";
+        filename = C.correspondingEndPoint  + "." + getMetricName(*it) + ".cusumparams.txt";
       else {
         std::stringstream tmp;
         tmp << i;
-        filename = C.correspondingEndPoint  + "." + tmp.str() + "_pca_component.cusumparams.txt";
+        filename = C.correspondingEndPoint  + ".pca_comp_" + tmp.str() + ".cusumparams.txt";
       }
 
       chdir(output_dir.c_str());
