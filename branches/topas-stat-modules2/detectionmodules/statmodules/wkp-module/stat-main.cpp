@@ -236,9 +236,7 @@ void Stat::init(const std::string & configfile) {
 
   // if no test is enabled, it doesnt make sense to run the module
   if (enable_wkp_test == false && enable_cusum_test == false) {
-    msgStr.print(MsgStream::ERROR, "There is no test enabled! Please enable at least one test and restart! Exiting.", logfile, true);
-    delete config;
-    stop();
+    msgStr.print(MsgStream::INFO, "There is no test enabled!", logfile, true);
   }
 
   // create file which contains all relevant config params
