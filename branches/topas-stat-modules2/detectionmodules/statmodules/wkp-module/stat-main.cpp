@@ -649,6 +649,24 @@ void Stat::init_pca(XMLConfObj * config) {
       msgStr.print(MsgStream::WARN, Warning.str(), logfile, true);
       learning_phase_for_pca = DEFAULT_learning_phase_for_pca;
     }
+
+    // type of matrix (covariance or correlation)
+    if (!config->nodeExists("use_correlation_matrix")) {
+      std::stringstream Warning;
+      Warning << "No use_correlation_matrix parameter defined in XML config file!\n\"false\" assumed, i. e. covariance matrix will be used.";
+      msgStr.print(MsgStream::WARN, Warning.str(), logfile, true);
+      use_correlation_matrix = false;
+    }
+    else if ( !(config->getValue("use_correlation_matrix").empty()) ) {
+      use_correlation_matrix = ( 0 == strcasecmp("true", config->getValue("use_correlation_matrix").c_str()) ) ? true:false;
+    }
+    else {
+      std::stringstream Warning;
+      Warning << "No value for use_correlation_matrix parameter defined in XML config file!\n\"false\" assumed, i. e. covariance matrix will be used.";
+      msgStr.print(MsgStream::WARN, Warning.str(), logfile, true);
+      use_correlation_matrix = false;
+    }
+
   }
   return;
 }
@@ -1981,16 +1999,58 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
 
       // calculate covariance matrix
       for (int i = 0; i < metrics.size(); i++) {
-        for (int j = 0; j < metrics.size(); j++)
-          gsl_matrix_set(P.cov,i,j,covariance(P.sumsOfProducts.at(i).at(j),P.sumsOfMetrics.at(i),P.sumsOfMetrics.at(j)));
+        for (int j = 0; j < metrics.size(); j++) {
+          if (j >= i) // check needed, because we only calculated the upper right half of matrix sumsOfProducts
+            gsl_matrix_set(P.cov,i,j,covariance(P.sumsOfProducts.at(i).at(j),P.sumsOfMetrics.at(i),P.sumsOfMetrics.at(j)));
+          else
+            gsl_matrix_set(P.cov,i,j,covariance(P.sumsOfProducts.at(j).at(i),P.sumsOfMetrics.at(i),P.sumsOfMetrics.at(j)));
+        }
       }
+
+      // if wanted, calculate correlation matrix based on the covariance matrix
+      if (use_correlation_matrix == true) {
+        for (int i = 0; i < metrics.size(); i++) {
+          for (int j = 0; j < metrics.size(); j++) {
+            // calculate standard deviation of metrics i and j
+            double sd_i;
+            double sd_j;
+            if (i != j) {
+              sd_i = standard_deviation(P.sumsOfProducts.at(i).at(i),P.sumsOfMetrics.at(i));
+              sd_j = standard_deviation(P.sumsOfProducts.at(j).at(j),P.sumsOfMetrics.at(j));
+              //std::cout << "sumsOfProducts(ii) = " << P.sumsOfProducts.at(i).at(i) << std::endl << "sumsOfProducts(jj) = " << P.sumsOfProducts.at(j).at(j) << std::endl;
+              //std::cout << "sumsOfMetrics(i) = " << P.sumsOfMetrics.at(i) << std::endl << "sumsOfMetrics(j) = " << P.sumsOfMetrics.at(j) << std::endl;
+              //std::cout << "sdi = " << sd_i << std::endl << "sd_j = " << sd_j << std::endl;
+              if (sd_i == 0.0 || sd_j == 0.0)
+                gsl_matrix_set(P.cov,i,j,0.0);
+              else {
+                if (gsl_matrix_get(P.cov,i,j)/(sd_i*sd_j) > 1.0)
+                  gsl_matrix_set(P.cov,i,j,1.0);
+                else
+                  gsl_matrix_set(P.cov,i,j,gsl_matrix_get(P.cov,i,j)/(sd_i*sd_j));
+              }
+            }
+            // elements on the main diagonal are equal to 1
+            else
+              gsl_matrix_set(P.cov,i,j,1.0);
+          }
+        }
+      }
+
+      std::cout << P.correspondingEndPoint << std::endl << "-------------" << std::endl;
+      for (int i = 0; i < metrics.size(); i++) {
+        for (int j = 0; j < metrics.size(); j++)
+          std::cout << gsl_matrix_get(P.cov,i,j) << "\t";
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
+
 
       // calculate eigenvectors and -values
       gsl_vector *eval = gsl_vector_alloc (metrics.size());
       // some workspace needed for computation
       gsl_eigen_symmv_workspace * w = gsl_eigen_symmv_alloc (metrics.size());
       // computation of eigenvectors (evec) and -values (eval) from
-      // covariance matrix (cov)
+      // covariance or correlation matrix (cov)
       gsl_eigen_symmv (P.cov, eval, P.evec, w);
       gsl_eigen_symmv_free (w);
       // sort the eigenvectors by their corresponding eigenvalue
@@ -2787,6 +2847,18 @@ double Stat::covariance (const long long int & sumProduct, const int & sumX, con
   // with n1 = 1/N * sum(x1) and n2 = 1/N * sum(x2)
   // KOV = 1/N-1 * ( sum(x1x2) - 1/N * (sum(x1)sum(x2)) )
   return (sumProduct - (sumX*sumY) / learning_phase_for_pca) / (learning_phase_for_pca - 1);
+}
+
+double Stat::standard_deviation (const long long int & sumProduct, const int & sumX) {
+  // calculate the standard deviation with m = mean value of x
+  // SA = sqrt(1/N-1 * (sum((x - m)^2)))
+  //    = sqrt(1/N-1 * (sum(x^2 - 2*x*m + m^2)))
+  //    = sqrt(1/N-1 * (sum(x^2) - 2*m*sum(x) + sum(m^2)))
+  //    = sqrt(1/N-1 * (sum(x^2) - 2*m*sum(x) + N*m^2))
+  // with m = 1/N * sum(x)
+  //    = sqrt(1/N-1 * (sum(x^2) - 2/N*(sum(x))^2 + 1/N*(sum(x))^2))
+  //    = sqrt(1/N-1 * (sum(x^2) - 1/N*(sum(x))^2))
+  return sqrt(fabs((sumProduct - (sumX*sumX) / learning_phase_for_pca) / (learning_phase_for_pca - 1)));
 }
 
 void Stat::sigTerm(int signum)

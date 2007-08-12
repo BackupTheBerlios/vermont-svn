@@ -153,9 +153,11 @@ class Stat
   void cusum_update(CusumParams &, const std::vector<int64_t> &);
   void cusum_test(CusumParams &);
 
-  // this function is called by extract_pca_data() to calculate a single entry
-  // of the covariance matrix
+  // these functions are called by extract_pca_data() to calculate ...
+  // ... a single entry of the covariance matrix
   double covariance (const long long int &, const int &, const int &);
+  // ... the standard deviation of a single metric
+  double standard_deviation (const long long int &, const int &);
 
   // this function is called by wkp_test() and cusum_test() to extract a
   // single metric to test from a std::vector<int64_t>
@@ -224,6 +226,7 @@ class Stat
   // fix PCA stuff
   bool use_pca;
   int learning_phase_for_pca;
+  bool use_correlation_matrix;
 
 
   // test parameters (defined in the XML config file):

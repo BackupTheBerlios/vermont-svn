@@ -11,12 +11,12 @@ cd $1
 
 # entries for cusumparams @ metrics
 echo set y2tics autofreq >> graphs.gnuplot
-for METRICSFILE in *_metrics.txt 
+for METRICSFILE in *_metrics.txt
 do
   echo "Processing $METRICSFILE ..."
   COLUMN=1
   TESTRUNCOLUMN=$(expr $(head -n 1 $METRICSFILE | wc -w) - 1)
-  for METRIC in $(head -n 1 $METRICSFILE | sed 's/#//' | sed 's/Test-Run//') 
+  for METRIC in $(head -n 1 $METRICSFILE | sed 's/#//' | sed 's/Test-Run//')
   do
     CUSUMFILE=$(echo $METRICSFILE | sed "s/\_metrics\.txt/\.$METRIC\.cusumparams.txt/")
     WKPFILE=$(echo $CUSUMFILE | sed 's/cusum/wkp/')
@@ -24,13 +24,14 @@ do
     if [ -f $CUSUMFILE -a -f $WKPFILE ]; then
       echo "- $CUSUMFILE"
       echo "- $WKPFILE"
+      echo set key outside >> graphs.gnuplot
       # plot all graphs
       echo set size 1, 1 >> graphs.gnuplot
       echo set origin 0, 0 >> graphs.gnuplot
       echo set title \'$TITLE\' >> graphs.gnuplot
       echo set xtics autofreq >> graphs.gnuplot
       echo set multiplot >> graphs.gnuplot
-      echo set rmargin 10 >> graphs.gnuplot
+      echo set rmargin 30 >> graphs.gnuplot
       echo set lmargin 10 >> graphs.gnuplot
       # Value from METRICSFILE
       echo set origin 0, 0.64 >> graphs.gnuplot
