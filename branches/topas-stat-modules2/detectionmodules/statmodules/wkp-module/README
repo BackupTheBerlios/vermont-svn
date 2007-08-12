@@ -120,6 +120,11 @@ If this parameter is set to "true", the tests will be performed on the principal
 If pca shall be performed (that means, use_pca parameter is set to "true), this parameter defines the length of the learning phase, i. e. how many values shall be considered for the calculation of the covariance matrix and its eigenvectors, the components. If omitted, DEFAULT_learning_phase_for_pca will be used.
 
 
+<use_correlation_matrix>:
+
+This parameter allows you to choose between the covariance matrix and their standardized form, the correlation matrix, used for calculation of the principal components. If set to "true", the correlation matrix will be used, if set to false or omitted, the covariance matrix will be used.
+
+
 <metrics>:
 
 The user should choose which metrics (s)he prefers to monitor and add each of them
