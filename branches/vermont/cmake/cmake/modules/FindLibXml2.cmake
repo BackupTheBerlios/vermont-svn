@@ -1,3 +1,6 @@
+# This line added for distribution with Vermont:
+MESSAGE(STATUS "Using bundled FindLibXml2.cmake...")
+
 FIND_PATH(
   LIBXML2_INCLUDE_DIR
   libxml/parser.h libxml/tree.h tree.h parser.h

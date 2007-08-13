@@ -1,3 +1,6 @@
+# This line added for distribution with Vermont:
+MESSAGE(STATUS "Using bundled FindMySQL.cmake...")
+
 # - Find MySQL
 # Find the MySQL includes and client library
 # This module defines
