@@ -27,7 +27,7 @@ public:
   std::vector<std::vector<double> > sumsOfProducts;
   // holds the sum of each metric
   std::vector<double> sumsOfMetrics;
-  // this is the covariance matrix calculated after the learning phase
+  // this is the covariance (respectively correlation) matrix calculated after the learning phase
   gsl_matrix *cov;
   // matrix containing the eigenvectors of cov
   gsl_matrix *evec;

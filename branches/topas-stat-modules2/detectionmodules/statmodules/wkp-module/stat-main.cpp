@@ -1982,10 +1982,7 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
         P.sumsOfMetrics.at(i) += v.at(i);
         for (int j = 0; j <= i; j++) {
           // sumsOfProducts is a matrix which holds all the sums
-          // of the product of each two metrics;
-          // elements beneath the main diagonal (j < i) are irrelevant
-          // because of commutativity of multiplication
-          // i. e. metric1*metric2 = metric2*metric1
+          // of the product of each two metrics
           P.sumsOfProducts.at(i).at(j) += v.at(i)*v.at(j);
           P.sumsOfProducts.at(j).at(i) = P.sumsOfProducts.at(i).at(j);
         }
@@ -2001,10 +1998,6 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
       for (int i = 0; i < metrics.size(); i++) {
         for (int j = 0; j < metrics.size(); j++) {
             gsl_matrix_set(P.cov,i,j,covariance(P.sumsOfProducts.at(i).at(j),P.sumsOfMetrics.at(i),P.sumsOfMetrics.at(j)));
-              
-              std::cout.precision(20);          
-              std::cout << P.sumsOfProducts.at(i).at(j) << " " << covariance(P.sumsOfProducts.at(i).at(j),P.sumsOfMetrics.at(i),P.sumsOfMetrics.at(j)) << std::endl;
-
         }
       }
 
@@ -2018,17 +2011,7 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
             if (i != j) {
               sd_i = standard_deviation(P.sumsOfProducts.at(i).at(i),P.sumsOfMetrics.at(i));
               sd_j = standard_deviation(P.sumsOfProducts.at(j).at(j),P.sumsOfMetrics.at(j));
-              //std::cout << "sumsOfProducts(ii) = " << P.sumsOfProducts.at(i).at(i) << std::endl << "sumsOfProducts(jj) = " << P.sumsOfProducts.at(j).at(j) << std::endl;
-              //std::cout << "sumsOfMetrics(i) = " << P.sumsOfMetrics.at(i) << std::endl << "sumsOfMetrics(j) = " << P.sumsOfMetrics.at(j) << std::endl;
-              //std::cout << "sdi = " << sd_i << std::endl << "sd_j = " << sd_j << std::endl;
-              if (sd_i == 0.0 || sd_j == 0.0)
-                gsl_matrix_set(P.cov,i,j,0.0);
-              else {
-                //if (gsl_matrix_get(P.cov,i,j)/(sd_i*sd_j) > 1.0)
-                  //gsl_matrix_set(P.cov,i,j,1.0);
-                //else
-                  gsl_matrix_set(P.cov,i,j,gsl_matrix_get(P.cov,i,j)/(sd_i*sd_j));
-              }
+              gsl_matrix_set(P.cov,i,j,gsl_matrix_get(P.cov,i,j)/(sd_i*sd_j));
             }
             // elements on the main diagonal are equal to 1
             else

@@ -28,10 +28,9 @@
 
     <use_pca>true</use_pca>
     <pca_learning_phase>25</pca_learning_phase>
-    <use_correlation_matrix>true</use_correlation_matrix>
+    <use_correlation_matrix>false</use_correlation_matrix>
 
     <metrics>
-      <value>packets_in</value>
       <value>bytes_in</value>
       <value>records_in</value>
     </metrics>
@@ -46,7 +45,7 @@
 	</preferences>
 
   <cusum-test-params>
-    <cusum_test>false</cusum_test>
+    <cusum_test>true</cusum_test>
     <amplitude_percentage>1.66</amplitude_percentage>
     <repetition_factor>3</repetition_factor>
     <learning_phase_for_alpha>50</learning_phase_for_alpha>
