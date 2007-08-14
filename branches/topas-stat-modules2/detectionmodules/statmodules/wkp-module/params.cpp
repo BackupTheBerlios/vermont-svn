@@ -6,11 +6,11 @@ void Params::init(int size) {
     evec = gsl_matrix_calloc (size, size);
     // initialize sumsOfMetrics and sumsOfProducts
     for (int i = 0; i < size; i++) {
-      sumsOfMetrics.push_back(0);
-      std::vector<long long int> v;
+      sumsOfMetrics.push_back(0.0);
+      std::vector<double> v;
       sumsOfProducts.push_back(v);
       for (int j = 0; j < size; j++)
-        sumsOfProducts.at(i).push_back(0);
+        sumsOfProducts.at(i).push_back(0.0);
     }
 
     learning_phase_nr_for_pca = 0;

@@ -155,9 +155,9 @@ class Stat
 
   // these functions are called by extract_pca_data() to calculate ...
   // ... a single entry of the covariance matrix
-  double covariance (const long long int &, const int &, const int &);
+  double covariance (const double &, const double &, const double &);
   // ... the standard deviation of a single metric
-  double standard_deviation (const long long int &, const int &);
+  double standard_deviation (const double &, const double &);
 
   // this function is called by wkp_test() and cusum_test() to extract a
   // single metric to test from a std::vector<int64_t>

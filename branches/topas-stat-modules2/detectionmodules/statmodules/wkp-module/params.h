@@ -24,9 +24,9 @@ public:
   // and with their help, covariances of the metrics can be calculated.
   // holds the sum of the product of each two metrics
   // (should be interpreted as a matrix, with each vector containing one row)
-  std::vector<std::vector<long long int> > sumsOfProducts;
+  std::vector<std::vector<double> > sumsOfProducts;
   // holds the sum of each metric
-  std::vector<int> sumsOfMetrics;
+  std::vector<double> sumsOfMetrics;
   // this is the covariance matrix calculated after the learning phase
   gsl_matrix *cov;
   // matrix containing the eigenvectors of cov

@@ -1980,14 +1980,14 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
       std::vector<int64_t> v = extract_data(info, prev);
       for (int i = 0; i < metrics.size(); i++) {
         P.sumsOfMetrics.at(i) += v.at(i);
-        for (int j = 0; j < metrics.size(); j++) {
+        for (int j = 0; j <= i; j++) {
           // sumsOfProducts is a matrix which holds all the sums
           // of the product of each two metrics;
           // elements beneath the main diagonal (j < i) are irrelevant
           // because of commutativity of multiplication
           // i. e. metric1*metric2 = metric2*metric1
-          if (j >= i)
-            P.sumsOfProducts.at(i).at(j) += v.at(i)*v.at(j);
+          P.sumsOfProducts.at(i).at(j) += v.at(i)*v.at(j);
+          P.sumsOfProducts.at(j).at(i) = P.sumsOfProducts.at(i).at(j);
         }
       }
 
@@ -2000,10 +2000,11 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
       // calculate covariance matrix
       for (int i = 0; i < metrics.size(); i++) {
         for (int j = 0; j < metrics.size(); j++) {
-          if (j >= i) // check needed, because we only calculated the upper right half of matrix sumsOfProducts
             gsl_matrix_set(P.cov,i,j,covariance(P.sumsOfProducts.at(i).at(j),P.sumsOfMetrics.at(i),P.sumsOfMetrics.at(j)));
-          else
-            gsl_matrix_set(P.cov,i,j,covariance(P.sumsOfProducts.at(j).at(i),P.sumsOfMetrics.at(i),P.sumsOfMetrics.at(j)));
+              
+              std::cout.precision(20);          
+              std::cout << P.sumsOfProducts.at(i).at(j) << " " << covariance(P.sumsOfProducts.at(i).at(j),P.sumsOfMetrics.at(i),P.sumsOfMetrics.at(j)) << std::endl;
+
         }
       }
 
@@ -2023,9 +2024,9 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
               if (sd_i == 0.0 || sd_j == 0.0)
                 gsl_matrix_set(P.cov,i,j,0.0);
               else {
-                if (gsl_matrix_get(P.cov,i,j)/(sd_i*sd_j) > 1.0)
-                  gsl_matrix_set(P.cov,i,j,1.0);
-                else
+                //if (gsl_matrix_get(P.cov,i,j)/(sd_i*sd_j) > 1.0)
+                  //gsl_matrix_set(P.cov,i,j,1.0);
+                //else
                   gsl_matrix_set(P.cov,i,j,gsl_matrix_get(P.cov,i,j)/(sd_i*sd_j));
               }
             }
@@ -2839,17 +2840,17 @@ double Stat::stat_test_pcs (std::list<int64_t> & sample_old,
   return p;
 }
 
-double Stat::covariance (const long long int & sumProduct, const int & sumX, const int & sumY) {
+double Stat::covariance (const double & sumProduct, const double & sumX, const double & sumY) {
   // calculate the covariance
   // KOV = 1/N-1 * sum(x1 - n1)(x2 - n2)
   // = 1/N-1 * sum(x1x2 - x1n2 - x2n1 + n1n2)
   // = 1/N-1 * (sum(x1x2) - n2*sum(x1) - n1*sum(x2) + N*n1n2)
   // with n1 = 1/N * sum(x1) and n2 = 1/N * sum(x2)
   // KOV = 1/N-1 * ( sum(x1x2) - 1/N * (sum(x1)sum(x2)) )
-  return (sumProduct - (sumX*sumY) / learning_phase_for_pca) / (learning_phase_for_pca - 1);
+  return (sumProduct - (sumX*sumY) / learning_phase_for_pca) / (learning_phase_for_pca - 1.0);
 }
 
-double Stat::standard_deviation (const long long int & sumProduct, const int & sumX) {
+double Stat::standard_deviation (const double & sumProduct, const double & sumX) {
   // calculate the standard deviation with m = mean value of x
   // SA = sqrt(1/N-1 * (sum((x - m)^2)))
   //    = sqrt(1/N-1 * (sum(x^2 - 2*x*m + m^2)))
@@ -2858,7 +2859,7 @@ double Stat::standard_deviation (const long long int & sumProduct, const int & s
   // with m = 1/N * sum(x)
   //    = sqrt(1/N-1 * (sum(x^2) - 2/N*(sum(x))^2 + 1/N*(sum(x))^2))
   //    = sqrt(1/N-1 * (sum(x^2) - 1/N*(sum(x))^2))
-  return sqrt(fabs((sumProduct - (sumX*sumX) / learning_phase_for_pca) / (learning_phase_for_pca - 1)));
+  return sqrt(fabs((sumProduct - (sumX*sumX) / learning_phase_for_pca) / (learning_phase_for_pca - 1.0)));
 }
 
 void Stat::sigTerm(int signum)

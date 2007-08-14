@@ -33,6 +33,7 @@
     <metrics>
       <value>packets_in</value>
       <value>bytes_in</value>
+      <value>records_in</value>
     </metrics>
 
     <noise_threshold_packets>0</noise_threshold_packets>
@@ -45,7 +46,7 @@
 	</preferences>
 
   <cusum-test-params>
-    <cusum_test>true</cusum_test>
+    <cusum_test>false</cusum_test>
     <amplitude_percentage>1.66</amplitude_percentage>
     <repetition_factor>3</repetition_factor>
     <learning_phase_for_alpha>50</learning_phase_for_alpha>
