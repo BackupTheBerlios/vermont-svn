@@ -19,20 +19,21 @@
     <accepted_source_ids>all</accepted_source_ids>
     <alarm_time>10</alarm_time>
 
-    <endpoint_key>port protocol</endpoint_key>
+    <endpoint_key>protocol</endpoint_key>
     <netmask>32</netmask>
 
     <offline_file>darpa1_all_10.txt</offline_file>
-    <output_dir>d1_1_pca</output_dir>
+    <output_dir>d1_5_pca_cor</output_dir>
     <endpoints_to_monitor>eps.txt</endpoints_to_monitor>
+    <x_frequently_endpoints>3</x_frequently_endpoints>
 
     <use_pca>true</use_pca>
-    <pca_learning_phase>25</pca_learning_phase>
-    <use_correlation_matrix>false</use_correlation_matrix>
+    <pca_learning_phase>100</pca_learning_phase>
+    <use_correlation_matrix>true</use_correlation_matrix>
 
     <metrics>
+      <value>packets_in</value>
       <value>bytes_in</value>
-      <value>records_in</value>
     </metrics>
 
     <noise_threshold_packets>0</noise_threshold_packets>

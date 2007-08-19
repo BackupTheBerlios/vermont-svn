@@ -7,6 +7,7 @@ void Params::init(int size) {
     // initialize sumsOfMetrics and sumsOfProducts
     for (int i = 0; i < size; i++) {
       sumsOfMetrics.push_back(0.0);
+      stddevs.push_back(0.0);
       std::vector<double> v;
       sumsOfProducts.push_back(v);
       for (int j = 0; j < size; j++)

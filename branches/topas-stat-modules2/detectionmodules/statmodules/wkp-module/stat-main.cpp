@@ -225,7 +225,7 @@ void Stat::init(const std::string & configfile) {
     init_sample_sizes(config);
 
     // extracting one/two-sided parameter for the test
-    init_two_sided(config);
+    init_wmw_two_sided(config);
 
     // extracting significance level parameter
     init_significance_level(config);
@@ -245,7 +245,8 @@ void Stat::init(const std::string & configfile) {
     std::ofstream file("CONFIG");
     if (use_pca == true) {
       file << "PCA\n"
-           << "learning_phase_for_pca = " << learning_phase_for_pca << "\n";
+           << "learning_phase_for_pca = " << learning_phase_for_pca << "\n"
+           << "use_correlation_matrix = " << ((use_correlation_matrix == true)?"true":"false") << "\n";
     }
     else
       file << "NORMAL\n";
@@ -273,7 +274,7 @@ void Stat::init(const std::string & configfile) {
       file << "WKP-PARAMS:\n";
       file << "sample_old_size = " << sample_old_size << "\n"
            << "sample_new_size = " << sample_new_size << "\n"
-           << "two_sided = " << two_sided << "\n"
+           << "wmw_two_sided = " << wmw_two_sided << "\n"
            << "significance_level = " << significance_level << "\n";
     }
 
@@ -666,7 +667,6 @@ void Stat::init_pca(XMLConfObj * config) {
       msgStr.print(MsgStream::WARN, Warning.str(), logfile, true);
       use_correlation_matrix = false;
     }
-
   }
   return;
 }
@@ -782,21 +782,28 @@ void Stat::init_metrics(XMLConfObj * config) {
   // in the Samples-Lists (for better understanding the output
   // of test() etc.
   std::stringstream Information;
-  if (use_pca == false)
+  if (use_pca == false) {
     Information
     << "Tests will be performed directly on the metrics. Values in the lists sample_old and sample_new will be "
     << "stored in the following order:\n";
-  else
+    msgStr.print(MsgStream::INFO, Information.str(), logfile, true);
+  }
+  else {
     Information
     << "Tests will be performed on the principal components of the following metrics:\n";
-  std::vector<Metric>::iterator val = metrics.begin();
-  Information << "( ";
-  while (val != metrics.end() ) {
-    Information << getMetricName(*val) << " ";
-    val++;
+    std::vector<Metric>::iterator val = metrics.begin();
+    Information << "( ";
+    while (val != metrics.end() ) {
+      Information << getMetricName(*val) << " ";
+      val++;
+    }
+    Information << ")";
+    msgStr.print(MsgStream::INFO, Information.str(), logfile, true);
+
+    std::stringstream Information1;
+    Information1 << "Eigenvectors of the " << ((use_correlation_matrix == true)?"correlation matrix":"covariance matrix") << " will be used to transform the data.";
+    msgStr.print(MsgStream::INFO, Information1.str(), logfile, true);
   }
-  Information << ")";
-  msgStr.print(MsgStream::INFO, Information.str(), logfile, true);
 
 #ifndef OFFLINE_ENABLED
   bool packetsSubscribed = false;
@@ -1384,23 +1391,23 @@ void Stat::init_sample_sizes(XMLConfObj * config) {
   return;
 }
 
-void Stat::init_two_sided(XMLConfObj * config) {
+void Stat::init_wmw_two_sided(XMLConfObj * config) {
 
   // extracting one/two-sided parameter for the test
-  if ( enable_wmw_test == true && !config->nodeExists("two_sided") ) {
+  if ( enable_wmw_test == true && !config->nodeExists("wmw_two_sided") ) {
     // one/two-sided parameter is active only for Wilcoxon-Mann-Whitney
     // statistical test; Pearson chi-square test and Kolmogorov-Smirnov
     // test are one-sided only.
-    msgStr.print(MsgStream::WARN, "No two_sided parameter defined in XML config file! \"false\" assumed.", logfile, true);
-    two_sided = false;
+    msgStr.print(MsgStream::WARN, "No wmw_two_sided parameter defined in XML config file! \"false\" assumed.", logfile, true);
+    wmw_two_sided = false;
   }
-  else if ( enable_wmw_test == true && config->getValue("two_sided").empty() ) {
-    msgStr.print(MsgStream::WARN, "No value for two_sided parameter defined in XML config file! \"false\" assumed.", logfile, true);
-    two_sided = false;
+  else if ( enable_wmw_test == true && config->getValue("wmw_two_sided").empty() ) {
+    msgStr.print(MsgStream::WARN, "No value for wmw_two_sided parameter defined in XML config file! \"false\" assumed.", logfile, true);
+    wmw_two_sided = false;
   }
   // Every value but "true" is assumed to be false!
-  else if (config->nodeExists("two_sided") && !(config->getValue("two_sided")).empty() )
-    two_sided = ( 0 == strcasecmp("true", config->getValue("two_sided").c_str()) ) ? true:false;
+  else if (config->nodeExists("wmw_two_sided") && !(config->getValue("wmw_two_sided")).empty() )
+    wmw_two_sided = ( 0 == strcasecmp("true", config->getValue("wmw_two_sided").c_str()) ) ? true:false;
 
   return;
 }
@@ -2004,14 +2011,18 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
       // if wanted, calculate correlation matrix based on the covariance matrix
       if (use_correlation_matrix == true) {
         for (int i = 0; i < metrics.size(); i++) {
+          // calculate standard deviation of metric i
+          double sd_i;
+          sd_i = standard_deviation(P.sumsOfProducts.at(i).at(i),P.sumsOfMetrics.at(i));
           for (int j = 0; j < metrics.size(); j++) {
-            // calculate standard deviation of metrics i and j
-            double sd_i;
+            // calculate standard deviation of metric j
             double sd_j;
             if (i != j) {
-              sd_i = standard_deviation(P.sumsOfProducts.at(i).at(i),P.sumsOfMetrics.at(i));
               sd_j = standard_deviation(P.sumsOfProducts.at(j).at(j),P.sumsOfMetrics.at(j));
               gsl_matrix_set(P.cov,i,j,gsl_matrix_get(P.cov,i,j)/(sd_i*sd_j));
+              // store the standard deviations (we need them later to normalize new incoming data)
+              P.stddevs.at(i) = sd_i;
+              P.stddevs.at(j) = sd_j;
             }
             // elements on the main diagonal are equal to 1
             else
@@ -2026,6 +2037,12 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
           std::cout << gsl_matrix_get(P.cov,i,j) << "\t";
         std::cout << std::endl;
       }
+      std::cout << std::endl;
+
+      for (int i = 0; i < metrics.size(); i++) {
+        std::cout << "stddev(" << i << ") : " << P.stddevs.at(i) << std::endl;
+      }
+
       std::cout << std::endl;
 
 
@@ -2059,22 +2076,27 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
 
   // fetch new metric data
   std::vector<int64_t> v = extract_data(info,prev);
+  // Normalization: Divide the metric values by the stddevs, if correlation matrix is used
+  if (use_correlation_matrix == true) {
+    for (int i = 0; i < metrics.size(); i++)
+      v.at(i) = (long long int) (v.at(i) / P.stddevs.at(i)); // irrelevant bias?
+  }
   // transform it into a matrix (needed for multiplication)
-  // 1*X matrix with X = #metrics,
-  gsl_matrix *new_metric_data = gsl_matrix_calloc (1, metrics.size());
+  // X*1 matrix with X = #metrics,
+  gsl_matrix *new_metric_data = gsl_matrix_calloc (metrics.size(),1);
   for (int i = 0; i < metrics.size(); i++)
-    gsl_matrix_set(new_metric_data,0,i,v.at(i));
+    gsl_matrix_set(new_metric_data,i,0,v.at(i));
 
   // matrix multiplication to get the transformed data
-  // transformed_data = data * evec
-  gsl_matrix *transformed_metric_data = gsl_matrix_calloc (1, metrics.size());
-  gsl_blas_dgemm (CblasNoTrans, CblasNoTrans,
-                       1.0, new_metric_data, P.evec,
+  // transformed_data = evec^T * data
+  gsl_matrix *transformed_metric_data = gsl_matrix_calloc (metrics.size(),1);
+  gsl_blas_dgemm (CblasTrans, CblasNoTrans,
+                       1.0, P.evec, new_metric_data,
                        0.0, transformed_metric_data);
 
   // transform the matrix with the transformed data back into a vector
   for (int i = 0; i < metrics.size(); i++)
-    result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,0,i));
+    result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,i,0));
 
   gsl_matrix_free(new_metric_data);
   gsl_matrix_free(transformed_metric_data);
@@ -2680,7 +2702,7 @@ double Stat::stat_test_wmw (std::list<int64_t> & sample_old,
 
   if (logfile_output_verbosity == 5) {
     logfile << " Wilcoxon-Mann-Whitney test details:\n";
-    p = wmw_test(sample_old, sample_new, two_sided, logfile);
+    p = wmw_test(sample_old, sample_new, wmw_two_sided, logfile);
     logfile << " Wilcoxon-Mann-Whitney test returned:\n"
       << "  p-value: " << p << std::endl;
     logfile << "  reject H0 (no attack) to any significance level alpha > "
@@ -2688,7 +2710,7 @@ double Stat::stat_test_wmw (std::list<int64_t> & sample_old,
   }
   else {
     std::ofstream dump("/dev/null");
-    p = wmw_test(sample_old, sample_new, two_sided, dump);
+    p = wmw_test(sample_old, sample_new, wmw_two_sided, dump);
   }
 
 

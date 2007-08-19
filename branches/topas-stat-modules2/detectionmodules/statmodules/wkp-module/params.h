@@ -27,6 +27,9 @@ public:
   std::vector<std::vector<double> > sumsOfProducts;
   // holds the sum of each metric
   std::vector<double> sumsOfMetrics;
+  // holds the standard deviations needed to normalize the data before proceeding it,
+  // if the user chose to use correlation matrix
+  std::vector<double> stddevs;
   // this is the covariance (respectively correlation) matrix calculated after the learning phase
   gsl_matrix *cov;
   // matrix containing the eigenvectors of cov

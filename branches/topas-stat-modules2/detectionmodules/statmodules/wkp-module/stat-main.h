@@ -141,7 +141,7 @@ class Stat
 
   void init_which_test(XMLConfObj *);
   void init_sample_sizes(XMLConfObj *);
-  void init_two_sided(XMLConfObj *);
+  void init_wmw_two_sided(XMLConfObj *);
   void init_significance_level(XMLConfObj *);
 
 
@@ -245,7 +245,7 @@ class Stat
   bool enable_wkp_test; // summarizes the above three
   int sample_old_size;
   int sample_new_size;
-  bool two_sided;
+  bool wmw_two_sided;
   double significance_level;
 
 

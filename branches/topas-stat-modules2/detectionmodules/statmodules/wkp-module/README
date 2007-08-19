@@ -314,7 +314,7 @@ is compared. If not provided, default values are used
 (DEFAULT_sample_old_size und DEFAULT_sample_new_size).
 
 
-<two_sided>:
+<wmw_two_sided>:
 
 This case-insensitive boolean tells if Wilcoxon-Mann-Whitney statistical
 test should be performed assuming the alternative hypothesis is
