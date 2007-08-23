@@ -1487,9 +1487,8 @@ void Stat::test(StatStore * store) {
 
   // 1) LEARN/UPDATE PHASE
   // Parsing data to see whether the recorded EndPoints already exist
-  // in our  "std::map<EndPoint, WkpParams> WkpData" respective
-  // "std::map<EndPoint, CusumParams> CusumData" container.
-  // If not, then we add it as a new pair <EndPoint, *>.
+  // in our  "std::map<EndPoint, Params> EndpointParams" container.
+  // If not, then we add it as a new pair <EndPoint, Params>.
   // If yes, then we update the corresponding entry using
   // std::vector<int64_t> extracted data.
   if (logfile_output_verbosity >= 3)
@@ -1509,125 +1508,111 @@ void Stat::test(StatStore * store) {
     std::vector<int64_t> metric_data;
     std::vector<int64_t> pca_metric_data;
 
-    // Do stuff for wkp-tests (if at least one of them is enabled)
-    if (enable_wkp_test == true) {
+    std::map<EndPoint, Params>::iterator EndpointParams_it =
+      EndpointParams.find(Data_it->first);
 
-      std::map<EndPoint, WkpParams>::iterator WkpData_it =
-        WkpData.find(Data_it->first);
+    if (EndpointParams_it == EndpointParams.end()) {
+      // We didn't find the recorded EndPoint Data_it->first
+      // in our container "EndpointParams"; that means it's a new one,
+      // so we just add it in "EndpointParams"; there will not be jeopardy
+      // of memory exhaustion through endless growth of the "EndpointParams" map
+      // as limits are implemented in the StatStore class (EndPointListMaxSize)
 
-      if (WkpData_it == WkpData.end()) {
-
-        // We didn't find the recorded EndPoint Data_it->first
-        // in our sample container "WkpData"; that means it's a new one,
-        // so we just add it in "WkpData"; there will not be jeopardy
-        // of memory exhaustion through endless growth of the "WkpData" map
-        // as limits are implemented in the StatStore class (EndPointListMaxSize)
-
-        WkpParams S;
-        S.correspondingEndPoint = (Data_it->first).toString();
+      // Initialization
+      Params P;
+      P.correspondingEndPoint = (Data_it->first).toString();
+      if (enable_wkp_test == true) {
         for (int i=0; i < metrics.size(); i++) {
-          (S.last_wmw_test_was_attack).push_back(false);
-          (S.last_ks_test_was_attack).push_back(false);
-          (S.last_pcs_test_was_attack).push_back(false);
-          (S.wmw_alarms).push_back(0);
-          (S.ks_alarms).push_back(0);
-          (S.pcs_alarms).push_back(0);
+          (P.last_wmw_test_was_attack).push_back(false);
+          (P.last_ks_test_was_attack).push_back(false);
+          (P.last_pcs_test_was_attack).push_back(false);
+          (P.wmw_alarms).push_back(0);
+          (P.ks_alarms).push_back(0);
+          (P.pcs_alarms).push_back(0);
         }
-
-        if (use_pca == true) {
-          // initialize pca stuff
-          S.init(metrics.size());
-          pca_metric_data = extract_pca_data(S, Data_it->second, prev);
+      }
+      if (enable_cusum_test == true) {
+        for (int i = 0; i != metrics.size(); i++) {
+          (P.sum).push_back(0);
+          (P.alpha).push_back(0.0);
+          (P.g).push_back(0.0);
+          (P.last_cusum_test_was_attack).push_back(false);
+          (P.X_curr).push_back(0);
+          (P.X_last).push_back(0);
+          (P.cusum_alarms).push_back(0);
         }
-        else {
-          metric_data = extract_data(Data_it->second, prev);
-          (S.Old).push_back(metric_data);
-        }
+      }
 
-        WkpData[Data_it->first] = S;
-
-        if (logfile_output_verbosity >= 3) {
-          logfile << " (WKP): New monitored EndPoint added" << std::endl;
-          if (logfile_output_verbosity >= 4 && use_pca == false) {
-            logfile << "   with first element of sample_old: " << S.Old.back() << std::endl;
-          }
-        }
-
+      if (use_pca == true) {
+        // initialize pca stuff
+        P.init(metrics.size());
+        pca_metric_data = extract_pca_data(P, Data_it->second, prev);
       }
       else {
-        // We found the recorded EndPoint Data_it->first
-        // in our sample container "WkpData"; so we update the samples
-        // (WkpData_it->second).Old and (WkpData_it->second).New
-        // thanks to the recorded new value in Data_it->second:
-        if (use_pca == true) {
-          pca_metric_data = extract_pca_data(WkpData_it->second, Data_it->second, prev);
-          wkp_update ( WkpData_it->second, pca_metric_data );
+        metric_data = extract_data(Data_it->second, prev);
+        if (enable_wkp_test == true) {
+          (P.Old).push_back(metric_data);
         }
-        else {
-          metric_data = extract_data(Data_it->second, prev);
-          wkp_update ( WkpData_it->second, metric_data );
-        }
-      }
-    }
-
-    // Do stuff for cusum-test (if enabled)
-    if (enable_cusum_test == true) {
-
-      std::map<EndPoint, CusumParams>::iterator CusumData_it = CusumData.find(Data_it->first);
-
-      if (CusumData_it == CusumData.end()) {
-
-        // We didn't find the recorded EndPoint Data_it->first
-        // in our cusum container "CusumData"; that means it's a new one,
-        // so we just add it in "CusumData"; there will not be jeopardy
-        // of memory exhaustion through endless growth of the "CusumData" map
-        // as limits are implemented in the StatStore class (EndPointListMaxSize)
-
-        CusumParams C;
-        // initialize the vectors of C
-        for (int i = 0; i != metrics.size(); i++) {
-          (C.sum).push_back(0);
-          (C.alpha).push_back(0.0);
-          (C.g).push_back(0.0);
-          (C.last_cusum_test_was_attack).push_back(false);
-          (C.X_curr).push_back(0);
-          (C.X_last).push_back(0);
-          (C.cusum_alarms).push_back(0);
-        }
-
-        if (use_pca == true) {
-          // initialize pca stuff
-          C.init(metrics.size());
-          C.correspondingEndPoint = (Data_it->first).toString();
-          pca_metric_data = extract_pca_data(C, Data_it->second, prev);
-        }
-        else { // no learning phase for pca ...
-          metric_data = extract_data(Data_it->second, prev);
+        if (enable_cusum_test == true) {
           // add first value of each metric to the sum, which is needed
           // only to calculate the initial alpha after learning_phase_for_alpha
           // is over
           for (int i = 0; i != metric_data.size(); i++)
-            C.sum.at(i) += metric_data.at(i);
-          C.learning_phase_nr_for_alpha = 1;
-          C.correspondingEndPoint = (Data_it->first).toString();
+            P.sum.at(i) += metric_data.at(i);
+          P.learning_phase_nr_for_alpha = 1;
         }
-
-        CusumData[Data_it->first] = C;
-        if (logfile_output_verbosity >= 3)
-          logfile << " (CUSUM): New monitored EndPoint added" << std::endl;
       }
-      else {
-        // We found the recorded EndPoint Data_it->first
-        // in our cusum container "CusumData"; so we update alpha
-        // thanks to the recorded new values in Data_it->second:
-        if (use_pca == true) {
-          pca_metric_data = extract_pca_data(CusumData_it->second, Data_it->second, prev);
-          cusum_update ( CusumData_it->second, pca_metric_data );
+
+      EndpointParams[Data_it->first] = P;
+
+      if (logfile_output_verbosity >= 3) {
+        logfile << "Added as new monitored endpoint" << std::endl;
+        if (enable_wkp_test == true && logfile_output_verbosity >= 4 && use_pca == false)
+          logfile << "  (WKP): with first element of sample_old: " << P.Old.back() << std::endl;
+        if (enable_cusum_test == true && logfile_output_verbosity >= 3)
+          logfile << "  (CUSUM): with initial values for sums of metrics for calculating alpha." << std::endl;
+      }
+    }
+    else {
+      // We found the recorded EndPoint Data_it->first
+      // in our container "EndpointParams"; so we update the data
+      if (use_pca == true) {
+        pca_metric_data = extract_pca_data(EndpointParams_it->second, Data_it->second, prev);
+        // Updates for pca metrics have to wait for the pca learning phase
+        // needed to calculate the eigenvectors
+        // NOTE: The overall learning phases for the tests will thus sum up to
+        // WKP: learning_phase_pca + learning_phase_samples
+        // Cusum: learning_phase_pca + learning_phase_for_alpha
+        if ((EndpointParams_it->second).pca_ready == false) {
+          if (logfile_output_verbosity >= 3)
+            logfile << "Learning phase for PCA ..." << std::endl;
+        }
+        // this case happens exactly one time: when PCA is ready for the first time
+        else if ((EndpointParams_it->second).pca_ready == true && pca_metric_data.empty() == true) {
+          if (logfile_output_verbosity >= 3)
+            logfile << "PCA learning phase is over! PCA is now ready!\n";
+          if (logfile_output_verbosity == 5) {
+            logfile << "Calculated " << ((use_correlation_matrix == true)?"correlation matrix:\n":"covariance matrix:\n");
+            for (int i = 0; i < metrics.size(); i++) {
+              for (int j = 0; j < metrics.size(); j++)
+                logfile << gsl_matrix_get((EndpointParams_it->second).cov,i,j) << "\t";
+              logfile << "\n";
+            }
+          }
         }
         else {
-          metric_data = extract_data(Data_it->second, prev);
-          cusum_update ( CusumData_it->second, metric_data );
+          if (enable_wkp_test == true)
+            wkp_update ( EndpointParams_it->second, pca_metric_data );
+          if (enable_cusum_test == true)
+            cusum_update ( EndpointParams_it->second, pca_metric_data );
         }
+      }
+      else {
+        metric_data = extract_data(Data_it->second, prev);
+        if (enable_wkp_test == true)
+          wkp_update ( EndpointParams_it->second, metric_data );
+        if (enable_cusum_test == true)
+          cusum_update ( EndpointParams_it->second, metric_data );
       }
     }
 
@@ -1650,26 +1635,26 @@ void Stat::test(StatStore * store) {
       pos = file.tellp();
 
       if (use_pca == true) {
-	  if (pos == 0) {
-	      file << "# ";
-	      for (int i = 0; i < pca_metric_data.size(); i++)
-		  file << "pca_comp_" << i << "\t";
-	      file << "Test-Run" << "\n";
-	  }
-	  for (int i = 0; i < pca_metric_data.size(); i++)
-	      file << pca_metric_data.at(i) << "\t";
-	  file << test_counter << "\n";
+        if (pos == 0) {
+          file << "# ";
+          for (int i = 0; i < pca_metric_data.size(); i++)
+            file << "pca_comp_" << i << "\t";
+          file << "Test-Run" << "\n";
+        }
+        for (int i = 0; i < pca_metric_data.size(); i++)
+          file << pca_metric_data.at(i) << "\t";
+        file << test_counter << "\n";
       }
       else {
-	  if (pos == 0) {
-	      file << "# ";
-	      for (int i = 0; i < metric_data.size(); i++)
-		  file << getMetricName(metrics.at(i)) << "\t";
-	      file << "Test-Run" << "\n";
-	  }
-	  for (int i = 0; i < metric_data.size(); i++)
-	      file << metric_data.at(i) << "\t";
-	  file << test_counter << "\n";
+        if (pos == 0) {
+          file << "# ";
+          for (int i = 0; i < metric_data.size(); i++)
+            file << getMetricName(metrics.at(i)) << "\t";
+          file << "Test-Run" << "\n";
+        }
+        for (int i = 0; i < metric_data.size(); i++)
+          file << metric_data.at(i) << "\t";
+        file << test_counter << "\n";
       }
 
       file.close();
@@ -1684,40 +1669,28 @@ void Stat::test(StatStore * store) {
 
   // how many endpoints do we already monitor?
   int ep_nr;
-  if (enable_wkp_test == true)
-    ep_nr = WkpData.size();
-  else if (enable_cusum_test == true)
-    ep_nr = CusumData.size();
+  ep_nr = EndpointParams.size();
 
   if (logfile_output_verbosity >= 4) {
     logfile << std::endl << "#### STATE OF ALL MONITORED ENDPOINTS (" << ep_nr << "):" << std::endl;
 
-    if (enable_wkp_test == true) {
-      logfile << "### WKP OVERVIEW" << std::endl;
-      std::map<EndPoint,WkpParams>::iterator WkpData_it =
-        WkpData.begin();
-      while (WkpData_it != WkpData.end()) {
-        logfile
-          << "[[ " << WkpData_it->first << " ]]\n"
-          << "  sample_old (" << (WkpData_it->second).Old.size()  << ") : "
-          << (WkpData_it->second).Old << "\n"
-          << "  sample_new (" << (WkpData_it->second).New.size() << ") : "
-          << (WkpData_it->second).New << "\n";
-        WkpData_it++;
+    std::map<EndPoint,Params>::iterator EndpointParams_it = EndpointParams.begin();
+      while (EndpointParams_it != EndpointParams.end()) {
+        logfile << "[[ " << EndpointParams_it->first << " ]]\n";
+        if (enable_wkp_test == true) {
+          logfile << " (WKP):\n"
+                  << "   sample_old (" << (EndpointParams_it->second).Old.size()  << ") : "
+                  << (EndpointParams_it->second).Old << "\n"
+                  << "   sample_new (" << (EndpointParams_it->second).New.size() << ") : "
+                  << (EndpointParams_it->second).New << "\n";
+        }
+        if (enable_cusum_test == true) {
+          logfile << " (CUSUM):\n"
+                  << "   alpha: " << (EndpointParams_it->second).alpha << "\n"
+                  << "   g: " << (EndpointParams_it->second).g << "\n";
+        }
+        EndpointParams_it++;
       }
-    }
-    if (enable_cusum_test == true) {
-      logfile << "### CUSUM OVERVIEW" << std::endl;
-      std::map<EndPoint,CusumParams>::iterator CusumData_it =
-        CusumData.begin();
-      while (CusumData_it != CusumData.end()) {
-        logfile
-          << "[[ " << CusumData_it->first << " ]]\n"
-          << "  alpha: " << (CusumData_it->second).alpha << "\n"
-          << "  g: " << (CusumData_it->second).g << "\n";
-        CusumData_it++;
-      }
-    }
     logfile << std::flush;
   }
 
@@ -1741,33 +1714,23 @@ void Stat::test(StatStore * store) {
     // learning phase is over.
     // for CUSUM: as soon as we have enough values for calculating the initial
     // values of alpha
-    // The other endpoints in the "WkpData" and "CusumData"
-    // maps are let learning.
+    // The other endpoints in the EndpointParams map are let learning.
 
-    if (enable_wkp_test == true) {
-      std::map<EndPoint,WkpParams>::iterator WkpData_it = WkpData.begin();
-      while (WkpData_it != WkpData.end()) {
-        if ( ((WkpData_it->second).New).size() == sample_new_size ) {
-          // i.e., learning phase over
-          if (logfile_output_verbosity > 0)
-            logfile << "\n#### WKP TESTS for EndPoint [[ " << WkpData_it->first << " ]]\n";
-          wkp_test ( WkpData_it->second );
-        }
-        WkpData_it++;
+    std::map<EndPoint,Params>::iterator EndpointParams_it = EndpointParams.begin();
+    while (EndpointParams_it != EndpointParams.end()) {
+      if ( enable_wkp_test == true && ((EndpointParams_it->second).New).size() == sample_new_size ) {
+        // i.e. learning phase over
+        if (logfile_output_verbosity > 0)
+          logfile << "\n#### WKP TESTS for EndPoint [[ " << EndpointParams_it->first << " ]]\n";
+        wkp_test ( EndpointParams_it->second );
       }
-    }
-
-    if (enable_cusum_test == true) {
-      std::map<EndPoint,CusumParams>::iterator CusumData_it = CusumData.begin();
-      while (CusumData_it != CusumData.end()) {
-        if ( (CusumData_it->second).ready_to_test == true ) {
-          // i.e. learning phase for alpha is over and it has an initial value
-          if (logfile_output_verbosity > 0)
-            logfile << "\n#### CUSUM TESTS for EndPoint [[ " << CusumData_it->first << " ]]\n";
-          cusum_test ( CusumData_it->second );
-        }
-        CusumData_it++;
+      if ( enable_cusum_test == true && (EndpointParams_it->second).ready_to_test == true ) {
+        // i.e. learning phase for alpha is over and it has an initial value
+        if (logfile_output_verbosity > 0)
+          logfile << "\n#### CUSUM TESTS for EndPoint [[ " << EndpointParams_it->first << " ]]\n";
+        cusum_test ( EndpointParams_it->second );
       }
+      EndpointParams_it++;
     }
   }
 
@@ -2031,19 +1994,10 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
         }
       }
 
-      std::cout << P.correspondingEndPoint << std::endl << "-------------" << std::endl;
-      for (int i = 0; i < metrics.size(); i++) {
-        for (int j = 0; j < metrics.size(); j++)
-          std::cout << gsl_matrix_get(P.cov,i,j) << "\t";
-        std::cout << std::endl;
-      }
-      std::cout << std::endl;
-
-      for (int i = 0; i < metrics.size(); i++) {
-        std::cout << "stddev(" << i << ") : " << P.stddevs.at(i) << std::endl;
-      }
-
-      std::cout << std::endl;
+//       for (int i = 0; i < metrics.size(); i++) {
+//         std::cout << "stddev(" << i << ") : " << P.stddevs.at(i) << std::endl;
+//       }
+//       std::cout << std::endl;
 
 
       // calculate eigenvectors and -values
@@ -2064,9 +2018,6 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
       // From now on, matrix evec can be used to transform the new arriving data
 
       P.pca_ready = true; // so this code will never be visited again
-
-      if (logfile_output_verbosity >= 3)
-        logfile << "(CUSUM): PCA learning phase is over! PCA is now ready!" << std::endl;
 
       return result; // empty
     }
@@ -2109,46 +2060,32 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
 
 // learn/update function for samples (called everytime test() is called)
 //
-void Stat::wkp_update ( WkpParams & S, const std::vector<int64_t> & new_value ) {
-
-  // Updates for pca metrics have to wait for the pca learning phase
-  // needed to calculate the eigenvectors
-  // NOTE: The overall learning phase will thus sum up to
-  // learning_phase_pca + leraning_phase_samples
-  if (use_pca == true && S.pca_ready == false) {
-    if (logfile_output_verbosity >= 3)
-      logfile << "(WKP): learning phase for PCA ..." << std::endl;
-    return;
-  }
-
-  // this case happens exactly one time: when PCA is ready for the first time
-  if (new_value.empty() == true)
-    return;
+void Stat::wkp_update ( Params & P, const std::vector<int64_t> & new_value ) {
 
   // Learning phase?
-  if (S.Old.size() != sample_old_size) {
+  if (P.Old.size() != sample_old_size) {
 
-    S.Old.push_back(new_value);
+    P.Old.push_back(new_value);
 
     if (logfile_output_verbosity >= 3) {
-      logfile << " (WKP): Learning phase for sample_old ..." << std::endl;
+      logfile << "  (WKP): Learning phase for sample_old ..." << std::endl;
       if (logfile_output_verbosity >= 4) {
-        logfile << "   sample_old: " << S.Old << std::endl;
-        logfile << "   sample_new: " << S.New << std::endl;
+        logfile << "   sample_old: " << P.Old << std::endl;
+        logfile << "   sample_new: " << P.New << std::endl;
       }
     }
 
     return;
   }
-  else if (S.New.size() != sample_new_size) {
+  else if (P.New.size() != sample_new_size) {
 
-    S.New.push_back(new_value);
+    P.New.push_back(new_value);
 
     if (logfile_output_verbosity >= 3) {
-      logfile << " (WKP): Learning phase for sample_new..." << std::endl;
+      logfile << "  (WKP): Learning phase for sample_new..." << std::endl;
       if (logfile_output_verbosity >= 4) {
-        logfile << "   sample_old: " << S.Old << std::endl;
-        logfile << "   sample_new: " << S.New << std::endl;
+        logfile << "   sample_old: " << P.Old << std::endl;
+        logfile << "   sample_new: " << P.New << std::endl;
       }
     }
 
@@ -2162,24 +2099,24 @@ void Stat::wkp_update ( WkpParams & S, const std::vector<int64_t> & new_value ) 
   bool at_least_one_wmw_test_was_attack = false;
   bool at_least_one_ks_test_was_attack = false;
   bool at_least_one_pcs_test_was_attack = false;
-  for (int i = 0; i < S.last_wmw_test_was_attack.size(); i++) {
-    if (S.last_wmw_test_was_attack.at(i) == true)
+  for (int i = 0; i < P.last_wmw_test_was_attack.size(); i++) {
+    if (P.last_wmw_test_was_attack.at(i) == true)
       at_least_one_wmw_test_was_attack = true;
-    if (S.last_ks_test_was_attack.at(i) == true)
+    if (P.last_ks_test_was_attack.at(i) == true)
       at_least_one_ks_test_was_attack = true;
-    if (S.last_pcs_test_was_attack.at(i) == true)
+    if (P.last_pcs_test_was_attack.at(i) == true)
       at_least_one_pcs_test_was_attack = true;
   }
 /*
   bool all_wmw_tests_were_attacks = true;
   bool all_ks_tests_were_attacks = true;
   bool all_pcs_tests_were_attacks = true;
-  for (int i = 0; i < S.last_wmw_test_was_attack.size(); i++) {
-    if (S.last_wmw_test_was_attack.at(i) == false)
+  for (int i = 0; i < P.last_wmw_test_was_attack.size(); i++) {
+    if (P.last_wmw_test_was_attack.at(i) == false)
       all_wmw_tests_were_attacks = false;
-    if (S.last_ks_test_was_attack.at(i) == false)
+    if (P.last_ks_test_was_attack.at(i) == false)
       all_ks_tests_were_attacks = false;
-    if (S.last_pcs_test_was_attack.at(i) == false)
+    if (P.last_pcs_test_was_attack.at(i) == false)
       all_pcs_tests_were_attacks = false;
   }
 */
@@ -2193,35 +2130,35 @@ void Stat::wkp_update ( WkpParams & S, const std::vector<int64_t> & new_value ) 
           && at_least_one_ks_test_was_attack  == true
           && at_least_one_pcs_test_was_attack == true )) ) {
 
-    S.New.pop_front();
-    S.New.push_back(new_value);
+    P.New.pop_front();
+    P.New.push_back(new_value);
 
     if (logfile_output_verbosity >= 3) {
-      logfile << " (WKP): Update done (for new sample only)" << std::endl;
+      logfile << "  (WKP): Update done (for new sample only)" << std::endl;
       if (logfile_output_verbosity >= 4) {
-        logfile << "   sample_old: " << S.Old << std::endl;
-        logfile << "   sample_new: " << S.New << std::endl;
+        logfile << "   sample_old: " << P.Old << std::endl;
+        logfile << "   sample_new: " << P.New << std::endl;
       }
     }
   }
   // if parameter is 0 (or 3) or there was no attack detected
   // update both samples
   else {
-    S.Old.pop_front();
-    S.Old.push_back(S.New.front());
-    S.New.pop_front();
-    S.New.push_back(new_value);
+    P.Old.pop_front();
+    P.Old.push_back(P.New.front());
+    P.New.pop_front();
+    P.New.push_back(new_value);
 
     if (logfile_output_verbosity >= 3) {
-      logfile << " (WKP): Update done (for both samples)" << std::endl;
+      logfile << "  (WKP): Update done (for both samples)" << std::endl;
       if (logfile_output_verbosity >= 4) {
-        logfile << "   sample_old: " << S.Old << std::endl;
-        logfile << "   sample_new: " << S.New << std::endl;
+        logfile << "   sample_old: " << P.Old << std::endl;
+        logfile << "   sample_new: " << P.New << std::endl;
       }
     }
   }
 
-  S.updated = true;
+  P.wkp_updated = true;
 
   logfile << std::flush;
   return;
@@ -2229,37 +2166,23 @@ void Stat::wkp_update ( WkpParams & S, const std::vector<int64_t> & new_value ) 
 
 
 // and the update funciotn for the cusum-test
-void Stat::cusum_update ( CusumParams & C, const std::vector<int64_t> & new_value ) {
-
-  // Updates for pca metrics have to wait for the pca learning phase
-  // needed to calculate the eigenvectors
-  // NOTE: The overall learning phase will thus sum up to
-  // learning_phase_pca + leraning_phase_alpha
-  if (use_pca == true && C.pca_ready == false) {
-    if (logfile_output_verbosity >= 3)
-      logfile << "(CUSUM): learning phase for PCA ..." << std::endl;
-    return;
-  }
-
-  // this case happens exactly one time: when PCA is ready for the first time
-  if (new_value.empty() == true)
-    return;
+void Stat::cusum_update ( Params & P, const std::vector<int64_t> & new_value ) {
 
   // Learning phase for alpha?
   // that means, we dont have enough values to calculate alpha
   // until now (and so cannot perform the cusum test)
-  if (C.ready_to_test == false) {
-    if (C.learning_phase_nr_for_alpha < learning_phase_for_alpha) {
+  if (P.ready_to_test == false) {
+    if (P.learning_phase_nr_for_alpha < learning_phase_for_alpha) {
 
       // update the sum of the values of each metric
       // (needed to calculate the initial alpha)
-      for (int i = 0; i != C.sum.size(); i++)
-        C.sum.at(i) += new_value.at(i);
+      for (int i = 0; i != P.sum.size(); i++)
+        P.sum.at(i) += new_value.at(i);
 
       if (logfile_output_verbosity >= 3)
-        logfile << " (CUSUM): Learning phase for alpha ...\n";
+        logfile << "  (CUSUM): Learning phase for alpha ...\n";
 
-      C.learning_phase_nr_for_alpha++;
+      P.learning_phase_nr_for_alpha++;
 
       return;
     }
@@ -2267,50 +2190,50 @@ void Stat::cusum_update ( CusumParams & C, const std::vector<int64_t> & new_valu
     // Enough values? Calculate initial alpha per simple average
     // and set ready_to_test-flag to true (so we never visit this
     // code here again for the current endpoint)
-    if (C.learning_phase_nr_for_alpha == learning_phase_for_alpha) {
+    if (P.learning_phase_nr_for_alpha == learning_phase_for_alpha) {
 
       if (logfile_output_verbosity >= 3)
-        logfile << " (CUSUM): Learning phase for alpha is over.\n";
+        logfile << "  (CUSUM): Learning phase for alpha is over.\n";
       if (logfile_output_verbosity >= 4)
         logfile << "   Calculated initial alphas: ( ";
 
-      for (int i = 0; i != C.alpha.size(); i++) {
+      for (int i = 0; i != P.alpha.size(); i++) {
         // alpha = sum(values) / #(values)
         // Note: learning_phase_for_alpha is never 0, because
         // this is handled in init_cusum_test()
-        C.alpha.at(i) = C.sum.at(i) / learning_phase_for_alpha;
-        C.X_curr.at(i) = new_value.at(i);
+        P.alpha.at(i) = P.sum.at(i) / learning_phase_for_alpha;
+        P.X_curr.at(i) = new_value.at(i);
         if (logfile_output_verbosity >= 4)
-          logfile << C.alpha.at(i) << " ";
+          logfile << P.alpha.at(i) << " ";
       }
       if (logfile_output_verbosity >= 4)
           logfile << ")\n";
 
-      C.ready_to_test = true;
+      P.ready_to_test = true;
       return;
     }
   }
 
   // pausing update for alpha (depending on pause_update parameter)
   bool at_least_one_test_was_attack = false;
-  for (int i = 0; i < C.last_cusum_test_was_attack.size(); i++)
-    if (C.last_cusum_test_was_attack.at(i) == true)
+  for (int i = 0; i < P.last_cusum_test_was_attack.size(); i++)
+    if (P.last_cusum_test_was_attack.at(i) == true)
       at_least_one_test_was_attack = true;
 
   bool all_tests_were_attacks = true;
-  for (int i = 0; i < C.last_cusum_test_was_attack.size(); i++)
-    if (C.last_cusum_test_was_attack.at(i) == false)
+  for (int i = 0; i < P.last_cusum_test_was_attack.size(); i++)
+    if (P.last_cusum_test_was_attack.at(i) == false)
       all_tests_were_attacks = false;
 
   // pause, if at least one metric yielded an alarm
   if ( pause_update_when_attack == 1
     && at_least_one_test_was_attack == true) {
     if (logfile_output_verbosity >= 3)
-      logfile << " (CUSUM): Pausing update for alpha (at least one test was attack)\n";
+      logfile << "  (CUSUM): Pausing update for alpha (at least one test was attack)\n";
     // update values for X
-    for (int i = 0; i != C.X_curr.size(); i++) {
-      C.X_last.at(i) = C.X_curr.at(i);
-      C.X_curr.at(i) = new_value.at(i);
+    for (int i = 0; i != P.X_curr.size(); i++) {
+      P.X_last.at(i) = P.X_curr.at(i);
+      P.X_curr.at(i) = new_value.at(i);
     }
     return;
   }
@@ -2318,11 +2241,11 @@ void Stat::cusum_update ( CusumParams & C, const std::vector<int64_t> & new_valu
   else if ( pause_update_when_attack == 2
     && all_tests_were_attacks == true) {
     if (logfile_output_verbosity >= 3)
-      logfile << " (CUSUM): Pausing update for alpha (all tests were attacks)\n";
+      logfile << "  (CUSUM): Pausing update for alpha (all tests were attacks)\n";
     // update values for X
-    for (int i = 0; i != C.X_curr.size(); i++) {
-      C.X_last.at(i) = C.X_curr.at(i);
-      C.X_curr.at(i) = new_value.at(i);
+    for (int i = 0; i != P.X_curr.size(); i++) {
+      P.X_last.at(i) = P.X_curr.at(i);
+      P.X_curr.at(i) = new_value.at(i);
     }
     return;
   }
@@ -2331,14 +2254,14 @@ void Stat::cusum_update ( CusumParams & C, const std::vector<int64_t> & new_valu
   else if (pause_update_when_attack == 3
     && at_least_one_test_was_attack == true) {
     if (logfile_output_verbosity >= 3)
-      logfile << " (CUSUM): Pausing update for alpha (for those metrics which were attacks)\n";
-    for (int i = 0; i != C.alpha.size(); i++) {
+      logfile << "  (CUSUM): Pausing update for alpha (for those metrics which were attacks)\n";
+    for (int i = 0; i != P.alpha.size(); i++) {
       // update values for X
-      C.X_last.at(i) = C.X_curr.at(i);
-      C.X_curr.at(i) = new_value.at(i);
-      if (C.last_cusum_test_was_attack.at(i) == false) {
+      P.X_last.at(i) = P.X_curr.at(i);
+      P.X_curr.at(i) = new_value.at(i);
+      if (P.last_cusum_test_was_attack.at(i) == false) {
         // update alpha
-        C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
+        P.alpha.at(i) = P.alpha.at(i) * (1 - smoothing_constant) + (double) P.X_last.at(i) * smoothing_constant;
       }
     }
     return;
@@ -2346,20 +2269,20 @@ void Stat::cusum_update ( CusumParams & C, const std::vector<int64_t> & new_valu
 
 
   // Otherwise update all alphas per EWMA
-  for (int i = 0; i != C.alpha.size(); i++) {
+  for (int i = 0; i != P.alpha.size(); i++) {
     // update values for X
-    C.X_last.at(i) = C.X_curr.at(i);
-    C.X_curr.at(i) = new_value.at(i);
+    P.X_last.at(i) = P.X_curr.at(i);
+    P.X_curr.at(i) = new_value.at(i);
     // update alpha
-    C.alpha.at(i) = C.alpha.at(i) * (1 - smoothing_constant) + (double) C.X_last.at(i) * smoothing_constant;
+    P.alpha.at(i) = P.alpha.at(i) * (1 - smoothing_constant) + (double) P.X_last.at(i) * smoothing_constant;
   }
 
   if (logfile_output_verbosity >= 3)
-    logfile << " (CUSUM): Update done for alpha\n";
+    logfile << "  (CUSUM): Update done for alpha\n";
   if (logfile_output_verbosity >= 4)
-    logfile << C.alpha << "\n";
+    logfile << P.alpha << "\n";
 
-  C.updated = true;
+  P.cusum_updated = true;
   logfile << std::flush;
   return;
 }
@@ -2368,7 +2291,7 @@ void Stat::cusum_update ( CusumParams & C, const std::vector<int64_t> & new_valu
 
 // statistical test function for wkp-tests
 // (optional, depending on how often the user wishes to do it)
-void Stat::wkp_test (WkpParams & S) {
+void Stat::wkp_test (Params & P) {
 
   // Containers for the values of single metrics
   std::list<int64_t> sample_old_single_metric;
@@ -2393,45 +2316,45 @@ void Stat::wkp_test (WkpParams & S) {
     }
 
     // storing the last-test flags
-    bool tmp_wmw = S.last_wmw_test_was_attack.at(index);
-    bool tmp_ks = S.last_ks_test_was_attack.at(index);
-    bool tmp_pcs = S.last_pcs_test_was_attack.at(index);
+    bool tmp_wmw = P.last_wmw_test_was_attack.at(index);
+    bool tmp_ks = P.last_ks_test_was_attack.at(index);
+    bool tmp_pcs = P.last_pcs_test_was_attack.at(index);
 
-    sample_old_single_metric = getSingleMetric(S.Old, index);
-    sample_new_single_metric = getSingleMetric(S.New, index);
+    sample_old_single_metric = getSingleMetric(P.Old, index);
+    sample_new_single_metric = getSingleMetric(P.New, index);
 
     double p_wmw, p_ks, p_pcs;
     p_wmw = p_ks = p_pcs = 1.0;
 
     // Wilcoxon-Mann-Whitney test:
-    if (enable_wmw_test == true && S.updated) {
+    if (enable_wmw_test == true && P.wkp_updated) {
       p_wmw = stat_test_wmw(sample_old_single_metric, sample_new_single_metric, tmp_wmw);
       // New anomaly?
-      if (significance_level > p_wmw && (report_only_first_attack == false || S.last_wmw_test_was_attack.at(index) == false))
-        (S.wmw_alarms).at(index)++;
-      S.last_wmw_test_was_attack.at(index) = tmp_wmw;
+      if (significance_level > p_wmw && (report_only_first_attack == false || P.last_wmw_test_was_attack.at(index) == false))
+        (P.wmw_alarms).at(index)++;
+      P.last_wmw_test_was_attack.at(index) = tmp_wmw;
     }
 
     // Kolmogorov-Smirnov test:
-    if (enable_ks_test == true && S.updated) {
+    if (enable_ks_test == true && P.wkp_updated) {
       p_ks = stat_test_ks (sample_old_single_metric, sample_new_single_metric, tmp_ks);
-      if (significance_level > p_ks && (report_only_first_attack == false || S.last_ks_test_was_attack.at(index) == false))
-        (S.ks_alarms).at(index)++;
-      S.last_ks_test_was_attack.at(index) = tmp_ks;
+      if (significance_level > p_ks && (report_only_first_attack == false || P.last_ks_test_was_attack.at(index) == false))
+        (P.ks_alarms).at(index)++;
+      P.last_ks_test_was_attack.at(index) = tmp_ks;
     }
 
     // Pearson chi-square test:
-    if (enable_pcs_test == true && S.updated) {
+    if (enable_pcs_test == true && P.wkp_updated) {
       p_pcs = stat_test_pcs(sample_old_single_metric, sample_new_single_metric, tmp_pcs);
-      if (significance_level > p_pcs && (report_only_first_attack == false || S.last_pcs_test_was_attack.at(index) == false))
-        (S.pcs_alarms).at(index)++;
-      S.last_pcs_test_was_attack.at(index) = tmp_pcs;
+      if (significance_level > p_pcs && (report_only_first_attack == false || P.last_pcs_test_was_attack.at(index) == false))
+        (P.pcs_alarms).at(index)++;
+      P.last_pcs_test_was_attack.at(index) = tmp_pcs;
     }
 
-    if (S.updated == false) {
-      S.last_wmw_test_was_attack.at(index) = false;
-      S.last_ks_test_was_attack.at(index) = false;
-      S.last_pcs_test_was_attack.at(index) = false;
+    if (P.wkp_updated == false) {
+      P.last_wmw_test_was_attack.at(index) = false;
+      P.last_ks_test_was_attack.at(index) = false;
+      P.last_pcs_test_was_attack.at(index) = false;
     }
 
     // generate output files, if wished
@@ -2439,11 +2362,11 @@ void Stat::wkp_test (WkpParams & S) {
 
       std::string filename;
       if (use_pca == false)
-        filename = S.correspondingEndPoint + "." + getMetricName(*it) + ".wkpparams.txt";
+        filename = P.correspondingEndPoint + "." + getMetricName(*it) + ".wkpparams.txt";
       else {
         std::stringstream tmp;
         tmp << index;
-        filename = S.correspondingEndPoint + ".pca_comp_" + tmp.str() + ".wkpparams.txt";
+        filename = P.correspondingEndPoint + ".pca_comp_" + tmp.str() + ".wkpparams.txt";
       }
 
       chdir(output_dir.c_str());
@@ -2463,18 +2386,18 @@ void Stat::wkp_test (WkpParams & S) {
 
       // metric p-value(wmw) #alarms(wmw) p-value(ks) #alarms(ks)
       // p-value(pcs) #alarms(pcs) counter
-      if(S.updated) {
+      if(P.wkp_updated) {
         file << sample_new_single_metric.back() << "\t" << p_wmw << "\t"
-          << (S.wmw_alarms).at(index) << "\t" << p_ks << "\t"
-          << (S.ks_alarms).at(index) << "\t" << p_pcs << "\t"
-          << (S.pcs_alarms).at(index) << "\t" << significance_level << "\t"
+          << (P.wmw_alarms).at(index) << "\t" << p_ks << "\t"
+          << (P.ks_alarms).at(index) << "\t" << p_pcs << "\t"
+          << (P.pcs_alarms).at(index) << "\t" << significance_level << "\t"
           << test_counter << "\n";
       }
       else {
         file << "0" << "\t" << p_wmw << "\t"
-          << (S.wmw_alarms).at(index) << "\t" << p_ks << "\t"
-          << (S.ks_alarms).at(index) << "\t" << p_pcs << "\t"
-          << (S.pcs_alarms).at(index) << "\t" << significance_level << "\t"
+          << (P.wmw_alarms).at(index) << "\t" << p_ks << "\t"
+          << (P.ks_alarms).at(index) << "\t" << p_pcs << "\t"
+          << (P.pcs_alarms).at(index) << "\t" << significance_level << "\t"
           << test_counter << "\n";
       }
 
@@ -2486,7 +2409,7 @@ void Stat::wkp_test (WkpParams & S) {
     index++;
   }
 
-  S.updated = false;
+  P.wkp_updated = false;
   logfile << std::flush;
   return;
 
@@ -2494,7 +2417,7 @@ void Stat::wkp_test (WkpParams & S) {
 
 // statistical test function / cusum-test
 // (optional, depending on how often the user wishes to do it)
-void Stat::cusum_test(CusumParams & C) {
+void Stat::cusum_test(Params & P) {
 
   // we have to store, for which metrics an attack was detected and set
   // the corresponding last_cusum_test_was_attack-flags to true/false
@@ -2522,8 +2445,8 @@ void Stat::cusum_test(CusumParams & C) {
     }
 
     // Calculate N and beta
-    N = repetition_factor * (amplitude_percentage * fabs(C.alpha.at(i)) / 2.0);
-    beta = C.alpha.at(i) + (amplitude_percentage * fabs(C.alpha.at(i)) / 2.0);
+    N = repetition_factor * (amplitude_percentage * fabs(P.alpha.at(i)) / 2.0);
+    beta = P.alpha.at(i) + (amplitude_percentage * fabs(P.alpha.at(i)) / 2.0);
 
     if (logfile_output_verbosity == 5) {
       logfile << " Cusum test returned:\n"
@@ -2536,22 +2459,22 @@ void Stat::cusum_test(CusumParams & C) {
     // "attack still in progress"-message?
 
     // perform the test and if g > N raise an alarm
-    if ( C.updated && (cusum(C.X_curr.at(i), beta, C.g.at(i)) > N )) {
+    if ( P.cusum_updated && (cusum(P.X_curr.at(i), beta, P.g.at(i)) > N )) {
 
       if (report_only_first_attack == false
-        || C.last_cusum_test_was_attack.at(i) == false) {
+        || P.last_cusum_test_was_attack.at(i) == false) {
 
-        (C.cusum_alarms).at(i)++;
+        (P.cusum_alarms).at(i)++;
 
         if (logfile_output_verbosity >= 2) {
           logfile
             << "    ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
-            << "    " << C.correspondingEndPoint << " for metric " << getMetricName(*it) << "\n"
-            << "    Cusum test says we're under attack (g = " << C.g.at(i) << ")!\n"
+            << "    " << P.correspondingEndPoint << " for metric " << getMetricName(*it) << "\n"
+            << "    Cusum test says we're under attack (g = " << P.g.at(i) << ")!\n"
             << "    ALARM! ALARM! Women und children first!" << std::endl;
           std::cout
             << "  ATTACK! ATTACK! ATTACK! (@" << test_counter << ")\n"
-            << "  " << C.correspondingEndPoint << " for metric " << getMetricName(*it) << "\n"
+            << "  " << P.correspondingEndPoint << " for metric " << getMetricName(*it) << "\n"
             << "  Cusum test says we're under attack!\n"
             << "  ALARM! ALARM! Women und children first!" << std::endl;
         }
@@ -2569,18 +2492,18 @@ void Stat::cusum_test(CusumParams & C) {
       was_attack.at(i) = true;
 
     }
-    else if (!C.updated) // reset g to 0 if no new value for that Endpoint occurred
-      C.g.at(i) = 0;
+    else if (!P.cusum_updated) // reset g to 0 if no new value for that Endpoint occurred
+      P.g.at(i) = 0;
 
     if (createFiles == true) {
 
       std::string filename;
       if (use_pca == false)
-        filename = C.correspondingEndPoint  + "." + getMetricName(*it) + ".cusumparams.txt";
+        filename = P.correspondingEndPoint  + "." + getMetricName(*it) + ".cusumparams.txt";
       else {
         std::stringstream tmp;
         tmp << i;
-        filename = C.correspondingEndPoint  + ".pca_comp_" + tmp.str() + ".cusumparams.txt";
+        filename = P.correspondingEndPoint  + ".pca_comp_" + tmp.str() + ".cusumparams.txt";
       }
 
       chdir(output_dir.c_str());
@@ -2599,15 +2522,15 @@ void Stat::cusum_test(CusumParams & C) {
       }
 
       // X  g N alpha beta #alarms counter
-      if (C.updated) {
-      file << (int) C.X_curr.at(i) << "\t" << (int) C.g.at(i)
-          << "\t" << (int) N << "\t" << (int) C.alpha.at(i) << "\t"  << (int) beta
-          << "\t" << (C.cusum_alarms).at(i) << "\t" << test_counter << "\n";
+      if (P.cusum_updated) {
+      file << (int) P.X_curr.at(i) << "\t" << (int) P.g.at(i)
+          << "\t" << (int) N << "\t" << (int) P.alpha.at(i) << "\t"  << (int) beta
+          << "\t" << (P.cusum_alarms).at(i) << "\t" << test_counter << "\n";
       }
       else {
-      file << "0" << "\t" << (int) C.g.at(i)
-        << "\t" << (int) N << "\t" << (int) C.alpha.at(i) << "\t"  << (int) beta
-        << "\t" << (C.cusum_alarms).at(i) << "\t" << test_counter << "\n";
+      file << "0" << "\t" << (int) P.g.at(i)
+        << "\t" << (int) N << "\t" << (int) P.alpha.at(i) << "\t"  << (int) beta
+        << "\t" << (P.cusum_alarms).at(i) << "\t" << test_counter << "\n";
       }
       file.close();
       chdir("..");
@@ -2616,20 +2539,20 @@ void Stat::cusum_test(CusumParams & C) {
     i++;
   }
 
-  if (C.updated) {
+  if (P.cusum_updated) {
     for (int i = 0; i != was_attack.size(); i++) {
       if (was_attack.at(i) == true)
-        C.last_cusum_test_was_attack.at(i) = true;
+        P.last_cusum_test_was_attack.at(i) = true;
       else
-        C.last_cusum_test_was_attack.at(i) = false;
+        P.last_cusum_test_was_attack.at(i) = false;
     }
   }
   else {
-    for (int i = 0; i != C.last_cusum_test_was_attack.size(); i++)
-      C.last_cusum_test_was_attack.at(i) = false;
+    for (int i = 0; i != P.last_cusum_test_was_attack.size(); i++)
+      P.last_cusum_test_was_attack.at(i) = false;
   }
 
-  C.updated = false;
+  P.cusum_updated = false;
   logfile << std::flush;
   return;
 }

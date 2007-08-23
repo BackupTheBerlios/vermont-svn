@@ -148,10 +148,10 @@ class Stat
   // the following functions are called by the test()-function:
   std::vector<int64_t> extract_data (const Info &, const Info &);
   std::vector<int64_t> extract_pca_data (Params &, const Info &, const Info &);
-  void wkp_update(WkpParams &, const std::vector<int64_t> &);
-  void wkp_test(WkpParams &);
-  void cusum_update(CusumParams &, const std::vector<int64_t> &);
-  void cusum_test(CusumParams &);
+  void wkp_update(Params &, const std::vector<int64_t> &);
+  void wkp_test(Params &);
+  void cusum_update(Params &, const std::vector<int64_t> &);
+  void cusum_test(Params &);
 
   // these functions are called by extract_pca_data() to calculate ...
   // ... a single entry of the covariance matrix
@@ -197,11 +197,8 @@ class Stat
   std::vector<int> pcs_alarms;
 
 
-  // here is the params container for the wkp-tests:
-  std::map<EndPoint, WkpParams> WkpData;
-
-  // another container for the cusum-test
-  std::map<EndPoint, CusumParams> CusumData;
+  // Map that holds all the parameters for each endpoint
+  std::map<EndPoint, Params> EndpointParams;
 
   // source id's to accept
   std::vector<int> accept_source_ids;
