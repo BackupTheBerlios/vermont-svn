@@ -14,26 +14,31 @@
 
 	<preferences>
     <logfile>wkp.log</logfile>
-    <logfile_output_verbosity>5</logfile_output_verbosity>
+    <logfile_output_verbosity>0</logfile_output_verbosity>
     <warning_verbosity>5</warning_verbosity>
     <accepted_source_ids>all</accepted_source_ids>
     <alarm_time>10</alarm_time>
 
-    <endpoint_key>protocol</endpoint_key>
-    <netmask>32</netmask>
+    <endpoint_key>ip</endpoint_key>
+    <netmask>24</netmask>
 
     <offline_file>darpa1_all_10.txt</offline_file>
-    <output_dir>test</output_dir>
-    <endpoints_to_monitor>eps.txt</endpoints_to_monitor>
-    <x_frequently_endpoints>3</x_frequently_endpoints>
+    <output_dir>d1_D_3</output_dir>
+    <endpoints_to_monitor>eps2.txt</endpoints_to_monitor>
 
-    <use_pca>true</use_pca>
+    <use_pca>false</use_pca>
     <pca_learning_phase>75</pca_learning_phase>
     <use_correlation_matrix>true</use_correlation_matrix>
 
     <metrics>
+      <value>packets_out</value>
       <value>packets_in</value>
+      <value>bytes_out</value>
       <value>bytes_in</value>
+      <value>packets_in(t)-packets_in(t-1)</value>
+      <value>packets_out(t)-packets_out(t-1)</value>
+      <value>bytes_in(t)-bytes_in(t-1)</value>
+      <value>bytes_out(t)-bytes_out(t-1)</value>
     </metrics>
 
     <noise_threshold_packets>0</noise_threshold_packets>
@@ -42,14 +47,14 @@
     <endpointlist_maxsize>1000000</endpointlist_maxsize>
     <stat_test_frequency>1</stat_test_frequency>
     <report_only_first_attack>true</report_only_first_attack>
-    <pause_update_when_attack>3</pause_update_when_attack>
+    <pause_update_when_attack>0</pause_update_when_attack>
 	</preferences>
 
   <cusum-test-params>
     <cusum_test>true</cusum_test>
     <amplitude_percentage>3</amplitude_percentage>
     <repetition_factor>3</repetition_factor>
-    <learning_phase_for_alpha>100</learning_phase_for_alpha>
+    <learning_phase_for_alpha>50</learning_phase_for_alpha>
     <smoothing_constant>0.05</smoothing_constant>
   </cusum-test-params>
 
@@ -58,7 +63,7 @@
 		<kolmogorov_test>true</kolmogorov_test>
 		<pearson_chi-square_test>true</pearson_chi-square_test>
 		<sample_old_size>30</sample_old_size>
-		<sample_new_size>8</sample_new_size>
+		<sample_new_size>6</sample_new_size>
 		<wmw_two_sided>false</wmw_two_sided>
 		<significance_level>0.01</significance_level>
 	</wkp-test-params>

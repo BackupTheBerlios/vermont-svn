@@ -786,20 +786,22 @@ void Stat::init_metrics(XMLConfObj * config) {
     Information
     << "Tests will be performed directly on the metrics. Values in the lists sample_old and sample_new will be "
     << "stored in the following order:\n";
-    msgStr.print(MsgStream::INFO, Information.str(), logfile, true);
   }
   else {
     Information
     << "Tests will be performed on the principal components of the following metrics:\n";
-    std::vector<Metric>::iterator val = metrics.begin();
-    Information << "( ";
-    while (val != metrics.end() ) {
-      Information << getMetricName(*val) << " ";
-      val++;
-    }
-    Information << ")";
-    msgStr.print(MsgStream::INFO, Information.str(), logfile, true);
+  }
 
+  std::vector<Metric>::iterator val = metrics.begin();
+  Information << "( ";
+  while (val != metrics.end() ) {
+    Information << getMetricName(*val) << " ";
+    val++;
+  }
+  Information << ")";
+  msgStr.print(MsgStream::INFO, Information.str(), logfile, true);
+
+  if (use_pca == true) {
     std::stringstream Information1;
     Information1 << "Eigenvectors of the " << ((use_correlation_matrix == true)?"correlation matrix":"covariance matrix") << " will be used to transform the data.";
     msgStr.print(MsgStream::INFO, Information1.str(), logfile, true);

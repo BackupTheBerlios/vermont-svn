@@ -253,6 +253,7 @@ message) if omitted.
 0 - no pausing at all
 1 - pause, if (at least) one of the wkp-tests detects an attack
 2 - pause, if all three tests detect an attack
+3 - same as 0
 For the cusum-test, the values are related to the metrics. That means, updates for alpha will only be paused, if
 1 - at least one metric yielded an alarm
 2 - all metrics yielded an alarm
