@@ -2051,7 +2051,7 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
   // transform the matrix with the transformed data back into a vector
   if (use_correlation_matrix == true) {
     for (int i = 0; i < metrics.size(); i++)
-	result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,i,0) * 100); // *100 to reduce rounding error
+	result.push_back((int64_t) (gsl_matrix_get(transformed_metric_data,i,0) * 100)); // *100 to reduce rounding error
   } else  {
     for (int i = 0; i < metrics.size(); i++)
 	result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,i,0));
