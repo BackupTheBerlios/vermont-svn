@@ -2029,16 +2029,17 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
 
   // fetch new metric data
   std::vector<int64_t> v = extract_data(info,prev);
-  // Normalization: Divide the metric values by the stddevs, if correlation matrix is used
-  if (use_correlation_matrix == true) {
-    for (int i = 0; i < metrics.size(); i++)
-      v.at(i) = (long long int) (v.at(i) / P.stddevs.at(i)); // irrelevant bias?
-  }
   // transform it into a matrix (needed for multiplication)
   // X*1 matrix with X = #metrics,
   gsl_matrix *new_metric_data = gsl_matrix_calloc (metrics.size(),1);
-  for (int i = 0; i < metrics.size(); i++)
-    gsl_matrix_set(new_metric_data,i,0,v.at(i));
+  if (use_correlation_matrix == true) {
+    // Normalization: Divide the metric values by the stddevs, if correlation matrix is used
+    for (int i = 0; i < metrics.size(); i++)
+      gsl_matrix_set(new_metric_data,i,0,((double)(v.at(i)) / P.stddevs.at(i)));
+  } else  {
+    for (int i = 0; i < metrics.size(); i++)
+      gsl_matrix_set(new_metric_data,i,0,v.at(i));
+  }
 
   // matrix multiplication to get the transformed data
   // transformed_data = evec^T * data
@@ -2048,8 +2049,13 @@ std::vector<int64_t> Stat::extract_pca_data (Params & P, const Info & info, cons
                        0.0, transformed_metric_data);
 
   // transform the matrix with the transformed data back into a vector
-  for (int i = 0; i < metrics.size(); i++)
-    result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,i,0));
+  if (use_correlation_matrix == true) {
+    for (int i = 0; i < metrics.size(); i++)
+	result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,i,0) * 100); // *100 to reduce rounding error
+  } else  {
+    for (int i = 0; i < metrics.size(); i++)
+	result.push_back((int64_t) gsl_matrix_get(transformed_metric_data,i,0));
+  }
 
   gsl_matrix_free(new_metric_data);
   gsl_matrix_free(transformed_metric_data);
