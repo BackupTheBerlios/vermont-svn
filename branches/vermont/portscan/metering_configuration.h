@@ -46,6 +46,7 @@ private:
 
 	uint16_t observationDomainId;
 	int captureLength;
+	bool activateConnTracker;
 };
 
 #endif

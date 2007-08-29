@@ -16,6 +16,8 @@
 #include <sampler/HookingFilter.h>
 #include <sampler/ExpressHookingFilter.h>
 #include <concentrator/ipfix.hpp>
+#include <concentrator/IpfixConnectionTracker.h>
+#include <concentrator/TRWPortscanDetector.h>
 
 #include <cctype>
 
@@ -24,7 +26,8 @@
 
 MeteringConfiguration::MeteringConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
 	: Configuration(document, startPoint), packetSelection(0), packetReporting(0),
-		 flowMetering(0), expressflowMetering(0), observationDomainId(0)
+		 flowMetering(0), expressflowMetering(0), observationDomainId(0),
+		 activateConnTracker(false)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
 	if (NULL == idString) {
@@ -71,6 +74,8 @@ void MeteringConfiguration::configure()
 			expressflowMetering->configure();
 	//		expressflowMetering = new ExpressFlowMeteringConfiguration(doc, i);
 	//		expressflowMetering->configure();
+		} else if (tagMatches(i, "conntracker")) {
+			activateConnTracker = true;
 		} else if (tagMatches(i, "next")) {
 			fillNextVector(i);
 		}
@@ -125,9 +130,21 @@ void MeteringConfiguration::connect(Configuration* c)
 				ExpressHookingFilter* h = new ExpressHookingFilter(expressflowMetering->ipfixAggregator);
 				packetSelection->filter->addProcessor(h);
 			}
- 			msg(MSG_DEBUG, "Setting up IpfixSender for Express Aggregator");
- 			exporter->createIpfixSender(observationDomainId);
- 			expressflowMetering->ipfixAggregator->addFlowSink(exporter->getIpfixSender());
+			// so this is a special hack just to activate the IpfixConnectionTracker with portscan detection
+			if (!activateConnTracker) {
+				msg(MSG_DEBUG, "Setting up IpfixSender for Express Aggregator");
+				exporter->createIpfixSender(observationDomainId);
+				expressflowMetering->ipfixAggregator->addFlowSink(exporter->getIpfixSender());
+			} else {
+				msg(MSG_ERROR, "ATTENTION: activating hard coded version of portscan detector! this thing is unsafe!");
+				exporter->createIpfixSender(observationDomainId); // workaround
+				IpfixConnectionTracker* connTracker = new IpfixConnectionTracker(5);
+				TRWPortscanDetector* trw = new TRWPortscanDetector();
+				connTracker->addConnectionReceiver(trw);
+				connTracker->runSink();
+				connTracker->startThread();
+				expressflowMetering->ipfixAggregator->addFlowSink(connTracker);
+			}
 		}
 		return;
 	}
