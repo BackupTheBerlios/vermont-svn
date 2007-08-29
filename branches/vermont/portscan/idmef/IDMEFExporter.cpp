@@ -77,7 +77,7 @@ void IDMEFExporter::readTemplate()
 {
 	FILE* f = fopen(templateFilename.c_str(), "r");
 	if (f == NULL) {
-		THROWEXCEPTION("failed to open template file %s, error %s", templateFilename.c_str(), strerror(errno));
+		THROWEXCEPTION("failed to open template file %s, error: %s", templateFilename.c_str(), strerror(errno));
 	}
 	char temp[1025];
 	templateContent = "";
