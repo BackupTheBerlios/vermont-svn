@@ -38,21 +38,21 @@ int IpfixConnectionTracker::onDataDataRecord(IpfixRecord::SourceID* sourceID, Ip
 	fi = dataTemplateInfo->getFieldInfo(IPFIX_TYPEID_destinationTransportPort, 0);
 	if (fi != 0) conn->dstPort = ntohs(*(uint16_t*)(data+fi->offset));
 	fi = dataTemplateInfo->getFieldInfo(IPFIX_TYPEID_flowStartSeconds, 0);
-	if (fi != 0) conn->timeStart = ntohl(*(uint32_t*)(data+fi->offset))*1000;
+	if (fi != 0) conn->srcTimeStart = ntohl(*(uint32_t*)(data+fi->offset))*1000;
 	fi = dataTemplateInfo->getFieldInfo(IPFIX_TYPEID_flowEndSeconds, 0);
-	if (fi != 0) conn->timeEnd = ntohl(*(uint32_t*)(data+fi->offset))*1000;
+	if (fi != 0) conn->srcTimeEnd = ntohl(*(uint32_t*)(data+fi->offset))*1000;
 	fi = dataTemplateInfo->getFieldInfo(IPFIX_TYPEID_flowStartMilliSeconds, 0);
-	if (fi != 0) conn->timeStart = ntohll(*(uint64_t*)(data+fi->offset));
+	if (fi != 0) conn->srcTimeStart = ntohll(*(uint64_t*)(data+fi->offset));
 	fi = dataTemplateInfo->getFieldInfo(IPFIX_TYPEID_flowEndMilliSeconds, 0);
-	if (fi != 0) conn->timeEnd = ntohll(*(uint64_t*)(data+fi->offset));
+	if (fi != 0) conn->srcTimeEnd = ntohll(*(uint64_t*)(data+fi->offset));
 	fi = dataTemplateInfo->getFieldInfo(IPFIX_TYPEID_octetDeltaCount, 0);
-	if (fi != 0) conn->octets = ntohll(*(uint64_t*)(data+fi->offset));
+	if (fi != 0) conn->srcOctets = ntohll(*(uint64_t*)(data+fi->offset));
+	fi = dataTemplateInfo->getFieldInfo(IPFIX_TYPEID_packetDeltaCount, 0);
+	if (fi != 0) conn->srcPackets = ntohll(*(uint64_t*)(data+fi->offset));
 	fi = dataTemplateInfo->getFieldInfo(IPFIX_TYPEID_tcpControlBits, 0);
-	if (fi != 0) conn->octets = *(uint8_t*)(data+fi->offset);
+	if (fi != 0) conn->srcTcpControlBits = *(uint8_t*)(data+fi->offset);
 	fi = dataTemplateInfo->getFieldInfo(IPFIX_TYPEID_protocolIdentifier, 0);
 	if (fi != 0) conn->protocol = *(uint8_t*)(data+fi->offset);
-
-	cout << conn->toString();
 
 	hashtable.addFlow(conn);
 
@@ -81,13 +81,20 @@ void IpfixConnectionTracker::expireConnectionsLoop()
 	while (!exitFlag) {
 		sleep(1); // TODO: make it a variable!
 		hashtable.expireConnections(&expiredConns);
+		if (expiredConns.empty()) continue;
 		cout << "-------------------------" << endl;
 		cout << "expired connections: " << endl;
 		while (!expiredConns.empty()) {
 			Connection* c = expiredConns.front();
 			expiredConns.pop();
 			cout << c->toString();
-			delete c;
+			
+			list<ConnectionReceiver*>::const_iterator iter = receivers.begin();
+			while (iter != receivers.end()) {
+				// TODO: care for memory reuse! connection won't be deleted ...
+				(*iter)->push(c);
+				iter++;
+			}
 		}
 	}
 	threadExited = true;
@@ -104,6 +111,11 @@ void IpfixConnectionTracker::stopThread()
 	expireThread.join();
 }
 
+void IpfixConnectionTracker::addConnectionReceiver(ConnectionReceiver* cr)
+{
+	receivers.push_back(cr);
+}
+
 
 
 IpfixConnectionTracker::Hashtable::Hashtable(uint32_t expireTime)
@@ -117,22 +129,21 @@ IpfixConnectionTracker::Hashtable::~Hashtable()
 }
 
 /**
- * tries to find connection inside hashtable, if found, aggregate it
+ * tries to find connection inside list, if found, aggregate it
  * ATTENTION: if flow was not found, it is _NOT_ added!
+ * @param to flow has to be added in direction src->dst if true, else false
  * @returns true if flow was found, false if not
  */
-bool IpfixConnectionTracker::Hashtable::aggregateFlow(Connection* c)
+bool IpfixConnectionTracker::Hashtable::aggregateFlow(Connection* c, list<Connection*>* clist, bool to)
 {
-	uint16_t hash = 0; //c->getHash();
-	if (!htable[hash].empty()) {
-		list<Connection*>::iterator iter = htable[hash].begin();
-		while (iter != htable[hash].end()) {
-			if (c->compareTo(*iter)) {
-				(*iter)->aggregate(c, expireTime);
-				return true;
-			}
-			iter++;
+	if (clist->empty()) return false;
+	list<Connection*>::iterator iter = clist->begin();
+	while (iter != clist->end()) {
+		if (c->compareTo(*iter, to)) {
+			(*iter)->aggregate(c, expireTime, to);
+			return true;
 		}
+		iter++;
 	}
 	return false;
 }
@@ -142,7 +153,7 @@ bool IpfixConnectionTracker::Hashtable::aggregateFlow(Connection* c)
  */
 void IpfixConnectionTracker::Hashtable::insertFlow(Connection* c)
 {
-	uint16_t hash = c->getHash();
+	uint16_t hash = c->getHash(true);
 	htable[hash].push_back(c);
 }
 
@@ -154,11 +165,14 @@ void IpfixConnectionTracker::Hashtable::addFlow(Connection* c)
 	tableMutex.lock();
 
 	// try to find connection entry in hashtable
-	if (!aggregateFlow(c)) {
-		// swap fields and try again
-		c->swapFields();
-		if (!aggregateFlow(c)) {
-			// we need to add it to the hashtable
+	uint16_t hash = c->getHash(true);
+	list<Connection*>* clist = &htable[hash];
+	if (!aggregateFlow(c, clist, true)) {
+		// not aggregated yet, try other direction
+		hash = c->getHash(false);
+		clist = &htable[hash];
+		if (!aggregateFlow(c, clist, false)) {
+			// we need to insert it into the hashtable
 			insertFlow(c);
 		}
 	}

@@ -10,6 +10,16 @@
 #include <unistd.h>
 
 
+ConnectionTrackerTestSink::ConnectionTrackerTestSink()
+	: receivedConnection(false)
+{
+}
+
+void ConnectionTrackerTestSink::push(Connection* conn)
+{
+	receivedConnection = true;
+}
+
 /**
  * @param fast determines if this test should be performed really fast or slower for performance measurements
  */
@@ -26,6 +36,7 @@ ConnectionTrackerTest::~ConnectionTrackerTest()
 	delete packetManager;
 	delete packetSink;
 	delete connTracker;
+	delete connSink;
 }
 
 void ConnectionTrackerTest::normalTest()
@@ -76,6 +87,7 @@ void ConnectionTrackerTest::setup()
 {
 	connTracker = new IpfixConnectionTracker(1);
 	packetSink = new PacketSink();
+	connSink = new ConnectionTrackerTestSink();
 
 	packetManager = new InstanceManager<Packet>();
 
@@ -88,11 +100,11 @@ void ConnectionTrackerTest::setup()
 	ipfixAggregator->addFlowSink(connTracker);
 
 	hookingFilter = new HookingFilter(ipfixAggregator);
+	connTracker->addConnectionReceiver(connSink);
 
 	filter = new Filter();
 	filter->addProcessor(hookingFilter);
 	filter->setReceiver(packetSink);
-
 
 	// start all needed threads
 	connTracker->runSink();
@@ -140,10 +152,9 @@ void ConnectionTrackerTest::start(unsigned int numpackets)
 	msg(MSG_INFO, "queue emptied");
 
 	ipfixAggregator->poll();
-	ConcurrentQueue< boost::shared_ptr<IpfixRecord> >* ctqueue = connTracker->getSinkQueue();
-	while (ctqueue->getCount()>0) {
+	while (!connSink->receivedConnection) {
 		usleep(100000);
 	}
-	msg(MSG_INFO, "2nd queue emptied");
+	msg(MSG_INFO, "connection received!");
 }
 

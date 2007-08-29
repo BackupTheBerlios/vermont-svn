@@ -14,6 +14,16 @@ using boost::unit_test::test_suite;
 using boost::shared_ptr;
 using boost::unit_test::test_case;
 
+class ConnectionTrackerTestSink : public ConnectionReceiver
+{
+	public:
+		bool receivedConnection;
+
+		ConnectionTrackerTestSink();
+		virtual void push(Connection* conn);
+
+};
+
 class ConnectionTrackerTest
 {
 	public:
@@ -33,6 +43,7 @@ class ConnectionTrackerTest
 		InstanceManager<Packet>* packetManager;
 		PacketSink* packetSink;
 		IpfixConnectionTracker* connTracker;
+		ConnectionTrackerTestSink* connSink;
 
 		Rule::Field* createRuleField(const string& typeId);
 		Rules* createRules();
@@ -52,4 +63,5 @@ class ConnectionTrackerTestSuite : public test_suite
 			add(normaltest);
 		}
 };
+
 #endif

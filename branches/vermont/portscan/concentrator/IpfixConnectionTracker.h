@@ -5,6 +5,7 @@
 #include "FlowSink.hpp"
 #include "IpfixRecord.hpp"
 #include "Connection.h"
+#include "ConnectionReceiver.h"
 
 #include <string>
 
@@ -26,7 +27,7 @@ class IpfixConnectionTracker : public FlowSink
 				virtual ~Hashtable();
 
 				void addFlow(Connection* c);
-				bool aggregateFlow(Connection* c);
+				bool aggregateFlow(Connection* c, list<Connection*>* clist, bool to);
 				void insertFlow(Connection* c);
 				void expireConnections(queue<Connection*>* expiredFlows);
 
@@ -50,11 +51,13 @@ class IpfixConnectionTracker : public FlowSink
 		void expireConnectionsLoop();
 		void startThread();
 		void stopThread();
+		void addConnectionReceiver(ConnectionReceiver* cr);
 
 	private:
 		Hashtable hashtable;
 		uint32_t connTimeout;
 		Thread expireThread;
+		list<ConnectionReceiver*> receivers;
 };
 
 
