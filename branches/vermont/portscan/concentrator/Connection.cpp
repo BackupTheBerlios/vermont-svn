@@ -5,26 +5,35 @@
 
 #include <sstream>
 #include <algorithm>
+#include <iostream>
 
 /**
  * creates new connection element
  * @param connTimeout time in seconds when connection element times out
  */
 Connection::Connection(InstanceManager<Connection>* im)
-	: ManagedInstance<Connection>(im),
-	  srcIP(0), dstIP(0), srcPort(0), dstPort(0), 
-	  srcTimeStart(0), srcTimeEnd(0),
-	  dstTimeStart(0), dstTimeEnd(0),
-	  srcOctets(0), dstOctets(0),
-	  srcPackets(0), dstPackets(0),
-	  srcTcpControlBits(0), dstTcpControlBits(0),
-	  protocol(0)
+	: ManagedInstance<Connection>(im)
 {
 }
 
 void Connection::init(uint32_t connTimeout)
 {
 	timeExpire = time(0) + connTimeout;
+	srcIP = 0;
+	dstIP = 0;
+	srcPort = 0;
+	dstPort = 0;
+	srcTimeStart = 0;
+	srcTimeEnd = 0;
+	dstTimeStart = 0;
+	dstTimeEnd = 0;
+	srcOctets = 0;
+	dstOctets = 0;
+	srcPackets = 0;
+	dstPackets = 0;
+	srcTcpControlBits = 0;
+	dstTcpControlBits = 0;
+	protocol = 0;
 }
 
 /**
