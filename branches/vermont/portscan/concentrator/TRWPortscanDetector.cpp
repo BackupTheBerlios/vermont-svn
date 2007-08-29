@@ -12,8 +12,8 @@ TRWPortscanDetector::TRWPortscanDetector()
 	// make some initialization calculations
 	float theta_0 = 0.8; // probability that benign host makes successful connection
 	float theta_1 = 0.2; // probability that malicious host makes successful connection
-	float P_F = 0.01; // probability of false alarm
-	float P_D = 0.99; // probability of scanner detection
+	float P_F = 0.00001; // probability of false alarm
+	float P_D = 0.99999; // probability of scanner detection
 
 	float eta_1 = 1/P_F;
 	float eta_0 = 1-P_D;
