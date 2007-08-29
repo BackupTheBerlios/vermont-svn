@@ -53,13 +53,13 @@
         <activeTimeout unit="sec">10</activeTimeout>
       </expiration>
     </expressflowMetering>
-    <conntracker>
+    <portscan>
 	  <idmef>
 	    <destdir>idmef_work</destdir>
 	    <template>idmef/templates/trwportscan_template.xml</template>
 	    <sendurl>https://ims.rrze.uni-erlangen.de/webapp/idmef/receiver.cgi</sendurl>
 	  </idmef>
-	</conntracker>
+	</portscan>
     <next>
       <exportingProcessId>1</exportingProcessId>
     </next>
