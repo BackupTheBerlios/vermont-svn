@@ -1,15 +1,18 @@
 
 #include "Connection.h"
 #include "crc16.hpp"
+#include "common/Misc.h"
 
 #include <sstream>
+#include <algorithm>
 
 /**
  * creates new connection element
  * @param connTimeout time in seconds when connection element times out
  */
-Connection::Connection(uint32_t connTimeout)
-	: srcIP(0), dstIP(0), srcPort(0), dstPort(0), 
+Connection::Connection(InstanceManager<Connection>* im)
+	: ManagedInstance<Connection>(im),
+	  srcIP(0), dstIP(0), srcPort(0), dstPort(0), 
 	  srcTimeStart(0), srcTimeEnd(0),
 	  dstTimeStart(0), dstTimeEnd(0),
 	  srcOctets(0), dstOctets(0),
@@ -17,17 +20,43 @@ Connection::Connection(uint32_t connTimeout)
 	  srcTcpControlBits(0), dstTcpControlBits(0),
 	  protocol(0)
 {
+}
+
+void Connection::init(uint32_t connTimeout)
+{
 	timeExpire = time(0) + connTimeout;
 }
 
-
-string Connection::printIP(uint32_t ip)
+/**
+ * swaps all data fields inside the connection
+ */
+void Connection::swapDataFields()
 {
-	ostringstream oss;
-	uint8_t* pip = (uint8_t*)(&ip);
-	oss << static_cast<int>(pip[0]) << "." << static_cast<int>(pip[1]) << "."
-		<< static_cast<int>(pip[2]) << "." << static_cast<int>(pip[3]);
-	return oss.str();
+	swap(srcIP, dstIP);
+	swap(srcPort, dstPort);
+	swap(srcTimeStart, dstTimeStart);
+	swap(srcTimeEnd, dstTimeEnd);
+	swap(srcOctets, dstOctets);
+	swap(srcPackets, dstPackets);
+	swap(srcTcpControlBits, dstTcpControlBits);
+}
+
+/**
+ * a nice little function here: it tries to determine the host which initiated the
+ * connection and, if needed, swaps all data so that the initiating host is
+ * specified as source host
+ */
+void Connection::swapIfNeeded()
+{
+	// try to find initiating host by analyzing the SYN and ACK bits
+	if ((srcTcpControlBits&SYN) && !(srcTcpControlBits&ACK)) return;
+	if ((dstTcpControlBits&SYN) && !(dstTcpControlBits&ACK)) {
+		swapDataFields();
+		return;
+	}
+
+	// now try the starting time
+	if (srcTimeStart>dstTimeStart) swapDataFields();
 }
 
 string Connection::printTcpControlBits(uint8_t bits)
@@ -47,8 +76,8 @@ string Connection::toString()
 	ostringstream oss;
 
 	oss << "connection: " << endl;
-	if (srcIP) oss << "srcIP: " << printIP(srcIP) << endl;
-	if (dstIP) oss << "dstIP: " << printIP(dstIP) << endl;
+	if (srcIP) oss << "srcIP: " << IPToString(srcIP) << endl;
+	if (dstIP) oss << "dstIP: " << IPToString(dstIP) << endl;
 	if (srcPort) oss << "srcPort: " << srcPort << endl;
 	if (dstPort) oss << "dstPort: " << dstPort << endl;
 	if (srcTimeStart) oss << "srcTimeStart: " << srcTimeStart << endl;
@@ -93,22 +122,6 @@ uint16_t Connection::getHash(bool to)
 		hash = crc16(hash, 2, reinterpret_cast<char*>(&srcPort));
 		return hash;
 	}
-}
-
-/**
- * swaps aggregatable fields inside the connection
- */
-void Connection::swapFields()
-{
-	uint32_t tmp;
-	tmp = srcIP;
-	srcIP = dstIP;
-	dstIP = tmp;
-
-	uint16_t tmp2;
-	tmp2 = srcPort;
-	srcPort = dstPort;
-	dstPort = tmp2;
 }
 
 /**

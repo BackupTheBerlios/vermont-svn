@@ -4,15 +4,22 @@
 #include <stdint.h>
 #include <string>
 
+#include "common/ManagedInstance.h"
+
 using namespace std;
 
 
-class Connection
+class Connection : public ManagedInstance<Connection>
 {
 	public:
+		static const uint8_t SYN = 0x02;
+		static const uint8_t RST = 0x04;
+		static const uint8_t ACK = 0x10;
+
 		// ATTENTION: next four elements MUST be declared sequentially without another element interrupting it
 		// because hash and compare is performed by accessing the memory directly from srcIP on
 		// (see function calcHash and compareTo)
+		// one more notice: additional fields are to be added to function swapDataFields!
 		uint32_t srcIP;
 		uint32_t dstIP;
 		uint16_t srcPort;
@@ -37,15 +44,16 @@ class Connection
 		 */
 		uint32_t timeExpire; 
 
-		Connection(uint32_t connTimeout);
+		Connection(InstanceManager<Connection>* im);
+		void init(uint32_t connTimeout);
 		void addFlow(Connection* c);
-		string printIP(uint32_t ip);
 		string toString();
 		string printTcpControlBits(uint8_t bits);
 		bool compareTo(Connection* c, bool to);
 		uint16_t getHash(bool to);
 		void aggregate(Connection* c, uint32_t expireTime, bool to);
-		void swapFields();
+		void swapDataFields();
+		void swapIfNeeded();
 };
 
 #endif

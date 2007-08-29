@@ -6,6 +6,8 @@
 #include "IpfixRecord.hpp"
 #include "Connection.h"
 #include "ConnectionReceiver.h"
+#include "common/InstanceManager.h"
+#include "common/StatisticsManager.h"
 
 #include <string>
 
@@ -18,7 +20,7 @@ using namespace std;
 class IpfixConnectionTracker : public FlowSink
 {
 	protected:
-		class Hashtable
+		class Hashtable : public StatisticsModule
 		{
 			public:
 				static const uint32_t TABLE_SIZE = 65536;
@@ -30,11 +32,15 @@ class IpfixConnectionTracker : public FlowSink
 				bool aggregateFlow(Connection* c, list<Connection*>* clist, bool to);
 				void insertFlow(Connection* c);
 				void expireConnections(queue<Connection*>* expiredFlows);
+				virtual std::string getStatistics();
 
 			private:
 				list<Connection*> htable[TABLE_SIZE];
 				Mutex tableMutex;
 				uint32_t expireTime;
+
+				uint32_t statTotalEntries;
+				uint32_t statExportedEntries;
 		};
 
 	public:
@@ -58,6 +64,7 @@ class IpfixConnectionTracker : public FlowSink
 		uint32_t connTimeout;
 		Thread expireThread;
 		list<ConnectionReceiver*> receivers;
+		InstanceManager<Connection> connectionManager;
 };
 
 

@@ -27,7 +27,8 @@ int IpfixConnectionTracker::onDataTemplateDestruction(IpfixRecord::SourceID* sou
 
 int IpfixConnectionTracker::onDataDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo, uint16_t length, IpfixRecord::Data* data) 
 {
-	Connection* conn = new Connection(connTimeout);
+	Connection* conn = connectionManager.getNewInstance();
+	conn->init(connTimeout);
 
 	IpfixRecord::FieldInfo* fi = dataTemplateInfo->getFieldInfo(IPFIX_TYPEID_sourceIPv4Address, 0);
 	if (fi != 0) conn->srcIP = *(uint32_t*)(data+fi->offset);
@@ -82,16 +83,17 @@ void IpfixConnectionTracker::expireConnectionsLoop()
 		sleep(1); // TODO: make it a variable!
 		hashtable.expireConnections(&expiredConns);
 		if (expiredConns.empty()) continue;
-		cout << "-------------------------" << endl;
-		cout << "expired connections: " << endl;
+		//cout << "-------------------------" << endl;
+		//cout << "expired connections: " << endl;
 		while (!expiredConns.empty()) {
 			Connection* c = expiredConns.front();
 			expiredConns.pop();
-			cout << c->toString();
+			//cout << c->toString();
 			
+			c->addReference(receivers.size()-1);
+			//cout << "receiver size: " << receivers.size() << endl;
 			list<ConnectionReceiver*>::const_iterator iter = receivers.begin();
 			while (iter != receivers.end()) {
-				// TODO: care for memory reuse! connection won't be deleted ...
 				(*iter)->push(c);
 				iter++;
 			}
@@ -119,8 +121,10 @@ void IpfixConnectionTracker::addConnectionReceiver(ConnectionReceiver* cr)
 
 
 IpfixConnectionTracker::Hashtable::Hashtable(uint32_t expireTime)
-	: expireTime(expireTime)
+	: expireTime(expireTime),
+	  statTotalEntries(0), statExportedEntries(0)
 {
+	StatisticsManager::getInstance().addModule(this);
 }
 
 IpfixConnectionTracker::Hashtable::~Hashtable()
@@ -130,6 +134,7 @@ IpfixConnectionTracker::Hashtable::~Hashtable()
 
 /**
  * tries to find connection inside list, if found, aggregate it
+ * if connection was aggregated, instance is automatically dereferenced
  * ATTENTION: if flow was not found, it is _NOT_ added!
  * @param to flow has to be added in direction src->dst if true, else false
  * @returns true if flow was found, false if not
@@ -141,6 +146,7 @@ bool IpfixConnectionTracker::Hashtable::aggregateFlow(Connection* c, list<Connec
 	while (iter != clist->end()) {
 		if (c->compareTo(*iter, to)) {
 			(*iter)->aggregate(c, expireTime, to);
+			c->removeReference();
 			return true;
 		}
 		iter++;
@@ -186,15 +192,19 @@ void IpfixConnectionTracker::Hashtable::addFlow(Connection* c)
 void IpfixConnectionTracker::Hashtable::expireConnections(queue<Connection*>* expiredFlows)
 {
 	uint32_t curtime = time(0);
+	uint32_t numexported = 0;
+	uint32_t numentries = 0;
 	tableMutex.lock();
 
 	// go through whole hashtable and try to find flows which are expired
 	for (uint32_t i=0; i<TABLE_SIZE; i++) {
 		list<Connection*>::iterator iter = htable[i].begin();
 		while (iter != htable[i].end()) {
+			numentries++;
 			if ((*iter)->timeExpire<=curtime) {
 				// expire flow and remove it from hashtable
 				DPRINTF("expiring connection");
+				numexported++;
 				expiredFlows->push(*iter);
 				list<Connection*>::iterator todelete = iter;
 				iter++;
@@ -206,5 +216,14 @@ void IpfixConnectionTracker::Hashtable::expireConnections(queue<Connection*>* ex
 	}
 
 	tableMutex.unlock();
+	statExportedEntries = numexported;
+	statTotalEntries = numentries;
 }
 
+std::string IpfixConnectionTracker::Hashtable::getStatistics()
+{
+	ostringstream oss;
+	oss << "Conntrack hashtable: number of entries: " << statTotalEntries << endl;
+	oss << "Conntrack hashtable: exported entries : " << statExportedEntries << endl;
+	return oss.str();
+}
