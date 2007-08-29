@@ -25,7 +25,7 @@ class ConcurrentQueue
 		/**
 		 * default queue size
 		 */
-		static const int DEFAULT_QUEUE_SIZE = 100000;
+		static const int DEFAULT_QUEUE_SIZE = 1000;
 
 		ConcurrentQueue(int maxEntries = DEFAULT_QUEUE_SIZE) 
 			: pushedCount(0), poppedCount(0), queue(), count(0), lock(), popSemaphore(), pushSemaphore(maxEntries)

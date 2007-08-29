@@ -38,7 +38,7 @@ MARK_AS_ADVANCED(
 
 ### basic modules
 
-SUBDIRS(common concentrator ipfixlolib sampler tools)
+SUBDIRS(common concentrator ipfixlolib sampler tools idmef)
 
 ADD_EXECUTABLE(vermont
 	collector_configuration.cc
@@ -62,6 +62,7 @@ INCLUDE_DIRECTORIES(${VERMONT_SOURCE_DIR}/ipfixlolib)
 INCLUDE_DIRECTORIES(${VERMONT_SOURCE_DIR}/sampler)
 INCLUDE_DIRECTORIES(${VERMONT_SOURCE_DIR}/tools)
 INCLUDE_DIRECTORIES(${VERMONT_SOURCE_DIR}/tests)
+INCLUDE_DIRECTORIES(${VERMONT_SOURCE_DIR}/idmef)
 
 TARGET_LINK_LIBRARIES(vermont
 	concentrator
@@ -70,6 +71,7 @@ TARGET_LINK_LIBRARIES(vermont
 	common
 	tools
 	tests
+	idmef
 )
 
 
