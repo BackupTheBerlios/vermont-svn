@@ -138,7 +138,7 @@ void MeteringConfiguration::connect(Configuration* c)
 			} else {
 				msg(MSG_ERROR, "ATTENTION: activating hard coded version of portscan detector! this thing is unsafe!");
 				exporter->createIpfixSender(observationDomainId); // workaround
-				IpfixConnectionTracker* connTracker = new IpfixConnectionTracker(5);
+				IpfixConnectionTracker* connTracker = new IpfixConnectionTracker(10);
 				TRWPortscanDetector* trw = new TRWPortscanDetector();
 				connTracker->addConnectionReceiver(trw);
 				connTracker->runSink();

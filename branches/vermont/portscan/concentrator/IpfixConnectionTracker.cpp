@@ -1,6 +1,6 @@
 
 #include "IpfixConnectionTracker.h"
-#include "crc16.hpp"
+#include "crc.hpp"
 
 #include <sstream>
 #include <iostream>

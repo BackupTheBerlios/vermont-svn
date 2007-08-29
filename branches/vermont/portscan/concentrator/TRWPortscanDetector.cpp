@@ -1,5 +1,5 @@
 #include "TRWPortscanDetector.h"
-#include "crc16.hpp"
+#include "crc.hpp"
 #include "common/Misc.h"
 
 #include <arpa/inet.h>

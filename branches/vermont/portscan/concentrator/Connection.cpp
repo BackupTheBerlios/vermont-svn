@@ -1,6 +1,6 @@
 
 #include "Connection.h"
-#include "crc16.hpp"
+#include "crc.hpp"
 #include "common/Misc.h"
 
 #include <sstream>
