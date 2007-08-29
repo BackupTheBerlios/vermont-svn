@@ -7,7 +7,15 @@
 #include <iostream>
 
 
-TRWPortscanDetector::TRWPortscanDetector()
+const char* TRWPortscanDetector::PAR_SUCC_CONNS = "SUCC_CONNS";
+const char* TRWPortscanDetector::PAR_FAILED_CONNS = "FAILED_CONNS";
+
+/**
+ * attention: parameter idmefexporter must be free'd by the creating instance, TRWPortscanDetector
+ * does not dare to delete it, in case it's used
+ */
+TRWPortscanDetector::TRWPortscanDetector(IDMEFExporter* idmefexporter)
+	: idmefExporter(idmefexporter)
 {
 	// make some initialization calculations
 	float theta_0 = 0.8; // probability that benign host makes successful connection
@@ -157,18 +165,16 @@ void TRWPortscanDetector::addConnection(Connection* conn)
 		te->decision = SCANNER;
 		statNumScanners++;
 		te->timeExpire = time(0)+TIME_EXPIRE_SCANNER;
-		msg(MSG_INFO, "PORTSCANNER:");
-		msg(MSG_INFO, "srcIP: %s, dstSubnet: %s, dstSubMask: %s", IPToString(te->srcIP).c_str(), 
+		msg(MSG_DEBUG, "portscanner detected:");
+		msg(MSG_DEBUG, "srcIP: %s, dstSubnet: %s, dstSubMask: %s", IPToString(te->srcIP).c_str(), 
 				IPToString(te->dstSubnet).c_str(), IPToString(te->dstSubnetMask).c_str());
-		msg(MSG_INFO, "numFailedConns: %d, numSuccConns: %d", te->numFailedConns, te->numSuccConns);
-		char cmdline[500];
-		sprintf(cmdline, "perl -I../ims_idmefsender/includes ../ims_idmefsender/ims_idmefsender.pl %s %s %s %d %d",
-				IPToString(te->srcIP).c_str(), IPToString(te->dstSubnet).c_str(), 
-				IPToString(te->dstSubnetMask).c_str(), te->numSuccConns, te->numFailedConns);
+		msg(MSG_DEBUG, "numFailedConns: %d, numSuccConns: %d", te->numFailedConns, te->numSuccConns);
 
-		if (system(cmdline)!=0) {
-			msg(MSG_ERROR, "failed to exec '%s'", cmdline);
-		}
+		idmefExporter->setVariable(PAR_SUCC_CONNS, te->numSuccConns);
+		idmefExporter->setVariable(PAR_FAILED_CONNS, te->numFailedConns);
+		idmefExporter->setVariable(IDMEFExporter::PAR_SOURCE_ADDRESS, IPToString(te->srcIP));
+		idmefExporter->setVariable(IDMEFExporter::PAR_TARGET_ADDRESS, IPToString(te->dstSubnet)+"/"+IPToString(te->dstSubnetMask));
+		idmefExporter->exportMessage();
 	}
 }
 

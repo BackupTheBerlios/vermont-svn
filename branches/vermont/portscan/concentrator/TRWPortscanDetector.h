@@ -3,6 +3,7 @@
 
 #include "ConnectionReceiver.h"
 #include "common/StatisticsManager.h"
+#include "idmef/IDMEFExporter.h"
 
 #include <list>
 
@@ -11,7 +12,7 @@ using namespace std;
 class TRWPortscanDetector : public ConnectionReceiver, StatisticsModule
 {
 	public:
-		TRWPortscanDetector();
+		TRWPortscanDetector(IDMEFExporter* idmefexporter);
 		virtual ~TRWPortscanDetector();
 		virtual void push(Connection* conn);
 
@@ -38,6 +39,10 @@ class TRWPortscanDetector : public ConnectionReceiver, StatisticsModule
 		const static int TIME_EXPIRE_BENIGN = 60*30; // time in seconds until benign entries are expired
 		const static int TIME_CLEANUP_INTERVAL = 10; // time in seconds of interval when hashtable with source hosts is cleaned up (trwEntries)
 
+		// idmef parameters
+		const static char* PAR_SUCC_CONNS; // = "SUCC_CONNS";
+		const static char* PAR_FAILED_CONNS; // = "FAILED_CONNS";
+
 		list<TRWEntry*> trwEntries[HASH_SIZE];
 		uint32_t statEntriesAdded;
 		uint32_t statEntriesRemoved;
@@ -45,6 +50,7 @@ class TRWPortscanDetector : public ConnectionReceiver, StatisticsModule
 		float logeta_0, logeta_1;
 		float X_0, X_1;
 		time_t lastCleanup;
+		IDMEFExporter* idmefExporter;
 
 		TRWEntry* createEntry(Connection* conn);
 		TRWEntry* getEntry(Connection* conn);
