@@ -1,53 +1,60 @@
-#!/usr/bin/perl
-require "IncidentManagement.pm";
+#!/usr/bin/perl -w
 
 use strict;
-use DBI;
-use XML::IDMEF;   
-use IO::Socket::SSL;
+use Fcntl ':flock';
+use LWP::UserAgent;
+use HTTP::Request::Common;
+use XML::XPath;
 
-if (!$ARGV[0]) {
-	print "Usage: ims_idmefsender.pl <srcIP> <dstSubnet> <dstSubnetMask> <numSuccessfulConns> <numFailedConns>\n";
+if (scalar(@ARGV)!=1) {
+	print "Usage: idmefsender.pl <idmef directory>\n";
 	exit 1;
 }
 
+my ($dir) = @ARGV;
 
-my ($ip_src, $dst_subnet, $dst_subnetmask, $numsuccconns, $numfailconns)  = @ARGV;
-my $idmef = new XML::IDMEF();
-$idmef->create_ident();
-$idmef->create_time();
-$idmef->add("AlertAnalyzermodel", "Vermont portscan detector");
-$idmef->add("AlertAnalyzeranalyzerid", "vermont\@vermont.rrze");
-$idmef->add("AlertAnalyzerNodecategory", "hosts");
-$idmef->add("AlertAnalyzerNodename", "vermont.rrze.uni-erlangen.de");
-$idmef->add("AlertAnalyzerNodeAddresscategory", "ipv4-addr");
-$idmef->add("AlertAnalyzerNodeAddressaddress", "131.188.2.46");
+my $ua = LWP::UserAgent->new(agent => 'perl post');
 
-$idmef->add("AlertSourceNodecategory", "hosts");
-#$idmef->add("AlertSourceNodename", );
-#$idmef->add("AlertSourceNodelocation", $source_location);
-$idmef->add("AlertSourceNodeAddresscategory", "ipv4-addr");
-$idmef->add("AlertSourceNodeAddressaddress", $ip_src);
-$idmef->add("AlertTargetNodecategory", "hosts");
-#$idmef->add("AlertTargetNodename", $target_host);
-#$idmef->add("AlertTargetNodelocation", $target_location);
-$idmef->add("AlertTargetNodeAddresscategory", "ipv4-addr");
-$idmef->add("AlertTargetNodeAddressaddress", $dst_subnet);
-$idmef->add("AlertClassificationtext", "portscan");
-$idmef->add("AlertClassificationident", "$numsuccconns succ. conns., $numfailconns failed conns., destination: $dst_subnet/$dst_subnetmask");
-my $idmef_text = "IDMEF=".$idmef->out();
-my $client = new IO::Socket::SSL("ims.rrze.uni-erlangen.de:https");
 
-print "IDMEF MESSAGE:\n$idmef_text";
-exit 0;
+sub send_idmef($$) {
+	my ($url, $msg) = @_;
 
-if (defined $client) {
-	print LOG "Message: $idmef_text\n";
-	print $client "POST /idmef/receiver_events.cgi HTTP/1.0\n";
-	print $client "Content-type: application/x-www-form-urlencoded\n";
-	print $client "Content-length: ".length($idmef_text)."\n\n";
-	print $client "$idmef_text\n";
-	<$client>;
-	close $client;
+	my $client;
+
+	my $res = $ua->request(POST $url, Content_Type => 'form-data', Content => [ 'IDMEF' => $msg ]);
+	#print "request: " . $res->request->as_string;
+	#print "response: " . $res->as_string;
+	die "failed to transfer idmef message to url $url, response: '" . $res->as_string . "'" unless $res->is_success;
+    # now trying to read answer
+	eval {
+		my $xmlres = XML::XPath->new(xml => $res->content);
+		die "IDMEF receiver returned error, complete response:\n$res->as_string" if ($xmlres->getNodeText("/response/returnValue") ne "1");
+	};
+	die "\nIDMEF receiver returned non interpretable answer (error: $@), complete response:\n\n" . $res->as_string if ($@);
 }
-else { print LOG "SLL connection failed: ", IO::Socket::SSL::errstr()."\n" }
+
+chdir $dir || die "failed to change to directory $dir: $!";
+while (1) {
+	opendir(DIR, ".") || die "failed to open directory $dir: $!";
+	while ($_ = readdir(DIR)) {
+		next if (/^\.\.?$/);
+		my $file = $_;
+		open(MSG, "<$_") || die "failed to open file $_: $!";
+		flock(MSG, LOCK_EX);
+		my @idmefdata = <MSG>;
+		$_ = shift @idmefdata;
+		chomp;
+		my $url = $_;
+		my $msg = join("", @idmefdata);
+		print "Sending file $file ...\n";
+		send_idmef($url, $msg);
+		flock(MSG, LOCK_UN);
+		close MSG;
+		unlink $file || die "failed to delete file $file: $!";
+	}
+	sleep(1);
+	closedir(DIR);
+}
+
+
+
