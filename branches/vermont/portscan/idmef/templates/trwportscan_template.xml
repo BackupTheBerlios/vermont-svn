@@ -10,7 +10,7 @@
         </Address>
       </Node>
     </Analyzer>
-    <CreateTime ntpstamp="0xca7d397f.0x0">%CREATE_TIME%</CreateTime>
+    <CreateTime ntpstamp="%NTP_TIME%">%CREATE_TIME%</CreateTime>
     <Source>
       <Node category="hosts">
         <Address category="ipv4-addr">
