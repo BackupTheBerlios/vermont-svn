@@ -21,6 +21,7 @@ ADD_EXECUTABLE(vermonttest
 	test_concentrator.cpp
 	AggregationPerfTest.cpp
 	VermontTest.cpp
+	ConnectionTrackerTest.cpp
 )
 
 TARGET_LINK_LIBRARIES(vermonttest
