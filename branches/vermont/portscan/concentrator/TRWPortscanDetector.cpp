@@ -50,7 +50,7 @@ TRWPortscanDetector::TRWEntry* TRWPortscanDetector::createEntry(Connection* conn
 TRWPortscanDetector::TRWEntry* TRWPortscanDetector::getEntry(Connection* conn)
 {
 	time_t curtime = time(0);
-	uint16_t hash = crc16(0, 2, &reinterpret_cast<char*>(&conn->srcIP)[2]);
+	uint32_t hash = crc32(0, 2, &reinterpret_cast<char*>(&conn->srcIP)[2]) & (HASH_SIZE-1);
 
 	list<TRWEntry*>::iterator iter = trwEntries[hash].begin();
 	while (iter != trwEntries[hash].end()) {

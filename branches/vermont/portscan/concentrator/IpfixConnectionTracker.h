@@ -23,7 +23,8 @@ class IpfixConnectionTracker : public FlowSink
 		class Hashtable : public StatisticsModule
 		{
 			public:
-				static const uint32_t TABLE_SIZE = 65536;
+				static const uint32_t TABLE_BITS = 16;
+				static const uint32_t TABLE_SIZE = 1<<(TABLE_BITS-1);
 
 				Hashtable(uint32_t expireTime);
 				virtual ~Hashtable();

@@ -119,17 +119,18 @@ bool Connection::compareTo(Connection* c, bool to)
 /**
  * calculates hash from flow
  * @param which direction should be used? true if src->dst, else false
+ * @param maxval maximum value to be returned - ATTENTION: only use values of 2**x-1!
  */
-uint16_t Connection::getHash(bool to)
+uint32_t Connection::getHash(bool to, uint32_t maxval)
 {
 	if (to) {
-		return crc16(0, 12, reinterpret_cast<char*>(&srcIP));
+		return crc32(0, 12, reinterpret_cast<char*>(&srcIP)) & maxval;
 	} else {
-		uint16_t hash = crc16(0, 4, reinterpret_cast<char*>(&dstIP));
-		hash = crc16(hash, 4, reinterpret_cast<char*>(&srcIP));
-		hash = crc16(hash, 2, reinterpret_cast<char*>(&dstPort));
-		hash = crc16(hash, 2, reinterpret_cast<char*>(&srcPort));
-		return hash;
+		uint16_t hash = crc32(0, 4, reinterpret_cast<char*>(&dstIP));
+		hash = crc32(hash, 4, reinterpret_cast<char*>(&srcIP));
+		hash = crc32(hash, 2, reinterpret_cast<char*>(&dstPort));
+		hash = crc32(hash, 2, reinterpret_cast<char*>(&srcPort));
+		return hash & maxval;
 	}
 }
 

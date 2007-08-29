@@ -50,7 +50,7 @@ class Connection : public ManagedInstance<Connection>
 		string toString();
 		string printTcpControlBits(uint8_t bits);
 		bool compareTo(Connection* c, bool to);
-		uint16_t getHash(bool to);
+		uint32_t getHash(bool to, uint32_t maxval);
 		void aggregate(Connection* c, uint32_t expireTime, bool to);
 		void swapDataFields();
 		void swapIfNeeded();

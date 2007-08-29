@@ -159,7 +159,7 @@ bool IpfixConnectionTracker::Hashtable::aggregateFlow(Connection* c, list<Connec
  */
 void IpfixConnectionTracker::Hashtable::insertFlow(Connection* c)
 {
-	uint16_t hash = c->getHash(true);
+	uint16_t hash = c->getHash(true, TABLE_SIZE-1);
 	htable[hash].push_back(c);
 }
 
@@ -171,11 +171,11 @@ void IpfixConnectionTracker::Hashtable::addFlow(Connection* c)
 	tableMutex.lock();
 
 	// try to find connection entry in hashtable
-	uint16_t hash = c->getHash(true);
+	uint32_t hash = c->getHash(true, TABLE_SIZE-1);
 	list<Connection*>* clist = &htable[hash];
 	if (!aggregateFlow(c, clist, true)) {
 		// not aggregated yet, try other direction
-		hash = c->getHash(false);
+		hash = c->getHash(false, TABLE_SIZE-1);
 		clist = &htable[hash];
 		if (!aggregateFlow(c, clist, false)) {
 			// we need to insert it into the hashtable

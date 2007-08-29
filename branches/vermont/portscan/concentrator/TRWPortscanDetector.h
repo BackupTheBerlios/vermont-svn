@@ -29,7 +29,8 @@ class TRWPortscanDetector : public ConnectionReceiver, StatisticsModule
 			TRWDecision decision;
 		};
 
-		const static int HASH_SIZE = 65536;
+		const static int HASH_BITS = 20;
+		const static int HASH_SIZE = 1<<(HASH_BITS-1);
 		const static int TIME_EXPIRE = 60*30; // time in seconds until portscan detections expire
 		list<TRWEntry*> trwEntries[HASH_SIZE];
 		uint32_t statEntriesAdded;
