@@ -3,10 +3,26 @@
 #include "common/Misc.h"
 
 #include <arpa/inet.h>
+#include <math.h>
+#include <iostream>
 
 
 TRWPortscanDetector::TRWPortscanDetector()
 {
+	// make some initialization calculations
+	float theta_0 = 0.8; // probability that benign host makes successful connection
+	float theta_1 = 0.2; // probability that malicious host makes successful connection
+	float P_F = 0.01; // probability of false alarm
+	float P_D = 0.99; // probability of scanner detection
+
+	float eta_1 = 1/P_F;
+	float eta_0 = 1-P_D;
+	logeta_0 = logf(eta_0);
+	logeta_1 = logf(eta_1);
+	X_0 = logf(theta_1/theta_0);
+	X_1 = logf((1-theta_1)/(1-theta_0));
+	msg(MSG_INFO, "TRW variables: logeta_0: %f, logeta_1: %f, X_0: %f, X_1: %f", logeta_0, logeta_1, X_0, X_1);
+
 	StatisticsManager::getInstance().addModule(this);
 }
 
@@ -22,8 +38,9 @@ TRWPortscanDetector::TRWEntry* TRWPortscanDetector::createEntry(Connection* conn
 	trw->dstSubnetMask = 0xFFFFFFFF;
 	trw->numFailedConns = 0;
 	trw->numSuccConns = 0;
-	trw->timeExpire = time(0) + TIME_EXPIRE;
-	trw->reported = false;
+	trw->timeExpire = 0;
+	trw->decision = PENDING;
+	trw->S_N = 0;
 
 	statEntriesAdded++;
 
@@ -38,7 +55,7 @@ TRWPortscanDetector::TRWEntry* TRWPortscanDetector::getEntry(Connection* conn)
 	list<TRWEntry*>::iterator iter = trwEntries[hash].begin();
 	while (iter != trwEntries[hash].end()) {
 		// detect expired entries
-		while (iter != trwEntries[hash].end() && curtime>(*iter)->timeExpire) {
+		while (iter != trwEntries[hash].end() && (*iter)->timeExpire!=0 && curtime>(*iter)->timeExpire) {
 			// yes, we need to remove this one
 			TRWEntry* te = *iter;
 			iter++;
@@ -47,17 +64,8 @@ TRWPortscanDetector::TRWEntry* TRWPortscanDetector::getEntry(Connection* conn)
 			statEntriesRemoved++;
 		}
 		if (iter != trwEntries[hash].end() && (*iter)->srcIP == conn->srcIP) {
-			// found the entry, has it expired?
-			if (time(0)>(*iter)->timeExpire) {
-				// yes, we need to remove this one
-				delete *iter;
-				trwEntries[hash].remove(*iter);
-				statEntriesRemoved++;
-				break;
-			} else {
-				// no, let's return it
-				return *iter;
-			}
+			// found the entry
+			return *iter;
 		}
 		iter++;
 	}
@@ -73,6 +81,37 @@ void TRWPortscanDetector::addConnection(Connection* conn)
 {
 	TRWEntry* te = getEntry(conn);
 
+	//if (conn->srcIP==0x8AAAAB53) {
+		//msg(MSG_INFO, "***********homeip  data:");
+		//msg(MSG_INFO, "srcIP: %s, dstSubnet: %s, dstSubMask: %s", IPToString(te->srcIP).c_str(), 
+				//IPToString(te->dstSubnet).c_str(), IPToString(te->dstSubnetMask).c_str());
+		//msg(MSG_INFO, "numFailedConns: %d, numSuccConns: %d", te->numFailedConns, te->numSuccConns);
+		//cout << conn->toString();
+	//}
+
+	// this host was already decided on, don't do anything any more
+	if (te->decision != PENDING) return;
+
+	// determine if connection was a failed or successful connection attempt
+	// by looking if answering host sets the syn+ack bits for the threeway handshake
+	bool connsuccess;
+	if ((conn->dstTcpControlBits&(Connection::SYN|Connection::ACK))!=(Connection::SYN|Connection::ACK)) {
+		// no, this is not a successful connection attempt!
+		te->numFailedConns++;
+		connsuccess = false;
+
+	} else {
+		te->numSuccConns++;
+		connsuccess = true;
+	}
+
+	// only work with this connection, if it wasn't accessed before by this host
+	if (find(te->accessedHosts.begin(), te->accessedHosts.end(), conn->dstIP) != te->accessedHosts.end()) return;
+
+	te->accessedHosts.push_back(conn->dstIP);
+
+	te->S_N += (connsuccess ? X_0 : X_1);
+
 	// aggregate new connection into entry
 	if (te->dstSubnet==0 && te->dstSubnetMask==0xFFFFFFFF) {
 		te->dstSubnet = conn->dstIP;
@@ -86,28 +125,26 @@ void TRWPortscanDetector::addConnection(Connection* conn)
 		}
 	}
 
-	// determine if connection was a failed or successful connection attempt
-	// by looking if answering host sets the syn bit for the threeway handshake
-	if (!(conn->dstTcpControlBits&Connection::SYN)) {
-		// no, this is not a successful connection attempt!
-		te->numFailedConns++;
-		te->timeExpire = time(0)+TIME_EXPIRE;
-	} else {
-		te->numSuccConns++;
-	}
+	DPRINTF("IP: %s, S_N: %f", IPToString(te->srcIP).c_str(), te->S_N);
 	
-	// announce host as portscanner, if too many unsuccessful connection attempts
-	if (te->numFailedConns>100 && !te->reported) {
-		te->reported = true;
+	// look if information is adequate for deciding on host
+	if (te->S_N<logeta_0) {
+		// no portscanner, just let entry stay here until it expires
+		te->timeExpire = time(0)+TIME_EXPIRE;
+		te->decision = BENIGN;
+	} else if (te->S_N>logeta_1) {
+		//this is a portscanner!
+		te->decision = SCANNER;
 		statNumScanners++;
+		te->timeExpire = time(0)+TIME_EXPIRE;
 		msg(MSG_INFO, "PORTSCANNER:");
 		msg(MSG_INFO, "srcIP: %s, dstSubnet: %s, dstSubMask: %s", IPToString(te->srcIP).c_str(), 
 				IPToString(te->dstSubnet).c_str(), IPToString(te->dstSubnetMask).c_str());
 		msg(MSG_INFO, "numFailedConns: %d, numSuccConns: %d", te->numFailedConns, te->numSuccConns);
 		char cmdline[500];
-		sprintf(cmdline, "perl -I../ims_idmefsender/includes ../ims_idmefsender/ims_idmefsender.pl %s %s %s %d",
+		sprintf(cmdline, "perl -I../ims_idmefsender/includes ../ims_idmefsender/ims_idmefsender.pl %s %s %s %d %d",
 				IPToString(te->srcIP).c_str(), IPToString(te->dstSubnet).c_str(), 
-				IPToString(te->dstSubnetMask).c_str(), te->numSuccConns);
+				IPToString(te->dstSubnetMask).c_str(), te->numSuccConns, te->numFailedConns);
 
 		if (system(cmdline)!=0) {
 			msg(MSG_ERROR, "failed to exec '%s'", cmdline);
