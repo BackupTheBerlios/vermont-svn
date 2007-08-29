@@ -22,6 +22,7 @@ TRWPortscanDetector::TRWPortscanDetector()
 	X_0 = logf(theta_1/theta_0);
 	X_1 = logf((1-theta_1)/(1-theta_0));
 	msg(MSG_INFO, "TRW variables: logeta_0: %f, logeta_1: %f, X_0: %f, X_1: %f", logeta_0, logeta_1, X_0, X_1);
+	lastCleanup = time(0);
 
 	StatisticsManager::getInstance().addModule(this);
 }
@@ -38,7 +39,7 @@ TRWPortscanDetector::TRWEntry* TRWPortscanDetector::createEntry(Connection* conn
 	trw->dstSubnetMask = 0xFFFFFFFF;
 	trw->numFailedConns = 0;
 	trw->numSuccConns = 0;
-	trw->timeExpire = 0;
+	trw->timeExpire = time(0) + TIME_EXPIRE_PENDING;
 	trw->decision = PENDING;
 	trw->S_N = 0;
 
@@ -47,23 +48,48 @@ TRWPortscanDetector::TRWEntry* TRWPortscanDetector::createEntry(Connection* conn
 	return trw;
 }
 
+/**
+ * erases entries in our hashtable which are expired
+ */
+void TRWPortscanDetector::cleanupEntries()
+{
+	time_t curtime = time(0);
+
+	for (int i=0; i<HASH_SIZE; i++) {
+		if (trwEntries[i].size()==0) continue;
+
+		list<TRWEntry*>::iterator iter = trwEntries[i].begin();
+		while (iter != trwEntries[i].end()) {
+			if (curtime > (*iter)->timeExpire) {
+				TRWEntry* te = *iter;
+				iter = trwEntries[i].erase(iter);
+				delete te;
+				statEntriesRemoved++;
+			} else {
+				iter++;
+			}
+		}
+	}
+}
+
+/**
+ * returns entry in hashtable for the given connection
+ * if it was not found, a new entry is created and returned
+ */
 TRWPortscanDetector::TRWEntry* TRWPortscanDetector::getEntry(Connection* conn)
 {
 	time_t curtime = time(0);
 	uint32_t hash = crc32(0, 2, &reinterpret_cast<char*>(&conn->srcIP)[2]) & (HASH_SIZE-1);
 
+	// regularly cleanup expired entries in hashtable
+	if (lastCleanup+TIME_CLEANUP_INTERVAL < curtime) {
+		cleanupEntries();
+		lastCleanup = curtime;
+	}
+
 	list<TRWEntry*>::iterator iter = trwEntries[hash].begin();
 	while (iter != trwEntries[hash].end()) {
-		// detect expired entries
-		while (iter != trwEntries[hash].end() && (*iter)->timeExpire!=0 && curtime>(*iter)->timeExpire) {
-			// yes, we need to remove this one
-			TRWEntry* te = *iter;
-			iter++;
-			delete te;
-			trwEntries[hash].remove(te);
-			statEntriesRemoved++;
-		}
-		if (iter != trwEntries[hash].end() && (*iter)->srcIP == conn->srcIP) {
+		if ((*iter)->srcIP == conn->srcIP) {
 			// found the entry
 			return *iter;
 		}
@@ -81,14 +107,6 @@ void TRWPortscanDetector::addConnection(Connection* conn)
 {
 	TRWEntry* te = getEntry(conn);
 
-	//if (conn->srcIP==0x8AAAAB53) {
-		//msg(MSG_INFO, "***********homeip  data:");
-		//msg(MSG_INFO, "srcIP: %s, dstSubnet: %s, dstSubMask: %s", IPToString(te->srcIP).c_str(), 
-				//IPToString(te->dstSubnet).c_str(), IPToString(te->dstSubnetMask).c_str());
-		//msg(MSG_INFO, "numFailedConns: %d, numSuccConns: %d", te->numFailedConns, te->numSuccConns);
-		//cout << conn->toString();
-	//}
-
 	// this host was already decided on, don't do anything any more
 	if (te->decision != PENDING) return;
 
@@ -105,7 +123,9 @@ void TRWPortscanDetector::addConnection(Connection* conn)
 		connsuccess = true;
 	}
 
-	// only work with this connection, if it wasn't accessed before by this host
+	te->timeExpire = time(0) + TIME_EXPIRE_PENDING;
+
+	// only work with this connection, if it wasn't accessed earlier by this host
 	if (find(te->accessedHosts.begin(), te->accessedHosts.end(), conn->dstIP) != te->accessedHosts.end()) return;
 
 	te->accessedHosts.push_back(conn->dstIP);
@@ -130,13 +150,13 @@ void TRWPortscanDetector::addConnection(Connection* conn)
 	// look if information is adequate for deciding on host
 	if (te->S_N<logeta_0) {
 		// no portscanner, just let entry stay here until it expires
-		te->timeExpire = time(0)+TIME_EXPIRE;
+		te->timeExpire = time(0)+TIME_EXPIRE_BENIGN;
 		te->decision = BENIGN;
 	} else if (te->S_N>logeta_1) {
 		//this is a portscanner!
 		te->decision = SCANNER;
 		statNumScanners++;
-		te->timeExpire = time(0)+TIME_EXPIRE;
+		te->timeExpire = time(0)+TIME_EXPIRE_SCANNER;
 		msg(MSG_INFO, "PORTSCANNER:");
 		msg(MSG_INFO, "srcIP: %s, dstSubnet: %s, dstSubMask: %s", IPToString(te->srcIP).c_str(), 
 				IPToString(te->dstSubnet).c_str(), IPToString(te->dstSubnetMask).c_str());
