@@ -34,17 +34,9 @@
                 <sample>5</sample>
             </randOutOfN>
             -->
-            <stringFilter>
-                <is type="ASCII">XXX blame me</is>
-<!--
-                <is not type="ASCII">the good one</isnot>
--->
-            </stringFilter>
-<!--
-            <regexFilter>
-              <matchPattern>XXX blame me</matchPattern>
-            </regexFilter>
--->
+            <regExFilter>
+              <matchPattern>XXX\s*me</matchPattern>
+            </regExFilter>
         </packetSelection>
         <packetReporting>
             <templateId>9876</templateId>

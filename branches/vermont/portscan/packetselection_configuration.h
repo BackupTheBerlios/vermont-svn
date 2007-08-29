@@ -9,6 +9,9 @@
 #include "ipfix_configuration.h"
 
 #include <vector>
+#include <string>
+
+using namespace std;
 
 
 class Filter;
@@ -35,6 +38,9 @@ protected:
 	Filter* filter;
 
 	PacketSink* dummySink; /**< contains a pointer if we created a DummySink, i.e. we are responsible for cleaning it up */
+	string idmefDestdir;
+	string idmefTemplate;
+	string idmefSendurl;
 
 	friend class MeteringConfiguration;
 };

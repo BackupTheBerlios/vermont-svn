@@ -29,8 +29,8 @@ ADD_LIBRARY(sampler
 	RandomSampler.cpp
 	SystematicSampler.cpp
 	Template.cpp
-	stringFilter.cpp
-	regExFilter.cpp
+	StringFilter.cpp
+	RegExFilter.cpp
 	ExpressHookingFilter.cpp
 )
 

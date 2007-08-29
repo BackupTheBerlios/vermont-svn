@@ -12,8 +12,8 @@
 #include <sampler/PacketProcessor.h>
 #include <sampler/HookingFilter.h>
 #include <sampler/PacketSink.h>
-#include <sampler/stringFilter.h>
-#include <sampler/regExFilter.h>
+#include <sampler/StringFilter.h>
+#include <sampler/RegExFilter.h>
 
 
 PacketSelectionConfiguration::PacketSelectionConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
@@ -72,7 +72,6 @@ void PacketSelectionConfiguration::configure()
 		} else if (tagMatches(i, "filterMatch")) {
 			xmlNodePtr j = i->xmlChildrenNode;
 			while (NULL != j) {
-				// TODO: construct filter ...
 				msg(MSG_ERROR, "packetSelection: filterMatch not yet implemented!");
 				j = j->next;
 			}
@@ -92,7 +91,7 @@ void PacketSelectionConfiguration::configure()
 			filter->addProcessor(new RandomSampler(n, N));
 		} else if (tagMatches(i, "stringFilter")) {
 			xmlNodePtr j = i->xmlChildrenNode;
-			stringFilter* sfilter = new stringFilter();
+			StringFilter* sfilter = new StringFilter(new IDMEFExporter(idmefTemplate, idmefDestdir, idmefSendurl));
 			msg(MSG_INFO, "packetSelection: Creating string filter");
 			while (NULL != j) {
 				if (tagMatches(j, "is")) {
@@ -109,16 +108,42 @@ void PacketSelectionConfiguration::configure()
 					else
 						sfilter->addnotFilter(getContent(j));
 				}
+				if (tagMatches(j, "idmef")) {
+					xmlNodePtr idnodes = j->xmlChildrenNode;
+					while (idnodes != NULL) {
+						if (tagMatches(idnodes, "destdir")) {
+							idmefDestdir = getContent(idnodes);
+						} else if (tagMatches(idnodes, "template")) {
+							idmefTemplate = getContent(idnodes);
+						} else if (tagMatches(idnodes, "sendurl")) {
+							idmefSendurl = getContent(idnodes);
+						}
+						idnodes = idnodes->next;
+					}
+				}
 				j = j->next;
 			}
 			filter->addProcessor(sfilter);
 		} else if (tagMatches(i, "regExFilter")) {
 			xmlNodePtr j = i->xmlChildrenNode;
-			regExFilter* rfilter = new regExFilter();
+			RegExFilter* rfilter = new RegExFilter(new IDMEFExporter(idmefTemplate, idmefDestdir, idmefSendurl));
 			msg(MSG_INFO, "packetSelection: Creating regular expression filter!");
 			while (NULL != j) {
 				if (tagMatches(j, "matchPattern")) {
 					rfilter->match = getContent(j);
+				}
+				if (tagMatches(j, "idmef")) {
+					xmlNodePtr idnodes = j->xmlChildrenNode;
+					while (idnodes != NULL) {
+						if (tagMatches(idnodes, "destdir")) {
+							idmefDestdir = getContent(idnodes);
+						} else if (tagMatches(idnodes, "template")) {
+							idmefTemplate = getContent(idnodes);
+						} else if (tagMatches(idnodes, "sendurl")) {
+							idmefSendurl = getContent(idnodes);
+						}
+						idnodes = idnodes->next;
+					}
 				}
 				j = j->next;
 			}
