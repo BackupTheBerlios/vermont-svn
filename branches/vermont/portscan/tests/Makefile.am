@@ -1,6 +1,10 @@
 bin_PROGRAMS=vermonttest
 
-vermonttest_SOURCES=test_concentrator.cpp common/msg.h AggregationPerfTest.cpp AggregationPerfTest.h common/Time.h VermontTest.cpp VermontTest.h
+vermonttest_SOURCES=test_concentrator.cpp common/msg.h \
+	AggregationPerfTest.cpp AggregationPerfTest.h \
+	ConnectionTrackerTest.cpp ConnectionTrackerTest.h \
+	common/Time.h \
+	VermontTest.cpp VermontTest.h
 
 AM_CFLAGS=-I$(top_srcdir) `xml2-config --cflags` $(MYSQL_CFLAGS) -Wall -Werror
 AM_CXXFLAGS=$(AM_CFLAGS)

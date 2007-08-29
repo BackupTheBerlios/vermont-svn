@@ -4,6 +4,7 @@
 
 #include "VermontTest.h"
 #include "AggregationPerfTest.h"
+#include "ConnectionTrackerTest.h"
 #include "test_concentrator.h"
 
 using boost::unit_test::test_suite;
@@ -14,10 +15,13 @@ test_suite* init_unit_test_suite(int argc, char* argv[])
 {
 	test_suite* test(BOOST_TEST_SUITE("Vermont Testsuite"));
 
+	msg_setlevel(MSG_INFO);
+
 	bool perftest = false;
 
 	if (argc>1 && strcmp(argv[1], "-perf")==0) perftest = true;
 
+	test->add(new ConnectionTrackerTestSuite());
 	test->add(new AggregationPerfTestSuite(!perftest));
 	test->add(new ConcentratorTestSuite());
 

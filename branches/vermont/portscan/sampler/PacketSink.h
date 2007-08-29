@@ -20,7 +20,7 @@
 class PacketSink : public Sink
 {
 	public:
-		PacketSink() 
+                        		PacketSink() 
 			: Sink("PacketSink"), thread(PacketSink::packetSinkProcess), exitFlag(false)
 		{
 		};

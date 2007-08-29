@@ -15,6 +15,9 @@ IpfixCollector.cpp IpfixCollector.hpp \
 Rules.cpp Rules.hpp Rule.cpp Rule.hpp \
 IpfixSender.cpp IpfixSender.hpp \
 IpfixRawdirWriter.cpp IpfixRawdirWriter.hpp \
+IpfixConnectionTracker.cpp IpfixConnectionTracker.h \
+Connection.h Connection.cpp \
+TRWPortscanDetector.h TRWPortscanDetector.cpp \
 TemplateBuffer.cpp TemplateBuffer.hpp \
 IpfixDbReader.hpp IpfixDbReader.cpp IpfixDbWriter.hpp IpfixDbWriter.cpp
 
