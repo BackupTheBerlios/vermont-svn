@@ -74,7 +74,24 @@ void MeteringConfiguration::configure()
 			expressflowMetering->configure();
 	//		expressflowMetering = new ExpressFlowMeteringConfiguration(doc, i);
 	//		expressflowMetering->configure();
-		} else if (tagMatches(i, "conntracker")) {
+		} else if (tagMatches(i, "portscan")) {
+			xmlNodePtr ctnodes = i->xmlChildrenNode;
+			while (ctnodes != NULL) {
+				if (tagMatches(ctnodes, "idmef")) {
+					xmlNodePtr idnodes = ctnodes->xmlChildrenNode;
+					while (idnodes != NULL) {
+						if (tagMatches(idnodes, "destdir")) {
+							idmefDestdir = getContent(idnodes);
+						} else if (tagMatches(idnodes, "template")) {
+							idmefTemplate = getContent(idnodes);
+						} else if (tagMatches(idnodes, "sendurl")) {
+							idmefSendurl = getContent(idnodes);
+						}
+						idnodes = idnodes->next;
+					}
+				}
+				ctnodes = ctnodes->next;
+			}
 			activateConnTracker = true;
 		} else if (tagMatches(i, "next")) {
 			fillNextVector(i);
@@ -136,10 +153,10 @@ void MeteringConfiguration::connect(Configuration* c)
 				exporter->createIpfixSender(observationDomainId);
 				expressflowMetering->ipfixAggregator->addFlowSink(exporter->getIpfixSender());
 			} else {
-				msg(MSG_ERROR, "ATTENTION: activating hard coded version of portscan detector! this thing is unsafe!");
+				msg(MSG_ERROR, "activating portscan detector (idmef parameters: %s, %s, %s)", idmefTemplate.c_str(), idmefDestdir.c_str(), idmefSendurl.c_str());
 				exporter->createIpfixSender(observationDomainId); // workaround
 				IpfixConnectionTracker* connTracker = new IpfixConnectionTracker(10);
-				TRWPortscanDetector* trw = new TRWPortscanDetector();
+				TRWPortscanDetector* trw = new TRWPortscanDetector(new IDMEFExporter(idmefTemplate, idmefDestdir, idmefSendurl));
 				connTracker->addConnectionReceiver(trw);
 				connTracker->runSink();
 				connTracker->startThread();

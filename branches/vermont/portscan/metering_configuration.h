@@ -47,6 +47,9 @@ private:
 	uint16_t observationDomainId;
 	int captureLength;
 	bool activateConnTracker;
+	string idmefDestdir;
+	string idmefTemplate;
+	string idmefSendurl;
 };
 
 #endif
