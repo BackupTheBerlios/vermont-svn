@@ -18,12 +18,13 @@ class StringFilter : public PacketProcessor
 
 	public:
 		static const char* PAR_FILTER_TYPE; // = "FILTER_TYPE";
+		static const char* PAR_FILTER_ID; // = "FILTER_ID";
 
 		std::vector<std::string> andFilters;
 		std::vector<std::string> notFilters;
 		IDMEFExporter* idmefExporter;
 
-		StringFilter(IDMEFExporter* idmefexp);
+		StringFilter(IDMEFExporter* idmefexp, string filterid);
 		virtual ~StringFilter();
 
 		void addandFilter(std::string string);
@@ -32,6 +33,8 @@ class StringFilter : public PacketProcessor
 		virtual bool processPacket (const Packet * p);
 
 	protected:
+		string filterId;
+
 		bool compare (unsigned char *data, std::string toMatch, unsigned int plength);
 };
 

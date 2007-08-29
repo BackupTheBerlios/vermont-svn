@@ -3,10 +3,13 @@
 #include "common/Misc.h"
 
 const char* StringFilter::PAR_FILTER_TYPE = "FILTER_TYPE";
+const char* StringFilter::PAR_FILTER_ID = "FILTER_ID";
 
-StringFilter::StringFilter(IDMEFExporter* idmefexp)
-	: idmefExporter(idmefexp)
+StringFilter::StringFilter(IDMEFExporter* idmefexp, string filterid)
+	: idmefExporter(idmefexp), filterId(filterid)
 {
+	idmefExporter->setVariable(PAR_FILTER_TYPE, "Stringfilter");
+	idmefExporter->setVariable(PAR_FILTER_ID, filterId);
 }
 
 StringFilter::~StringFilter()
@@ -101,7 +104,6 @@ bool StringFilter::processPacket(const Packet *p)
 		if (compare(pdata, *iti, plength)) 
 			return false;
 
-	idmefExporter->setVariable(PAR_FILTER_TYPE, "Stringfilter");
 	idmefExporter->setVariable(IDMEFExporter::PAR_SOURCE_ADDRESS, IPToString(*reinterpret_cast<uint32_t*>(p->netHeader+12)));
 	idmefExporter->setVariable(IDMEFExporter::PAR_TARGET_ADDRESS, IPToString(*reinterpret_cast<uint32_t*>(p->netHeader+16)));
 	idmefExporter->exportMessage();

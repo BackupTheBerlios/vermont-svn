@@ -24,7 +24,7 @@ class RegExFilter : public PacketProcessor
 		std::string match;
 		boost::regex rexp;
 
-		RegExFilter(IDMEFExporter* idmefexp);
+		RegExFilter(IDMEFExporter* idmefexp, string filterid);
 		virtual ~RegExFilter();
 
 		void regcre();
@@ -33,6 +33,8 @@ class RegExFilter : public PacketProcessor
 
 	private:
 		IDMEFExporter* idmefExporter;
+		string filterId;
+
 		bool compare (char *data);
 };
 

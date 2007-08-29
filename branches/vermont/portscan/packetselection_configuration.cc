@@ -91,8 +91,28 @@ void PacketSelectionConfiguration::configure()
 			filter->addProcessor(new RandomSampler(n, N));
 		} else if (tagMatches(i, "stringFilter")) {
 			xmlNodePtr j = i->xmlChildrenNode;
-			StringFilter* sfilter = new StringFilter(new IDMEFExporter(idmefTemplate, idmefDestdir, idmefSendurl));
 			msg(MSG_INFO, "packetSelection: Creating string filter");
+			string idmeffilterid;
+			while (NULL != j) {
+				if (tagMatches(j, "idmef")) {
+					xmlNodePtr idnodes = j->xmlChildrenNode;
+					while (idnodes != NULL) {
+						if (tagMatches(idnodes, "destdir")) {
+							idmefDestdir = getContent(idnodes);
+						} else if (tagMatches(idnodes, "template")) {
+							idmefTemplate = getContent(idnodes);
+						} else if (tagMatches(idnodes, "sendurl")) {
+							idmefSendurl = getContent(idnodes);
+						} else if (tagMatches(idnodes, "filterid")) {
+							idmeffilterid = getContent(idnodes);
+						}
+						idnodes = idnodes->next;
+					}
+				}
+				j = j->next;
+			}
+			StringFilter* sfilter = new StringFilter(new IDMEFExporter(idmefTemplate, idmefDestdir, idmefSendurl), idmeffilterid);
+			j = i->xmlChildrenNode;
 			while (NULL != j) {
 				if (tagMatches(j, "is")) {
 					xmlChar *stype = xmlGetProp(j, (const xmlChar*)"type");
@@ -108,6 +128,14 @@ void PacketSelectionConfiguration::configure()
 					else
 						sfilter->addnotFilter(getContent(j));
 				}
+				j = j->next;
+			}
+			filter->addProcessor(sfilter);
+		} else if (tagMatches(i, "regExFilter")) {
+			xmlNodePtr j = i->xmlChildrenNode;
+			msg(MSG_INFO, "packetSelection: Creating regular expression filter!");
+			string idmeffilterid;
+			while (NULL != j) {
 				if (tagMatches(j, "idmef")) {
 					xmlNodePtr idnodes = j->xmlChildrenNode;
 					while (idnodes != NULL) {
@@ -117,33 +145,19 @@ void PacketSelectionConfiguration::configure()
 							idmefTemplate = getContent(idnodes);
 						} else if (tagMatches(idnodes, "sendurl")) {
 							idmefSendurl = getContent(idnodes);
+						} else if (tagMatches(idnodes, "filterid")) {
+							idmeffilterid = getContent(idnodes);
 						}
 						idnodes = idnodes->next;
 					}
 				}
 				j = j->next;
 			}
-			filter->addProcessor(sfilter);
-		} else if (tagMatches(i, "regExFilter")) {
-			xmlNodePtr j = i->xmlChildrenNode;
-			RegExFilter* rfilter = new RegExFilter(new IDMEFExporter(idmefTemplate, idmefDestdir, idmefSendurl));
-			msg(MSG_INFO, "packetSelection: Creating regular expression filter!");
+			RegExFilter* rfilter = new RegExFilter(new IDMEFExporter(idmefTemplate, idmefDestdir, idmefSendurl), idmeffilterid);
+			j = i->xmlChildrenNode;
 			while (NULL != j) {
 				if (tagMatches(j, "matchPattern")) {
 					rfilter->match = getContent(j);
-				}
-				if (tagMatches(j, "idmef")) {
-					xmlNodePtr idnodes = j->xmlChildrenNode;
-					while (idnodes != NULL) {
-						if (tagMatches(idnodes, "destdir")) {
-							idmefDestdir = getContent(idnodes);
-						} else if (tagMatches(idnodes, "template")) {
-							idmefTemplate = getContent(idnodes);
-						} else if (tagMatches(idnodes, "sendurl")) {
-							idmefSendurl = getContent(idnodes);
-						}
-						idnodes = idnodes->next;
-					}
 				}
 				j = j->next;
 			}

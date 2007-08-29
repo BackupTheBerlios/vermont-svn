@@ -4,9 +4,11 @@
 #include "common/Misc.h"
 
 
-RegExFilter::RegExFilter(IDMEFExporter* idmefexp)
-	: idmefExporter(idmefexp)
+RegExFilter::RegExFilter(IDMEFExporter* idmefexp, string filterid)
+	: idmefExporter(idmefexp), filterId(filterid)
 {
+	idmefExporter->setVariable(StringFilter::PAR_FILTER_ID, filterId);
+	idmefExporter->setVariable(StringFilter::PAR_FILTER_TYPE, "Regexfilter");
 }
 
 RegExFilter::~RegExFilter()
@@ -46,7 +48,6 @@ bool RegExFilter::processPacket(const Packet* p)
 	result = compare((char*)pdata);
 
 	if (result) {
-		idmefExporter->setVariable(StringFilter::PAR_FILTER_TYPE, "Regexfilter");
 		idmefExporter->setVariable(IDMEFExporter::PAR_SOURCE_ADDRESS, IPToString(*reinterpret_cast<uint32_t*>(p->netHeader+12)));
 		idmefExporter->setVariable(IDMEFExporter::PAR_TARGET_ADDRESS, IPToString(*reinterpret_cast<uint32_t*>(p->netHeader+16)));
 		idmefExporter->exportMessage();
