@@ -38,7 +38,7 @@ MARK_AS_ADVANCED(
 
 ### basic modules
 
-SUBDIRS(common concentrator ipfixlolib sampler tools)
+SUBDIRS(common concentrator ipfixlolib sampler)
 
 ADD_EXECUTABLE(vermont
 	collector_configuration.cc
@@ -60,13 +60,29 @@ INCLUDE_DIRECTORIES(${VERMONT_SOURCE_DIR}/common)
 INCLUDE_DIRECTORIES(${VERMONT_SOURCE_DIR}/concentrator)
 INCLUDE_DIRECTORIES(${VERMONT_SOURCE_DIR}/ipfixlolib)
 INCLUDE_DIRECTORIES(${VERMONT_SOURCE_DIR}/sampler)
-INCLUDE_DIRECTORIES(${VERMONT_SOURCE_DIR}/tools)
 
 TARGET_LINK_LIBRARIES(vermont
 	concentrator
 	sampler
 	ipfixlolib
 	common
+)
+
+INSTALL(TARGETS vermont 
+	RUNTIME DESTINATION bin
+)
+
+INSTALL(FILES README CONFIGURATION LICENSE
+	DESTINATION share/doc/vermont
+)
+
+INSTALL(FILES ipfix-config-schema.xsd
+	DESTINATION share/vermont
+)
+
+INSTALL(DIRECTORY configs/
+	DESTINATION share/vermont/configs
+	PATTERN ".svn" EXCLUDE
 )
 
 
@@ -141,7 +157,8 @@ ENDIF (DEBUG)
 
 ### IP_HEADER_OFFSET
 
-SET(IP_HEADER_OFFSET 14 CACHE STRING "Start position of the IP header in an ethernet frame in Bytes")
+SET(IP_HEADER_OFFSET 14 CACHE STRING "Start position of the IP header in an ethernet frame in Bytes. This value needs to be adjusted according to the network monitored. The default value is 14 for ethernet devices. Other common values are 4 (BSD loop back device) and 18 (Ethernet VLAN)")
+
 ADD_DEFINITIONS(-DIP_HEADER_OFFSET=${IP_HEADER_OFFSET})
 
 
@@ -196,6 +213,15 @@ ELSE (USE_PCAPMMAP)
 	SET(PCAP_LIBRARY "${PCAP_LIBRARY_REGULAR}")
 ENDIF (USE_PCAPMMAP)
 TARGET_LINK_LIBRARIES(vermont ${PCAP_LIBRARY})
+
+
+### tools
+
+OPTION(WITH_TOOLS "Build misc tools." ON)
+IF (WITH_TOOLS)
+	SUBDIRS(tools)
+ELSE (WITH_TOOLS)
+ENDIF (WITH_TOOLS)
 
 
 ### tests
