@@ -23,7 +23,7 @@
  */
 #include "ipfixlolib.h"
 #include <netinet/in.h>
-#include <netinet/sctp.h>
+//#include <sctp.h>
 /* foreign systems */
 #include "msg.h"
 
@@ -558,6 +558,8 @@ int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
 			p_pos +=  2;
 			// write 0 for the field count, since it indicates that this is a withdrawal message
 			write_unsigned16 (&p_pos, p_end, 0);
+			exporter->template_arr[found_index].fields_length = 8;
+			exporter->template_arr[found_index].field_count = 0;
 			exporter->template_arr[found_index].valid = WITHDRAWN;
 			msg(MSG_DEBUG, "IPFIX: ipfix_remove_template_set: ... Withdrawn");
 		}
@@ -1503,7 +1505,7 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
                 // does this work?
                 // (*exporter).template_arr[found_index].fields_length += 8;
                 DPRINTF("ipfix_start_template_set: max_fields_len %u \n", exporter->template_arr[found_index].max_fields_length);
-                DPRINTF("ipfix_start_template_set: fieldss_len %u \n", exporter->template_arr[found_index].fields_length);
+                DPRINTF("ipfix_start_template_set: fields_len %u \n", exporter->template_arr[found_index].fields_length);
         } else return -1;
 
         return 0;
@@ -1558,7 +1560,7 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uin
         DPRINTF("ipfix_put_template_field: template found at %d\n", found_index);
         DPRINTF("ipfix_put_template_field: A p_pos %p, p_end %p\n", p_pos, p_end);
         DPRINTF("ipfix_put_template_field: max_fields_len %d\n", exporter->template_arr[found_index].max_fields_length);
-        DPRINTF("ipfix_put_template_field: fieldss_len %d\n", exporter->template_arr[found_index].fields_length);
+        DPRINTF("ipfix_put_template_field: fields_len %d\n", exporter->template_arr[found_index].fields_length);
 
         // add offset to the buffer's beginning: this is, where we will write to.
         p_pos += exporter->template_arr[found_index].fields_length;
