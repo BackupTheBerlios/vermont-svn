@@ -255,7 +255,7 @@ typedef struct {
  * A collector receiving messages from this exporter
  */
 typedef struct {
-	int valid; // indicates, wheter this collector is valid. .
+	int valid; // indicates, whether this collector is valid. .
 	char ipv4address[16];
 	int port_number;
 	enum ipfix_transport_protocol protocol;
@@ -268,7 +268,7 @@ typedef struct {
  * A template, mostly in binary form
  */
 typedef struct{
-	enum ipfix_validity valid; // indicates, wheter this template is valid.
+	enum ipfix_validity valid; // indicates, whether this template is valid.
 	uint16_t template_id;
 	uint16_t field_count;
 	int fields_length;
