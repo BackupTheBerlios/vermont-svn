@@ -1,0 +1,30 @@
+# The set of files whose dependency integrity should be checked:
+SET(CMAKE_DEPENDS_LANGUAGES
+  "CXX"
+  )
+SET(CMAKE_DEPENDS_CHECK_CXX
+  "/home/alex/uni/vermont_merged/exporter_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/exporter_configuration.o"
+  "/home/alex/uni/vermont_merged/metering_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/metering_configuration.o"
+  "/home/alex/uni/vermont_merged/observer_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/observer_configuration.o"
+  "/home/alex/uni/vermont_merged/vermont.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/vermont.o"
+  "/home/alex/uni/vermont_merged/ipfix_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/ipfix_configuration.o"
+  "/home/alex/uni/vermont_merged/vermontmain_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/vermontmain_configuration.o"
+  "/home/alex/uni/vermont_merged/packetselection_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/packetselection_configuration.o"
+  "/home/alex/uni/vermont_merged/packetreporting_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/packetreporting_configuration.o"
+  "/home/alex/uni/vermont_merged/flowmetering_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/flowmetering_configuration.o"
+  "/home/alex/uni/vermont_merged/dbwriter_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/dbwriter_configuration.o"
+  "/home/alex/uni/vermont_merged/dbreader_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/dbreader_configuration.o"
+  "/home/alex/uni/vermont_merged/collector_configuration.cc"
+  "/home/alex/uni/vermont_merged/CMakeFiles/vermont.dir/collector_configuration.o"
+  )
