@@ -152,3 +152,80 @@ Linking C executable cmTryCompileExec
 gmake[1]: Leaving directory `/home/alex/uni/vermont_merged/CMakeFiles/CMakeTmp'
 
 
+The system is: Linux - 2.6.21-gentoo-r4 - Intel(R) Pentium(R) M processor 1.60GHz
+Determining if the C compiler is GNU succeeded with the following output:
+# 1 "/usr/share/cmake/Modules/CMakeTestGNU.c"
+# 1 "<eingebaut>"
+# 1 "<Kommandozeile>"
+# 1 "/usr/share/cmake/Modules/CMakeTestGNU.c"
+
+void THIS_IS_GNU();
+
+Determining if the C++ compiler is GNU succeeded with the following output:
+# 1 "/usr/share/cmake/Modules/CMakeTestGNU.c"
+# 1 "<eingebaut>"
+# 1 "<Kommandozeile>"
+# 1 "/usr/share/cmake/Modules/CMakeTestGNU.c"
+
+void THIS_IS_GNU();
+
+Determining if the C compiler works passed with the following output:
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec.dir/build.make CMakeFiles/cmTryCompileExec.dir/build
+gmake[1]: Entering directory `/home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp'
+/usr/bin/cmake -E cmake_progress_report /home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec.dir/testCCompiler.o
+/usr/bin/gcc   -o CMakeFiles/cmTryCompileExec.dir/testCCompiler.o   -c /home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp/testCCompiler.c
+Linking C executable cmTryCompileExec
+/usr/bin/cmake -P CMakeFiles/cmTryCompileExec.dir/cmake_clean_target.cmake
+/usr/bin/gcc        -fPIC "CMakeFiles/cmTryCompileExec.dir/testCCompiler.o"   -o cmTryCompileExec -rdynamic 
+gmake[1]: Leaving directory `/home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp'
+
+
+Determining size of void* passed with the following output:
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec.dir/build.make CMakeFiles/cmTryCompileExec.dir/build
+gmake[1]: Entering directory `/home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp'
+/usr/bin/cmake -E cmake_progress_report /home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec.dir/CheckTypeSize.o
+/usr/bin/gcc   -o CMakeFiles/cmTryCompileExec.dir/CheckTypeSize.o   -c /home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp/CheckTypeSize.c
+Linking C executable cmTryCompileExec
+/usr/bin/cmake -P CMakeFiles/cmTryCompileExec.dir/cmake_clean_target.cmake
+/usr/bin/gcc        -fPIC "CMakeFiles/cmTryCompileExec.dir/CheckTypeSize.o"   -o cmTryCompileExec -rdynamic 
+gmake[1]: Leaving directory `/home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp'
+
+
+Determining if the CXX compiler works passed with the following output:
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec.dir/build.make CMakeFiles/cmTryCompileExec.dir/build
+gmake[1]: Entering directory `/home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp'
+/usr/bin/cmake -E cmake_progress_report /home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building CXX object CMakeFiles/cmTryCompileExec.dir/testCXXCompiler.o
+/usr/bin/c++    -o CMakeFiles/cmTryCompileExec.dir/testCXXCompiler.o -c /home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp/testCXXCompiler.cxx
+Linking CXX executable cmTryCompileExec
+/usr/bin/cmake -P CMakeFiles/cmTryCompileExec.dir/cmake_clean_target.cmake
+/usr/bin/c++         -fPIC "CMakeFiles/cmTryCompileExec.dir/testCXXCompiler.o"   -o cmTryCompileExec -rdynamic 
+gmake[1]: Leaving directory `/home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp'
+
+
+Determining if the include file pthread.h exists passed with the following output:
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec.dir/build.make CMakeFiles/cmTryCompileExec.dir/build
+gmake[1]: Entering directory `/home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp'
+/usr/bin/cmake -E cmake_progress_report /home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec.dir/CheckIncludeFile.o
+/usr/bin/gcc   -o CMakeFiles/cmTryCompileExec.dir/CheckIncludeFile.o   -c /home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTryCompileExec
+/usr/bin/cmake -P CMakeFiles/cmTryCompileExec.dir/cmake_clean_target.cmake
+/usr/bin/gcc        -fPIC "CMakeFiles/cmTryCompileExec.dir/CheckIncludeFile.o"   -o cmTryCompileExec -rdynamic 
+gmake[1]: Leaving directory `/home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp'
+
+
+Determining if the function pthread_create exists in the pthread passed with the following output:
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec.dir/build.make CMakeFiles/cmTryCompileExec.dir/build
+gmake[1]: Entering directory `/home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp'
+/usr/bin/cmake -E cmake_progress_report /home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec.dir/usr/share/cmake/Modules/CheckFunctionExists.o
+/usr/bin/gcc  -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTryCompileExec.dir/usr/share/cmake/Modules/CheckFunctionExists.o   -c /usr/share/cmake/Modules/CheckFunctionExists.c
+Linking C executable cmTryCompileExec
+/usr/bin/cmake -P CMakeFiles/cmTryCompileExec.dir/cmake_clean_target.cmake
+/usr/bin/gcc      -DCHECK_FUNCTION_EXISTS=pthread_create  -fPIC "CMakeFiles/cmTryCompileExec.dir/usr/share/cmake/Modules/CheckFunctionExists.o"   -o cmTryCompileExec -rdynamic -lpthread 
+gmake[1]: Leaving directory `/home/alex/uni/vermont_sctp_merged/CMakeFiles/CMakeTmp'
+
+

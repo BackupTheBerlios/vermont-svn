@@ -1,4 +1,4 @@
-# Install script for directory: /home/alex/uni/vermont_merged/concentrator
+# Install script for directory: /home/alex/uni/vermont_sctp_merged/concentrator
 
 # Set the install prefix
 IF(NOT DEFINED CMAKE_INSTALL_PREFIX)

@@ -1,4 +1,4 @@
-# Install script for directory: /home/alex/uni/vermont_merged/ipfixlolib
+# Install script for directory: /home/alex/uni/vermont_sctp_merged/ipfixlolib
 
 # Set the install prefix
 IF(NOT DEFINED CMAKE_INSTALL_PREFIX)

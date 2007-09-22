@@ -1,8 +1,8 @@
-/home/alex/uni/vermont_merged/ipfixlolib/encoding.c
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/encoding.c
 encoding.h
-/home/alex/uni/vermont_merged/ipfixlolib/encoding.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/encoding.h
 
-/home/alex/uni/vermont_merged/ipfixlolib/encoding.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/encoding.h
 stdio.h
 -
 sys/types.h
@@ -18,19 +18,19 @@ sys/uio.h
 stdint.h
 -
 
-/home/alex/uni/vermont_merged/ipfixlolib/ipfix_names.c
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/ipfix_names.c
 string.h
 -
 ipfix_names.h
-/home/alex/uni/vermont_merged/ipfixlolib/ipfix_names.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/ipfix_names.h
 
-/home/alex/uni/vermont_merged/ipfixlolib/ipfix_names.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/ipfix_names.h
 stdint.h
 -
 
-/home/alex/uni/vermont_merged/ipfixlolib/ipfixlolib.c
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/ipfixlolib.c
 ipfixlolib.h
-/home/alex/uni/vermont_merged/ipfixlolib/ipfixlolib.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/ipfixlolib.h
 netinet/in.h
 -
 sys/types.h
@@ -40,9 +40,9 @@ sys/stat.h
 fcntl.h
 -
 common/msg.h
-/home/alex/uni/vermont_merged/ipfixlolib/common/msg.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/common/msg.h
 
-/home/alex/uni/vermont_merged/ipfixlolib/ipfixlolib.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/ipfixlolib.h
 stdio.h
 -
 stdlib.h
@@ -74,11 +74,11 @@ string.h
 netinet/sctp.h
 -
 encoding.h
-/home/alex/uni/vermont_merged/ipfixlolib/encoding.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/encoding.h
 ipfix_names.h
-/home/alex/uni/vermont_merged/ipfixlolib/ipfix_names.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/ipfix_names.h
 common/msg.h
-/home/alex/uni/vermont_merged/ipfixlolib/common/msg.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/common/msg.h
 
 /usr/include/_G_config.h
 bits/types.h

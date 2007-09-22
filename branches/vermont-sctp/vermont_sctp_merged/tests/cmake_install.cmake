@@ -1,4 +1,4 @@
-# Install script for directory: /home/alex/uni/vermont_merged/tests
+# Install script for directory: /home/alex/uni/vermont_sctp_merged/tests
 
 # Set the install prefix
 IF(NOT DEFINED CMAKE_INSTALL_PREFIX)
