@@ -90,26 +90,91 @@ void IpfixReceiverSctpIpV4::run() {
 	struct sctp_recv_params params;
 	
 	params.clientAddressLen = sizeof(struct sockaddr_in);
-
+	
+	fd_set fd_array; //all active filedescriptors
+	int maxfd;
+	
+	FD_ZERO(&fd_array);
+	FD_SET(listen_socket, &fd_array); // add listensocket
+	maxfd = listen_socket;
+	
+	/*
 	//wait for and accept incoming connection request from an Exporter
 	if( (params.new_fd = accept(listen_socket, (struct sockaddr*)&params.clientAddress, &params.clientAddressLen)) < 0){
 		msg(MSG_DEBUG, "accept() in ipfixReceiver failed, unable to receive massages");
 	}
-
+	*/
 	while(!exit) {
+		fd_set readfds;
+		int ret;
+		int rfd;
 		boost::shared_array<uint8_t> data(new uint8_t[MAX_MSG_LEN]);
 		boost::shared_ptr<IpfixRecord::SourceID> sourceID(new IpfixRecord::SourceID);
-		int n;
+		
+		readfds = fd_array; // because select() changes readfds
+		ret = select(maxfd + 1, &readfds, NULL, NULL, NULL); // check only for something to read
+		if ((ret == -1) && (errno == EINTR)) {
+			/* There was a signal... ignore */
+			continue;
+    		}
+    		if (ret < 0) {
+    			msg(MSG_ERROR ,"select() returned with an error");
+			THROWEXCEPTION("IpfixReceiverSctpIpV4: terminating listener thread");
+			break;
+		}
+		// looking for a new client to connect at listen_socket
+		if (FD_ISSET(listen_socket, &readfds)){
+			rfd = accept(listen_socket, (struct sockaddr*)&params.clientAddress, &params.clientAddressLen);
+			
+			if (rfd >= 0){
+				FD_SET(rfd, &fd_array); // add new client to fd_array
+				msg(MSG_DEBUG, "IpfixReceiverSctpIpV4: Client connected");
+				if (rfd > maxfd){
+					maxfd = rfd;
+				}
+			}else{
+				msg(MSG_ERROR ,"accept() in ipfixReceiver failed");
+				THROWEXCEPTION("IpfixReceiverSctpIpV4: unable to accept new connection");
+			}
+		}
+// 		check all connected sockets for new available data
+		for (rfd = listen_socket + 1; rfd <= maxfd; ++rfd) {
+      			if (FD_ISSET(rfd, &readfds)) {
+      				ret = recvfrom(rfd, data.get(), MAX_MSG_LEN, 0, 
+      					(struct sockaddr*)&params.clientAddress, &params.clientAddressLen);
+				if (ret == 0) { // shut down initiated
+					FD_CLR(rfd, &fd_array); // delete dead client
+					msg(MSG_DEBUG, "IpfixReceiverSctpIpV4: Client disconnected");
+				}else{
+					if (isHostAuthorized(&params.clientAddress.sin_addr, sizeof(params.clientAddress.sin_addr))) {
+						uint32_t ip = ntohl(params.clientAddress.sin_addr.s_addr);
+						memcpy(sourceID->exporterAddress.ip, &ip, 4);
+						sourceID->exporterAddress.len = 4;
+			
+						pthread_mutex_lock(&mutex);
+						for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 
+							(*i)->processPacket(data, ret, sourceID);
+						}
+						pthread_mutex_unlock(&mutex);
+					}
+					else{
+						msg(MSG_DEBUG, "packet from unauthorized host %s discarded", inet_ntoa(params.clientAddress.sin_addr));
+					}
+				}
+      			}
+      		}
 
+
+/*
 		n = recvfrom(params.new_fd, data.get(), MAX_MSG_LEN,
 			     0, (struct sockaddr*)&params.clientAddress, &params.clientAddressLen);
 		if (n < 0) {
 			msg(MSG_DEBUG, "recvfrom returned without data, terminating listener thread");
 			break;
 		}
-		
+		*/
+		/*
 		if (isHostAuthorized(&params.clientAddress.sin_addr, sizeof(params.clientAddress.sin_addr))) {
-
 			uint32_t ip = ntohl(params.clientAddress.sin_addr.s_addr);
 			memcpy(sourceID->exporterAddress.ip, &ip, 4);
 			sourceID->exporterAddress.len = 4;
@@ -123,6 +188,7 @@ void IpfixReceiverSctpIpV4::run() {
 		else{
 			msg(MSG_DEBUG, "packet from unauthorized host %s discarded", inet_ntoa(params.clientAddress.sin_addr));
 		}
+		*/
 	}
 }
 
