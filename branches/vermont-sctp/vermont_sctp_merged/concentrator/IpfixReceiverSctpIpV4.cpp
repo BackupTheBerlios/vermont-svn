@@ -150,7 +150,7 @@ void IpfixReceiverSctpIpV4::run() {
 						uint32_t ip = ntohl(params.clientAddress.sin_addr.s_addr);
 						memcpy(sourceID->exporterAddress.ip, &ip, 4);
 						sourceID->exporterAddress.len = 4;
-			
+						sourceID->exporterPort = ntohs(params.clientAddress.sin_port);
 						pthread_mutex_lock(&mutex);
 						for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 
 							(*i)->processPacket(data, ret, sourceID);

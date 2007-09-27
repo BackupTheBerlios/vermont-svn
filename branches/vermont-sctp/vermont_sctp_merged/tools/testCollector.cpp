@@ -55,8 +55,8 @@ int main(int argc, char *argv[]) {
 
 	int lport = DEFAULT_LISTEN_PORT;
 
-	msg_setlevel(MSG_DEFAULT);
-
+	msg_setlevel(MSG_DEBUG);
+	
 	signal(SIGINT, sigint);
 
 	if(argv[1]) {

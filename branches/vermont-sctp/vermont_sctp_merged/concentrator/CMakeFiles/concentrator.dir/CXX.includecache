@@ -4874,6 +4874,10 @@ concentrator/ipfixlolib/ipfixlolib.h
 vector
 -
 
+ipfixlolib/../common/msg.h
+stdio.h
+-
+
 ipfixlolib/encoding.h
 stdio.h
 -
@@ -4929,8 +4933,8 @@ encoding.h
 ipfixlolib/encoding.h
 ipfix_names.h
 ipfixlolib/ipfix_names.h
-common/msg.h
-ipfixlolib/common/msg.h
+../common/msg.h
+ipfixlolib/../common/msg.h
 
 sampler/Packet.h
 cstdlib

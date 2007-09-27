@@ -17,9 +17,13 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 
+
+#SUBDIRS(tests)
+
 ADD_LIBRARY(ipfixlolib
 	encoding.c
 	ipfixlolib.c
 	ipfix_names.c
 )
+
 

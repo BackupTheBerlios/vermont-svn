@@ -417,9 +417,10 @@ class IpfixRecord {
 				char ip[MAX_ADDRESS_LEN];
 				uint8_t len;
 			};
-
+			uint16_t exporterPort;
 			uint32_t observationDomainId;
 			SourceID::ExporterAddress exporterAddress;
+			
 		};
 
 		boost::shared_ptr<IpfixRecord::SourceID> sourceID;

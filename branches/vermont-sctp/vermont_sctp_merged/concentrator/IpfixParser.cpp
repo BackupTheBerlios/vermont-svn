@@ -538,7 +538,7 @@ int IpfixParser::processNetflowV9Packet(boost::shared_array<uint8_t> message, ui
  */
 int IpfixParser::processIpfixPacket(boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<IpfixRecord::SourceID> sourceId) {
 	IpfixHeader* header = (IpfixHeader*)message.get();
-    sourceId->observationDomainId = ntohl(header->observationDomainId);
+	sourceId->observationDomainId = ntohl(header->observationDomainId);
 
 	if (ntohs(header->length) != length) {
 		DPRINTF("Bad message length - expected %#06x, got %#06x\n", length, ntohs(header->length));

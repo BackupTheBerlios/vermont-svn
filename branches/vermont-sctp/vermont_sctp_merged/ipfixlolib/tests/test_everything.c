@@ -11,7 +11,7 @@
  */
 
 #include <stdio.h>
-#include "ipfixlolib.h"
+#include "../ipfixlolib.h"
 
 #define MY_SOURCE_ID 70538
 #define TEST_INIT_LOOP 1
@@ -23,6 +23,7 @@ int print_usage(void){
 	printf("How To Use Tests:\n\n");
 	printf("\t--- Just what you are reading: \th \n");
 	printf("\t--- Create SCTP collector: \tc \n");
+	printf("\t--- Create UDP collector: \tu \n");
 	printf("\t--- Template creation: \t\tt \n");
 	printf("\t--- Template creation with custom ID: \tT 777 \n");
 	printf("\t--- Delete template with ID: \td 777 \n");
@@ -47,15 +48,7 @@ int main(int argc, char *argv[])
 	if (ret != 0) {
 		fprintf(stderr, "ipfix_init_exporter failed!\n");
 		exit(-1);
-	}
-
-	ret=ipfix_add_collector(my_exporter, "127.0.0.1", 4711, UDP);
-	if (ret != 0) {
-		fprintf(stderr, "ipfix_add_collector failed!\n");
-		exit(-1);
-	}
-	
-	
+	}	
 	
 	ready();
 	
@@ -112,13 +105,21 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 			// add SCTP collector
-			ret=ipfix_add_collector(my_exporter, "127.0.0.1", 1500, SCTP);
+			ret=ipfix_add_collector(my_exporter, "192.168.1.38", 1500, SCTP);
 			
 			if (ret != 0) {
 				fprintf(stderr, "ipfix_add_collector failed!\n");
 				exit(-1);
 			}
 			sctp_exists = 1;
+			break;
+		case 'u':
+			// add UDP collector
+			ret=ipfix_add_collector(my_exporter, "127.0.0.1", 1500, UDP);
+			if (ret != 0) {
+				fprintf(stderr, "ipfix_add_collector failed!\n");
+				exit(-1);
+			}
 			break;
 		case 'd':
 			//delete template

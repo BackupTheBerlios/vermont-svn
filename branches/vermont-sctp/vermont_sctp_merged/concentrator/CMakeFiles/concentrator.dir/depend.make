@@ -328,6 +328,7 @@ concentrator/CMakeFiles/concentrator.dir/IpfixAggregator.o: common/Time.h
 concentrator/CMakeFiles/concentrator.dir/IpfixAggregator.o: common/TimeoutSemaphore.h
 concentrator/CMakeFiles/concentrator.dir/IpfixAggregator.o: common/defs.h
 concentrator/CMakeFiles/concentrator.dir/IpfixAggregator.o: common/msg.h
+concentrator/CMakeFiles/concentrator.dir/IpfixAggregator.o: ipfixlolib/../common/msg.h
 concentrator/CMakeFiles/concentrator.dir/IpfixAggregator.o: ipfixlolib/encoding.h
 concentrator/CMakeFiles/concentrator.dir/IpfixAggregator.o: ipfixlolib/ipfix_names.h
 concentrator/CMakeFiles/concentrator.dir/IpfixAggregator.o: ipfixlolib/ipfixlolib.h
@@ -754,7 +755,7 @@ concentrator/CMakeFiles/concentrator.dir/ipfix.o: /usr/include/unistd.h
 concentrator/CMakeFiles/concentrator.dir/ipfix.o: /usr/include/wchar.h
 concentrator/CMakeFiles/concentrator.dir/ipfix.o: /usr/include/wctype.h
 concentrator/CMakeFiles/concentrator.dir/ipfix.o: /usr/include/xlocale.h
-concentrator/CMakeFiles/concentrator.dir/ipfix.o: common/msg.h
+concentrator/CMakeFiles/concentrator.dir/ipfix.o: ipfixlolib/../common/msg.h
 concentrator/CMakeFiles/concentrator.dir/ipfix.o: ipfixlolib/encoding.h
 concentrator/CMakeFiles/concentrator.dir/ipfix.o: ipfixlolib/ipfix_names.h
 concentrator/CMakeFiles/concentrator.dir/ipfix.o: ipfixlolib/ipfixlolib.h
@@ -3728,6 +3729,7 @@ concentrator/CMakeFiles/concentrator.dir/IpfixParser.o: common/Time.h
 concentrator/CMakeFiles/concentrator.dir/IpfixParser.o: common/TimeoutSemaphore.h
 concentrator/CMakeFiles/concentrator.dir/IpfixParser.o: common/defs.h
 concentrator/CMakeFiles/concentrator.dir/IpfixParser.o: common/msg.h
+concentrator/CMakeFiles/concentrator.dir/IpfixParser.o: ipfixlolib/../common/msg.h
 concentrator/CMakeFiles/concentrator.dir/IpfixParser.o: ipfixlolib/encoding.h
 concentrator/CMakeFiles/concentrator.dir/IpfixParser.o: ipfixlolib/ipfix_names.h
 concentrator/CMakeFiles/concentrator.dir/IpfixParser.o: ipfixlolib/ipfixlolib.h
@@ -4058,6 +4060,7 @@ concentrator/CMakeFiles/concentrator.dir/IpfixPacketProcessor.o: common/Time.h
 concentrator/CMakeFiles/concentrator.dir/IpfixPacketProcessor.o: common/TimeoutSemaphore.h
 concentrator/CMakeFiles/concentrator.dir/IpfixPacketProcessor.o: common/defs.h
 concentrator/CMakeFiles/concentrator.dir/IpfixPacketProcessor.o: common/msg.h
+concentrator/CMakeFiles/concentrator.dir/IpfixPacketProcessor.o: ipfixlolib/../common/msg.h
 concentrator/CMakeFiles/concentrator.dir/IpfixPacketProcessor.o: ipfixlolib/encoding.h
 concentrator/CMakeFiles/concentrator.dir/IpfixPacketProcessor.o: ipfixlolib/ipfix_names.h
 concentrator/CMakeFiles/concentrator.dir/IpfixPacketProcessor.o: ipfixlolib/ipfixlolib.h
@@ -4389,6 +4392,7 @@ concentrator/CMakeFiles/concentrator.dir/IpfixCollector.o: common/Time.h
 concentrator/CMakeFiles/concentrator.dir/IpfixCollector.o: common/TimeoutSemaphore.h
 concentrator/CMakeFiles/concentrator.dir/IpfixCollector.o: common/defs.h
 concentrator/CMakeFiles/concentrator.dir/IpfixCollector.o: common/msg.h
+concentrator/CMakeFiles/concentrator.dir/IpfixCollector.o: ipfixlolib/../common/msg.h
 concentrator/CMakeFiles/concentrator.dir/IpfixCollector.o: ipfixlolib/encoding.h
 concentrator/CMakeFiles/concentrator.dir/IpfixCollector.o: ipfixlolib/ipfix_names.h
 concentrator/CMakeFiles/concentrator.dir/IpfixCollector.o: ipfixlolib/ipfixlolib.h
@@ -5353,6 +5357,7 @@ concentrator/CMakeFiles/concentrator.dir/IpfixSender.o: common/Time.h
 concentrator/CMakeFiles/concentrator.dir/IpfixSender.o: common/TimeoutSemaphore.h
 concentrator/CMakeFiles/concentrator.dir/IpfixSender.o: common/defs.h
 concentrator/CMakeFiles/concentrator.dir/IpfixSender.o: common/msg.h
+concentrator/CMakeFiles/concentrator.dir/IpfixSender.o: ipfixlolib/../common/msg.h
 concentrator/CMakeFiles/concentrator.dir/IpfixSender.o: ipfixlolib/encoding.h
 concentrator/CMakeFiles/concentrator.dir/IpfixSender.o: ipfixlolib/ipfix_names.h
 concentrator/CMakeFiles/concentrator.dir/IpfixSender.o: ipfixlolib/ipfixlolib.h
@@ -5681,6 +5686,7 @@ concentrator/CMakeFiles/concentrator.dir/IpfixRawdirWriter.o: concentrator/Ipfix
 concentrator/CMakeFiles/concentrator.dir/IpfixRawdirWriter.o: concentrator/IpfixReceiver.hpp
 concentrator/CMakeFiles/concentrator.dir/IpfixRawdirWriter.o: concentrator/IpfixRecord.hpp
 concentrator/CMakeFiles/concentrator.dir/IpfixRawdirWriter.o: concentrator/IpfixSender.hpp
+concentrator/CMakeFiles/concentrator.dir/IpfixRawdirWriter.o: ipfixlolib/../common/msg.h
 concentrator/CMakeFiles/concentrator.dir/IpfixRawdirWriter.o: ipfixlolib/encoding.h
 concentrator/CMakeFiles/concentrator.dir/IpfixRawdirWriter.o: ipfixlolib/ipfix_names.h
 concentrator/CMakeFiles/concentrator.dir/IpfixRawdirWriter.o: ipfixlolib/ipfixlolib.h
@@ -6334,6 +6340,7 @@ concentrator/CMakeFiles/concentrator.dir/IpfixDbReader.o: common/Time.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbReader.o: common/TimeoutSemaphore.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbReader.o: common/defs.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbReader.o: common/msg.h
+concentrator/CMakeFiles/concentrator.dir/IpfixDbReader.o: ipfixlolib/../common/msg.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbReader.o: ipfixlolib/encoding.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbReader.o: ipfixlolib/ipfix_names.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbReader.o: ipfixlolib/ipfixlolib.h
@@ -6669,6 +6676,7 @@ concentrator/CMakeFiles/concentrator.dir/IpfixDbWriter.o: common/Time.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbWriter.o: common/TimeoutSemaphore.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbWriter.o: common/defs.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbWriter.o: common/msg.h
+concentrator/CMakeFiles/concentrator.dir/IpfixDbWriter.o: ipfixlolib/../common/msg.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbWriter.o: ipfixlolib/encoding.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbWriter.o: ipfixlolib/ipfix_names.h
 concentrator/CMakeFiles/concentrator.dir/IpfixDbWriter.o: ipfixlolib/ipfixlolib.h

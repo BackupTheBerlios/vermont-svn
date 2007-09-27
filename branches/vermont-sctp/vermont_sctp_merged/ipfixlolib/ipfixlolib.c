@@ -28,9 +28,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-/* foreign systems */
-#include "common/msg.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
