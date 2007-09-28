@@ -411,16 +411,20 @@ class IpfixRecord {
 			bool freePointers;  /** small helper variable to indicate if pointers should be freed on destruction */
 		};
 
+		/* This struct is called SourceID for historic reasons. 
+		 * A better name would be something like TemplateScope (TransportSession + ObservationDomainId)
+		 */
 		struct SourceID {
 
 			struct ExporterAddress {
 				char ip[MAX_ADDRESS_LEN];
 				uint8_t len;
 			};
-			uint16_t exporterPort;
 			uint32_t observationDomainId;
 			SourceID::ExporterAddress exporterAddress;
-			
+			uint16_t exporterPort;
+			uint16_t destinationPort;
+			uint8_t protocol;
 		};
 
 		boost::shared_ptr<IpfixRecord::SourceID> sourceID;

@@ -33,14 +33,16 @@ TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(boost::sha
 	time_t now = time(0);
 	TemplateBuffer::BufferedTemplate* bt = head;
 	while (bt != 0) {
-		int same = 1;
+		if((memcmp(bt->sourceID.get(), sourceId.get(), sizeof(IpfixRecord::SourceID)) == 0) 
+			&& (bt->templateID == templateId)) {
+	/*	int same = 1;
 		for(int i = 0; i < bt->sourceID->exporterAddress.len; i++){
 			if (bt->sourceID->exporterAddress.ip[i] != sourceId->exporterAddress.ip[i]){
 				same = 0;
 				break;
 			}
 		}
-		if ((bt->sourceID->observationDomainId == sourceId->observationDomainId) && (bt->templateID == templateId) && (bt->sourceID->exporterPort == sourceId->exporterPort) && same) {
+		if ((bt->sourceID->observationDomainId == sourceId->observationDomainId) && (bt->templateID == templateId) && (bt->sourceID->exporterPort == sourceId->exporterPort) && same) {*/
 			if ((bt->expires) && (bt->expires < now)) {
 				destroyBufferedTemplate(sourceId, templateId);
 				return 0;

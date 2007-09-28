@@ -91,10 +91,11 @@ void IpfixReceiverUdpIpV4::run() {
 		}
 		
 		if (isHostAuthorized(&clientAddress.sin_addr, sizeof(clientAddress.sin_addr))) {
-
 			uint32_t ip = ntohl(clientAddress.sin_addr.s_addr);
 			memcpy(sourceID->exporterAddress.ip, &ip, 4);
 			sourceID->exporterAddress.len = 4;
+			sourceID->exporterPort = ntohs(clientAddress.sin_port);
+			sourceID->protocol = IPFIX_protocolIdentifier_UDP;
 
 			pthread_mutex_lock(&mutex);
 			for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 

@@ -52,4 +52,6 @@ class IpfixPrinter : public FlowSink {
 		void* lastTemplate;
 };
 
+void printFieldData(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* pattern);
+
 #endif

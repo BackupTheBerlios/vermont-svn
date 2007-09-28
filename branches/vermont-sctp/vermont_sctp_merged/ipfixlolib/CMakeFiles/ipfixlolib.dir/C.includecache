@@ -1,7 +1,3 @@
-/home/alex/uni/vermont_sctp_merged/ipfixlolib/../common/msg.h
-stdio.h
--
-
 /home/alex/uni/vermont_sctp_merged/ipfixlolib/encoding.c
 encoding.h
 /home/alex/uni/vermont_sctp_merged/ipfixlolib/encoding.h
@@ -79,8 +75,8 @@ encoding.h
 /home/alex/uni/vermont_sctp_merged/ipfixlolib/encoding.h
 ipfix_names.h
 /home/alex/uni/vermont_sctp_merged/ipfixlolib/ipfix_names.h
-../common/msg.h
-/home/alex/uni/vermont_sctp_merged/ipfixlolib/../common/msg.h
+msg.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/msg.h
 
 /usr/include/_G_config.h
 bits/types.h
@@ -711,4 +707,8 @@ xlocale.h
 -
 
 /usr/include/xlocale.h
+
+common/msg.h
+stdio.h
+-
 

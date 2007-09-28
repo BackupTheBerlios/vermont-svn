@@ -463,7 +463,6 @@ tests/CMakeFiles/vermonttest.dir/test_concentrator.o: concentrator/IpfixReceiver
 tests/CMakeFiles/vermonttest.dir/test_concentrator.o: concentrator/IpfixRecord.hpp
 tests/CMakeFiles/vermonttest.dir/test_concentrator.o: concentrator/IpfixSender.hpp
 tests/CMakeFiles/vermonttest.dir/test_concentrator.o: concentrator/ipfix.hpp
-tests/CMakeFiles/vermonttest.dir/test_concentrator.o: ipfixlolib/../common/msg.h
 tests/CMakeFiles/vermonttest.dir/test_concentrator.o: ipfixlolib/encoding.h
 tests/CMakeFiles/vermonttest.dir/test_concentrator.o: ipfixlolib/ipfix_names.h
 tests/CMakeFiles/vermonttest.dir/test_concentrator.o: ipfixlolib/ipfixlolib.h

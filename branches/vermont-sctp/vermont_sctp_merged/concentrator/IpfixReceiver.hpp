@@ -60,7 +60,7 @@ class IpfixReceiver {
 
 	private:
 		pthread_t thread; /**< Thread ID for this particular instance, to sync against etc */
-
+/*PORT NUMMER REINNEHMEN*/
 		std::vector<in_addr> authHosts; /**< List of authorized hosts. Only packets from hosts in this list, will be forwarded to the PacketProcessors */
 
 		uint32_t receivedRecords; /**< Statistics: Total number of data (or dataData) records received since last statistics were polled */

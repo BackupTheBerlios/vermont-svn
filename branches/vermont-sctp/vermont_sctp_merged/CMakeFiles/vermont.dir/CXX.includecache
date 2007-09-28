@@ -346,10 +346,6 @@ concentrator/IpfixAggregator.hpp
 ipfixlolib/ipfix_names.h
 -
 
-/home/alex/uni/vermont_sctp_merged/ipfixlolib/../common/msg.h
-stdio.h
--
-
 /home/alex/uni/vermont_sctp_merged/ipfixlolib/encoding.h
 stdio.h
 -
@@ -405,8 +401,8 @@ encoding.h
 /home/alex/uni/vermont_sctp_merged/ipfixlolib/encoding.h
 ipfix_names.h
 /home/alex/uni/vermont_sctp_merged/ipfixlolib/ipfix_names.h
-../common/msg.h
-/home/alex/uni/vermont_sctp_merged/ipfixlolib/../common/msg.h
+msg.h
+/home/alex/uni/vermont_sctp_merged/ipfixlolib/msg.h
 
 /home/alex/uni/vermont_sctp_merged/metering_configuration.cc
 metering_configuration.h
@@ -4138,10 +4134,6 @@ concentrator/Rule.hpp
 
 concentrator/ipfix.hpp
 
-ipfixlolib/../common/msg.h
-stdio.h
--
-
 ipfixlolib/encoding.h
 stdio.h
 -
@@ -4197,8 +4189,8 @@ encoding.h
 ipfixlolib/encoding.h
 ipfix_names.h
 ipfixlolib/ipfix_names.h
-../common/msg.h
-ipfixlolib/../common/msg.h
+msg.h
+ipfixlolib/msg.h
 
 sampler/ExporterSink.h
 ipfixlolib/ipfixlolib.h

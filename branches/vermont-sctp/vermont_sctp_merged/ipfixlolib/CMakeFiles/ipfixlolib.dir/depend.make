@@ -82,7 +82,6 @@ ipfixlolib/CMakeFiles/ipfixlolib.dir/encoding.o: /usr/include/wchar.h
 ipfixlolib/CMakeFiles/ipfixlolib.dir/encoding.o: /usr/include/wctype.h
 ipfixlolib/CMakeFiles/ipfixlolib.dir/encoding.o: /usr/include/xlocale.h
 
-ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfixlolib.o: ipfixlolib/../common/msg.h
 ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfixlolib.o: ipfixlolib/encoding.h
 ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfixlolib.o: ipfixlolib/ipfix_names.h
 ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfixlolib.o: ipfixlolib/ipfixlolib.c
@@ -188,6 +187,7 @@ ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfixlolib.o: /usr/include/unistd.h
 ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfixlolib.o: /usr/include/wchar.h
 ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfixlolib.o: /usr/include/wctype.h
 ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfixlolib.o: /usr/include/xlocale.h
+ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfixlolib.o: common/msg.h
 
 ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfix_names.o: ipfixlolib/ipfix_names.c
 ipfixlolib/CMakeFiles/ipfixlolib.dir/ipfix_names.o: ipfixlolib/ipfix_names.h

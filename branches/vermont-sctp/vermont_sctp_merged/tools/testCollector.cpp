@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
 	// If you want to create a SCTP testCollector 	
 	IpfixReceiverSctpIpV4 ipfixReceiver(lport);
 	// If you want to create a UDP testCollector
-//  	IpfixReceiverUdpIpV4 ipfixReceiver(lport);
+  	IpfixReceiverUdpIpV4 ipfixReceiver2(4711);
 	
 	
 	/* (not in this branch of rcvIpfix)
@@ -85,6 +85,7 @@ int main(int argc, char *argv[]) {
 
 	IpfixCollector ipfixCollector;
 	ipfixCollector.addIpfixReceiver(&ipfixReceiver);
+	ipfixCollector.addIpfixReceiver(&ipfixReceiver2);
 	ipfixCollector.addIpfixPacketProcessor(&ipfixParser);
 	ipfixCollector.start();
 

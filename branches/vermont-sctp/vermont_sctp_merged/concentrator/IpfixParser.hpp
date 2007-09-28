@@ -137,6 +137,4 @@ class IpfixParser : public IpfixPacketProcessor, public FlowSource {
 
 };
 
-void printFieldData(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* pattern);
-
 #endif
