@@ -18,7 +18,7 @@
 #
 
 
-#SUBDIRS(tests)
+SUBDIRS(tests)
 
 ADD_LIBRARY(ipfixlolib
 	encoding.c
