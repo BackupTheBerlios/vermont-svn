@@ -1,2 +1,0 @@
-/usr/bin/ar cr libcommon.a  "CMakeFiles/common.dir/TimeoutSemaphore.o" "CMakeFiles/common.dir/msg.o" "CMakeFiles/common.dir/StatisticsManager.o" 
-/usr/bin/ranlib libcommon.a 
