@@ -40,8 +40,10 @@
  * @param port Port to listen on
  */
 IpfixReceiverSctpIpV4::IpfixReceiverSctpIpV4(int port) {
+	receiverPort = port;
+	
 	struct sockaddr_in serverAddress;
-
+	
 	listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_SCTP);
 	if(listen_socket < 0) {
 		perror("Could not create socket");
@@ -78,8 +80,6 @@ IpfixReceiverSctpIpV4::~IpfixReceiverSctpIpV4() {
  * SCTP specific listener function. This function is called by @c listenerThread()
  */
 void IpfixReceiverSctpIpV4::run() {
-// 	struct sockaddr_in clientAddress;
-// 	socklen_t clientAddressLen;
 
 	struct sockaddr_in clientAddress;
 	socklen_t clientAddressLen;
@@ -93,12 +93,6 @@ void IpfixReceiverSctpIpV4::run() {
 	FD_SET(listen_socket, &fd_array); // add listensocket
 	maxfd = listen_socket;
 	
-	/*
-	//wait for and accept incoming connection request from an Exporter
-	if( (params.new_fd = accept(listen_socket, (struct sockaddr*)&params.clientAddress, &params.clientAddressLen)) < 0){
-		msg(MSG_DEBUG, "accept() in ipfixReceiver failed, unable to receive massages");
-	}
-	*/
 	while(!exit) {
 		fd_set readfds;
 		int ret;
@@ -142,11 +136,12 @@ void IpfixReceiverSctpIpV4::run() {
 					msg(MSG_DEBUG, "IpfixReceiverSctpIpV4: Client disconnected");
 				}else{
 					if (isHostAuthorized(&clientAddress.sin_addr, sizeof(clientAddress.sin_addr))) {
-						uint32_t ip = ntohl(clientAddress.sin_addr.s_addr);
-						memcpy(sourceID->exporterAddress.ip, &ip, 4);
+// 						uint32_t ip = ntohl(clientAddress.sin_addr.s_addr);
+						memcpy(sourceID->exporterAddress.ip, &clientAddress.sin_addr.s_addr, 4);
 						sourceID->exporterAddress.len = 4;
 						sourceID->exporterPort = ntohs(clientAddress.sin_port);
 						sourceID->protocol = IPFIX_protocolIdentifier_SCTP;
+						sourceID->receiverPort = receiverPort;
 						pthread_mutex_lock(&mutex);
 						for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 
 							(*i)->processPacket(data, ret, sourceID);

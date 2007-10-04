@@ -38,6 +38,7 @@
 #include "IpfixParser.hpp"
 #include "TemplateBuffer.hpp"
 #include "ipfix.hpp"
+#include "IpfixPrinter.hpp"
 
 #include "common/msg.h"
 
@@ -312,7 +313,17 @@ void IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> source
 
 	if (bt == 0) {
 		/* this error may come in rapid succession; I hope I don't regret it */
-		msg(MSG_INFO, "Template %d unknown to collecting process", ntohs(set->id));
+		msg(MSG_INFO, "Template %d unknown to collecting process, got from ", ntohs(set->id));
+		if(sourceId->exporterAddress.len == 4)
+		printf("%d.%d.%d.%d", (uint8_t)sourceId->exporterAddress.ip[3], (uint8_t)sourceId->exporterAddress.ip[2], (uint8_t)sourceId->exporterAddress.ip[1], (uint8_t)sourceId->exporterAddress.ip[0]);
+		else
+			printf("non-IPv4 address");
+		printf(":%d (", sourceId->exporterPort);
+		/* we need a FieldInfo for printIPv4 */
+		IpfixRecord::FieldInfo::Type tmpInfo = {0, 4, false, 0}; // length=4 for IPv4 address
+		tmpInfo.length = 1; // length=1 for protocol identifier
+		printProtocol(tmpInfo, &sourceId->protocol);
+		printf(")\n");
 		return;
 	}
         

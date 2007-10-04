@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>lo</interface>
+		<interface>eth0</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
@@ -28,7 +28,7 @@
 		    </rule>
 		    <expiration>
 			    <activeTimeout unit="sec">5</activeTimeout>
-			    <inactiveTimeout unit="sec">10</inactiveTimeout>
+			    <inactiveTimeout unit="sec">5</inactiveTimeout>
  		    </expiration>
 	    </flowMetering>
 	    <next>
@@ -66,7 +66,7 @@
 	    <maxExportDelay unit="msec">500</maxExportDelay>
 	</ipfixPacketRestrictions>
 	<udpTemplateManagement>
-	    <templateRefreshTimeout unit="msec">5</templateRefreshTimeout>
+	    <templateRefreshTimeout unit="msec">10</templateRefreshTimeout>
 	    <templateRefreshRate>100</templateRefreshRate>
 	    </udpTemplateManagement>
 	<sctpManagement>
@@ -77,6 +77,12 @@
 	    <ipAddress>192.168.1.38</ipAddress>
 	    <transportProtocol>132</transportProtocol>
 	    <port>1500</port>
+	</collector>
+	<collector>
+		<ipAddressType>4</ipAddressType>
+		<ipAddress>192.168.1.38</ipAddress>
+		<transportProtocol>17</transportProtocol>
+		<port>4711</port>
 	</collector>
     </exportingProcess>
 

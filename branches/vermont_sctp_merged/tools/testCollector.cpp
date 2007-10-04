@@ -68,9 +68,9 @@ int main(int argc, char *argv[]) {
 	ipfixPrinter.runSink();
 
 	// If you want to create a SCTP testCollector 	
-	IpfixReceiverSctpIpV4 ipfixReceiver(lport);
+   	IpfixReceiverSctpIpV4 ipfixReceiver(lport);
 	// If you want to create a UDP testCollector
-  	IpfixReceiverUdpIpV4 ipfixReceiver2(4711);
+    	IpfixReceiverUdpIpV4 ipfixReceiver2(4711);
 	
 	
 	/* (not in this branch of rcvIpfix)

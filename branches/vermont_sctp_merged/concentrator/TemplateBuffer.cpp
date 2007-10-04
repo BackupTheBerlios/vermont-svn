@@ -33,8 +33,16 @@ TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(boost::sha
 	time_t now = time(0);
 	TemplateBuffer::BufferedTemplate* bt = head;
 	while (bt != 0) {
-		if((memcmp(bt->sourceID.get(), sourceId.get(), sizeof(IpfixRecord::SourceID)) == 0) 
-			&& (bt->templateID == templateId)) {
+		int same = 1;
+		for(int i = 0; i < bt->sourceID->exporterAddress.len; i++){
+			if (bt->sourceID->exporterAddress.ip[i] != sourceId->exporterAddress.ip[i]){
+				same = 0;
+				break;
+			}
+		}
+		if ((bt->sourceID->observationDomainId == sourceId->observationDomainId) && (bt->templateID == templateId) && (bt->sourceID->exporterPort == sourceId->exporterPort) && (bt->sourceID->receiverPort == sourceId->receiverPort) && same)
+		/*if((memcmp(bt->sourceID.get(), sourceId.get(), sizeof(IpfixRecord::SourceID)) == 0) 
+			&& (bt->templateID == templateId)) */{
 	/*	int same = 1;
 		for(int i = 0; i < bt->sourceID->exporterAddress.len; i++){
 			if (bt->sourceID->exporterAddress.ip[i] != sourceId->exporterAddress.ip[i]){
@@ -51,6 +59,7 @@ TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(boost::sha
 		}
 		bt = (TemplateBuffer::BufferedTemplate*)bt->next;
 	}
+	printf("REMPLATE NOT FOUND !!! \n");
 	return 0;
 }
 
@@ -79,7 +88,11 @@ void TemplateBuffer::destroyBufferedTemplate(boost::shared_ptr<IpfixRecord::Sour
 				break;
 			}
 		}
-		if ((bt->sourceID->observationDomainId == sourceId->observationDomainId) && (bt->templateID == templateId) && (bt->sourceID->exporterPort == sourceId->exporterPort) && same) break;
+		if ((bt->sourceID->observationDomainId == sourceId->observationDomainId) && (bt->templateID == templateId) && (bt->sourceID->exporterPort == sourceId->exporterPort) && (bt->sourceID->receiverPort == sourceId->receiverPort) && same)
+		/*if((memcmp(bt->sourceID.get(), sourceId.get(), sizeof(IpfixRecord::SourceID)) == 0) 
+			&& (bt->templateID == templateId))*/ {
+			break;
+		}
 		predecessor = bt;
 		bt = (TemplateBuffer::BufferedTemplate*)bt->next;
 	}

@@ -417,13 +417,13 @@ class IpfixRecord {
 		struct SourceID {
 
 			struct ExporterAddress {
-				char ip[MAX_ADDRESS_LEN];
+				uint8_t ip[MAX_ADDRESS_LEN];
 				uint8_t len;
 			};
 			uint32_t observationDomainId;
 			SourceID::ExporterAddress exporterAddress;
 			uint16_t exporterPort;
-			uint16_t destinationPort;
+			uint16_t receiverPort;
 			uint8_t protocol;
 		};
 

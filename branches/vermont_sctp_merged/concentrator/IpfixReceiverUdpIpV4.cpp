@@ -40,6 +40,8 @@
  * @param port Port to listen on
  */
 IpfixReceiverUdpIpV4::IpfixReceiverUdpIpV4(int port) {
+	receiverPort = port;
+
 	struct sockaddr_in serverAddress;
 
 	listen_socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -91,12 +93,12 @@ void IpfixReceiverUdpIpV4::run() {
 		}
 		
 		if (isHostAuthorized(&clientAddress.sin_addr, sizeof(clientAddress.sin_addr))) {
-			uint32_t ip = ntohl(clientAddress.sin_addr.s_addr);
-			memcpy(sourceID->exporterAddress.ip, &ip, 4);
+// 			uint32_t ip = clientAddress.sin_addr.s_addr;
+			memcpy(sourceID->exporterAddress.ip, &clientAddress.sin_addr.s_addr, 4);
 			sourceID->exporterAddress.len = 4;
 			sourceID->exporterPort = ntohs(clientAddress.sin_port);
 			sourceID->protocol = IPFIX_protocolIdentifier_UDP;
-
+			sourceID->receiverPort = receiverPort;
 			pthread_mutex_lock(&mutex);
 			for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 
 				(*i)->processPacket(data, n, sourceID);
