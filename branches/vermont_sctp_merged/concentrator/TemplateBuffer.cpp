@@ -33,24 +33,9 @@ TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(boost::sha
 	time_t now = time(0);
 	TemplateBuffer::BufferedTemplate* bt = head;
 	while (bt != 0) {
-		int same = 1;
-		for(int i = 0; i < bt->sourceID->exporterAddress.len; i++){
-			if (bt->sourceID->exporterAddress.ip[i] != sourceId->exporterAddress.ip[i]){
-				same = 0;
-				break;
-			}
-		}
-		if ((bt->sourceID->observationDomainId == sourceId->observationDomainId) && (bt->templateID == templateId) && (bt->sourceID->exporterPort == sourceId->exporterPort) && (bt->sourceID->receiverPort == sourceId->receiverPort) && same)
-		/*if((memcmp(bt->sourceID.get(), sourceId.get(), sizeof(IpfixRecord::SourceID)) == 0) 
-			&& (bt->templateID == templateId)) */{
-	/*	int same = 1;
-		for(int i = 0; i < bt->sourceID->exporterAddress.len; i++){
-			if (bt->sourceID->exporterAddress.ip[i] != sourceId->exporterAddress.ip[i]){
-				same = 0;
-				break;
-			}
-		}
-		if ((bt->sourceID->observationDomainId == sourceId->observationDomainId) && (bt->templateID == templateId) && (bt->sourceID->exporterPort == sourceId->exporterPort) && same) {*/
+		//msg(MSG_DEBUG, "bt->sourceID %lu %u %u %u.%u.%u.%u %u %u ptr: %lu size: %lu", bt->sourceID.get()->observationDomainId, bt->sourceID.get()->exporterPort, bt->sourceID.get()->receiverPort, bt->sourceID.get()->exporterAddress.ip[0], bt->sourceID.get()->exporterAddress.ip[1], bt->sourceID.get()->exporterAddress.ip[2], bt->sourceID.get()->exporterAddress.ip[3], bt->sourceID.get()->exporterAddress.len, bt->sourceID.get()->protocol, bt->sourceID.get(), sizeof(IpfixRecord::SourceID));
+//		msg(MSG_DEBUG, "sourceID %lu %u %u %u.%u.%u.%u  %u %u", sourceId.get()->observationDomainId, sourceId.get()->exporterPort, sourceId.get()->receiverPort, sourceId.get()->exporterAddress.ip[0], sourceId.get()->exporterAddress.ip[1], sourceId.get()->exporterAddress.ip[2], sourceId.get()->exporterAddress.ip[3], sourceId.get()->exporterAddress.len, sourceId.get()->protocol);
+		if ((*(bt->sourceID.get()) == *(sourceId.get())) && (bt->templateID == templateId)){
 			if ((bt->expires) && (bt->expires < now)) {
 				destroyBufferedTemplate(sourceId, templateId);
 				return 0;
@@ -59,7 +44,7 @@ TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(boost::sha
 		}
 		bt = (TemplateBuffer::BufferedTemplate*)bt->next;
 	}
-	printf("REMPLATE NOT FOUND !!! \n");
+	printf("getBufferedTemplate not found!!! \n");
 	return 0;
 }
 
@@ -81,16 +66,7 @@ void TemplateBuffer::destroyBufferedTemplate(boost::shared_ptr<IpfixRecord::Sour
 	TemplateBuffer::BufferedTemplate* predecessor = 0;
 	TemplateBuffer::BufferedTemplate* bt = head;
 	while (bt != 0) {
-		int same = 1;
-		for(int i = 0; i < bt->sourceID->exporterAddress.len; i++){
-			if (bt->sourceID->exporterAddress.ip[i] != sourceId->exporterAddress.ip[i]){
-				same = 0;
-				break;
-			}
-		}
-		if ((bt->sourceID->observationDomainId == sourceId->observationDomainId) && (bt->templateID == templateId) && (bt->sourceID->exporterPort == sourceId->exporterPort) && (bt->sourceID->receiverPort == sourceId->receiverPort) && same)
-		/*if((memcmp(bt->sourceID.get(), sourceId.get(), sizeof(IpfixRecord::SourceID)) == 0) 
-			&& (bt->templateID == templateId))*/ {
+		if ((*(bt->sourceID.get()) == *(sourceId.get())) && (bt->templateID == templateId)){
 			break;
 		}
 		predecessor = bt;

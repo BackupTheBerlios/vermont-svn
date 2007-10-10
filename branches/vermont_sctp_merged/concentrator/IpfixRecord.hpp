@@ -425,6 +425,10 @@ class IpfixRecord {
 			uint16_t exporterPort;
 			uint16_t receiverPort;
 			uint8_t protocol;
+
+			bool operator==(const struct SourceID & x) {
+				return (observationDomainId == x.observationDomainId) && (exporterPort == x.exporterPort) && (receiverPort == x.receiverPort) && (protocol == x.protocol) && (exporterAddress.len == x.exporterAddress.len) && (memcmp(exporterAddress.ip, x.exporterAddress.ip, exporterAddress.len) == 0);
+			}
 		};
 
 		boost::shared_ptr<IpfixRecord::SourceID> sourceID;

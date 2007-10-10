@@ -8,10 +8,10 @@
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
-	    <meteringProcessId>1</meteringProcessId>
+	    <meteringProcessId>2</meteringProcessId>
 	</next>
     </observationPoint>
-    <meteringProcess id="1">
+    <!--<meteringProcess id="1">
 	    <flowMetering>
 		    <rule>
 			    <templateId>998</templateId>
@@ -33,6 +33,24 @@
 	    </flowMetering>
 	    <next>
 	    	<exportingProcessId>1</exportingProcessId>
+	    </next>
+    </meteringProcess>-->
+    <meteringProcess id="2">
+	    <flowMetering>
+		    <rule>
+			    <templateId>4711</templateId>
+			    <flowKey>
+				    <ieName>protocolIdentifier</ieName>
+				    <match>UDP</match>
+			    </flowKey>
+		    </rule>
+		    <expiration>
+			    <activeTimeout unit="sec">5</activeTimeout>
+			    <inactiveTimeout unit="sec">5</inactiveTimeout>
+		    </expiration>
+	    </flowMetering>
+	    <next>
+		    <exportingProcessId>1</exportingProcessId>
 	    </next>
     </meteringProcess>
     <!-- 
@@ -68,22 +86,22 @@
 	<udpTemplateManagement>
 	    <templateRefreshTimeout unit="msec">10</templateRefreshTimeout>
 	    <templateRefreshRate>100</templateRefreshRate>
-	    </udpTemplateManagement>
+	</udpTemplateManagement>
 	<sctpManagement>
 		<dataLifetime unit="msec">7</dataLifetime>
 	</sctpManagement>
 	<collector>
 	    <ipAddressType>4</ipAddressType>
-	    <ipAddress>192.168.1.38</ipAddress>
+	    <ipAddress>192.168.1.37</ipAddress>
 	    <transportProtocol>132</transportProtocol>
-	    <port>1500</port>
+	    <port>4739</port>
 	</collector>
-	<collector>
+	<!--<collector>
 		<ipAddressType>4</ipAddressType>
-		<ipAddress>192.168.1.38</ipAddress>
-		<transportProtocol>17</transportProtocol>
-		<port>4711</port>
-	</collector>
+		<ipAddress>127.0.0.1</ipAddress>
+		<transportProtocol>132</transportProtocol>
+		<port>4739</port>
+	</collector>-->
     </exportingProcess>
 
     

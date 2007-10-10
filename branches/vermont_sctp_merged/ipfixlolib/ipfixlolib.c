@@ -153,7 +153,7 @@ static int init_send_sctp_socket(struct sockaddr_in serv_addr){
  	uint leng = sizeof(struct sctp_initmsg);
  	if( (getsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &init_info, &leng)) < 0){
  		perror("ERROR GETTING SOCKOPTIONS!!! ");
- 	}else {printf("SOCKOPTIONS: Number of in/outstreams = %d/%d\n", init_info.sinit_num_ostreams, init_info.sinit_max_instreams);}
+ 	}else { msg(MSG_DEBUG, "SOCKOPTIONS: Number of in/outstreams = %d/%d", init_info.sinit_num_ostreams, init_info.sinit_max_instreams) ;}
 /* 
 	struct sctp_initmsg m;
 	m.sinit_num_ostreams = 2;
