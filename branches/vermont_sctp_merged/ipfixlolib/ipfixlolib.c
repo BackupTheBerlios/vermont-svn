@@ -131,13 +131,6 @@ static int init_send_udp_socket(struct sockaddr_in serv_addr){
 static int init_send_sctp_socket(struct sockaddr_in serv_addr){
 	
 	int s;
-	/*struct sockaddr_in serv_addr;
-	
-	memset(&serv_addr, 0, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons (serv_port);
-	serv_addr.sin_addr.s_addr = inet_addr(serv_ip4_addr);
-	*/
 	
 	//create socket:
 	msg(MSG_DEBUG, "Creating SCTP Socket ...");
@@ -146,15 +139,16 @@ static int init_send_sctp_socket(struct sockaddr_in serv_addr){
                 return -1;
         }
 	msg(MSG_DEBUG, "SCTP Socket created");
+
 	
 	//seting up SCTP Options	
-
+/* 
  	struct sctp_initmsg init_info;
  	uint leng = sizeof(struct sctp_initmsg);
  	if( (getsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &init_info, &leng)) < 0){
  		perror("ERROR GETTING SOCKOPTIONS!!! ");
- 	}else { msg(MSG_DEBUG, "SOCKOPTIONS: Number of in/outstreams = %d/%d", init_info.sinit_num_ostreams, init_info.sinit_max_instreams) ;}
-/* 
+ 	}else msg(MSG_INFO, "SOCKOPTIONS: Number of in/outstreams = %d/%d", init_info.sinit_num_ostreams, init_info.sinit_max_instreams);
+
 	struct sctp_initmsg m;
 	m.sinit_num_ostreams = 2;
 	m.sinit_max_instreams = 2;
@@ -175,7 +169,15 @@ static int init_send_sctp_socket(struct sockaddr_in serv_addr){
 		close(s);
 		return -1;
 	}
-	//msg(MSG_DEBUG, "SCTP connected to %s:%i",serv_addr.sin_addr.s_addr,serv_addr.sin_port );
+	/*
+	struct sctp_event_subscribe event;
+	memset(&event, 0, sizeof(event));
+	//enable event for send failures
+	event.sctp_send_failure_event = 1;
+	
+	if(setsockopt(s,IPPROTO_SCTP, SCTP_EVENTS, &event, sizeof(event) ) != 0){
+		msg(MSG_ERROR, "IpfixReceiverSctpIpV4: setcockoptions failed");
+	}*/
 	return s;
 }
 
@@ -1164,6 +1166,25 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						exporter->sctp_lifetime,//packet lifetime in ms(0 = reliable )
 						0
 						);
+					/*TODO: error handling. If ret = -1 , try to reconnect for some time,
+					  	case (noconnection) -> ipfix_remove_collector
+						case (connected) -> resend all templates */
+					
+					if(ret == -1){
+						msg(MSG_ERROR, "ipfix_send_data() could not send to %s:%d errno: %s  (SCTP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
+						close(exporter->collector_arr[i].data_socket);
+						int sock = init_send_sctp_socket( exporter->collector_arr[i].addr );
+						if( sock < 0) {
+							msg(MSG_FATAL, "ipfix_send_data(): SCTP reconnect failed, %s", strerror(errno));
+							/* clean up */
+// 							close(s);
+						}else {exporter->collector_arr[i].data_socket = sock;}
+						/*
+						if(ipfix_remove_collector(exporter, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number) == 0){
+							msg(MSG_ERROR, "collector %s:%d (SCTP) removed",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
+						}*/
+						
+					}
 					DPRINTF("ipfix_send_data: %d Data Bytes sent to SCTP collectors\n",ret);
 					break;
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT

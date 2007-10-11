@@ -83,7 +83,6 @@ void IpfixReceiverSctpIpV4::run() {
 
 	struct sockaddr_in clientAddress;
 	socklen_t clientAddressLen;
-
 	clientAddressLen = sizeof(struct sockaddr_in);
 	
 	fd_set fd_array; //all active filedescriptors
@@ -117,7 +116,7 @@ void IpfixReceiverSctpIpV4::run() {
 			
 			if (rfd >= 0){
 				FD_SET(rfd, &fd_array); // add new client to fd_array
-				msg(MSG_DEBUG, "IpfixReceiverSctpIpV4: Client connected");
+				msg(MSG_DEBUG, "IpfixReceiverSctpIpV4: Client connected from %s:%d", inet_ntoa(clientAddress.sin_addr), ntohs(clientAddress.sin_port));
 				if (rfd > maxfd){
 					maxfd = rfd;
 				}

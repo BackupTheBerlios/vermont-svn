@@ -8,10 +8,10 @@
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
-	    <meteringProcessId>2</meteringProcessId>
+	    <meteringProcessId>1</meteringProcessId>
 	</next>
     </observationPoint>
-    <!--<meteringProcess id="1">
+    <meteringProcess id="1">
 	    <flowMetering>
 		    <rule>
 			    <templateId>998</templateId>
@@ -34,8 +34,8 @@
 	    <next>
 	    	<exportingProcessId>1</exportingProcessId>
 	    </next>
-    </meteringProcess>-->
-    <meteringProcess id="2">
+    </meteringProcess>
+    <!--<meteringProcess id="2">
 	    <flowMetering>
 		    <rule>
 			    <templateId>4711</templateId>
@@ -52,7 +52,7 @@
 	    <next>
 		    <exportingProcessId>1</exportingProcessId>
 	    </next>
-    </meteringProcess>
+    </meteringProcess>-->
     <!-- 
     <meteringProcess id="1">
 	    <packetSelection>
@@ -92,9 +92,9 @@
 	</sctpManagement>
 	<collector>
 	    <ipAddressType>4</ipAddressType>
-	    <ipAddress>192.168.1.37</ipAddress>
+	    <ipAddress>192.168.1.38</ipAddress>
 	    <transportProtocol>132</transportProtocol>
-	    <port>4739</port>
+	    <port>1500</port>
 	</collector>
 	<!--<collector>
 		<ipAddressType>4</ipAddressType>
