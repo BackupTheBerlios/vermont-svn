@@ -96,12 +96,12 @@
 	    <transportProtocol>132</transportProtocol>
 	    <port>1500</port>
 	</collector>
-	<!--<collector>
+	<collector>
 		<ipAddressType>4</ipAddressType>
-		<ipAddress>127.0.0.1</ipAddress>
-		<transportProtocol>132</transportProtocol>
-		<port>4739</port>
-	</collector>-->
+		<ipAddress>192.168.1.38</ipAddress>
+		<transportProtocol>17</transportProtocol>
+		<port>4711</port>
+	</collector>
     </exportingProcess>
 
     

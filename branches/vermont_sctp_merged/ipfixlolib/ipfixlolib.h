@@ -269,6 +269,7 @@ typedef struct {
 	enum ipfix_transport_protocol protocol;
 	int data_socket; // socket data is sent to
 	struct sockaddr_in addr;
+	int reconnect; // indicates how many reconnections took place, after successful reconnect reset to 0
 	int template_socket; // socket, templates are sent to
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
