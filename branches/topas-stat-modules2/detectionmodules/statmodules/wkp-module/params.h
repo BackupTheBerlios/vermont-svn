@@ -15,6 +15,16 @@
 class Params {
 
 public:
+  Params() :
+      ready_to_test(false), cusum_learning_phase_nr(0), 
+      pca_learning_phase_nr(0), pca_ready(false), wkp_updated(false), cusum_updated(false)
+  {}
+
+  void init(int size);
+
+  ~Params() {};
+
+
   ///////////////
   // WKP STUFF //
   ///////////////
@@ -42,21 +52,19 @@ public:
   // CUSUM STUFF //
   /////////////////
 
-  // the current sum of the first x values for each metric
-  // needed to calculate the initial alphas
-  std::vector<int64_t> sum;
+  // the mean and variance for each metric
+  std::vector<double> mean;
+  std::vector<double> variance;
+  // N and beta for each metric
+  std::vector<double> N;
+  std::vector<double> beta;
   // to identify the end of the learning phase
-  int learning_phase_nr_for_alpha;
-  // the means of every metric
-  std::vector<double> alpha;
+  int cusum_learning_phase_nr;
   // current values of the test statistic of each metric
   std::vector<double> g;
   // current observed value for each metric
   // needed for the cusum test
   std::vector<int> X_curr;
-  // last observed value for each metric
-  // needed to update alpha
-  std::vector<int> X_last;
 
   // every metric has its was-attack-flag
   std::vector<bool> last_cusum_test_was_attack;
@@ -66,21 +74,12 @@ public:
 
   bool ready_to_test;
 
-  Params()
-  {
-    ready_to_test = false;
-    learning_phase_nr_for_alpha = 0;
-  }
-
-  ~Params() {};
-
-
   ///////////////
   // PCA STUFF //
   ///////////////
 
   // store current number of learning phase
-  int learning_phase_nr_for_pca;
+  int pca_learning_phase_nr;
   // flag to identify if still in learning phase
   bool pca_ready;
   // the following two are needed for the learning phase
@@ -104,8 +103,6 @@ public:
 
   bool wkp_updated;
   bool cusum_updated;
-
-  void init(int);
 
 };
 

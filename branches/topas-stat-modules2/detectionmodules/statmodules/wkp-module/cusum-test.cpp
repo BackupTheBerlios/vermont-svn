@@ -1,7 +1,7 @@
 #include "cusum-test.h"
 
 // update the cumulative sum g
-double cusum(const int & X, const double & beta, double & g) {
+double cusum(int64_t X, double beta, double g) {
 
   g = g + (X - beta);
 

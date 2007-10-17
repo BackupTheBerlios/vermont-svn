@@ -1,5 +1,7 @@
 /**************************************************************************/
-/*    Copyright (C) 2006 Romain Michalec                                  */
+/*    Copyright (C) 2006-07                                               */
+/*    Romain Michalec, Sven Wiebusch                                      */
+/*    University of Tuebingen, Germany                                    */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */

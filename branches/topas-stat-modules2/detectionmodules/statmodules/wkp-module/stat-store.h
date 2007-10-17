@@ -1,5 +1,7 @@
 /**************************************************************************/
-/*    Copyright (C) 2006 Romain Michalec                                  */
+/*    Copyright (C) 2006-07                                               */
+/*    Romain Michalec, Sven Wiebusch                                      */
+/*    University of Tuebingen, Germany                                    */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -71,96 +73,57 @@ class StatStore : public DataStore {
 
   friend std::ifstream& operator>>(std::ifstream&, StatStore*);
 
- private:
-
   static short netmask;
   // will be applied to the ip addresses directly when they are
   // handled in addFieldData(); this is for aggregating ip addresses
   // to subnets
 
-  static bool ip_monitoring;
-  static bool port_monitoring;
-  static bool protocol_monitoring;
+  static bool ipMonitoring;
+  static bool portMonitoring;
+  static bool protocolMonitoring;
   // these flags will be used for aggregating endpoints in OFFLINE MODE
   // they are initially set to false, i. e. the correspondig member of
   // the endppoint will be set to 0. If the endpoint_key contains the
   // appropriate keys, they are set to true.
 
-  static std::vector<FilterEndPoint> EndPointFilter;
-  // EndPoints to monitor. They are provided in a file by the user;
-  // this file is read by Stat::init(), which then initializes
-  // EndPointFilter.
-
-  static bool MonitorEveryEndPoint;
-  // In case no file is given, then Stat::init() initializes MonitorEveryEndPoint
-  // to true. Any EndPoint found in a record will be added to the
-  // EndPointFilter map until a maximal size (to prevent
-  // memory exhaustion) is reached.
-
-  static std::vector<EndPoint> EndPointList;
-  // Currently monitored EndPoints. Every Endpoint we are interested in
-  // is added to this List until EndPointListMaxSize is reached.
-
-  static int EndPointListMaxSize;
-  // This maximal size is defined by the user and set by Stat::init().
-  // If forgotten by the user, default max size is provided.
-
-  static bool BeginMonitoring;
+  static bool beginMonitoring;
   // Set to "true" by Stat::init() when all the static information about
   // endpoints is ready, else set to "false" by the Stat constructor.
   // It prevents recordStart to give the go-ahead when requested by
   // DetectionBase if something is not ready (cf. Stat::Stat(), where
   // DetectionBase<StatStore> begins to run while Stat::init() is not over).
 
+  static int endPointListMaxSize;
+  // This maximal size is defined by the user and set by Stat::init().
+  // If forgotten by the user, default max size is provided.
+
+  static bool monitorEveryEndPoint;
+  // In case no file is given, then Stat::init() initializes monitorEveryEndPoint
+  // to true. Any EndPoint found in a record will be added to the
+  // endPointFilter map until a maximal size (to prevent
+  // memory exhaustion) is reached.
+
+  static void AddEndPointToFilter (FilterEndPoint fep) {
+    endPointFilter.push_back(fep);
+  }
+
+  static std::string EndPointFilters();
+
+ private:
+
+  static std::vector<FilterEndPoint> endPointFilter;
+  // EndPoints to monitor. They are provided in a file by the user;
+  // this file is read by Stat::init(), which then initializes
+  // endPointFilter.
+
+  static std::vector<EndPoint> endPointList;
+  // Currently monitored EndPoints. Every Endpoint we are interested in
+  // is added to this List until EndPointListMaxSize is reached.
+
   // All these are static because they are the same for every StatStore object.
   // As they will be set by a function, Stat::init(), that doesn't have any
   // StatStore object argument to help call these functions, we absolutely need
   // static and public "setters", wich are programmed hereafter.
-
-
- public:
-
-  // Public "setters" we just spoke about:
-
-  static short & setNetmask () {
-    return netmask;
-  }
-
-  static bool & setIpMonitoring () {
-    return ip_monitoring;
-  }
-
-  static bool & setPortMonitoring () {
-    return port_monitoring;
-  }
-
-  static bool & setProtocolMonitoring () {
-    return protocol_monitoring;
-  }
-
-  static void AddEndPointToFilter (FilterEndPoint fep) {
-    EndPointFilter.push_back(fep);
-  }
-
-  static bool & setMonitorEveryEndPoint () {
-    return MonitorEveryEndPoint;
-  }
-
-  static int & setEndPointListMaxSize () {
-    return EndPointListMaxSize;
-  }
-
-  static bool & setBeginMonitoring () {
-    return BeginMonitoring;
-  }
-
-  // Public "getters"
-  static short getNetmask () { return netmask; }
-
-  static bool getIpMonitoring () { return ip_monitoring; }
-  static bool getPortMonitoring () { return port_monitoring; }
-  static bool getProtocolMonitoring () { return protocol_monitoring; }
-
 
 };
 

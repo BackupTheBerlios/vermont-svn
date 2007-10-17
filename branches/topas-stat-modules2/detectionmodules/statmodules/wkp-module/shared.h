@@ -1,5 +1,7 @@
 /**************************************************************************/
-/*    Copyright (C) 2006 Romain Michalec                                  */
+/*    Copyright (C) 2006-07                                               */
+/*    Romain Michalec, Sven Wiebusch                                      */
+/*    University of Tuebingen, Germany                                    */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -56,19 +58,9 @@ class EndPoint {
   public:
 
     // Constructors
-    EndPoint() : ipAddr (0,0,0,0) {
+    EndPoint() : ipAddr (0,0,0,0), portNr(0), protocolID(0) {}
 
-      portNr = 0;
-      protocolID = 0;
-
-    }
-
-    EndPoint(const IpAddress & ip, int port, int protocol) : ipAddr (ip[0], ip[1], ip[2], ip[3]) {
-
-      portNr = port;
-      protocolID = protocol;
-
-    }
+    EndPoint(const IpAddress & ip, int port, int protocol) : ipAddr (ip[0], ip[1], ip[2], ip[3]), portNr(port), protocolID(protocol) {}
 
     // copy constructor
     EndPoint(const EndPoint & e) : ipAddr(e.ipAddr[0], e.ipAddr[1], e.ipAddr[2], e.ipAddr[3]){

@@ -1,5 +1,6 @@
 /**************************************************************************/
 /*    Copyright (C) 2007 Gerhard Muenz                                    */
+/*    University of Tuebingen, Germany                                    */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -21,6 +22,7 @@
 
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <iostream>
 
 /**
@@ -48,32 +50,34 @@
  *   ms.print(MsgStream::INFO, "Just a short note.");
  *   ms << MsgStream::FATAL << "I have to die!" << MsgStream::endl;
  *
+ * Logging to a file:
+ * Use setLogLevel(MsgLevel) and openLogfile(filename) to start logging the
+ * messages at a given level into a logfile.
+ *
+ * Supressing intro string:
+ * Use rawPrint() or start stream with MsgStream::raw.
  */
 
 class MsgStream {
-public:
+    public:
 	typedef enum {
 	    NONE = 0, FATAL=1, ERROR=2, WARN=3, INFO=4, DEBUG=5
 	} MsgLevel;
 
-	typedef enum {endl} MsgControl;
+	typedef enum {endl, raw} MsgControl;
 
 	/**
 	 * Creates a new message stream.
 	 */
-	MsgStream() : outputLevel(WARN), name("unknown"), printThis(false) {}
-	MsgStream(MsgLevel l, std::string s) : outputLevel(l), name(s), printThis(false) {}
+	MsgStream() : name("unknown"), outputLevel(WARN), printThis(false), 
+		      logLevel(NONE), logThis(false), noIntro(false) {}
+	MsgStream(MsgLevel l, std::string s) : name(s), outputLevel(l), printThis(false),
+					       logLevel(NONE), logThis(false), noIntro(false) {}
 
 	/**
 	 * Destroyes the message stream
 	 */
-	~MsgStream() {}
-
-	/**
-	 * Sets the messaging level.
-	 * @level new messaging level
-	 */
-	void setLevel(MsgLevel level);
+	~MsgStream() {logfile.close();}
 
 	/**
 	 * Sets the name of the module issuing the messages.
@@ -82,48 +86,120 @@ public:
 	void setName(const std::string& newname);
 
 	/**
+	 * Sets the messaging level.
+	 * @level new messaging level
+	 */
+	void setLevel(MsgLevel level);
+
+	/**
+	 * Get the messaging level.
+	 * @returns messaging level 
+	 */
+	MsgLevel getLevel() {return outputLevel;}
+
+	/**
+	 * Opens the logfile and starts logging.
+	 * @name new name
+	 * @returns true on success
+	 */
+	bool openLogfile(const std::string& filename);
+
+	/**
+	 * Closes the logfile and stops logging.
+	 */
+	void closeLogfile();
+
+	/**
+	 * Get logfile ofstream.
+	 * @returns logfile ofstream
+	 */
+	std::ofstream& getLogfile() {return logfile;}
+
+	/**
+	 * Sets the logging level for the Logfile.
+	 * @level new messaging level
+	 */
+	void setLogLevel(MsgLevel level);
+
+	/**
+	 * Get the logging level.
+	 * @returns logging level 
+	 */
+	MsgLevel getLogLevel() {return logLevel;}
+
+	/**
 	 * Print a message at given messaging level.
 	 * @level messaging level
 	 * @msg message to print
 	 */
 	void print(MsgLevel level, const std::string& msg);
-  std::ostream& print(MsgLevel level, const std::string& msg, std::ostream&, bool);
 
-  friend MsgStream& operator<<(MsgStream&, MsgStream::MsgLevel);
-  friend MsgStream& operator<<(MsgStream&, MsgStream::MsgControl);
-  friend MsgStream& operator<<(MsgStream&, const std::string&);
-  friend MsgStream& operator<<(MsgStream&, int16_t);
-  friend MsgStream& operator<<(MsgStream&, uint16_t);
-  friend MsgStream& operator<<(MsgStream&, int32_t);
-  friend MsgStream& operator<<(MsgStream&, uint32_t);
-  friend MsgStream& operator<<(MsgStream&, int64_t);
-  friend MsgStream& operator<<(MsgStream&, uint64_t);
+	/**
+	 * Print a message at given messaging level without intro.
+	 * @level messaging level
+	 * @msg message to print
+	 */
+	void rawPrint(MsgLevel level, const std::string& msg);
 
-private:
+	friend MsgStream& operator<<(MsgStream&, MsgStream::MsgLevel);
+	friend MsgStream& operator<<(MsgStream&, MsgStream::MsgControl);
+	friend MsgStream& operator<<(MsgStream&, const std::string&);
+	friend MsgStream& operator<<(MsgStream&, int16_t);
+	friend MsgStream& operator<<(MsgStream&, uint16_t);
+	friend MsgStream& operator<<(MsgStream&, int32_t);
+	friend MsgStream& operator<<(MsgStream&, uint32_t);
+	friend MsgStream& operator<<(MsgStream&, int64_t);
+	friend MsgStream& operator<<(MsgStream&, uint64_t);
+	friend MsgStream& operator<<(MsgStream&, float);
+	friend MsgStream& operator<<(MsgStream&, double);
+
+    private:
 	void printIntro(MsgLevel level);
-  std::ostream& printIntro(MsgLevel level, std::ostream&, bool);
+	void logIntro(MsgLevel level);
+
+	std::string name;
 
 	MsgLevel outputLevel;
-	std::string name;
 	bool printThis;
 
+	std::ofstream logfile;
+	MsgLevel logLevel;
+	bool logThis;
+
+	bool noIntro;
 };
 
 inline MsgStream& operator<<(MsgStream& ms, MsgStream::MsgLevel input)
 {
     if(input <= ms.outputLevel)
     {
-	ms.printIntro(input);
+	if(!ms.noIntro)
+	    ms.printIntro(input);
 	ms.printThis = true;
+    }
+    if(ms.logfile.is_open() && (input <= ms.logLevel))
+    {
+	if(!ms.noIntro)
+	    ms.logIntro(input);
+	ms.logThis = true;
     }
     return ms;
 }
 
 inline MsgStream& operator<<(MsgStream& ms, MsgStream::MsgControl input)
 {
-    if((ms.printThis) && (input == MsgStream::endl))
+    if((ms.printThis) && (input == MsgStream::endl)) {
 	std::cout << std::endl;
-    ms.printThis = false;
+	ms.printThis = false;
+    }
+    if((ms.logThis) && (input == MsgStream::endl)) {
+	ms.logfile << std::endl;
+	ms.logThis = false;
+    }
+    if(input == MsgStream::raw)
+	ms.noIntro = true;
+    else
+	ms.noIntro = false;
     return ms;
 }
 
@@ -131,6 +207,8 @@ inline MsgStream& operator<<(MsgStream& ms, const std::string& input)
 {
     if(ms.printThis)
 	std::cout << input;
+    if(ms.logThis)
+	ms.logfile << input;
     return ms;
 }
 
@@ -138,13 +216,17 @@ inline MsgStream& operator<<(MsgStream& ms, int16_t input)
 {
     if(ms.printThis)
 	std::cout << input;
+    if(ms.logThis)
+	ms.logfile << input;
     return ms;
 }
 
 inline MsgStream& operator<<(MsgStream& ms, uint16_t input)
 {
     if(ms.printThis)
- std::cout << input;
+	std::cout << input;
+    if(ms.logThis)
+	ms.logfile << input;
     return ms;
 }
 
@@ -152,6 +234,8 @@ inline MsgStream& operator<<(MsgStream& ms, int32_t input)
 {
     if(ms.printThis)
 	std::cout << input;
+    if(ms.logThis)
+	ms.logfile << input;
     return ms;
 }
 
@@ -159,6 +243,8 @@ inline MsgStream& operator<<(MsgStream& ms, uint32_t input)
 {
     if(ms.printThis)
 	std::cout << input;
+    if(ms.logThis)
+	ms.logfile << input;
     return ms;
 }
 
@@ -166,6 +252,8 @@ inline MsgStream& operator<<(MsgStream& ms, int64_t input)
 {
     if(ms.printThis)
 	std::cout << input;
+    if(ms.logThis)
+	ms.logfile << input;
     return ms;
 }
 
@@ -173,6 +261,26 @@ inline MsgStream& operator<<(MsgStream& ms, uint64_t input)
 {
     if(ms.printThis)
 	std::cout << input;
+    if(ms.logThis)
+	ms.logfile << input;
+    return ms;
+}
+
+inline MsgStream& operator<<(MsgStream& ms, float input)
+{
+    if(ms.printThis)
+	std::cout << input;
+    if(ms.logThis)
+	ms.logfile << input;
+    return ms;
+}
+
+inline MsgStream& operator<<(MsgStream& ms, double input)
+{
+    if(ms.printThis)
+	std::cout << input;
+    if(ms.logThis)
+	ms.logfile << input;
     return ms;
 }
 
