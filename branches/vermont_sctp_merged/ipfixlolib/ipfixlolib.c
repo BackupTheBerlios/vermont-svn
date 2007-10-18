@@ -1058,35 +1058,45 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 						0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
 						0
 						);
-					/*TODO: error handling. If ret = -1 , try to reconnect for some time,
+					/* error handling. If ret = -1 , try to reconnect for some time,
 					  	case (noconnection) -> ipfix_remove_collector
 						case (connected) -> resend all templates */
 					
 					if(ret == -1){
-						msg(MSG_ERROR, "ipfix_send_templates() could not send to %s:%d errno: %s  (SCTP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
-						close(exporter->collector_arr[i].data_socket);
-						int sock = init_send_sctp_socket( exporter->collector_arr[i].addr );
 						exporter->collector_arr[i].reconnect++;
-						if( sock < 0) {
-							msg(MSG_ERROR, "ipfix_send_templates(): SCTP reconnect failed, %s", strerror(errno));
-						}else {
-							exporter->collector_arr[i].data_socket = sock;
-							//reconnected -> resend all active templates
-							ret = ipfix_prepend_header(exporter,
-							exporter->template_sendbuffer->committed_data_length,
-							exporter->template_sendbuffer
-							);
-							ret = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
-							exporter->template_sendbuffer->entries,
-							exporter->template_sendbuffer->current,
-							(struct sockaddr*)&(exporter->collector_arr[i].addr),
-							sizeof(exporter->collector_arr[i].addr),
-							0,0,
-							0,//Stream Number
-							0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
-							0
-							);
-							exporter->collector_arr[i].reconnect = 0;
+						msg(MSG_ERROR, "ipfix_send_templates() could not send to %s:%d errno: %s  (SCTP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
+						if ( (exporter->collector_arr[i].reconnect % 10) == 0) {
+							close(exporter->collector_arr[i].data_socket);
+							if (exporter->collector_arr[i].reconnect <= 100){	
+								
+								int sock = init_send_sctp_socket( exporter->collector_arr[i].addr );
+								
+								if( sock < 0) {
+									msg(MSG_ERROR, "ipfix_send_templates(): SCTP reconnect failed, %s", strerror(errno));
+								}else {
+									exporter->collector_arr[i].data_socket = sock;
+									//reconnected -> resend all active templates
+									ret = ipfix_prepend_header(exporter,
+									exporter->template_sendbuffer->committed_data_length,
+									exporter->template_sendbuffer
+									);
+									ret = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
+									exporter->template_sendbuffer->entries,
+									exporter->template_sendbuffer->current,
+									(struct sockaddr*)&(exporter->collector_arr[i].addr),
+									sizeof(exporter->collector_arr[i].addr),
+									0,0,
+									0,//Stream Number
+									0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
+									0
+									);
+									exporter->collector_arr[i].reconnect = 0;
+								}
+							}else{
+								if(ipfix_remove_collector(exporter, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number) == 0){
+									msg(MSG_ERROR, "collector %s:%d (SCTP) removed",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
+								}
+							}
 						}
 						/*
 						if(ipfix_remove_collector(exporter, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number) == 0){
@@ -1209,30 +1219,39 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						case (connected) -> resend all templates */
 					
 					if(ret == -1){
-						msg(MSG_ERROR, "ipfix_send_data() could not send to %s:%d errno: %s  (SCTP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
-						close(exporter->collector_arr[i].data_socket);
-						int sock = init_send_sctp_socket( exporter->collector_arr[i].addr );
 						exporter->collector_arr[i].reconnect++;
-						if( sock < 0) {
-							msg(MSG_ERROR, "ipfix_send_data(): SCTP reconnect failed, %s", strerror(errno));
-						}else {
-							ret = exporter->collector_arr[i].data_socket = sock;
-							//reconnected -> resend all active templates
-							ret = ipfix_prepend_header(exporter,
-							exporter->template_sendbuffer->committed_data_length,
-							exporter->template_sendbuffer
-							);
-							sctp_sendmsgv(exporter->collector_arr[i].data_socket,
-							exporter->template_sendbuffer->entries,
-							exporter->template_sendbuffer->current,
-							(struct sockaddr*)&(exporter->collector_arr[i].addr),
-							sizeof(exporter->collector_arr[i].addr),
-							0,0,
-							0,//Stream Number
-							0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
-							0
-							);
-							exporter->collector_arr[i].reconnect = 0;
+						msg(MSG_ERROR, "ipfix_send_data() could not send to %s:%d errno: %s  (SCTP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
+						if ( (exporter->collector_arr[i].reconnect % 10) == 0) {
+							close(exporter->collector_arr[i].data_socket);
+							if (exporter->collector_arr[i].reconnect <= 100){	
+								int sock = init_send_sctp_socket( exporter->collector_arr[i].addr );
+								
+								if( sock < 0) {
+									msg(MSG_ERROR, "ipfix_send_data(): SCTP reconnect failed, %s", strerror(errno));
+								}else {
+									ret = exporter->collector_arr[i].data_socket = sock;
+									//reconnected -> resend all active templates
+									ret = ipfix_prepend_header(exporter,
+									exporter->template_sendbuffer->committed_data_length,
+									exporter->template_sendbuffer
+									);
+									sctp_sendmsgv(exporter->collector_arr[i].data_socket,
+									exporter->template_sendbuffer->entries,
+									exporter->template_sendbuffer->current,
+									(struct sockaddr*)&(exporter->collector_arr[i].addr),
+									sizeof(exporter->collector_arr[i].addr),
+									0,0,
+									0,//Stream Number
+									0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
+									0
+									);
+									exporter->collector_arr[i].reconnect = 0;
+								}
+							}else{
+								if(ipfix_remove_collector(exporter, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number) == 0){
+									msg(MSG_ERROR, "collector %s:%d (SCTP) removed",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
+								}
+							}
 						}
 						/*
 						if(ipfix_remove_collector(exporter, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number) == 0){
