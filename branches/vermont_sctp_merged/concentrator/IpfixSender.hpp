@@ -60,7 +60,12 @@ class IpfixSender : public FlowSink {
 		
 			return true;
 		}
+		// Set up SCTP reconnect timer
+		bool setSctpReconnectTimeout(uint32_t time){
+			ipfixExporter->sctp_reconnect_timer = time;
 		
+			return true;
+		}
 		class Collector {
 		    public:
 			Collector() : port(0)

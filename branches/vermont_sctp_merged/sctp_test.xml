@@ -89,6 +89,7 @@
 	</udpTemplateManagement>
 	<sctpManagement>
 		<dataLifetime unit="msec">7</dataLifetime>
+		<reconnectTimeout unit="msec">-1</reconnectTimeout>
 	</sctpManagement>
 	<collector>
 	    <ipAddressType>4</ipAddressType>

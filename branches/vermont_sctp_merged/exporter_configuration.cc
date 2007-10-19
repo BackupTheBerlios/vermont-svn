@@ -5,6 +5,7 @@
 
 ExporterConfiguration::ExporterConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
 	: Configuration(document, startPoint), maxPacketSize(0), exportDelay(0), templateRefreshTime(0), templateRefreshRate(0), dataLifetime(0),
+	reconnectTimeout(0),
 	exporterSink(0), ipfixSender(0)
 {
 	xmlChar* idString = xmlGetProp(startPoint, (const xmlChar*)"id");
@@ -78,6 +79,9 @@ void ExporterConfiguration::readSctpManagement(xmlNodePtr p)
 	while (NULL != i) {
 		if (tagMatches(i, "dataLifetime")) {
 			dataLifetime = getTimeInMsecs(i);
+		} 
+		if (tagMatches(i, "reconnectTimeout")) {
+			reconnectTimeout = getTimeInMsecs(i);
 		} 
 		i = i->next;
 	}
@@ -181,6 +185,10 @@ void ExporterConfiguration::createIpfixSender(uint16_t observationDomainId)
 	if(dataLifetime > 0){
 		ipfixSender->setSctpLifetime(dataLifetime);
 		msg(MSG_DEBUG, "ExporterConfiguration: SCTP dataLifetime set to %d",dataLifetime );
+	}
+	if(reconnectTimeout > -1){
+		ipfixSender->setSctpReconnectTimeout(reconnectTimeout);
+		msg(MSG_DEBUG, "ExporterConfiguration: SCTP reconnectTimeout set to %d",reconnectTimeout );
 	}
 	for (unsigned i = 1; i != collectors.size(); ++i) {
 		if (ipfixSender->addCollector(collectors[i]->ipAddress.c_str(), collectors[i]->port,

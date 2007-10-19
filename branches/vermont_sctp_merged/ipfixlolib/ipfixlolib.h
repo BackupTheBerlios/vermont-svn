@@ -79,6 +79,13 @@ extern "C" {
  * can be specified by user
  */
 #define IPFIX_DEFAULT_TEMPLATE_TIMER 20
+/* 
+ * Default time, until a new SCTP retransmission attempt 
+ * takes place
+ * 5 minutes = 400 seconds
+ * can be specified by user
+*/
+#define IPFIX_DEFAULT_SCTP_RECONNECT_TIMER 400
 
 #define TRUE 1
 #define FALSE 0
@@ -269,7 +276,7 @@ typedef struct {
 	enum ipfix_transport_protocol protocol;
 	int data_socket; // socket data is sent to
 	struct sockaddr_in addr;
-	int reconnect; // indicates how many reconnections took place, after successful reconnect reset to 0
+	uint32_t last_reconnect_attempt_time; 
 	int template_socket; // socket, templates are sent to
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
@@ -310,7 +317,9 @@ typedef struct {
 	uint32_t template_transmission_timer;
 	// lifetime of an SCTP data packet
 	uint32_t sctp_lifetime;
-
+	// time, after new sctp reconnectection will be initiated 
+	// (-1 = unsighned 4294966 = no reconnection -> destroy collector)
+	uint32_t sctp_reconnect_timer;
 	int ipfix_lo_template_maxsize;
 	int ipfix_lo_template_current_count;
 	ipfix_lo_template *template_arr;

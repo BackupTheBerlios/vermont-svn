@@ -50,6 +50,7 @@ private:
 	unsigned templateRefreshTime;
 	unsigned templateRefreshRate;
 	unsigned dataLifetime;
+	int reconnectTimeout;
 	
 	std::vector<Collector*> collectors;
 
