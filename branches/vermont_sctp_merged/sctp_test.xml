@@ -89,7 +89,7 @@
 	</udpTemplateManagement>
 	<sctpManagement>
 		<dataLifetime unit="msec">7</dataLifetime>
-		<reconnectTimeout unit="msec">-1</reconnectTimeout>
+		<reconnectTimeout unit="msec">5</reconnectTimeout>
 	</sctpManagement>
 	<collector>
 	    <ipAddressType>4</ipAddressType>
@@ -101,7 +101,7 @@
 		<ipAddressType>4</ipAddressType>
 		<ipAddress>192.168.1.38</ipAddress>
 		<transportProtocol>17</transportProtocol>
-		<port>4711</port>
+		<port>4739</port>
 	</collector>
     </exportingProcess>
 

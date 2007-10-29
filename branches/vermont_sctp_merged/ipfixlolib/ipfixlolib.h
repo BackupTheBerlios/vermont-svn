@@ -85,7 +85,7 @@ extern "C" {
  * 5 minutes = 400 seconds
  * can be specified by user
 */
-#define IPFIX_DEFAULT_SCTP_RECONNECT_TIMER 400
+#define IPFIX_DEFAULT_SCTP_RECONNECT_TIMER 300
 
 #define TRUE 1
 #define FALSE 0
@@ -224,6 +224,9 @@ enum ipfix_transport_protocol {
  */
 enum ipfix_validity {UNUSED, UNCLEAN, COMMITED, SENT, WITHDRAWN, TOBEDELETED};
 
+enum collector_socket_state {NEW, DISCONNECTED, CONNECTED};
+
+
 /*
  * Manages a record set
  * stores the record set header
@@ -274,10 +277,10 @@ typedef struct {
 	char ipv4address[16];
 	int port_number;
 	enum ipfix_transport_protocol protocol;
-	int data_socket; // socket data is sent to
+	int data_socket; // socket data and templates are sent to
 	struct sockaddr_in addr;
 	uint32_t last_reconnect_attempt_time; 
-	int template_socket; // socket, templates are sent to
+	enum collector_socket_state socket_state;
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
 	int packets_written; /**< if protcol==RAWDIR: number of packets written to packet_directory_path. Ignored otherwise. */
@@ -317,8 +320,8 @@ typedef struct {
 	uint32_t template_transmission_timer;
 	// lifetime of an SCTP data packet
 	uint32_t sctp_lifetime;
-	// time, after new sctp reconnectection will be initiated 
-	// (-1 = unsighned 4294966 = no reconnection -> destroy collector)
+	// time, after new sctp reconnectection will be initiated (default = 5 min)
+	// (0 ==> no reconnection -> destroy collector)
 	uint32_t sctp_reconnect_timer;
 	int ipfix_lo_template_maxsize;
 	int ipfix_lo_template_current_count;
