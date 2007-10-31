@@ -36,7 +36,7 @@ extern "C" {
 
 static int init_send_sctp_socket(struct sockaddr_in serv_addr);
 static int init_send_udp_socket(struct sockaddr_in serv_addr);
-static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum ipfix_validity cleanness);
+static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum template_state cleanness);
 static int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf);
 static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbufn);
 static int ipfix_reset_sendbuffer(ipfix_sendbuffer *sendbuf);
@@ -381,7 +381,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int
         while (searching && ( i< exporter->collector_max_num) ) {
 
                 DPRINTFL(MSG_VDEBUG, "ipfix_add_collector searching %i, i %i ", searching, i);
-                if(exporter->collector_arr[i].valid == FALSE) {
+                if(exporter->collector_arr[i].state == C_UNUSED) {
                         // we have found a free slot:
                         /*
                          FIXME: only a quick fix to make that work
@@ -409,7 +409,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int
 	                                    coll_ip4_addr, coll_port
 	                                   );
 	                                return -1;
-	                        } else exporter->collector_arr[i].socket_state = NEW;
+	                        }
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 			}
 			if (proto == RAWDIR) {
@@ -419,7 +419,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int
 #endif
 
                         // now, we may set the collector to valid;
-                        exporter->collector_arr[i].valid = UNCLEAN;
+                        exporter->collector_arr[i].state = C_NEW;
 			
                         // increase total number of collectors.
                         exporter->collector_num++;
@@ -459,7 +459,7 @@ int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int co
 			}
 #endif
 
-                        exporter->collector_arr[i].valid = FALSE;
+                        exporter->collector_arr[i].state = C_UNUSED;
                         searching = FALSE;
                 }
                 i++;
@@ -484,11 +484,11 @@ int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int co
  * Parmeters:
  * exporter: Exporter to search for the template
  * template_id: ID of the template we search
- * cleanness: search for UNUSED templates or for existing by ID
+ * cleanness: search for T_UNUSED templates or for existing by ID
  * Returns: the index of the template in the exporter or -1 on failure.
  */
 
-static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum ipfix_validity cleanness)
+static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum template_state cleanness)
 {
 	msg(MSG_DEBUG, "IPFIX: ipfix_find_template with ID: %d",template_id);
 
@@ -508,9 +508,9 @@ static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, e
         // do we already have a template with this ID?
         // -> update it!
         searching = TRUE;
-       if (cleanness == UNUSED) {
+       if (cleanness == T_UNUSED) {
 		while(searching && ( i< exporter->ipfix_lo_template_maxsize) ) {
-			if( exporter->template_arr[i].valid == cleanness) {
+			if( exporter->template_arr[i].state == cleanness) {
 					// we found an unused slot; return the index:
 					return i;
 			}
@@ -518,15 +518,12 @@ static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, e
 		}
 	}else{
 		while(searching && ( i< exporter->ipfix_lo_template_maxsize) ) {
-//  			if( exporter->template_arr[i].valid == cleanness) {
 				// we are searching for an existing template, compare the template_id:
 				if(exporter->template_arr[i].template_id == template_id) {
-					msg(MSG_DEBUG, "IPFIX: ipfix_find_template with ID: %d, validity %d found at %d", template_id, exporter->template_arr[i].valid, i);
+					msg(MSG_DEBUG, "IPFIX: ipfix_find_template with ID: %d, validity %d found at %d", template_id, exporter->template_arr[i].state, i);
 					return i;
 					searching = FALSE;
 				}
-	
-//  			}
 			i++;
 		}
 	}
@@ -545,11 +542,11 @@ static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, e
 int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
 {
         int ret = 0;
-// argument SENT is ignored in ipfix_find_template
-        int found_index = ipfix_find_template(exporter,template_id, SENT);
+// argument T_SENT is ignored in ipfix_find_template
+        int found_index = ipfix_find_template(exporter,template_id, T_SENT);
 	if (found_index >= 0) {
-		if( (exporter->template_arr[found_index].valid == SENT) || ((exporter->template_arr[found_index].valid == COMMITED)) ){
-			msg(MSG_DEBUG, "IPFIX: ipfix_remove_template_set: creating withdrawal msg for ID: %d, validity %d", template_id, exporter->template_arr[found_index].valid);
+		if( (exporter->template_arr[found_index].state == T_SENT) || ((exporter->template_arr[found_index].state == T_COMMITED)) ){
+			msg(MSG_DEBUG, "IPFIX: ipfix_remove_template_set: creating withdrawal msg for ID: %d, validity %d", template_id, exporter->template_arr[found_index].state);
 			char *p_pos;
 			char *p_end;
 	
@@ -570,7 +567,7 @@ int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
 			write_unsigned16 (&p_pos, p_end, 0);
 			exporter->template_arr[found_index].fields_length = 8;
 			exporter->template_arr[found_index].field_count = 0;
-			exporter->template_arr[found_index].valid = WITHDRAWN;
+			exporter->template_arr[found_index].state = T_WITHDRAWN;
 			msg(MSG_DEBUG, "IPFIX: ipfix_remove_template_set: ... Withdrawn");
 		}
         }else {
@@ -743,7 +740,7 @@ static int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_c
         }
 
         for (i = 0; i< col_capacity; i++) {
-                (tmp[i]).valid = FALSE;
+                (tmp[i]).state = C_UNUSED;
         }
 
         *col=tmp;
@@ -823,7 +820,7 @@ static int ipfix_init_template_array(ipfix_exporter *exporter, int template_capa
         exporter->template_arr =  (ipfix_lo_template*) malloc (template_capacity * sizeof(ipfix_lo_template) );
 
         for(i = 0; i< template_capacity; i++) {
-                exporter->template_arr[i].valid = UNUSED;
+                exporter->template_arr[i].state = T_UNUSED;
         }
 
         return 0;
@@ -846,7 +843,7 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter)
         
         for(i=0; i< exporter->ipfix_lo_template_maxsize; i++) {
                 // if template was sent we need a withdrawal message first
-                if (exporter->template_arr[i].valid == SENT){
+                if (exporter->template_arr[i].state == T_SENT){
                  	ret = ipfix_remove_template_set(exporter, exporter->template_arr[i].template_id );
                 }
         }
@@ -901,12 +898,12 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
         // could be done just like put_data_field:
 
         for (i = 0; i < exporter->ipfix_lo_template_maxsize; i++ )  {
-                switch (exporter->template_arr[i].valid) {
-                	case (TOBEDELETED):
-				// free memory and mark UNUSED
+                switch (exporter->template_arr[i].state) {
+                	case (T_TOBEDELETED):
+				// free memory and mark T_UNUSED
 				ipfix_deinit_template_set(exporter, &(exporter->template_arr[i]) );
 				break;
-			case (COMMITED): // send to SCTP and UDP collectors and mark as SENT
+			case (T_COMMITED): // send to SCTP and UDP collectors and mark as T_SENT
 				if (sctp_sendbuf->current >= IPFIX_MAX_SENDBUFSIZE-2 ) {
 					msg(MSG_ERROR, "IPFIX: SCTP template sendbuffer too small to handle more than %i entries", sctp_sendbuf->current);
 					return -1;
@@ -925,10 +922,9 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 				t_sendbuf->current++;
 				t_sendbuf->committed_data_length +=  exporter->template_arr[i].fields_length;
                         	
-                        	exporter->template_arr[i].valid = SENT;
-                        	//msg(MSG_DEBUG, "IPFIX: ipfix_update_template_sendbuffer: Commited template ID: %d added to sendbuffers", exporter->template_arr[i].template_id);
+                        	exporter->template_arr[i].state = T_SENT;
                         	break;
-                	case (SENT): // only to UDP collectors
+                	case (T_SENT): // only to UDP collectors
                 		if (t_sendbuf->current >= IPFIX_MAX_SENDBUFSIZE-2 ) {
 					msg(MSG_ERROR, "IPFIX: UDP template sendbuffer too small to handle more than %i entries", t_sendbuf->current);
 					return -1;
@@ -937,9 +933,8 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 				t_sendbuf->entries[ t_sendbuf->current ].iov_len =  exporter->template_arr[i].fields_length;
 				t_sendbuf->current++;
 				t_sendbuf->committed_data_length +=  exporter->template_arr[i].fields_length;
-				//msg(MSG_DEBUG, "IPFIX: ipfix_update_template_sendbuffer: Sent template ID: %d added to udp_sendbuffer", exporter->template_arr[i].template_id);
-                        	break;
-                	case (WITHDRAWN): // put the SCTP withdrawal message and mark TOBEDELETED
+				break;
+                	case (T_WITHDRAWN): // put the SCTP withdrawal message and mark T_TOBEDELETED
                 		if (sctp_sendbuf->current >= IPFIX_MAX_SENDBUFSIZE-2 ) {
                                 msg(MSG_ERROR, "IPFIX: SCTP template sendbuffer too small to handle more than %i entries", sctp_sendbuf->current);
                                 return -1;
@@ -949,10 +944,10 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 				sctp_sendbuf->current++;
 				sctp_sendbuf->committed_data_length +=  exporter->template_arr[i].fields_length;
 				
-				exporter->template_arr[i].valid = TOBEDELETED;
+				exporter->template_arr[i].state = T_TOBEDELETED;
 				msg(MSG_DEBUG, "IPFIX: ipfix_update_template_sendbuffer: Withdrawal for template ID: %d added to sctp_sendbuffer", exporter->template_arr[i].template_id);
 				break;
-			default : // Do nothing : UNUSED or UNCLEAN
+			default : // Do nothing : T_UNUSED or T_UNCLEAN
 				break;
                 }
         } // end loop over all templates
@@ -988,7 +983,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 	// send the sendbuffer to all collectors depending on their protocol
 	for (i = 0; i < exporter->collector_max_num; i++) {
 		// is the collector a valid target?
-		if ((*exporter).collector_arr[i].valid) {
+		if ((*exporter).collector_arr[i].state) {
 			DPRINTFL(MSG_VDEBUG, "Sending template to exporter %s:%d Proto: %d",
 				exporter->collector_arr[i].ipv4address,
 				exporter->collector_arr[i].port_number,
@@ -1025,19 +1020,19 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				return -1;
 
 			case SCTP:
-				switch (exporter->collector_arr[i].socket_state){
+				switch (exporter->collector_arr[i].state){
 				
-				case NEW:	// try to connect to the new collector
+				case C_NEW:	// try to connect to the new collector
 					if(ipfix_sctp_reconnect(exporter, i) == -1) {
 						msg(MSG_ERROR, "IPFIX: connecting to new collector failed");
 					}
 					break;
-				case DISCONNECTED: //reconnect attempt if reconnection time reached
+				case C_DISCONNECTED: //reconnect attempt if reconnection time reached
 					if ((time_now - exporter->collector_arr[i].last_reconnect_attempt_time) >  exporter->sctp_reconnect_timer) {
 						ipfix_sctp_reconnect(exporter, i);
 					}
 					break;
-				case CONNECTED:
+				case C_CONNECTED:
 					if (exporter->sctp_template_sendbuffer->committed_data_length > 0) {
 						// update the sendbuffer header, as we must set the export time & sequence number!
 						ret = ipfix_prepend_header(exporter,
@@ -1074,7 +1069,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 								);
 								if (ret == -1) { //1st reconnect attempt failed
 									close(exporter->collector_arr[i].data_socket);
-									exporter->collector_arr[i].socket_state = DISCONNECTED;
+									exporter->collector_arr[i].state = C_DISCONNECTED;
 									exporter->collector_arr[i].last_reconnect_attempt_time = time_now;
 								}
 							}
@@ -1084,20 +1079,6 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 									ipfix_remove_collector(exporter, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
 								}
 							}
-							
-							/*
-							
-							
-							
-							if(exporter->sctp_reconnect_timer == 0){
-								msg(MSG_ERROR, "ipfix_send_templates(): removing collector %s:%d (SCTP)", exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
-								ipfix_remove_collector(exporter, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
-							}else{
-								close(exporter->collector_arr[i].data_socket);
-								exporter->collector_arr[i].socket_state = DISCONNECTED;
-								//exporter->collector_arr[i].data_socket = -1;
-								exporter->collector_arr[i].last_reconnect_attempt_time = time_now;
-							}*/
 						}
 					}
 					break;	
@@ -1162,9 +1143,8 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 
                 // send the sendbuffer to all collectors
                 for (i = 0; i < exporter->collector_max_num; i++) {
-
                         // is the collector a valid target?
-                        if(exporter->collector_arr[i].valid) {
+                        if(exporter->collector_arr[i].state) {
 #ifdef DEBUG
                                 DPRINTFL(MSG_VDEBUG, "IPFIX: Sending to exporter %s", exporter->collector_arr[i].ipv4address);
 
@@ -1205,7 +1185,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 					return -1;
 			
 				case SCTP:
-					if(exporter->collector_arr[i].socket_state == CONNECTED){
+					if(exporter->collector_arr[i].state == C_CONNECTED){
 						ret = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
 							exporter->data_sendbuffer->entries,
 							exporter->data_sendbuffer->committed,
@@ -1232,7 +1212,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 								);
 								if (ret == -1) { //1st reconnect attempt failed
 									close(exporter->collector_arr[i].data_socket);
-									exporter->collector_arr[i].socket_state = DISCONNECTED;
+									exporter->collector_arr[i].state = C_DISCONNECTED;
 									exporter->collector_arr[i].last_reconnect_attempt_time = time_now;
 								}
 							}
@@ -1286,7 +1266,7 @@ int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 		if(connect(sock, (struct sockaddr*)&(exporter->collector_arr[i].addr), sizeof(exporter->collector_arr[i].addr) ) < 0) {
 		msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP reconnect failed, %s", strerror(errno));
 		close(sock);
-		exporter->collector_arr[i].socket_state = DISCONNECTED;
+		exporter->collector_arr[i].state = C_DISCONNECTED;
 		return -1;
 		}
 		exporter->collector_arr[i].data_socket = sock;
@@ -1308,10 +1288,10 @@ int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 		if (ret == -1){
 			msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP sending templates after reconnection failed, %s", strerror(errno));
 			close(exporter->collector_arr[i].data_socket);
-			exporter->collector_arr[i].socket_state = DISCONNECTED;
+			exporter->collector_arr[i].state = C_DISCONNECTED;
 			return -1;
 		}else{
-			exporter->collector_arr[i].socket_state = CONNECTED;
+			exporter->collector_arr[i].state = C_CONNECTED;
 			return sock;
 		}
 	}
@@ -1559,28 +1539,28 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
 	int datatemplate=(fixedfield_count || preceding) ? 1 : 0;
 
         DPRINTF("ipfix_start_template_set: start");
-        found_index = ipfix_find_template(exporter, template_id, SENT);
+        found_index = ipfix_find_template(exporter, template_id, T_SENT);
 
         // have we found a template?
         if(found_index >= 0) {
-                DPRINTF("ipfix_start_template_set: template found at index %i , validity %d", found_index, exporter->template_arr[found_index].valid);
+                DPRINTF("ipfix_start_template_set: template found at index %i , validity %d", found_index, exporter->template_arr[found_index].state);
                 // we must overwrite the old template.
                 // first, clean up the old template:
-		switch (exporter->template_arr[found_index].valid){
-                	case COMMITED:
-			case SENT:
+		switch (exporter->template_arr[found_index].state){
+                	case T_COMMITED:
+			case T_SENT:
 				// create a withdrawal message first
 				ipfix_remove_template_set(exporter, exporter->template_arr[found_index].template_id);
-			case WITHDRAWN:
+			case T_WITHDRAWN:
 				// send withdrawal messages
 				ipfix_send_templates(exporter);
-			case UNCLEAN:
-			case TOBEDELETED:
+			case T_UNCLEAN:
+			case T_TOBEDELETED:
 				// nothing to do, template can be deleted
 				ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]));
 				break;
 			default:
-				msg(MSG_DEBUG, "IPFIX: ipfix_start_template_set: template valid flag ist UNUSED or wrong\n");	
+				msg(MSG_DEBUG, "IPFIX: ipfix_start_template_set: template valid flag is T_UNUSED or wrong\n");	
 				break;
 		}
         } else {
@@ -1606,7 +1586,7 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
                 // search for a free slot:
                 while(searching && i < exporter->ipfix_lo_template_maxsize) {
 
-                        if(exporter->template_arr[i].valid == UNUSED ) {
+                        if(exporter->template_arr[i].state == T_UNUSED ) {
                                 // we have found a free slot:
 
                                 // increase total number of templates.
@@ -1644,9 +1624,7 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
                 exporter->template_arr[found_index].template_fields = (char*)malloc(exporter->template_arr[found_index].max_fields_length );
 
                 // initialize the rest:
-                exporter->template_arr[found_index].valid = UNCLEAN;
-                // TODO FIXME : only TRUE and FALSE don't seem to suffice!
-                //    (*exporter).template_arr[found_index].valid = FALSE;
+                exporter->template_arr[found_index].state = T_UNCLEAN;
                 exporter->template_arr[found_index].template_id = template_id;
                 exporter->template_arr[found_index].field_count = field_count;
 
@@ -1717,7 +1695,7 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uin
         char *p_end;
 	int enterprise_bit_set = ipfix_enterprise_flag_set(type);
 
-        found_index=ipfix_find_template(exporter, template_id,  UNCLEAN);
+        found_index=ipfix_find_template(exporter, template_id,  T_UNCLEAN);
 
         /* test for a valid slot */
         if( found_index < 0 || found_index >= exporter->ipfix_lo_template_maxsize ) {
@@ -1793,7 +1771,7 @@ int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void
 	
         int i;
 
-        found_index=ipfix_find_template(exporter, template_id,  UNCLEAN);
+        found_index=ipfix_find_template(exporter, template_id,  T_UNCLEAN);
 
         /* test for a valid slot */
         if ( found_index < 0 || found_index >= exporter->ipfix_lo_template_maxsize ) {
@@ -1842,7 +1820,7 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
         char *p_pos;
         char *p_end;
 
-        found_index=ipfix_find_template(exporter, template_id, UNCLEAN);
+        found_index=ipfix_find_template(exporter, template_id, T_UNCLEAN);
 
         // test for a valid slot:
         if ( (found_index < 0 ) || ( found_index >= exporter->ipfix_lo_template_maxsize ) ) {
@@ -1870,7 +1848,7 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
         // write the lenght field
         write_unsigned16 (&p_pos, p_end, templ->fields_length);
         // call the template valid
-        templ->valid = COMMITED;
+        templ->state = T_COMMITED;
 
         return 0;
 }
@@ -1898,12 +1876,12 @@ int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template *templ
         // might try to write to an unclean template!!!
 
         // first test, if we can free this template
-        if (templ->valid == UNUSED) {
-		DPRINTF("ipfix_deinit_template_set: Cannot free template. Template is UNUSED");
+        if (templ->state == T_UNUSED) {
+		DPRINTF("ipfix_deinit_template_set: Cannot free template. Template is T_UNUSED");
                 return -1;
         } else {
-        	msg(MSG_DEBUG,"IPFIX: ipfix_deinit_template_set: deleting Template ID: %d validity: %d", templ->template_id, templ->valid);
-		templ->valid = UNUSED;
+        	msg(MSG_DEBUG,"IPFIX: ipfix_deinit_template_set: deleting Template ID: %d validity: %d", templ->template_id, templ->state);
+		templ->state = T_UNUSED;
 		free(templ->template_fields);
                 exporter->ipfix_lo_template_current_count--;
 	}

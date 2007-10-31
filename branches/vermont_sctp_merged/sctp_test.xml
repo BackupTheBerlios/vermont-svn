@@ -93,7 +93,7 @@
 	</sctpManagement>
 	<collector>
 	    <ipAddressType>4</ipAddressType>
-	    <ipAddress>192.168.1.38</ipAddress>
+	    <ipAddress>192.168.1.37</ipAddress>
 	    <transportProtocol>132</transportProtocol>
 	    <port>1500</port>
 	</collector>

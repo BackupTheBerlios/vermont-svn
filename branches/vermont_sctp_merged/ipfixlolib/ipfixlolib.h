@@ -218,13 +218,20 @@ enum ipfix_transport_protocol {
 /*
  * These indicate, if a field is commited (i.e. can be used)
  * unused or unclean (i.e. data is not complete yet)
- * * SENT (Template was sent) and WiTHDRAWN (Template destroyed) 
+ * T_SENT (Template was sent) and T_WiTHDRAWN (Template destroyed) 
  * are used with SCTP, since Templates are sent only once
- * TOBEDELETED templates will be deleted the next time when the buffer is updated
+ * T_TOBEDELETED templates will be deleted the next time when the buffer is updated
  */
-enum ipfix_validity {UNUSED, UNCLEAN, COMMITED, SENT, WITHDRAWN, TOBEDELETED};
+enum template_state {T_UNUSED, T_UNCLEAN, T_COMMITED, T_SENT, T_WITHDRAWN, T_TOBEDELETED};
 
-enum collector_socket_state {NEW, DISCONNECTED, CONNECTED};
+
+/*
+ * Indicates the state of the collector. After collector is added
+ * state changes to C_NEW, successful call of the socket connect() function
+ * sets the state to C_CONNECTED. If connection is lost and the socket closed
+ * state changes to C_DISCONNECTED and reconnection attempts can take place
+*/
+enum collector_state {C_UNUSED, C_NEW, C_DISCONNECTED, C_CONNECTED};
 
 
 /*
@@ -273,14 +280,13 @@ typedef struct {
  * A collector receiving messages from this exporter
  */
 typedef struct {
-	int valid; // indicates, whether this collector is valid. .
 	char ipv4address[16];
 	int port_number;
 	enum ipfix_transport_protocol protocol;
 	int data_socket; // socket data and templates are sent to
 	struct sockaddr_in addr;
 	uint32_t last_reconnect_attempt_time; 
-	enum collector_socket_state socket_state;
+	enum collector_state state;
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
 	int packets_written; /**< if protcol==RAWDIR: number of packets written to packet_directory_path. Ignored otherwise. */
@@ -291,7 +297,7 @@ typedef struct {
  * A template, mostly in binary form
  */
 typedef struct{
-	enum ipfix_validity valid; // indicates, whether this template is valid.
+	enum template_state state; // indicates, whether this template is valid.
 	uint16_t template_id;
 	uint16_t field_count;
 	int fields_length;
