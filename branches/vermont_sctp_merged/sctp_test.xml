@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>eth0</interface>
+		<interface>eth1</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
@@ -17,7 +17,6 @@
 			    <templateId>998</templateId>
 			    <flowKey>
 				    <ieName>sourceIPv4Address</ieName>
-				    <modifier>mask/16</modifier>
 			    </flowKey>
 			    <flowKey>
 				    <ieName>destinationIPv4Address</ieName>
@@ -93,15 +92,15 @@
 	</sctpManagement>
 	<collector>
 	    <ipAddressType>4</ipAddressType>
-	    <ipAddress>192.168.1.37</ipAddress>
+	    <ipAddress>127.0.0.1</ipAddress>
 	    <transportProtocol>132</transportProtocol>
-	    <port>1500</port>
+	    <port>4711</port>
 	</collector>
 	<collector>
 		<ipAddressType>4</ipAddressType>
-		<ipAddress>192.168.1.38</ipAddress>
+		<ipAddress>127.0.0.1</ipAddress>
 		<transportProtocol>17</transportProtocol>
-		<port>4739</port>
+		<port>4711</port>
 	</collector>
     </exportingProcess>
 

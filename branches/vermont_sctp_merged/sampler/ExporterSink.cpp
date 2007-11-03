@@ -152,7 +152,7 @@ bool ExporterSink::addPacket(Packet *pck)
 void ExporterSink::flushPacketStream()
 {
     // end the packet stream and send the IPFIX packet out through the wire
-    ipfix_end_data_set(exporter);
+    ipfix_end_data_set(exporter, numPacketsToRelease);
     ipfix_send(exporter);
 
     DPRINTF("dropping %d packets", numPacketsToRelease);

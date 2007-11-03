@@ -81,6 +81,7 @@ int main(int argc, char *argv[]) {
 	*/
 
 	IpfixParser ipfixParser;
+	ipfixParser.setTemplateLivetime(0);
 	ipfixParser.addFlowSink(&ipfixPrinter);
 
 	IpfixCollector ipfixCollector;

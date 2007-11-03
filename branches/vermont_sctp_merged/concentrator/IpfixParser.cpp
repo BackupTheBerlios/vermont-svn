@@ -98,8 +98,8 @@ void IpfixParser::processTemplateSet(boost::shared_ptr<IpfixRecord::SourceID> so
 		}
         
 		templateBuffer->bufferTemplate(bt); 
-		if(sourceId->protocol == IPFIX_protocolIdentifier_UDP)
-			bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
+		if((sourceId->protocol == IPFIX_protocolIdentifier_UDP) && (templateLivetime > 0))
+			bt->expires = time(0) + templateLivetime;
 		else
 			bt->expires = 0;
 
@@ -185,8 +185,8 @@ void IpfixParser::processOptionsTemplateSet(boost::shared_ptr<IpfixRecord::Sourc
 			}
 		}
 		templateBuffer->bufferTemplate(bt); 
-		if(sourceId->protocol == IPFIX_protocolIdentifier_UDP)
-			bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
+		if((sourceId->protocol == IPFIX_protocolIdentifier_UDP) && (templateLivetime > 0))
+			bt->expires = time(0) + templateLivetime;
 		else
 			bt->expires = 0;
 
@@ -292,8 +292,8 @@ void IpfixParser::processDataTemplateSet(boost::shared_ptr<IpfixRecord::SourceID
 		record += dataLength;
 
 		templateBuffer->bufferTemplate(bt); 
-		if(sourceId->protocol == IPFIX_protocolIdentifier_UDP)
-			bt->expires = time(0) + TEMPLATE_EXPIRE_SECS;
+		if((sourceId->protocol == IPFIX_protocolIdentifier_UDP) && (templateLivetime > 0))
+			bt->expires = time(0) + templateLivetime;
 		else
 			bt->expires = 0;
 
@@ -308,8 +308,9 @@ void IpfixParser::processDataTemplateSet(boost::shared_ptr<IpfixRecord::SourceID
  * Processes an IPFIX data set.
  * Called by processMessage
  */
-void IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> sourceId, boost::shared_array<uint8_t> message, IpfixSetHeader* set) {
+uint32_t IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> sourceId, boost::shared_array<uint8_t> message, IpfixSetHeader* set) {
 	TemplateBuffer::BufferedTemplate* bt = templateBuffer->getBufferedTemplate(sourceId, ntohs(set->id));
+	uint32_t numberOfRecords = 0;
 
 	if (bt == 0) {
 		/* this error may come in rapid succession; I hope I don't regret it */
@@ -324,7 +325,7 @@ void IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> source
 		tmpInfo.length = 1; // length=1 for protocol identifier
 		printProtocol(tmpInfo, &sourceId->protocol);
 		printf(")\n");
-		return;
+		return 0;
 	}
         
 #ifdef SUPPORT_NETFLOWV9
@@ -356,6 +357,7 @@ void IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> source
 				ipfixRecord->data = record;
 				push(ipfixRecord);
 				record = record + bt->recordLength;
+				numberOfRecords++;
 			}
 		} else {
 			uint8_t* recordX = record+length;
@@ -393,6 +395,7 @@ void IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> source
 				ipfixRecord->data = record;
 				push(ipfixRecord);
 				record = record + recordLength;
+				numberOfRecords++;
 			}
 		}
 	} else {
@@ -414,6 +417,7 @@ void IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> source
 					ipfixRecord->data = record;
 					push(ipfixRecord);
 					record = record + bt->recordLength;
+					numberOfRecords++;
 				}
 			} else {
 				uint8_t* recordX = record+length;
@@ -461,6 +465,7 @@ void IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> source
 					ipfixRecord->data = record;
 					push(ipfixRecord);
 					record = record + recordLength;
+					numberOfRecords++;
 				}
 			}
 		} else {
@@ -482,6 +487,7 @@ void IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> source
 						ipfixRecord->data = record;
 						push(ipfixRecord);
 						record = record + bt->recordLength;
+						numberOfRecords++;
 					}
 				} else {
 					uint8_t* recordX = record+length;
@@ -513,6 +519,7 @@ void IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> source
 						ipfixRecord->data = record;
 						push(ipfixRecord);
 						record = record + recordLength;
+						numberOfRecords++;
 					}
 				}	
 			} else {
@@ -520,6 +527,7 @@ void IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> source
 			}
 		}
 	}
+	return numberOfRecords;
 }
 
         
@@ -572,6 +580,7 @@ int IpfixParser::processIpfixPacket(boost::shared_array<uint8_t> message, uint16
 	IpfixSetHeader* setX = (IpfixSetHeader*)((char*)message.get() + length); 
 
 	uint16_t tmpid;
+	uint32_t numberOfDataRecords = 0;
 	while(set < setX) {
 		tmpid=ntohs(set->id);
 
@@ -587,13 +596,15 @@ int IpfixParser::processIpfixPacket(boost::shared_array<uint8_t> message, uint16
 			break;
 		default:
 			if(tmpid >= IPFIX_SetId_Data_Start) {
-				processDataSet(sourceId, message, set);
+				numberOfDataRecords += processDataSet(sourceId, message, set);
 			} else {
 				msg(MSG_ERROR, "processIpfixPacket: Unsupported Set ID - expected 2/3/4/256+, got %d", tmpid);
 			}
 		}
 		set = (IpfixSetHeader*)((uint8_t*)set + ntohs(set->length));
 	}
+
+	msg(MSG_DEBUG, "Message contained %u records, sequence number was %u", numberOfDataRecords, ntohl(header->sequenceNo));
 
 	return 0;
 }
@@ -627,11 +638,19 @@ int IpfixParser::processPacket(boost::shared_array<uint8_t> message, uint16_t le
 #endif
 }
 
+
+/**
+ * Sets the template livetime
+ */
+void IpfixParser::setTemplateLivetime(uint16_t time) {
+	templateLivetime = time;
+}
+
 /**
  * Creates a new  @c IpfixParser.
  * @return handle to created instance
  */
-IpfixParser::IpfixParser() {
+IpfixParser::IpfixParser() : templateLivetime(DEFAULT_TEMPLATE_EXPIRE_SECS) {
 
 	if (pthread_mutex_init(&mutex, NULL) != 0) {
 		msg(MSG_FATAL, "Could not init mutex");

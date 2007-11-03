@@ -248,6 +248,7 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
 
         tmp->source_id=source_id;
         tmp->sequence_number = 0;
+        tmp->sn_increment = 0;
         tmp->collector_num = 0; // valgrind kindly asked me to inititalize this value JanP
         tmp->collector_max_num = 0;
 
@@ -1132,6 +1133,10 @@ static int ipfix_send_data(ipfix_exporter* exporter)
         
         // is there data to send?
         if (exporter->data_sendbuffer->committed_data_length > 0 ) {
+		// increment sequence number
+		exporter->sequence_number += exporter->sn_increment;
+		exporter->sn_increment = 0;
+
                 data_length = exporter->data_sendbuffer->committed_data_length;
 
                 // prepend a header to the sendbuffer
@@ -1309,22 +1314,13 @@ int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
  */
 int ipfix_send(ipfix_exporter *exporter)
 {
-        int ret_templates, ret_data;
         int ret = 0;
 
-        if((ret_templates=ipfix_send_templates(exporter)) > 0) {
-                exporter->sequence_number++;
-        }
-
-        if((ret_data=ipfix_send_data(exporter)) > 0) {
-                exporter->sequence_number++;
-        }
-
-        if(ret_templates < 0) {
+        if(ipfix_send_templates(exporter) < 0) {
                 msg(MSG_ERROR, "IPFIX: sending templates failed");
                 ret = -1;
         }
-        if(ret_data < 0) {
+        if(ipfix_send_data(exporter) < 0) {
                 msg(MSG_ERROR, "IPFIX: sending data failed");
                 ret = -1;
         }
@@ -1402,14 +1398,18 @@ out:
  * Marks the end of a data set
  * Parameters:
  *   exporter: exporting process to send data to
+ *   number_of_records: number of data records in this set (used to calculate the sequence number)
  */
-int ipfix_end_data_set(ipfix_exporter *exporter)
+int ipfix_end_data_set(ipfix_exporter *exporter, uint16_t number_of_records)
 {
 	ipfix_set_manager *manager = &(exporter->data_sendbuffer->set_manager);
 	unsigned current = manager->set_counter;
 	uint16_t record_length;
 
-        // calculate and store the total length of the record:
+	// add number of data records to sequence number increment
+	exporter->sn_increment += number_of_records;
+
+        // calculate and store the total length of the set:
         record_length = manager->data_length + sizeof(ipfix_set_header);
 	manager->set_header_store[current].length = htons(record_length);
 

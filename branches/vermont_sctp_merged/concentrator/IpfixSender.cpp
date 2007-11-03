@@ -348,7 +348,7 @@ int IpfixSender::endAndSendDataSet()
 	if(recordsInDataSet > 0) {
 		ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
 	
-		if (ipfix_end_data_set(exporter) != 0) {
+		if (ipfix_end_data_set(exporter, recordsInDataSet) != 0) {
 			msg(MSG_FATAL, "sndIpfix: ipfix_end_data_set failed");
 			return -1;
 		}

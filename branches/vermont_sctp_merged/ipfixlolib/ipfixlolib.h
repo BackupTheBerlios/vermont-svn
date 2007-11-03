@@ -310,7 +310,8 @@ typedef struct{
  * The exporting process keeps track of the sequence number.
  */
 typedef struct {
-	uint32_t sequence_number;
+	uint32_t sequence_number; // total number of data records 
+	uint32_t sn_increment; // to be added to sequence number before sending data records
 	uint32_t source_id;
 	ipfix_sendbuffer *template_sendbuffer;
 	ipfix_sendbuffer *sctp_template_sendbuffer;
@@ -353,7 +354,7 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id );
 int ipfix_remove_template(ipfix_exporter *exporter, uint16_t template_id);
 */
 int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id);
-int ipfix_end_data_set(ipfix_exporter *exporter);
+int ipfix_end_data_set(ipfix_exporter *exporter, uint16_t number_of_records);
 int ipfix_cancel_data_set(ipfix_exporter *exporter);
 int ipfix_set_data_field_marker(ipfix_exporter *exporter);
 int ipfix_delete_data_fields_upto_marker(ipfix_exporter *exporter);
