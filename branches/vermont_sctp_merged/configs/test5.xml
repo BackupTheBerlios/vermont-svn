@@ -4,7 +4,7 @@
 	<observationDomainId>12345</observationDomainId>
 	<listener>
 	    <ipAddressType>4</ipAddressType>
-	    <ipAddress>10.2.0.99</ipAddress>
+	    <ipAddress>127.0.0.1</ipAddress>
 	    <transportProtocol>17</transportProtocol>
 	    <port>4711</port>
 	</listener>
@@ -66,7 +66,7 @@
 	<collector>
 	    <ipAddressType>4</ipAddressType>
 	    <ipAddress>127.0.0.1</ipAddress>
-	    <transportProtocol>17</transportProtocol>
+	    <transportProtocol>132</transportProtocol>
 	    <port>1500</port>
 	</collector>
     </exportingProcess>

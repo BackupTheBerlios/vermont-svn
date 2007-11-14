@@ -27,6 +27,7 @@ CollectorConfiguration::CollectorConfiguration(xmlDocPtr document, xmlNodePtr st
 	}
 	id = configTypes::collector + (const char*)idString;
 	xmlFree(idString);
+// 	ipfixParser = new IpfixParser();
 }
 
 CollectorConfiguration::~CollectorConfiguration()
@@ -48,7 +49,7 @@ void CollectorConfiguration::configure()
 		if (tagMatches(i, "listener")) {
 			readListener(i);
 		} else if (tagMatches(i, "udpTemplateLifetime")) {
-			msg(MSG_DEBUG, "Don't know how to handle udpTemplateLifetime! Ignored.");
+			templateLifetime = getTimeInSecs(i);
 		} else if (tagMatches(i, "observationDomainId")) {
 			observationDomainId = atoi(getContent(i).c_str());
 		} else if (tagMatches(i, "next")) {
@@ -118,6 +119,9 @@ void CollectorConfiguration::setUp()
 	ipfixParser = new IpfixParser;
 	if (!ipfixParser) {
 		THROWEXCEPTION("Could not create IPFIX parser");
+	}
+	if (templateLifetime){
+		ipfixParser->setTemplateLivetime(templateLifetime);
 	}
 }
 

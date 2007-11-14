@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>eth1</interface>
+		<interface>eth0</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
@@ -90,12 +90,12 @@
 		<dataLifetime unit="msec">7</dataLifetime>
 		<reconnectTimeout unit="msec">5</reconnectTimeout>
 	</sctpManagement>
-	<collector>
+	<!--<collector>
 	    <ipAddressType>4</ipAddressType>
 	    <ipAddress>127.0.0.1</ipAddress>
 	    <transportProtocol>132</transportProtocol>
-	    <port>4711</port>
-	</collector>
+	    <port>1500</port>
+	</collector>-->
 	<collector>
 		<ipAddressType>4</ipAddressType>
 		<ipAddress>127.0.0.1</ipAddress>
