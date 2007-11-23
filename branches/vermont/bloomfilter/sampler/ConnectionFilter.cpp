@@ -1,6 +1,6 @@
 #include "ConnectionFilter.h"
 
-ConnectionFilter::ConnectionFilter()
+ConnectionFilter::ConnectionFilter(int timeout, int bytes)
 {
 	
 }
@@ -16,11 +16,6 @@ bool ConnectionFilter::processPacket(const Packet* p)
 	static uint32_t dstIp;
 	static QuintupleKey key;
 	static unsigned tmp;
-
-	// configure
-	static unsigned maxTime = 10;
-	static unsigned exportBytes = 1000;
-
 
 	if (p->ipProtocolType != Packet::TCP) 
 		return false;
@@ -51,7 +46,7 @@ bool ConnectionFilter::processPacket(const Packet* p)
 			}
 			return true;
 		} else {
-			if (p->timestamp.tv_sec - synFilter.getLastTime(key.data, key.len) < maxTime &&
+			if (p->timestamp.tv_sec - synFilter.getLastTime(key.data, key.len) < timeout &&
 			    synFilter.getLastTime(key.data, key.len) - connectionFilter.getLastTime(key.data, key.len) > 0) {
 				if (p->data_length < exportBytes) {
 					exportFilter.getAndSetValue(key.data, key.len, exportBytes - p->data_length);

@@ -8,13 +8,15 @@
 
 class ConnectionFilter : public PacketProcessor {
 public:
-	ConnectionFilter();
+	ConnectionFilter(int timeout, int bytes);
 
 	virtual bool processPacket(const Packet* p);
 protected:
 	AgeBloomFilter synFilter;
 	AgeBloomFilter connectionFilter;
 	CountBloomFilter exportFilter;
+	int timeout;
+	int exportBytes;
 };
 
 #endif

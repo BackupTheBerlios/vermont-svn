@@ -14,6 +14,7 @@
 #include <sampler/PacketSink.h>
 #include <sampler/stringFilter.h>
 #include <sampler/regExFilter.h>
+#include <sampler/ConnectionFilter.h>
 
 
 PacketSelectionConfiguration::PacketSelectionConfiguration(xmlDocPtr document, xmlNodePtr startPoint)
@@ -156,7 +157,20 @@ void PacketSelectionConfiguration::configure()
 				j = j->next;
 			}
 			filter->addProcessor(new IPHeaderFilter(header, offset, size, comp, value));
-		}
+		} else if (tagMatches(i, "connectionFilter")) {
+			xmlNodePtr j = i->xmlChildrenNode;
+			int bytes, timeout;
+			msg(MSG_INFO, "PacketSelectionConfiguration: Creating connection filter");
+			while (NULL != j) {
+				if (tagMatches(j, "bytes")) {
+					bytes = atoi(getContent(j).c_str());
+				} else if (tagMatches(j, "timeout")) {
+					timeout = atoi(getContent(j).c_str());
+				}
+				j = j->next;
+			}
+			filter->addProcessor(new ConnectionFilter(timeout, bytes));
+		}	
 		i = i->next;
 	}
 	msg(MSG_INFO, "PacketSelectionConfiguration: Successfully parsed packetSelection section");
