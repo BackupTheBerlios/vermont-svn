@@ -5,6 +5,9 @@
 
 #include "BloomFilterBase.h"
 
+#include "msg.h"
+
+#include <climits>
 
 // work around a gcc "feature": whenever you need to access a variable from BloomFilterBase<T>,
 // you need to specify the full namespace, e.g.  BloomFilterBase::hf_numbers
@@ -20,7 +23,7 @@ class MinBloomFilter : public BloomFilterBase<T>
 
 
 		virtual typename T::ValueType  get(uint8_t* input, size_t len) const {
-			typename T::ValueType  ret = 0;
+			typename T::ValueType  ret = INT_MAX;
 			typename T::ValueType  current;
 			for(unsigned i=0; i != BloomFilterBase<T>::hf_number; i++) {   
 				current = BloomFilterBase<T>::filter.get(
