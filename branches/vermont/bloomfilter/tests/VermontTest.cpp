@@ -5,6 +5,7 @@
 #include "VermontTest.h"
 #include "AggregationPerfTest.h"
 #include "BloomFilterTest.h"
+#include "ConnectionFilterTest.h"
 #include "test_concentrator.h"
 
 using boost::unit_test::test_suite;
@@ -22,6 +23,7 @@ test_suite* init_unit_test_suite(int argc, char* argv[])
 	//test->add(new ConcentratorTestSuite());
 #ifdef HAVE_CONNECTION_FILTER
 	test->add(new BloomFilterTestSuite());
+	test->add(new ConnectionFilterTestSuite());
 #endif
 
 	return test;

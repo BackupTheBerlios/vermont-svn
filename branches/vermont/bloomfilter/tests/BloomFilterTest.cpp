@@ -1,7 +1,10 @@
+#ifdef HAVE_CONNECTION_FILTER
+
 #include "BloomFilterTest.h"
 #include <common/BloomFilter.h>
 #include <common/AgeBloomFilter.h>
 #include <common/CountBloomFilter.h>
+#include <common/msg.h>
 
 #include <iostream>
 
@@ -9,8 +12,8 @@
 
 static void startTests();
 
-QuintupleKey key1;
-QuintupleKey key2;
+static QuintupleKey key1;
+static QuintupleKey key2;
 
 BloomFilterTestSuite::BloomFilterTestSuite()
         : test_suite("BloomFilterTest")
@@ -113,6 +116,9 @@ static void testAgeBloomFilter()
 
 static void startTests()
 {
+	std::cout << "Running tests on BloomFilter classes" << std::endl;
+	msg_init();
+	msg_setlevel(100);
 	setupGlobalKey();
 
 	std::cout << "Testing BloomFilter..." << std::endl;
@@ -123,4 +129,8 @@ static void startTests()
 
 	std::cout << "Testing CountBloomFilter..." << std::endl;
 	testCountBloomFilter();
+
+	std::cout << "All tests on all BloomFilter classes passed" << std::endl;
 }
+
+#endif

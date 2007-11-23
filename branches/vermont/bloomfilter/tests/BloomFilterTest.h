@@ -1,3 +1,5 @@
+#ifdef HAVE_CONNECTION_FILTER
+
 #ifndef _BLOOMFILTER_TEST_H_
 #define _BLOOMFILTER_TEST_H_
 
@@ -12,5 +14,7 @@ class BloomFilterTestSuite : public test_suite
 		BloomFilterTestSuite();
 };
 
+
+#endif
 
 #endif
