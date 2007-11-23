@@ -1,8 +1,11 @@
 #include "ConnectionFilter.h"
 
-ConnectionFilter::ConnectionFilter(int timeout, int bytes)
+ConnectionFilter::ConnectionFilter(unsigned timeout, unsigned bytes, unsigned filterSize, unsigned hashFunctions)
+	: synFilter(filterSize, hashFunctions), exportFilter(filterSize, hashFunctions),
+	  connectionFilter(filterSize, hashFunctions)
 {
-	
+	this->timeout = timeout;
+	this->exportBytes = bytes;
 }
 
 bool ConnectionFilter::processPacket(const Packet* p)
@@ -12,8 +15,6 @@ bool ConnectionFilter::processPacket(const Packet* p)
 	static const uint8_t ACK = 0x10;
 	static const uint8_t FIN = 0x01;
 	static const uint8_t RST = 0x04;
-	static uint32_t srcIp;
-	static uint32_t dstIp;
 	static QuintupleKey key;
 	static unsigned tmp;
 
@@ -46,7 +47,7 @@ bool ConnectionFilter::processPacket(const Packet* p)
 			}
 			return true;
 		} else {
-			if (p->timestamp.tv_sec - synFilter.getLastTime(key.data, key.len) < timeout &&
+			if ((unsigned)(p->timestamp.tv_sec - synFilter.getLastTime(key.data, key.len)) < timeout &&
 			    synFilter.getLastTime(key.data, key.len) - connectionFilter.getLastTime(key.data, key.len) > 0) {
 				if (p->data_length < exportBytes) {
 					exportFilter.getAndSetValue(key.data, key.len, exportBytes - p->data_length);

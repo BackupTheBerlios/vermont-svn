@@ -159,17 +159,24 @@ void PacketSelectionConfiguration::configure()
 			filter->addProcessor(new IPHeaderFilter(header, offset, size, comp, value));
 		} else if (tagMatches(i, "connectionFilter")) {
 			xmlNodePtr j = i->xmlChildrenNode;
-			int bytes, timeout;
+			int bytes = 0;
+			int timeout = 0;
+			int size = 0;
+			int hashFunctions = 0;
 			msg(MSG_INFO, "PacketSelectionConfiguration: Creating connection filter");
 			while (NULL != j) {
 				if (tagMatches(j, "bytes")) {
 					bytes = atoi(getContent(j).c_str());
 				} else if (tagMatches(j, "timeout")) {
 					timeout = atoi(getContent(j).c_str());
+				} else if (tagMatches(j, "filterSize")) {
+					size = atoi(getContent(j).c_str());
+				} else if (tagMatches(j, "hashFunctions")) {
+					hashFunctions = atoi(getContent(j).c_str());
 				}
 				j = j->next;
 			}
-			filter->addProcessor(new ConnectionFilter(timeout, bytes));
+			filter->addProcessor(new ConnectionFilter(timeout, bytes, size, hashFunctions));
 		}	
 		i = i->next;
 	}
