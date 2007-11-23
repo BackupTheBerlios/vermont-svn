@@ -31,7 +31,7 @@ class AgeArray {
     friend std::ostream & operator << (std::ostream &, const AgeArray &);
 
 public:
-    AgeArray() : array_size(0), array(NULL) {}
+    AgeArray() : array(NULL), array_size(0)  {}
 
     AgeArray(uint32_t size) : array(NULL)
     {

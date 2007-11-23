@@ -7,7 +7,7 @@
 
 class CountArray {
 	public:
-		CountArray() : array_size(0), array(NULL) {}
+		CountArray() : array(NULL), array_size(0) {}
 
 		CountArray(uint32_t size) : array(NULL) {
 			resize(size);

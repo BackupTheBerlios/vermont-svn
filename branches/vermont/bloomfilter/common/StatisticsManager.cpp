@@ -67,7 +67,7 @@ void StatisticsManager::runStats()
 
 		FILE* f = fopen(outputFile.c_str(), "a");
 		if (f == 0) THROWEXCEPTION("failed to open file %s", outputFile.c_str());
-		fprintf(f, "statistics dump at %lu\n", time(0));
+		fprintf(f, "statistics dump at %lu\n", (long unsigned)time(0));
 
 		mutex.lock();
 		list<StatisticsModule*>::const_iterator iter = statModules.begin();

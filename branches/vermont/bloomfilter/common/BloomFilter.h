@@ -118,7 +118,7 @@ class Bitmap {
     friend std::ostream & operator << (std::ostream &, const Bitmap &);
 
     public:
-	Bitmap() : len_bits(0), len_octets(0), bitmap(NULL) {}
+	Bitmap() : bitmap(NULL), len_bits(0), len_octets(0) {}
 
 	Bitmap(uint32_t size) : bitmap(NULL)
 	{
