@@ -232,6 +232,25 @@ ENDIF (USE_PCAPMMAP)
 TARGET_LINK_LIBRARIES(vermont ${PCAP_LIBRARY})
 
 
+### connection filter
+
+OPTION(CONNECTION_FILTER "Enables/disables the connection filter. (Needs libgsl)" ON)
+
+IF (CONNECTION_FILTER)
+	FIND_PACKAGE(GSL)
+	MARK_AS_ADVANCED(
+		GSL_INCLUDE_DIR
+		GSL_LIBRARIES
+	)	
+	IF (GSL_FOUND)
+		MESSAGE(STATUS "GNU scientific library found")
+	ELSE (GSL_FOUND)
+		MESSAGE(FATAL_ERROR "GNU scientific library not found. Please install the library or use -DUSE_CONNECTION_FILTER=OFF")
+	ENDIF (GSL_FOUND)
+	ADD_DEFINITIONS(-DHAVE_GSL)
+	ADD_DEFINITIONS(-DHAVE_CONNECTION_FILTER)
+ENDIF(CONNECTION_FILTER)
+
 ### tools
 
 OPTION(WITH_TOOLS "Build misc tools." ON)
