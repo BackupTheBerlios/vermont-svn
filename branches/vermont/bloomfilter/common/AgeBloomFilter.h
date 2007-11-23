@@ -21,67 +21,42 @@
 
 #ifdef HAVE_GSL
 
-#include <iostream>
-#include <gsl/gsl_rng.h>
-#include "BloomFilter.h"
+#include "MinBloomFilter.h"
+
+#include <ostream>
 
 typedef time_t agetime_t;
 
 class AgeArray {
-    friend std::ostream & operator << (std::ostream &, const AgeArray &);
+	friend std::ostream & operator << (std::ostream &, const AgeArray &);
 
-public:
-    AgeArray() : array(NULL), array_size(0)  {}
-
-    AgeArray(uint32_t size) : array(NULL)
-    {
-	resize(size);
-    }
+	public:
+		AgeArray(size_t size) : array(NULL)
+		{
+			resize(size);
+		}
 	
-    ~AgeArray()
-    {
-	free(array);
-    }
+		~AgeArray()
+		{
+			free(array);
+		}
 
-    void resize(uint32_t size);
-    void clear();
-    inline agetime_t getAndSet(uint32_t index, agetime_t time);
-    inline agetime_t get(uint32_t index) const;
+		typedef agetime_t ValueType;
+
+		void resize(size_t size);
+		void clear();
+		void set(size_t index, agetime_t time);
+		agetime_t get(size_t index) const;
     
-private:
-    agetime_t* array;
-    uint32_t array_size;
+	private:
+		agetime_t* array;
+		size_t array_size;
 };
 
 std::ostream & operator << (std::ostream &, const AgeArray &);
 
 
-class AgeBloomFilter : public HashFunctions
-{
-
-    friend std::ostream & operator << (std::ostream &, const AgeBloomFilter &);
-
-    public:
-    AgeBloomFilter() : HashFunctions(), filter_size(0) {}
-
-    AgeBloomFilter(uint32_t size, unsigned hashfunctions) : HashFunctions(hashfunctions), filter_size(size) 
-    {
-	filter.resize(size);
-    }
-
-    ~AgeBloomFilter() {}
-
-    void init(uint32_t size, unsigned hashfunctions);
-    void clear();
-    agetime_t getLastTime(uint8_t* input, unsigned len) const;
-    agetime_t getAndSetLastTime(uint8_t* input, unsigned len, agetime_t time);
-
-    private:
-    AgeArray filter;
-    uint32_t filter_size;
-};
-
-std::ostream & operator << (std::ostream &, const AgeBloomFilter &);
+typedef MinBloomFilter<AgeArray> AgeBloomFilter;
 
 #endif // HAVE_GSL
 

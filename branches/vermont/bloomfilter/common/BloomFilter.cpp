@@ -32,7 +32,7 @@ const uint8_t bitmask[8] =
     0x80  //10000000
 };
     
-void Bitmap::resize(uint32_t size)
+void Bitmap::resize(size_t size)
 {
     free(bitmap);
     len_bits = size;
@@ -46,13 +46,13 @@ void Bitmap::clear()
     memset(bitmap, 0, len_octets);
 }
 
-void Bitmap::set(uint32_t index)
+void Bitmap::set(size_t index)
 {
     if(index < len_bits)
 	bitmap[index/8] |= bitmask[index%8];
 }
 
-bool Bitmap::test(uint32_t index) const
+bool Bitmap::get(size_t index) const
 {
     if(index < len_bits)
 	return (bitmap[index/8] & bitmask[index%8]) != 0;
@@ -60,11 +60,11 @@ bool Bitmap::test(uint32_t index) const
 	return false;
 }
 
-std::ostream & operator << (std::ostream & os, const Bitmap & b) 
+std::ostream & operator<< (std::ostream & os, const Bitmap & b) 
 {
-    for(uint32_t i=0; i<b.len_bits; i++)
+    for(size_t i=0; i<b.len_bits; i++)
     {
-	if(b.test(i))
+	if(b.get(i))
 	    os << '1';
 	else
 	    os << '0';
@@ -72,88 +72,20 @@ std::ostream & operator << (std::ostream & os, const Bitmap & b)
     return os;
 }
 
-
-void HashFunctions::initHF()
-{
-    free(hf_list);
-    hf_list = NULL;
-
-    if(hf_number > 0)
-    {
-	hf_list = (hash_params*) calloc(sizeof(hash_params), hf_number);
-	srand(time(0));
-	for(unsigned i=0; i < hf_number; i++)
-	{
-	    hf_list[i].seed = rand();
-	}
-    }
-}
-
-uint32_t HashFunctions::hashU(uint8_t* input, uint16_t len, uint32_t max, uint32_t seed) const
-{
-    uint32_t random;
-    uint32_t result = 0;
-    gsl_rng_set(r, seed);
-    for(unsigned i = 0; i < len; i++) {
-	random = gsl_rng_get (r);
-	result = (random*result + input[i]);
-    }
-    return result % max;
-}
-
-uint32_t HashFunctions::ggT(uint32_t m, uint32_t n)
-{
-    uint32_t z;
-    while (n>0)
-    {
-	z=n;
-	n=m%n;
-	m=z;
-    }
-    return m;
-}
-
-
-void BloomFilter::init(uint32_t size, unsigned hashfunctions)
-{
-    hf_number = hashfunctions;
-    initHF();
-    filter_size = size;
-    filter.resize(size);
-}
-
-void BloomFilter::clear()
-{
-    filter.clear();
-}
-
-void BloomFilter::insert(uint8_t* input, unsigned len)
+void BloomFilter::set(uint8_t* input, size_t len, bool) 
 {
     for(unsigned i=0; i < hf_number; i++) {
-	filter.set(hashU(input, len, filter_size, hf_list[i].seed));
+	filter.set(hashU(input, len, filterSize(), hf_list[i].seed));
     }
 }
 
-bool BloomFilter::test(uint8_t* input, unsigned len) const
+bool BloomFilter::get(uint8_t* input, size_t len) const
 {
     for(unsigned i=0; i < hf_number; i++) {
-	if(filter.test(hashU(input, len, filter_size, hf_list[i].seed)) == false)
+	if(filter.get(hashU(input, len, filterSize(), hf_list[i].seed)) == false)
 	    return false;
     }
     return true;
-}
-
-bool BloomFilter::testBeforeInsert(uint8_t* input, unsigned len)
-{
-    bool result = true;
-    uint32_t index;
-    for(unsigned i=0; i < hf_number; i++) {
-	index = hashU(input, len, filter_size, hf_list[i].seed);
-	if(filter.test(index) == false)
-	    result = false;
-	filter.set(index);
-    }
-    return result;
 }
 
 std::ostream & operator << (std::ostream & os, const BloomFilter & b) 

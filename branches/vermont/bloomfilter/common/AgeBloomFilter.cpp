@@ -22,27 +22,25 @@
 
 void AgeArray::resize(uint32_t size)
 {
-    free(array);
-    array_size = size;
-    array = (agetime_t*)(malloc(size*sizeof(agetime_t)));
-    clear();
+	free(array);
+	array_size = size;
+	array = (agetime_t*)(malloc(size*sizeof(agetime_t)));
+	clear();
 }
 
 void AgeArray::clear()
 {
-    memset(array, 0, array_size*sizeof(agetime_t));
+	memset(array, 0, array_size*sizeof(agetime_t));
 }
 
-inline agetime_t AgeArray::getAndSet(uint32_t index, agetime_t time)
+void AgeArray::set(size_t index, agetime_t time)
 {
-    agetime_t ret = 0;
-    if(index < array_size)
-	ret = array[index];
-    array[index] = time;
-    return ret;
+	if(index < array_size) {
+		array[index] = time;
+	}
 }
 
-inline agetime_t AgeArray::get(uint32_t index) const
+agetime_t AgeArray::get(size_t index) const
 {
     if(index < array_size)
 	return array[index];
@@ -59,51 +57,5 @@ std::ostream & operator << (std::ostream & os, const AgeArray & a)
     return os;
 }
 
-
-void AgeBloomFilter::init(uint32_t size, unsigned hashfunctions)
-{
-    hf_number = hashfunctions;
-    initHF();
-    filter_size = size;
-    filter.resize(size);
-}
-
-void AgeBloomFilter::clear()
-{
-    filter.clear();
-}
-
-agetime_t AgeBloomFilter::getLastTime(uint8_t* input, unsigned len) const
-{
-    agetime_t ret = 0;
-    agetime_t current;
-    for(unsigned i=0; i < hf_number; i++) 
-    {
-	current = filter.get(hashU(input, len, filter_size, hf_list[i].seed));
-	if (current < ret) 
-		ret = current;
-    }
-    return ret;
-}
-
-agetime_t AgeBloomFilter::getAndSetLastTime(uint8_t* input, unsigned len, agetime_t time)
-{
-    uint16_t ret = 0;
-    uint16_t current;
-    for(unsigned i=0; i < hf_number; i++) 
-    {
-	current = filter.getAndSet(hashU(input, len, filter_size, hf_list[i].seed), time);
-	if (current > ret) 
-		ret = current;
-    }
-    return ret;
-}
-
-
-std::ostream & operator << (std::ostream & os, const AgeBloomFilter & b) 
-{
-    os << b.filter;
-    return os;
-}
 
 #endif // HAVE_GSL
