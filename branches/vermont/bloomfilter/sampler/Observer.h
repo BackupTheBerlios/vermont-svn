@@ -78,7 +78,7 @@ protected:
 	char errorBuffer[PCAP_ERRBUF_SIZE];
 
 	// also called snaplen; only sniff this much bytes from each packet
-	int capturelen;
+	unsigned capturelen;
 
 	// wait this much ms until pcap_read() returns and get ALL packets received
 	int pcap_timeout;
