@@ -24,25 +24,25 @@ void AgeArray::resize(uint32_t size)
 {
     free(array);
     array_size = size;
-    array = (uint16_t*)(malloc(size*sizeof(uint16_t)));
+    array = (agetime_t*)(malloc(size*sizeof(agetime_t)));
     clear();
 }
 
 void AgeArray::clear()
 {
-    memset(array, 0, array_size*sizeof(uint16_t));
+    memset(array, 0, array_size*sizeof(agetime_t));
 }
 
-inline uint16_t AgeArray::getAndSet(uint32_t index, uint16_t time)
+inline agetime_t AgeArray::getAndSet(uint32_t index, agetime_t time)
 {
-    uint16_t ret = 0;
+    agetime_t ret = 0;
     if(index < array_size)
 	ret = array[index];
     array[index] = time;
     return ret;
 }
 
-inline uint16_t AgeArray::get(uint32_t index) const
+inline agetime_t AgeArray::get(uint32_t index) const
 {
     if(index < array_size)
 	return array[index];
@@ -73,10 +73,10 @@ void AgeBloomFilter::clear()
     filter.clear();
 }
 
-uint16_t AgeBloomFilter::getLastTime(uint8_t* input, unsigned len, uint16_t time) const
+agetime_t AgeBloomFilter::getLastTime(uint8_t* input, unsigned len, agetime_t time) const
 {
-    uint16_t ret = 0;
-    uint16_t current, diff, maxdiff = 0;
+    agetime_t ret = 0;
+    agetime_t current, diff, maxdiff = 0;
     for(unsigned i=0; i < hf_number; i++) 
     {
 	current = filter.get(hashU(input, len, filter_size, hf_list[i].seed));
@@ -85,12 +85,12 @@ uint16_t AgeBloomFilter::getLastTime(uint8_t* input, unsigned len, uint16_t time
 	{
 	    ret = current;
 	    maxdiff = diff;
-	}	    
+	}
     }
     return ret;
 }
 
-uint16_t AgeBloomFilter::getAndSetLastTime(uint8_t* input, unsigned len, uint16_t time)
+agetime_t AgeBloomFilter::getAndSetLastTime(uint8_t* input, unsigned len, agetime_t time)
 {
     uint16_t ret = 0;
     uint16_t current, diff, maxdiff = 0;
