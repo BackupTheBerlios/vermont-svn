@@ -176,7 +176,7 @@ void PacketSelectionConfiguration::configure()
 				}
 				j = j->next;
 			}
-			filter->addProcessor(new ConnectionFilter(timeout, bytes, size, hashFunctions));
+			filter->addProcessor(new ConnectionFilter(timeout, bytes, hashFunctions, size));
 		}	
 		i = i->next;
 	}

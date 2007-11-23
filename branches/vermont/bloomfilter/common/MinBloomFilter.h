@@ -31,11 +31,13 @@ class MinBloomFilter : public BloomFilterBase<T>
 						BloomFilterBase<T>::filterSize(), BloomFilterBase<T>::hf_list[i].seed));
 				if (current < ret)
 					ret = current;
-				}
-				return ret;
+			}
+			//msg(MSG_DEBUG, "MinBloomFilter.get(): %i", ret);
+			return ret;
 		}
 
 		virtual void set(uint8_t* input, size_t len, typename T::ValueType v) {
+			//msg(MSG_DEBUG, "MinBloomFilter.set(): %i", v);
 			for(unsigned i=0; i != BloomFilterBase<T>::hf_number; i++) {
 				BloomFilterBase<T>::filter.set(BloomFilterBase<T>::hashU(input,	len,
 					BloomFilterBase<T>::filterSize(), 

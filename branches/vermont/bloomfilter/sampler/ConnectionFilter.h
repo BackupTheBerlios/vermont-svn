@@ -8,7 +8,7 @@
 
 class ConnectionFilter : public PacketProcessor {
 public:
-	ConnectionFilter(unsigned timeout, unsigned bytes, unsigned filterSize, unsigned hashFunctions);
+	ConnectionFilter(unsigned timeout, unsigned bytes, unsigned hashFunctions, unsigned FilterSize);
 
 	virtual bool processPacket(const Packet* p);
 protected:

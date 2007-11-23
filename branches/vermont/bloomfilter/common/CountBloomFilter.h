@@ -18,7 +18,7 @@ class CountArray {
 			free(array);
 		}
 
-		typedef uint64_t ValueType;
+		typedef int ValueType;
 
 		void resize(size_t size);
 		void clear();
