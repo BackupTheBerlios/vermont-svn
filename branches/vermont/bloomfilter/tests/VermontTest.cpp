@@ -4,10 +4,10 @@
 
 #include "VermontTest.h"
 #include "AggregationPerfTest.h"
+#include "BloomFilterTest.h"
 #include "test_concentrator.h"
 
 using boost::unit_test::test_suite;
-
 
 
 test_suite* init_unit_test_suite(int argc, char* argv[])
@@ -18,8 +18,11 @@ test_suite* init_unit_test_suite(int argc, char* argv[])
 
 	if (argc>1 && strcmp(argv[1], "-perf")==0) perftest = true;
 
-	test->add(new AggregationPerfTestSuite(!perftest));
-	test->add(new ConcentratorTestSuite());
+	//test->add(new AggregationPerfTestSuite(!perftest));
+	//test->add(new ConcentratorTestSuite());
+#ifdef HAVE_CONNECTION_FILTER
+	test->add(new BloomFilterTestSuite());
+#endif
 
 	return test;
 }
