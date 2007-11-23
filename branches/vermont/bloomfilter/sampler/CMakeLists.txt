@@ -32,5 +32,6 @@ ADD_LIBRARY(sampler
 	stringFilter.cpp
 	regExFilter.cpp
 	ExpressHookingFilter.cpp
+	ConnectionFilter.cpp
 )
 
