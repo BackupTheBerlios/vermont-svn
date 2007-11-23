@@ -23,5 +23,6 @@ ADD_LIBRARY(common
 	StatisticsManager.cpp
 	BloomFilter.cpp
 	AgeBloomFilter.cpp
+	CountBloomFilter.cpp
 )
 

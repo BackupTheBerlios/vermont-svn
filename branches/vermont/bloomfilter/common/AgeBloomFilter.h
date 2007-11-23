@@ -25,7 +25,7 @@
 #include <gsl/gsl_rng.h>
 #include "BloomFilter.h"
 
-typedef uint64_t agetime_t;
+typedef time_t agetime_t;
 
 class AgeArray {
     friend std::ostream & operator << (std::ostream &, const AgeArray &);
@@ -45,7 +45,7 @@ public:
 
     void resize(uint32_t size);
     void clear();
-    inline agetime_t getAndSet(uint32_t index, uint64_t time);
+    inline agetime_t getAndSet(uint32_t index, agetime_t time);
     inline agetime_t get(uint32_t index) const;
     
 private:
@@ -73,7 +73,7 @@ class AgeBloomFilter : public HashFunctions
 
     void init(uint32_t size, unsigned hashfunctions);
     void clear();
-    agetime_t getLastTime(uint8_t* input, unsigned len, agetime_t time) const;
+    agetime_t getLastTime(uint8_t* input, unsigned len) const;
     agetime_t getAndSetLastTime(uint8_t* input, unsigned len, agetime_t time);
 
     private:

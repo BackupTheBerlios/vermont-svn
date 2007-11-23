@@ -73,19 +73,15 @@ void AgeBloomFilter::clear()
     filter.clear();
 }
 
-agetime_t AgeBloomFilter::getLastTime(uint8_t* input, unsigned len, agetime_t time) const
+agetime_t AgeBloomFilter::getLastTime(uint8_t* input, unsigned len) const
 {
     agetime_t ret = 0;
-    agetime_t current, diff, maxdiff = 0;
+    agetime_t current;
     for(unsigned i=0; i < hf_number; i++) 
     {
 	current = filter.get(hashU(input, len, filter_size, hf_list[i].seed));
-	diff = time - current;
-	if(diff > maxdiff)
-	{
-	    ret = current;
-	    maxdiff = diff;
-	}
+	if (current < ret) 
+		ret = current;
     }
     return ret;
 }
@@ -93,16 +89,12 @@ agetime_t AgeBloomFilter::getLastTime(uint8_t* input, unsigned len, agetime_t ti
 agetime_t AgeBloomFilter::getAndSetLastTime(uint8_t* input, unsigned len, agetime_t time)
 {
     uint16_t ret = 0;
-    uint16_t current, diff, maxdiff = 0;
+    uint16_t current;
     for(unsigned i=0; i < hf_number; i++) 
     {
 	current = filter.getAndSet(hashU(input, len, filter_size, hf_list[i].seed), time);
-	diff = time - current;
-	if(diff > maxdiff)
-	{
-	    ret = current;
-	    maxdiff = diff;
-	}	    
+	if (current > ret) 
+		ret = current;
     }
     return ret;
 }
