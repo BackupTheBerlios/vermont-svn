@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 	ipfixCollector.addIpfixPacketProcessor(&ipfixParser);
 	ipfixCollector.start();
 
-	msg(MSG_DIALOG, "Listening on %d. Hit Ctrl+C to quit\n", lport);
+	msg(MSG_DIALOG, "Hit Ctrl+C to quit");
 	pause();
 	msg(MSG_DIALOG, "Stopping threads and tidying up.\n");
 

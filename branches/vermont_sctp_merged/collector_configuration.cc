@@ -27,7 +27,6 @@ CollectorConfiguration::CollectorConfiguration(xmlDocPtr document, xmlNodePtr st
 	}
 	id = configTypes::collector + (const char*)idString;
 	xmlFree(idString);
-// 	ipfixParser = new IpfixParser();
 }
 
 CollectorConfiguration::~CollectorConfiguration()

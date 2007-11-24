@@ -604,7 +604,7 @@ int IpfixParser::processIpfixPacket(boost::shared_array<uint8_t> message, uint16
 		set = (IpfixSetHeader*)((uint8_t*)set + ntohs(set->length));
 	}
 
-	msg(MSG_DEBUG, "Message contained %u records, sequence number was %u", numberOfDataRecords, ntohl(header->sequenceNo));
+	msg(MSG_VDEBUG, "Message contained %u records, sequence number was %u", numberOfDataRecords, ntohl(header->sequenceNo));
 
 	return 0;
 }
@@ -644,7 +644,6 @@ int IpfixParser::processPacket(boost::shared_array<uint8_t> message, uint16_t le
  */
 void IpfixParser::setTemplateLivetime(uint16_t time) {
 	templateLivetime = time;
-	msg(MSG_DEBUG, "udpTemplateLifetime set to %d.", time);
 }
 
 /**

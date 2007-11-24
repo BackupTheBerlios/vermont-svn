@@ -48,7 +48,7 @@ const int EXCEPTION_MAXLEN = 1024;
 #define MSG_ERROR 2    // error or warning messages which are shown during default execution
 #define MSG_DIALOG 1   // messages which are shown during default execution
 #define MSG_FATAL 0    // fatal messages which are shown every time
-#define MSG_DEFAULT MSG_VDEBUG
+#define MSG_DEFAULT MSG_DEBUG
 
 
 void msg_init();
@@ -78,7 +78,8 @@ void vermont_exception(const int, const char*, const char*, const char*, const c
 #ifdef DEBUG
 
 #define DPRINTF(fmt, args...) msg2(__LINE__, __FILE__, __PRETTY_FUNCTION__, __func__, MSG_DEBUG, fmt, ##args)
-#define DPRINTFL(lvl, fmt, args...) msg2(__LINE__, __FILE__, __PRETTY_FUNCTION__, __func__, lvl, fmt, ##args)
+//#define DPRINTFL(lvl, fmt, args...) msg2(__LINE__, __FILE__, __PRETTY_FUNCTION__, __func__, lvl, fmt, ##args)
+#define DPRINTFL(lvl, fmt, args...) msg(lvl, fmt, args...)
 
 #define ASSERT(exp, description)                                                                        \
     {                                                                                                   \

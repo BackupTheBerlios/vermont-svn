@@ -64,6 +64,7 @@ IpfixReceiverSctpIpV4::IpfixReceiverSctpIpV4(int port) {
 		msg(MSG_ERROR ,"Could not listen on SCTP socket %i", listen_socket);
 		THROWEXCEPTION("Cannot create IpfixReceiverSctpIpV4");
 	}
+	msg(MSG_INFO, "SCTP Receiver listening on port %d", port);
 	return;
 }
 

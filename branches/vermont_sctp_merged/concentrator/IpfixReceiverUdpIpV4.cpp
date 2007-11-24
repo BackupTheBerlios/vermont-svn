@@ -60,6 +60,7 @@ IpfixReceiverUdpIpV4::IpfixReceiverUdpIpV4(int port) {
 		perror("Could not bind socket");
 		THROWEXCEPTION("Cannot create IpfixReceiverUdpIpV4");
 	}
+	msg(MSG_INFO, "UDP Receiver listening on port %d", port);
 	return;
 }
 
