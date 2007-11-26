@@ -211,8 +211,11 @@ typedef struct {
 enum ipfix_transport_protocol {
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
 	RAWDIR, 
-#endif
-	UDP, TCP, SCTP
+#endif 
+#ifdef SUPPORT_SCTP 	
+	SCTP,
+#endif	
+	UDP, TCP
 	};
 
 /*
@@ -361,9 +364,6 @@ int ipfix_delete_data_fields_upto_marker(ipfix_exporter *exporter);
 int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void* data, uint16_t data_length);
 int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template* templ);
 int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id);
-// int ipfix_set_template_transmission_timer(ipfix_exporter *exporter, uint32_t timer);
-// // Sets a packet lifetime for SCTP data packets (unreliable packets)
-// int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime);
 
 int ipfix_send(ipfix_exporter *exporter);
 

@@ -79,8 +79,12 @@ void CollectorConfiguration::readListener(xmlNodePtr p)
 			msg(MSG_DEBUG, "Listening on a specific interface isn't supported right now. Vermont will listen on all interfaces. \"ipAddress\" will be ignored at the moment");
 		} else if (tagMatches(i, "transportProtocol")) {
 			listener->protocolType = atoi(getContent(i).c_str());
-			if ( (listener->protocolType != 17) && (listener->protocolType != 132) ) {
-				THROWEXCEPTION("Vermont doesn't support any protocol other than UDP (17) or SCTP (132). Unknown protocol %d",listener->protocolType);
+			if ( (listener->protocolType != 17) 
+#ifdef SUPPORT_SCTP
+			     && (listener->protocolType != 132) 
+#endif
+			){
+				THROWEXCEPTION("Unknown protocol %d. Vermont doesn't support any protocol other than UDP (17) or SCTP (132). For using SCTP make sure you did not turn it off in ./configure",listener->protocolType);
 			}
 		} else if (tagMatches(i, "port")) {
 			listener->port = (uint16_t)atoi(getContent(i).c_str());
@@ -103,10 +107,11 @@ void CollectorConfiguration::setUp()
 			case 17:
 				ipfixReceiver = new IpfixReceiverUdpIpV4(listeners[i]->port);
 				break;
-
+#ifdef SUPPORT_SCTP
 			case 132:
 				ipfixReceiver = new IpfixReceiverSctpIpV4(listeners[i]->port);
 				break;
+#endif
 		}
 		if (!ipfixReceiver) {
 			THROWEXCEPTION("Could not create receiver");

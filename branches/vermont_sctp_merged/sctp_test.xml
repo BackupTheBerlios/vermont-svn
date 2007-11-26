@@ -4,7 +4,7 @@
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>eth1</interface>
+		<interface>eth0</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>

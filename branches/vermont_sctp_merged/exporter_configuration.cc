@@ -105,8 +105,10 @@ void ExporterConfiguration::readCollector(xmlNodePtr p)
 			c->protocolType = getContent(i);
 			if (c->protocolType == "17") {
 				c->protocolType = "UDP";
+#ifdef SUPPORT_SCTP
 			}else if (c->protocolType == "132"){ //SCTP Extension
 				c->protocolType = "SCTP";
+#endif
 			}else if (c->protocolType == "6"){
 				c->protocolType = "TCP";
 			}

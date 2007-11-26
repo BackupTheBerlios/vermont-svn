@@ -103,6 +103,7 @@ int main(int argc, char *argv[])
 				exit(-1);
 			}
 			break;
+#ifdef SUPPORT_SCTP
 		case 'c':
 			// add SCTP collector
 			ret=ipfix_add_collector(my_exporter, "192.168.1.38", 1500, SCTP);
@@ -113,6 +114,7 @@ int main(int argc, char *argv[])
 			}
 			sctp_exists = 1;
 			break;
+#endif
 		case 'u':
 			// add UDP collector
 			ret=ipfix_add_collector(my_exporter, "127.0.0.1", 1500, UDP);

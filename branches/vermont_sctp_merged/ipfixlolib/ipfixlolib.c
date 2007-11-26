@@ -34,7 +34,9 @@ extern "C" {
 
 #define bit_set(data, bits) ((data & bits) == bits)
 
+#ifdef SUPPORT_SCTP
 static int init_send_sctp_socket(struct sockaddr_in serv_addr);
+#endif
 static int init_send_udp_socket(struct sockaddr_in serv_addr);
 static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum template_state cleanness);
 static int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf);
@@ -117,7 +119,7 @@ static int init_send_udp_socket(struct sockaddr_in serv_addr){
 
         return s;
 }
-
+#ifdef SUPPORT_SCTP
 /********************************************************************
 ** SCTP Extension Code:
 *********************************************************************/
@@ -224,7 +226,7 @@ int sctp_sendmsgv(int s, struct iovec *vector, int v_len, struct sockaddr *to,
 
 	return sendmsg(s, &outmsg, 0);
 }
-
+#endif /*SUPPORT_SCTP*/
 
 /********************************************************************
 //END of SCTP Extension Code:
@@ -782,11 +784,11 @@ static int ipfix_init_send_socket(struct sockaddr_in serv_addr, enum ipfix_trans
         case TCP:
                 msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
                 break;
-
+#ifdef SUPPORT_SCTP
         case SCTP:
                 sock= init_send_sctp_socket( serv_addr );
                 break;
-
+#endif
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	case RAWDIR:
                 msg(MSG_FATAL, "IPFIX: Transport Protocol RAWDIR cannot be used to open a socket");
@@ -985,7 +987,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 	for (i = 0; i < exporter->collector_max_num; i++) {
 		// is the collector a valid target?
 		if ((*exporter).collector_arr[i].state) {
-			msg(MSG_VDEBUG, "Sending template to exporter %s:%d Proto: %d",
+			DPRINTFL(MSG_VDEBUG, "Sending template to exporter %s:%d Proto: %d",
 				exporter->collector_arr[i].ipv4address,
 				exporter->collector_arr[i].port_number,
 				exporter->collector_arr[i].protocol
@@ -1023,7 +1025,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 			case TCP:
 				msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
 				return -1;
-
+#ifdef SUPPORT_SCTP
 			case SCTP:
 				switch (exporter->collector_arr[i].state){
 				
@@ -1093,6 +1095,8 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				return -1;
 				}
 			break;
+#endif
+
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 			case RAWDIR:
 				packet_directory_path = exporter->collector_arr[i].packet_directory_path;
@@ -1196,7 +1200,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 				case TCP:
 					msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
 					return -1;
-			
+#ifdef SUPPORT_SCTP
 				case SCTP:
 					if(exporter->collector_arr[i].state == C_CONNECTED){
 						ret = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
@@ -1239,6 +1243,8 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						}
 					}
 					break;
+#endif
+
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 				case RAWDIR:
 					packet_directory_path = exporter->collector_arr[i].packet_directory_path;
@@ -1268,7 +1274,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
         ipfix_reset_sendbuffer(exporter->data_sendbuffer);
         return ret;
 }
-
+#ifdef SUPPORT_SCTP
 int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 	int ret;
 	time_t time_now = time(NULL);
@@ -1314,7 +1320,7 @@ int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 		}
 	}
 }
-
+#endif /*SUPPORT_SCTP*/
 /*
  Send data to collectors
  Sends all data committed via ipfix_put_data_field to this exporter.
@@ -1944,9 +1950,5 @@ int ipfix_enterprise_flag_set(uint16_t id)
 
 
 #ifdef __cplusplus
-}
-
-int init_send_sctp_socket( struct sockaddr_in serv_addr )
-{
 }
 #endif

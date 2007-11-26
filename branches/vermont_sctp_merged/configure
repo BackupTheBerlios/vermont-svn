@@ -35,6 +35,7 @@ case "$1" in
 		echo " --with-debug"
 		echo " --with-ip-header-offset X"
 		echo " --without-mysql"
+		echo " --without-sctp"
 		echo " --without-netflowv9"
 		echo " --without-tests"
 		echo

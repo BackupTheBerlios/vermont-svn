@@ -23,6 +23,7 @@
  * Dumps received flows to stdout
  */
 
+
 #include "IpfixCollector.hpp"
 #include "IpfixParser.hpp"
 #include "IpfixPacketProcessor.hpp"
@@ -67,8 +68,10 @@ int main(int argc, char *argv[]) {
 	ipfixPrinter.start();
 	ipfixPrinter.runSink();
 
+#ifdef SUPPORT_SCTP
 	// If you want to create a SCTP testCollector 	
    	IpfixReceiverSctpIpV4 ipfixReceiver(lport);
+#endif
 	// If you want to create a UDP testCollector
     	IpfixReceiverUdpIpV4 ipfixReceiver2(4711);
 	
@@ -85,7 +88,9 @@ int main(int argc, char *argv[]) {
 	ipfixParser.addFlowSink(&ipfixPrinter);
 
 	IpfixCollector ipfixCollector;
+#ifdef SUPPORT_SCTP
 	ipfixCollector.addIpfixReceiver(&ipfixReceiver);
+#endif
 	ipfixCollector.addIpfixReceiver(&ipfixReceiver2);
 	ipfixCollector.addIpfixPacketProcessor(&ipfixParser);
 	ipfixCollector.start();
@@ -95,7 +100,10 @@ int main(int argc, char *argv[]) {
 	msg(MSG_DIALOG, "Stopping threads and tidying up.\n");
 
 	msg(MSG_DIALOG, "stopping collector\n");
+#ifdef SUPPORT_SCTP
 	ipfixReceiver.stop();
+#endif
+	ipfixReceiver2.stop();
 
 	msg(MSG_DIALOG, "stopping printer\n");
 	ipfixPrinter.stop();

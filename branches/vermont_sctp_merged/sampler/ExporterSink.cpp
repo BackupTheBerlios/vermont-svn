@@ -231,8 +231,10 @@ bool ExporterSink::addCollector(const char *address, unsigned short port, const 
 		proto = TCP;
 	} else if(strcasecmp(protocol, "UDP") == 0) {
 		proto = UDP;
+#ifdef SUPPORT_SCTP
 	} else if(strcasecmp(protocol, "SCTP") == 0) {
 		proto = SCTP;	
+#endif
 	} else {
 		msg(MSG_ERROR, "ExporterSink: invalid protocol %s for %s",
 		    protocol, address);

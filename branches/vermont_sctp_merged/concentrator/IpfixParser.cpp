@@ -311,7 +311,7 @@ void IpfixParser::processDataTemplateSet(boost::shared_ptr<IpfixRecord::SourceID
 uint32_t IpfixParser::processDataSet(boost::shared_ptr<IpfixRecord::SourceID> sourceId, boost::shared_array<uint8_t> message, IpfixSetHeader* set) {
 	TemplateBuffer::BufferedTemplate* bt = templateBuffer->getBufferedTemplate(sourceId, ntohs(set->id));
 	uint32_t numberOfRecords = 0;
-
+	
 	if (bt == 0) {
 		/* this error may come in rapid succession; I hope I don't regret it */
 		msg(MSG_INFO, "Template %d unknown to collecting process, got from ", ntohs(set->id));

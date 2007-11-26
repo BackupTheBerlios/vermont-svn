@@ -117,8 +117,10 @@ int IpfixSender::addCollector(const char *ip, uint16_t port, const char* proto)
               	pr = TCP;
        	} else if(strcasecmp(proto, "UDP") == 0) {
               	pr = UDP;
+#ifdef SUPPORT_SCTP
        	} else if(strcasecmp(proto, "SCTP") == 0) {
-              	pr = SCTP;     
+              	pr = SCTP;
+#endif
        	} else {
               	msg(MSG_ERROR, "IpfixSender: invalid protocol %s for %s",
                   proto, ip);

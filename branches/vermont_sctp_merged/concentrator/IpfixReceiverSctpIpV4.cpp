@@ -17,6 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
+#include "ipfixlolib/ipfixlolib.h"
+#ifdef SUPPORT_SCTP
 
 #include "IpfixReceiverSctpIpV4.hpp"
 
@@ -157,3 +159,4 @@ void IpfixReceiverSctpIpV4::run() {
 	}
 }
 
+#endif /*SUPPORT_SCTP*/
