@@ -78,8 +78,7 @@ void vermont_exception(const int, const char*, const char*, const char*, const c
 #ifdef DEBUG
 
 #define DPRINTF(fmt, args...) msg2(__LINE__, __FILE__, __PRETTY_FUNCTION__, __func__, MSG_DEBUG, fmt, ##args)
-//#define DPRINTFL(lvl, fmt, args...) msg2(__LINE__, __FILE__, __PRETTY_FUNCTION__, __func__, lvl, fmt, ##args)
-#define DPRINTFL(lvl, fmt, args...) msg(lvl, fmt, args...)
+#define DPRINTFL(lvl, fmt, args...) msg2(__LINE__, __FILE__, __PRETTY_FUNCTION__, __func__, lvl, fmt, ##args)
 
 #define ASSERT(exp, description)                                                                        \
     {                                                                                                   \
