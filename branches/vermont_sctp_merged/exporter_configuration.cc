@@ -145,9 +145,21 @@ void ExporterConfiguration::createExporterSink(Template* t, uint16_t observation
 	    msg(MSG_INFO, "ExporterConfiguration: Set maximum export timeout to %d", exportDelay);
 	    exporterSink->setExportTimeout(exportDelay);
 	}
-	if(templateRefreshTime || templateRefreshRate)
+	if(templateRefreshRate)
 	{
-	    msg(MSG_ERROR, "ExporterConfiguration: Configuration of templateRefreshRate/Time not yet supported.");
+	    msg(MSG_ERROR, "ExporterConfiguration: Configuration of templateRefreshRate not yet supported..");
+	}
+	if(templateRefreshTime > 0){
+		exporterSink->setTemplateTransmissionTimer(templateRefreshTime);
+		msg(MSG_DEBUG, "ExporterConfiguration: templateRefreshTime set to %d",templateRefreshTime );
+	}
+	if(dataLifetime > 0){
+		exporterSink->setSctpLifetime(dataLifetime);
+		msg(MSG_DEBUG, "ExporterConfiguration: SCTP dataLifetime set to %d",dataLifetime );
+	}
+	if(reconnectTimeout > -1){
+		exporterSink->setSctpReconnectTimeout(reconnectTimeout);
+		msg(MSG_DEBUG, "ExporterConfiguration: SCTP reconnectTimeout set to %d",reconnectTimeout );
 	}
 	for (unsigned i = 0; i != collectors.size(); ++i) {
 		msg(MSG_DEBUG, "ExporterConfiguration: adding collector %s:%d to ExporterSink",
