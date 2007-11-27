@@ -50,20 +50,20 @@ class IpfixSender : public FlowSink {
 		void stats();
 		// Set up time after that Templates are going to be resent
 		bool setTemplateTransmissionTimer(uint32_t timer){
-			ipfixExporter->template_transmission_timer = timer;
-		
+			ipfix_set_template_transmission_timer(ipfixExporter, timer);
+			
 			return true;
 		}
 		// Set up SCTP packet lifetime
 		bool setSctpLifetime(uint32_t time){
-			ipfixExporter->sctp_lifetime = time;
-		
+			ipfix_set_sctp_lifetime(ipfixExporter, time);
+			
 			return true;
 		}
 		// Set up SCTP reconnect timer
 		bool setSctpReconnectTimeout(uint32_t time){
-			ipfixExporter->sctp_reconnect_timer = time;
-		
+			ipfix_set_sctp_reconnect_timer(ipfixExporter, time);
+			
 			return true;
 		}
 		

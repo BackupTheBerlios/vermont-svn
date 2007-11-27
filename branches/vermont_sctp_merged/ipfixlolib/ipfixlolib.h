@@ -88,6 +88,12 @@ extern "C" {
  * can be specified by user
 */
 #define IPFIX_DEFAULT_SCTP_RECONNECT_TIMER 300
+/*
+ * Default reliability for sending IPFIX-data-records
+ * 0 = reliable
+ * can be specified by user
+ */
+#define IPFIX_DEFAULT_SCTP_DATA_LIFETIME 0
 
 #define TRUE 1
 #define FALSE 0
@@ -363,11 +369,15 @@ int ipfix_delete_data_fields_upto_marker(ipfix_exporter *exporter);
 int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void* data, uint16_t data_length);
 int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template* templ);
 int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id);
-
 int ipfix_send(ipfix_exporter *exporter);
-
 int ipfix_enterprise_flag_set(uint16_t id);
-
+// Set up time after that Templates are going to be resent
+int ipfix_set_template_transmission_timer(ipfix_exporter *exporter, uint32_t timer); 	 
+// Sets a packet lifetime for SCTP data packets (lifetime > 0 : unreliable packets) 	 
+int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime);
+// Set up SCTP reconnect timer, time after that a reconnection attempt is made, 
+// if connection to the collector was lost.
+int ipfix_set_sctp_reconnect_timer(ipfix_exporter *exporter, uint32_t timer);
 
 #ifdef __cplusplus
 }

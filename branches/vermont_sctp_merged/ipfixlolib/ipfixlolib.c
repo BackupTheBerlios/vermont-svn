@@ -96,13 +96,6 @@ static int init_rcv_udp_socket(int lport)
 static int init_send_udp_socket(struct sockaddr_in serv_addr){
 
         int s;
-        /*struct sockaddr_in serv_addr;
-
-        memset(&serv_addr, 0, sizeof(serv_addr));
-        serv_addr.sin_family = AF_INET;
-        serv_addr.sin_port = htons (serv_port);
-        serv_addr.sin_addr.s_addr = inet_addr(serv_ip4_addr);
-*/
         // create socket
         if((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
                 msg(MSG_FATAL, "IPFIX: error opening socket, %s", strerror(errno));
@@ -142,44 +135,7 @@ static int init_send_sctp_socket(struct sockaddr_in serv_addr){
                 return -1;
         }
 	msg(MSG_VDEBUG, "SCTP Socket created");
-	
-	//seting up SCTP Options	
-/* 
- 	struct sctp_initmsg init_info;
- 	uint leng = sizeof(struct sctp_initmsg);
- 	if( (getsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &init_info, &leng)) < 0){
- 		perror("ERROR GETTING SOCKOPTIONS!!! ");
- 	}else msg(MSG_INFO, "SOCKOPTIONS: Number of in/outstreams = %d/%d", init_info.sinit_num_ostreams, init_info.sinit_max_instreams);
 
-	struct sctp_initmsg m;
-	m.sinit_num_ostreams = 2;
-	m.sinit_max_instreams = 2;
- 	if( (setsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &m, sizeof(m) )) < 0){
- 		perror("ERROR SETTING SOCKOPTIONS!!! \n");
- 	}else {msg(MSG_DEBUG,"SOCKOPTIONS SET!");}
-	//TODO getsockopt() kann gelöshct werden nicht mehr nötig wenn SCTP funktioniert
-	if( (getsockopt(s,IPPROTO_SCTP,SCTP_INITMSG, &init_info, &leng)) < 0){
- 		perror("ERROR GETTING SOCKOPTIONS!!! ");
- 	}else {msg(MSG_DEBUG,"SOCKOPTIONS: Max number of in/outstreams = %d/%d", init_info.sinit_num_ostreams, init_info.sinit_max_instreams);}
-*/	//END SCTP options
-
-	// connect to server
-	//msg(MSG_DEBUG, "SCTP connecting to %s:%i ...",serv_addr.sin_addr.s_addr,serv_addr.sin_port );
-	/*
-	if(connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr) ) < 0) {
-		msg(MSG_ERROR, "IPFIX: SCTP connect failed, %s", strerror(errno));
-		close(s);
-		return -1;
-	}*/
-	/*
-	struct sctp_event_subscribe event;
-	memset(&event, 0, sizeof(event));
-	//enable event for send failures
-	event.sctp_send_failure_event = 1;
-	
-	if(setsockopt(s,IPPROTO_SCTP, SCTP_EVENTS, &event, sizeof(event) ) != 0){
-		msg(MSG_ERROR, "IpfixReceiverSctpIpV4: setcockoptions failed");
-	}*/
 	return s;
 }
 
@@ -292,6 +248,7 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
         tmp->last_template_transmission_time=0;
         tmp->template_transmission_timer=IPFIX_DEFAULT_TEMPLATE_TIMER;
 	tmp->sctp_reconnect_timer=IPFIX_DEFAULT_SCTP_RECONNECT_TIMER;
+	tmp->sctp_lifetime=IPFIX_DEFAULT_SCTP_DATA_LIFETIME;
 	
         /* finally attach new exporter to the pointer we were given */
         *exporter=tmp;
@@ -1082,7 +1039,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 								}
 							}
 							if (ret == -1) { // 1st reconnect attempt failed
-								if(exporter->sctp_reconnect_timer == 0){
+								if(exporter->sctp_reconnect_timer == 0){ // 0 = no reconnection allowed
 									msg(MSG_ERROR, "ipfix_send_data(): removing collector %s:%d (SCTP)", exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
 									ipfix_remove_collector(exporter, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
 								}
@@ -1238,7 +1195,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 								}
 							}
 							if (ret == -1) { // 1st reconnect attempt failed
-								if(exporter->sctp_reconnect_timer == 0){
+								if(exporter->sctp_reconnect_timer == 0){ // 0 = no reconnection allowed
 									msg(MSG_ERROR, "ipfix_send_data(): removing collector %s:%d (SCTP)", exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
 									ipfix_remove_collector(exporter, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
 								}
@@ -1938,7 +1895,8 @@ int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime){
 		return 0;
 	}
 }
-
+// Set up SCTP reconnect timer, time after that a reconnection attempt is made, 
+// if connection to the collector was lost.
 int ipfix_set_sctp_reconnect_timer(ipfix_exporter *exporter, uint32_t timer){
 	
 	if(timer < 0){
