@@ -36,7 +36,7 @@ private:
 	struct Collector {
 		std::string ipAddress;
 		unsigned ipAddressType;
-		std::string protocolType;
+		ipfix_transport_protocol protocolType;
 		uint16_t port;
 	};
 

@@ -4,7 +4,7 @@
 
  Header for encoding functions suitable for IPFIX
 
- Changes by Gerhard Münz, 2006-02-01
+ Changes by Gerhard Muenz, 2006-02-01
    Changed and debugged sendbuffer structure and Co
    Added new function for canceling data sets and deleting fields
 
@@ -119,6 +119,7 @@ static int init_send_udp_socket(struct sockaddr_in serv_addr){
 
         return s;
 }
+
 #ifdef SUPPORT_SCTP
 /********************************************************************
 ** SCTP Extension Code:
@@ -283,13 +284,10 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
         tmp->collector_max_num = IPFIX_MAX_COLLECTORS;
 
         // initialize an array to hold the templates.
-        // TODO: own function:
         if(ipfix_init_template_array(tmp, IPFIX_MAX_TEMPLATES)) {
                 goto out4;
         }
-        /*   (**exporter).ipfix_lo_template_maxsize  = IPFIX_MAX_TEMPLATES; */
-        /*   (**exporter).ipfix_lo_template_current_count = 0 ; */
-        /*   (**exporter).template_arr =  (ipfix_lo_template*) malloc (IPFIX_MAX_TEMPLATES * sizeof(ipfix_lo_template) ); */
+	
         // we have not transmitted any templates yet!
         tmp->last_template_transmission_time=0;
         tmp->template_transmission_timer=IPFIX_DEFAULT_TEMPLATE_TIMER;
@@ -454,7 +452,7 @@ int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int co
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 			if (exporter->collector_arr[i].protocol != RAWDIR) {
 #endif
-					close ( exporter->collector_arr[i].data_socket );
+				close ( exporter->collector_arr[i].data_socket );
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 			}
 			if (exporter->collector_arr[i].protocol == RAWDIR) {
@@ -784,9 +782,12 @@ static int ipfix_init_send_socket(struct sockaddr_in serv_addr, enum ipfix_trans
         case TCP:
                 msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
                 break;
-#ifdef SUPPORT_SCTP
         case SCTP:
+#ifdef SUPPORT_SCTP
                 sock= init_send_sctp_socket( serv_addr );
+                break;
+#else
+                msg(MSG_FATAL, "IPFIX: Library compiled without SCTP support.");
                 break;
 #endif
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
@@ -797,7 +798,6 @@ static int ipfix_init_send_socket(struct sockaddr_in serv_addr, enum ipfix_trans
 
         default:
                 msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
-                return -1;
         }
 
         return sock;
@@ -1025,8 +1025,8 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 			case TCP:
 				msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
 				return -1;
-#ifdef SUPPORT_SCTP
 			case SCTP:
+#ifdef SUPPORT_SCTP
 				switch (exporter->collector_arr[i].state){
 				
 				case C_NEW:	// try to connect to the new collector
@@ -1095,6 +1095,9 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				return -1;
 				}
 			break;
+#else
+			msg(MSG_FATAL, "IPFIX: Library compiled without SCTP support.");
+			return -1;
 #endif
 
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
@@ -1200,8 +1203,8 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 				case TCP:
 					msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
 					return -1;
-#ifdef SUPPORT_SCTP
 				case SCTP:
+#ifdef SUPPORT_SCTP
 					if(exporter->collector_arr[i].state == C_CONNECTED){
 						ret = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
 							exporter->data_sendbuffer->entries,
@@ -1243,6 +1246,9 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						}
 					}
 					break;
+#else
+					msg(MSG_FATAL, "IPFIX: Library compiled without SCTP support.");
+					return -1;
 #endif
 
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
@@ -1274,6 +1280,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
         ipfix_reset_sendbuffer(exporter->data_sendbuffer);
         return ret;
 }
+
 #ifdef SUPPORT_SCTP
 int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 	int ret;
@@ -1321,6 +1328,7 @@ int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 	}
 }
 #endif /*SUPPORT_SCTP*/
+
 /*
  Send data to collectors
  Sends all data committed via ipfix_put_data_field to this exporter.

@@ -17,9 +17,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
-#include "ipfixlolib/ipfixlolib.h"
-#ifdef SUPPORT_SCTP
-
 #ifndef _IPFIX_RECEIVER_SCTPIPV4_H_
 #define _IPFIX_RECEIVER_SCTPIPV4_H_
 
@@ -37,6 +34,7 @@
 #define SCTP_MAX_CONNECTIONS 5
 
 class IpfixReceiverSctpIpV4 : public IpfixReceiver {
+#ifdef SUPPORT_SCTP
 	public:
 		IpfixReceiverSctpIpV4(int port);
 		virtual ~IpfixReceiverSctpIpV4();
@@ -44,8 +42,18 @@ class IpfixReceiverSctpIpV4 : public IpfixReceiver {
 		virtual void run();
 	private:
 		int listen_socket;
+#else
+	public:
+		IpfixReceiverSctpIpV4(int port) {
+			THROWEXCEPTION("SCTP not supported!");
+		}
+		
+		virtual ~IpfixReceiverSctpIpV4() {}
+
+		virtual void run() {}
+
+#endif /*SUPPORT_SCTP*/
 };
 
 #endif
 
-#endif /*SUPPORT_SCTP*/

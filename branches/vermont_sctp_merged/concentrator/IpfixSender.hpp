@@ -32,13 +32,13 @@
  */
 class IpfixSender : public FlowSink {
 	public:
-		IpfixSender(uint16_t observationDomainId, const char* ip = 0, uint16_t port = 0, const char* proto = 0);
+		IpfixSender(uint16_t observationDomainId, const char* ip = 0, uint16_t port = 0, ipfix_transport_protocol proto = 0);
 		virtual ~IpfixSender();
 
 		void start();
 		void stop();
 
-		int addCollector(const char *ip, uint16_t port, const char* proto);
+		int addCollector(const char *ip, uint16_t port, ipfix_transport_protocol proto);
 
 		int onDataTemplate(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo);
                 int onDataTemplateDestruction(IpfixRecord::SourceID* sourceID, IpfixRecord::DataTemplateInfo* dataTemplateInfo);
@@ -66,23 +66,10 @@ class IpfixSender : public FlowSink {
 		
 			return true;
 		}
-		class Collector {
-		    public:
-			Collector() : port(0)
-			{
-			    memset(&ip, 0, sizeof(ip)); 
-			}
-			~Collector() {}
-			
-			char ip[128]; /**< IP address of Collector */
-			uint16_t port; /**< Port of Collector */
-			char protocol[8]; // IP Protocol we are using
-		};
 		
 	protected:
 		ipfix_exporter* ipfixExporter; /**< underlying ipfix_exporter structure. */
 		uint16_t lastTemplateId; /**< Template ID of last created Template */
-		std::vector<Collector> collectors; /**< Collectors we export to */
 		uint32_t sentRecords; /**< Statistics: Total number of records sent since last statistics were polled */
 
 	private:

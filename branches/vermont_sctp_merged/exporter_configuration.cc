@@ -102,15 +102,18 @@ void ExporterConfiguration::readCollector(xmlNodePtr p)
 		} else  if (tagMatches(i, "ipAddress")) {
 			c->ipAddress = getContent(i);
 		} else if (tagMatches(i, "transportProtocol")) {
-			c->protocolType = getContent(i);
-			if (c->protocolType == "17") {
-				c->protocolType = "UDP";
+			if ((getContent(i) == "17") && (getContent(i) == "UDP")) {
+				c->protocolType = UDP;
 #ifdef SUPPORT_SCTP
-			}else if (c->protocolType == "132"){ //SCTP Extension
-				c->protocolType = "SCTP";
+			}else if ((getContent(i) == "132") && (getContent(i) == "SCTP")){
+				c->protocolType = SCTP;
 #endif
-			}else if (c->protocolType == "6"){
-				c->protocolType = "TCP";
+		/*
+			}else if ((getContent(i) == "6") && (getContent(i) == "TCP")){
+				c->protocolType = TCP;
+		*/
+			}else{
+				THROWEXCEPTION("Unsupported protocol %s. Vermont only supports UDP (17) and SCTP (132). For using SCTP make sure you did not turn it off in ./configure", getContent(i).c_str());
 			}
 		} else if (tagMatches(i, "port")) {
 			c->port = (uint16_t)atoi(getContent(i).c_str());
@@ -152,7 +155,7 @@ void ExporterConfiguration::createExporterSink(Template* t, uint16_t observation
 		    collectors[i]->port);
 		exporterSink->addCollector(collectors[i]->ipAddress.c_str(),
 					   collectors[i]->port,
-					   collectors[i]->protocolType.c_str());
+					   collectors[i]->protocolType);
 	}
 }
 
@@ -167,7 +170,7 @@ void ExporterConfiguration::createIpfixSender(uint16_t observationDomainId)
 	ipfixSender = new IpfixSender(observationDomainId,
 					  collectors[0]->ipAddress.c_str(),
 					  collectors[0]->port,
-					  collectors[0]->protocolType.c_str() );
+					  collectors[0]->protocolType);
 	if (!ipfixSender) {
 		THROWEXCEPTION("Could not create IpfixSender!");
 	}

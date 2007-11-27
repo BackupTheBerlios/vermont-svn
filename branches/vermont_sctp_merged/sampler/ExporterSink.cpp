@@ -223,24 +223,8 @@ void *ExporterSink::exporterSinkProcess(void *arg)
 }
 
 
-bool ExporterSink::addCollector(const char *address, unsigned short port, const char *protocol)
+bool ExporterSink::addCollector(const char *address, unsigned short port, ipfix_transport_protocol proto)
 {
-	ipfix_transport_protocol proto;
-
-	if(strcasecmp(protocol, "TCP") == 0) {
-		proto = TCP;
-	} else if(strcasecmp(protocol, "UDP") == 0) {
-		proto = UDP;
-#ifdef SUPPORT_SCTP
-	} else if(strcasecmp(protocol, "SCTP") == 0) {
-		proto = SCTP;	
-#endif
-	} else {
-		msg(MSG_ERROR, "ExporterSink: invalid protocol %s for %s",
-		    protocol, address);
-		return false;
-	}
-
 	DPRINTF("Adding %s://%s:%d", protocol, address, port);
 	return(ipfix_add_collector(exporter, address, port, proto) == 0);
 }

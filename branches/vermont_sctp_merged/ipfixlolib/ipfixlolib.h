@@ -212,10 +212,7 @@ enum ipfix_transport_protocol {
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
 	RAWDIR, 
 #endif 
-#ifdef SUPPORT_SCTP 	
-	SCTP,
-#endif	
-	UDP, TCP
+	SCTP, UDP, TCP
 	};
 
 /*

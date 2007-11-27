@@ -40,7 +40,7 @@
  * @param port destination collector's port
  * @return handle to use when calling @c destroyIpfixSender()
  */
-IpfixSender::IpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port, const char* proto) {
+IpfixSender::IpfixSender(uint16_t observationDomainId, const char* ip, uint16_t port, ipfix_transport_protocol proto) {
 	setSinkOwner("IpfixSender");
 	ipfix_exporter** exporterP = &this->ipfixExporter;
 	sentRecords = 0;
@@ -54,16 +54,9 @@ IpfixSender::IpfixSender(uint16_t observationDomainId, const char* ip, uint16_t 
 	}
 
 	if (ip && port && proto) {
-		Collector newCollector;
-		strcpy(newCollector.ip, ip);
-		newCollector.port = port;
-		strcpy(newCollector.protocol, proto);
-
 		if(addCollector(ip, port, proto) != 0) {
 			goto out1;
 		}
-
-		collectors.push_back(newCollector);
 	}
 	
         msg(MSG_DEBUG, "IpfixSender: running");
@@ -108,38 +101,17 @@ void IpfixSender::stop() {
  * @param port port number
  * FIXME: support for other than UDP
  */
-int IpfixSender::addCollector(const char *ip, uint16_t port, const char* proto)
+int IpfixSender::addCollector(const char *ip, uint16_t port, ipfix_transport_protocol proto)
 {
 	ipfix_exporter *ex = (ipfix_exporter *)ipfixExporter;
-	enum ipfix_transport_protocol pr;
-	
-	if(strcasecmp(proto, "TCP") == 0) {
-              	pr = TCP;
-       	} else if(strcasecmp(proto, "UDP") == 0) {
-              	pr = UDP;
-#ifdef SUPPORT_SCTP
-       	} else if(strcasecmp(proto, "SCTP") == 0) {
-              	pr = SCTP;
-#endif
-       	} else {
-              	msg(MSG_ERROR, "IpfixSender: invalid protocol %s for %s",
-                  proto, ip);
-              	return -1;
-	}
 
        	msg(MSG_INFO, "IpfixSender: adding %s://%s:%d to exporter", proto, ip, port);
 
-	if(ipfix_add_collector(ex, ip, port, pr) != 0) {
+	if(ipfix_add_collector(ex, ip, port, proto) != 0) {
 		msg(MSG_FATAL, "IpfixSender: ipfix_add_collector of %s:%d failed", ip, port);
 		return -1;
 	}
 	
-	Collector newCollector;
-	strcpy(newCollector.ip, ip);
-	newCollector.port = port;
-	strcpy(newCollector.protocol, proto);
-	collectors.push_back(newCollector);
-
 	return 0;
 }
 
