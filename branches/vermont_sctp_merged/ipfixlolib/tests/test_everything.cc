@@ -41,7 +41,9 @@ int main(int argc, char *argv[])
 {
 
 	int ret;
+#ifdef SUPPORT_SCTP
 	int sctp_exists = 0;
+#endif
 	ipfix_exporter *my_exporter;
 
 	ret = ipfix_init_exporter(MY_SOURCE_ID, &my_exporter);

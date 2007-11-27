@@ -82,9 +82,9 @@ Observer::Observer(const std::string& interface, InstanceManager<Packet>* manage
 	captureDevice(NULL), capturelen(PCAP_DEFAULT_CAPTURE_LENGTH), pcap_timeout(PCAP_TIMEOUT), 
 	pcap_promisc(1), ready(false), filter_exp(0), packetManager(manager),
 	receivedBytes(0), lastReceivedBytes(0), processedPackets(0), 
-	lastProcessedPackets(0), exitFlag(false), 
+	lastProcessedPackets(0), 
 	captureInterface(NULL), fileName(NULL), replaceTimestampsFromFile(false),
-	stretchTimeInt(1), stretchTime(1.0)
+	stretchTimeInt(1), stretchTime(1.0), exitFlag(false)
 {
 	if(offline) {
 		readFromFile = true;
@@ -360,7 +360,7 @@ bool Observer::prepare(const std::string& filter)
 		}
 
 		msg(MSG_INFO,
-		    "pcap opening interface=%s, promisc=%d, snaplen=%d, timeout=%d",
+		    "pcap opening interface=%s, promisc=%d, snaplen=%u, timeout=%d",
 		    captureInterface, pcap_promisc, capturelen, pcap_timeout
 		   );
 		captureDevice=pcap_open_live(captureInterface, capturelen, pcap_promisc, pcap_timeout, errorBuffer);
@@ -490,7 +490,7 @@ void Observer::addReceiver(PacketReceiver *recv)
 };
 
 /* you cannot change the caplen of an already running observer */
-bool Observer::setCaptureLen(int x)
+bool Observer::setCaptureLen(unsigned x)
 {
 	/* we cant change pcap caplen if alredy pcap_open() called */
 	if(ready) {
@@ -504,7 +504,7 @@ bool Observer::setCaptureLen(int x)
 	return true;
 }
 
-int Observer::getCaptureLen()
+unsigned Observer::getCaptureLen()
 {
 	return capturelen;
 }

@@ -225,6 +225,6 @@ void *ExporterSink::exporterSinkProcess(void *arg)
 
 bool ExporterSink::addCollector(const char *address, unsigned short port, ipfix_transport_protocol proto)
 {
-	DPRINTF("Adding %s://%s:%d", protocol, address, port);
+	DPRINTF("Adding %s://%s:%d", (proto==UDP)?"UDP":"SCTP", address, port);
 	return(ipfix_add_collector(exporter, address, port, proto) == 0);
 }

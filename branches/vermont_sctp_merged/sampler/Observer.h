@@ -47,8 +47,8 @@ public:
 	void startCapture();
 	void terminateCapture();
 	void addReceiver(PacketReceiver *recv);
-	bool setCaptureLen(int x);
-	int getCaptureLen();
+	bool setCaptureLen(unsigned x);
+	unsigned getCaptureLen();
 	bool setPacketTimeout(int ms);
 	int getPacketTimeout();
 	void replaceOfflineTimestamps();
@@ -78,7 +78,7 @@ protected:
 	char errorBuffer[PCAP_ERRBUF_SIZE];
 
 	// also called snaplen; only sniff this much bytes from each packet
-	int capturelen;
+	unsigned capturelen;
 
 	// wait this much ms until pcap_read() returns and get ALL packets received
 	int pcap_timeout;

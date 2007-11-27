@@ -1098,7 +1098,9 @@ static int ipfix_send_data(ipfix_exporter* exporter)
         // send the current data_sendbuffer:
         int data_length=0;
         
+#ifdef SUPPORT_SCTP
 	time_t time_now = time(NULL);
+#endif
         
         // is there data to send?
         if (exporter->data_sendbuffer->committed_data_length > 0 ) {
