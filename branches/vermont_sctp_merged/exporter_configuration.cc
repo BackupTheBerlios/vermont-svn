@@ -197,7 +197,7 @@ void ExporterConfiguration::createIpfixSender(uint16_t observationDomainId)
 	}
 	for (unsigned i = 1; i != collectors.size(); ++i) {
 		if (ipfixSender->addCollector(collectors[i]->ipAddress.c_str(), collectors[i]->port,
-					    collectors[i]->protocolType.c_str() )) {
+					    collectors[i]->protocolType)) {
 			msg(MSG_ERROR, "ExporterConfiguration: error adding collector %s:%d to IpfixSender",
 			    collectors[i]->ipAddress.c_str(), collectors[i]->port);
 		}

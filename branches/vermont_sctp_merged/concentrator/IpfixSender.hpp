@@ -32,7 +32,7 @@
  */
 class IpfixSender : public FlowSink {
 	public:
-		IpfixSender(uint16_t observationDomainId, const char* ip = 0, uint16_t port = 0, ipfix_transport_protocol proto = 0);
+		IpfixSender(uint16_t observationDomainId, const char* ip = 0, uint16_t port = 0, ipfix_transport_protocol proto = UDP);
 		virtual ~IpfixSender();
 
 		void start();

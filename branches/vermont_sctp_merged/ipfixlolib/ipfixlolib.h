@@ -40,7 +40,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#ifdef SUPPORT_SCTP 
 #include <netinet/sctp.h>
+#endif
 
 #include "encoding.h"
 #include "ipfix_names.h"

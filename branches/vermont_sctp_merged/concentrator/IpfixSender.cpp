@@ -53,7 +53,7 @@ IpfixSender::IpfixSender(uint16_t observationDomainId, const char* ip, uint16_t 
 		goto out;
 	}
 
-	if (ip && port && proto) {
+	if (ip && port) {
 		if(addCollector(ip, port, proto) != 0) {
 			goto out1;
 		}
