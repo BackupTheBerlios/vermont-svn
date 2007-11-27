@@ -78,14 +78,14 @@ void CollectorConfiguration::readListener(xmlNodePtr p)
 			listener->ipAddress = getContent(i);
 			msg(MSG_DEBUG, "Listening on a specific interface isn't supported right now. Vermont will listen on all interfaces. \"ipAddress\" will be ignored at the moment");
 		} else if (tagMatches(i, "transportProtocol")) {
-			if ((getContent(i) == "17") && (getContent(i) == "UDP")) {
+			if ((getContent(i) == "17") || (getContent(i) == "UDP")) {
 				listener->protocolType = 17;
 #ifdef SUPPORT_SCTP
-			}else if ((getContent(i) == "132") && (getContent(i) == "SCTP")){
+			}else if ((getContent(i) == "132") || (getContent(i) == "SCTP")){
 				listener->protocolType = 132;
 #endif
 		/*
-			}else if ((getContent(i) == "6") && (getContent(i) == "TCP")){
+			}else if ((getContent(i) == "6") || (getContent(i) == "TCP")){
 				listener->protocolType = 6;
 		*/
 			}else{

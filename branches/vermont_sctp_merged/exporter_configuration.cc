@@ -102,14 +102,14 @@ void ExporterConfiguration::readCollector(xmlNodePtr p)
 		} else  if (tagMatches(i, "ipAddress")) {
 			c->ipAddress = getContent(i);
 		} else if (tagMatches(i, "transportProtocol")) {
-			if ((getContent(i) == "17") && (getContent(i) == "UDP")) {
+			if ((getContent(i) == "17") || (getContent(i) == "UDP")) {
 				c->protocolType = UDP;
 #ifdef SUPPORT_SCTP
-			}else if ((getContent(i) == "132") && (getContent(i) == "SCTP")){
+			}else if ((getContent(i) == "132") || (getContent(i) == "SCTP")){
 				c->protocolType = SCTP;
 #endif
 		/*
-			}else if ((getContent(i) == "6") && (getContent(i) == "TCP")){
+			}else if ((getContent(i) == "6") || (getContent(i) == "TCP")){
 				c->protocolType = TCP;
 		*/
 			}else{
