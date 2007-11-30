@@ -33,7 +33,7 @@
 
 class IpfixReceiverUdpIpV4 : public IpfixReceiver {
 	public:
-		IpfixReceiverUdpIpV4(int port);
+		IpfixReceiverUdpIpV4(int port, std::string ipAddr = "");
 		virtual ~IpfixReceiverUdpIpV4();
 
 		virtual void run();

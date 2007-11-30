@@ -90,18 +90,18 @@
 		<dataLifetime unit="msec">0</dataLifetime>
 		<reconnectTimeout unit="msec">5</reconnectTimeout>
 	</sctpManagement>
-	<!--<collector>
+	<collector>
 	    <ipAddressType>4</ipAddressType>
-	    <ipAddress>127.0.0.1</ipAddress>
+	    <ipAddress>192.168.1.33</ipAddress>
 	    <transportProtocol>132</transportProtocol>
 	    <port>1500</port>
-	</collector>-->
-	<collector>
+	</collector>
+	<!--<collector>
 		<ipAddressType>4</ipAddressType>
 		<ipAddress>127.0.0.1</ipAddress>
 		<transportProtocol>17</transportProtocol>
 		<port>4711</port>
-	</collector>
+	</collector>-->
     </exportingProcess>
 
     

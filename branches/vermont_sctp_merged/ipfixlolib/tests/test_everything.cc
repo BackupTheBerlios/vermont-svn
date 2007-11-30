@@ -12,11 +12,13 @@
 
 #include <stdio.h>
 #include "../ipfixlolib.h"
+#include "msg.h"
 
 #define MY_SOURCE_ID 70538
 #define TEST_INIT_LOOP 1
 #define TEST_TEMPLATE_LOOP 1
 #define TEST_ITERATIONS 10
+
 
 int print_usage(void){
 	
@@ -27,6 +29,7 @@ int print_usage(void){
 	printf("\t--- Template creation: \t\tt \n");
 	printf("\t--- Template creation with custom ID: \tT 777 \n");
 	printf("\t--- Delete template with ID: \td 777 \n");
+	printf("\t--- Create (empty) data record assigned to custom template ID: \tr 777 \n");
 	printf("\t--- Sending: \t\t\ts \n");
 	printf("\t--- Quit and deinit:\t\tq \n");
 	
@@ -54,12 +57,15 @@ int main(int argc, char *argv[])
 	
 	ready();
 	
+	
+	
 	int c;
 	
 	while ((c = getchar()) != 'q') {
 		uint16_t my_template_id = 0;
 		uint create_id = 0;
 		uint delete_id = 0;
+		uint16_t my_n_template_id;
 		switch (c) {
 		case 'T':
 			create_id = 0;
@@ -108,7 +114,7 @@ int main(int argc, char *argv[])
 #ifdef SUPPORT_SCTP
 		case 'c':
 			// add SCTP collector
-			ret=ipfix_add_collector(my_exporter, "192.168.1.38", 1500, SCTP);
+			ret=ipfix_add_collector(my_exporter, "127.0.0.1", 1500, SCTP);
 			
 			if (ret != 0) {
 				fprintf(stderr, "ipfix_add_collector failed!\n");
@@ -119,7 +125,7 @@ int main(int argc, char *argv[])
 #endif
 		case 'u':
 			// add UDP collector
-			ret=ipfix_add_collector(my_exporter, "127.0.0.1", 1500, UDP);
+			ret=ipfix_add_collector(my_exporter, "127.0.0.1", 4711, UDP);
 			if (ret != 0) {
 				fprintf(stderr, "ipfix_add_collector failed!\n");
 				exit(-1);
@@ -135,6 +141,30 @@ int main(int argc, char *argv[])
 			if (ret != 0) {
 				fprintf(stderr, "ipfix_remove_template_set failed!\n");
 			}
+			break;
+		case 'r':
+			//Send an empty datarecord 
+			// implemented only for testing if data is assighned to the corresponding templates correctly
+			create_id = 0;
+			scanf("%u",&create_id);
+			//create and send datarecord
+			my_n_template_id = htons(create_id);
+			ret = ipfix_start_data_set(my_exporter, my_n_template_id);
+			if (ret != 0) {
+				fprintf(stderr, "ipfix_start_data_set failed!\n");
+				exit(-1);
+			}
+			ret = ipfix_end_data_set(my_exporter, 1);
+			if (ret != 0) {
+				fprintf(stderr, "ipfix_end_data_set failed!\n");
+				exit(-1);
+			}
+			ret=ipfix_send(my_exporter);
+			if (ret != 0) {
+				fprintf(stderr, "ipfix_send failed!\n");
+				exit(-1);
+			}
+			printf("datarecord send with ID: %d\n", create_id);
 			break;
 		case 10:
 			ready();

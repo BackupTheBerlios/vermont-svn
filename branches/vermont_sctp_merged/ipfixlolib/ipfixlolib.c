@@ -967,12 +967,11 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 						return -1;
 					}
 					ret=writev(exporter->collector_arr[i].data_socket,
-	// 				(Alex: NOTE: Both streams are on the same socket -> only one socket is needed)
 						exporter->template_sendbuffer->entries,
 						exporter->template_sendbuffer->current
 						);
 					if (ret == -1){
-						msg(MSG_ERROR, "ipfix_send_templates(): could not send to %s:%d errno: %s  (UDP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
+						msg(MSG_ERROR, "ipfix_send_templates(): could not send to %s:%d errno: %s  (UDP)... socket not opened at the collector?",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
 					}else{
 						msg(MSG_VDEBUG, "ipfix_send_templates(): %d Template Bytes sent to UDP collectors",ret);	
 					}
@@ -1028,7 +1027,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 								sizeof(exporter->collector_arr[i].addr),
 								0,0,
 								0,//Stream Number
-								exporter->sctp_lifetime,//packet lifetime in ms(0 = reliable )
+								0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
 								0
 								);
 								msg(MSG_VDEBUG, "ipfix_send_templates(): %d Template Bytes sent to SCTP collectors",ret);
@@ -1151,19 +1150,15 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						exporter->data_sendbuffer->entries,
 						exporter->data_sendbuffer->committed
 						);
-
-					if (ret == -1){
-						msg(MSG_ERROR, "ipfix_send_data(): could not send to %s:%d errno: %s  (UDP)... port not opened?",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
-					}else{
-						msg(MSG_VDEBUG, "ipfix_send_data(): %d Data Bytes sent to UDP collectors",ret);	
-					}
+					// ret=-1 : error message is printed only in ipfix_send_templates to reduce output of the ipfixlolib
+					msg(MSG_VDEBUG, "ipfix_send_data(): %d Data Bytes sent to UDP collectors",ret);
 					break;
 
 				case TCP:
 					msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
 					return -1;
 				case SCTP:
-#ifdef SUPPORT_SCTP
+#ifdef SUPPORT_SCTP			
 					if(exporter->collector_arr[i].state == C_CONNECTED){
 						ret = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
 							exporter->data_sendbuffer->entries,

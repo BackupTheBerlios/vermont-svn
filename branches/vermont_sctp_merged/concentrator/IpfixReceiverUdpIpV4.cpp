@@ -39,7 +39,7 @@
  * Does UDP/IPv4 specific initialization.
  * @param port Port to listen on
  */
-IpfixReceiverUdpIpV4::IpfixReceiverUdpIpV4(int port) {
+IpfixReceiverUdpIpV4::IpfixReceiverUdpIpV4(int port, std::string ipAddr) {
 	receiverPort = port;
 
 	struct sockaddr_in serverAddress;
@@ -51,16 +51,24 @@ IpfixReceiverUdpIpV4::IpfixReceiverUdpIpV4(int port) {
 	}
 	
 	exit = 0;
+
+	// if ipAddr set: listen on a specific interface 
+	// else: listen on all interfaces
+	if(ipAddr == "")
+		serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+	else
+		serverAddress.sin_addr.s_addr = inet_addr(ipAddr.c_str());
 	
 	serverAddress.sin_family = AF_INET;
-	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 	serverAddress.sin_port = htons(port);
 	if(bind(listen_socket, (struct sockaddr*)&serverAddress, 
 		sizeof(struct sockaddr_in)) < 0) {
 		perror("Could not bind socket");
-		THROWEXCEPTION("Cannot create IpfixReceiverUdpIpV4");
+		THROWEXCEPTION("Cannot create IpfixReceiverUdpIpV4 %s:%d",ipAddr.c_str(), port );
 	}
-	msg(MSG_INFO, "UDP Receiver listening on port %d", port);
+	msg(MSG_INFO, "UDP Receiver listening on %s:%d, FD=%d", (ipAddr == "")?std::string("ALL").c_str() : ipAddr.c_str(), 
+								port, 
+								listen_socket);
 	return;
 }
 
@@ -100,6 +108,7 @@ void IpfixReceiverUdpIpV4::run() {
 			sourceID->exporterPort = ntohs(clientAddress.sin_port);
 			sourceID->protocol = IPFIX_protocolIdentifier_UDP;
 			sourceID->receiverPort = receiverPort;
+			sourceID->fileDescriptor = listen_socket;
 			pthread_mutex_lock(&mutex);
 			for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 
 				(*i)->processPacket(data, n, sourceID);

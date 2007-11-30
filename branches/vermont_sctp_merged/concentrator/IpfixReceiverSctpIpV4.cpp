@@ -42,7 +42,7 @@
  * Does SCTP/IPv4 specific initialization.
  * @param port Port to listen on
  */
-IpfixReceiverSctpIpV4::IpfixReceiverSctpIpV4(int port) {
+IpfixReceiverSctpIpV4::IpfixReceiverSctpIpV4(int port, std::string ipAddr) {
 	receiverPort = port;
 	
 	struct sockaddr_in serverAddress;
@@ -55,19 +55,27 @@ IpfixReceiverSctpIpV4::IpfixReceiverSctpIpV4(int port) {
 	
 	exit = 0;
 	
+	// if ipAddr set: listen on a specific interface 
+	// else: listen on all interfaces
+	if(ipAddr == "")
+		serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+	else
+		serverAddress.sin_addr.s_addr = inet_addr(ipAddr.c_str());
+
 	serverAddress.sin_family = AF_INET;
-	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 	serverAddress.sin_port = htons(port);
 	if(bind(listen_socket, (struct sockaddr*)&serverAddress, 
 		sizeof(struct sockaddr_in)) < 0) {
 		perror("Could not bind socket");
-		THROWEXCEPTION("Cannot create IpfixReceiverSctpIpV4");
+		THROWEXCEPTION("Cannot create IpfixReceiverSctpIpV4 %s:%d",ipAddr.c_str(), port );
 	}
 	if(listen(listen_socket, SCTP_MAX_CONNECTIONS) < 0 ) {
 		msg(MSG_ERROR ,"Could not listen on SCTP socket %i", listen_socket);
 		THROWEXCEPTION("Cannot create IpfixReceiverSctpIpV4");
 	}
-	msg(MSG_INFO, "SCTP Receiver listening on port %d", port);
+	msg(MSG_INFO, "SCTP Receiver listening on %s:%d, FD=%d", (ipAddr == "")?std::string("ALL").c_str() : ipAddr.c_str(), 
+								port, 
+								listen_socket);
 	return;
 }
 
@@ -96,12 +104,15 @@ void IpfixReceiverSctpIpV4::run() {
 	FD_SET(listen_socket, &fd_array); // add listensocket
 	maxfd = listen_socket;
 	
+	fd_set readfds;
+	int ret;
+	int rfd;
+	
+	
 	while(!exit) {
-		fd_set readfds;
-		int ret;
-		int rfd;
-		boost::shared_array<uint8_t> data(new uint8_t[MAX_MSG_LEN]);
+		
 		boost::shared_ptr<IpfixRecord::SourceID> sourceID(new IpfixRecord::SourceID);
+		boost::shared_array<uint8_t> data(new uint8_t[MAX_MSG_LEN]);
 		
 		readfds = fd_array; // because select() changes readfds
 		ret = select(maxfd + 1, &readfds, NULL, NULL, NULL); // check only for something to read
@@ -120,7 +131,7 @@ void IpfixReceiverSctpIpV4::run() {
 			
 			if (rfd >= 0){
 				FD_SET(rfd, &fd_array); // add new client to fd_array
-				msg(MSG_DEBUG, "IpfixReceiverSctpIpV4: Client connected from %s:%d", inet_ntoa(clientAddress.sin_addr), ntohs(clientAddress.sin_port));
+				msg(MSG_DEBUG, "IpfixReceiverSctpIpV4: Client connected from %s:%d, FD=%d", inet_ntoa(clientAddress.sin_addr), ntohs(clientAddress.sin_port), rfd);
 				if (rfd > maxfd){
 					maxfd = rfd;
 				}
@@ -138,13 +149,14 @@ void IpfixReceiverSctpIpV4::run() {
 					FD_CLR(rfd, &fd_array); // delete dead client
 					msg(MSG_DEBUG, "IpfixReceiverSctpIpV4: Client disconnected");
 				}else{
-					if (isHostAuthorized(&clientAddress.sin_addr, sizeof(clientAddress.sin_addr))) {
-// 						uint32_t ip = ntohl(clientAddress.sin_addr.s_addr);
+					if (isHostAuthorized(&clientAddress.sin_addr,
+					    sizeof(clientAddress.sin_addr))) {
 						memcpy(sourceID->exporterAddress.ip, &clientAddress.sin_addr.s_addr, 4);
 						sourceID->exporterAddress.len = 4;
 						sourceID->exporterPort = ntohs(clientAddress.sin_port);
 						sourceID->protocol = IPFIX_protocolIdentifier_SCTP;
 						sourceID->receiverPort = receiverPort;
+						sourceID->fileDescriptor = rfd;
 						pthread_mutex_lock(&mutex);
 						for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 
 							(*i)->processPacket(data, ret, sourceID);

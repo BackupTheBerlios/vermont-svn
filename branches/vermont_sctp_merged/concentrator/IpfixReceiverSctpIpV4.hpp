@@ -36,7 +36,7 @@
 class IpfixReceiverSctpIpV4 : public IpfixReceiver {
 #ifdef SUPPORT_SCTP
 	public:
-		IpfixReceiverSctpIpV4(int port);
+		IpfixReceiverSctpIpV4(int port, std::string ipAddr = "");
 		virtual ~IpfixReceiverSctpIpV4();
 
 		virtual void run();
@@ -44,7 +44,7 @@ class IpfixReceiverSctpIpV4 : public IpfixReceiver {
 		int listen_socket;
 #else
 	public:
-		IpfixReceiverSctpIpV4(int port) {
+		IpfixReceiverSctpIpV4(int port, std::string ipAddr) {
 			THROWEXCEPTION("SCTP not supported!");
 		}
 		

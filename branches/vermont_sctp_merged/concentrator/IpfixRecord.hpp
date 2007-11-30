@@ -425,9 +425,23 @@ class IpfixRecord {
 			uint16_t exporterPort;
 			uint16_t receiverPort;
 			uint8_t protocol;
+			int fileDescriptor;
 
 			bool operator==(const struct SourceID & x) {
-				return (observationDomainId == x.observationDomainId) && (exporterPort == x.exporterPort) && (receiverPort == x.receiverPort) && (protocol == x.protocol) && (exporterAddress.len == x.exporterAddress.len) && (memcmp(exporterAddress.ip, x.exporterAddress.ip, exporterAddress.len) == 0);
+				if(protocol == 132) /* compare file descriptors instead of IP addresses because of possible multihoming */
+					return (observationDomainId == x.observationDomainId) && 
+					(exporterPort == x.exporterPort) && 
+					(receiverPort == x.receiverPort) && 
+					(protocol == x.protocol) && 
+					(fileDescriptor == x.fileDescriptor);
+				else
+					return (observationDomainId == x.observationDomainId) && 
+					(exporterPort == x.exporterPort) && 
+					(receiverPort == x.receiverPort) && 
+					(protocol == x.protocol) && 
+					(exporterAddress.len == x.exporterAddress.len) && 
+					(memcmp(exporterAddress.ip, x.exporterAddress.ip, exporterAddress.len) == 0 );
+					// && (fileDescriptor == x.fileDescriptor);
 			}
 		};
 

@@ -76,7 +76,6 @@ void CollectorConfiguration::readListener(xmlNodePtr p)
 			}
 		} else  if (tagMatches(i, "ipAddress")) {
 			listener->ipAddress = getContent(i);
-			msg(MSG_DEBUG, "Listening on a specific interface isn't supported right now. Vermont will listen on all interfaces. \"ipAddress\" will be ignored at the moment");
 		} else if (tagMatches(i, "transportProtocol")) {
 			if ((getContent(i) == "17") || (getContent(i) == "UDP")) {
 				listener->protocolType = 17;
@@ -110,10 +109,10 @@ void CollectorConfiguration::setUp()
 		IpfixReceiver* ipfixReceiver;
 		switch(listeners[i]->protocolType){
 			case 17:
-				ipfixReceiver = new IpfixReceiverUdpIpV4(listeners[i]->port);
+				ipfixReceiver = new IpfixReceiverUdpIpV4(listeners[i]->port, listeners[i]->ipAddress);
 				break;
 			case 132:
-				ipfixReceiver = new IpfixReceiverSctpIpV4(listeners[i]->port);
+				ipfixReceiver = new IpfixReceiverSctpIpV4(listeners[i]->port, listeners[i]->ipAddress);
 				break;
 		}
 		if (!ipfixReceiver) {

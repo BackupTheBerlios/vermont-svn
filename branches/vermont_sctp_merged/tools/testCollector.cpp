@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef SUPPORT_SCTP
 	// If you want to create a SCTP testCollector 	
-   	IpfixReceiverSctpIpV4 ipfixReceiver(lport);
+   	IpfixReceiverSctpIpV4 ipfixReceiver(lport, "127.0.0.1");
 #endif
 	// If you want to create a UDP testCollector
     	IpfixReceiverUdpIpV4 ipfixReceiver2(4711);
