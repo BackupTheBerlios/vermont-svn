@@ -32,22 +32,21 @@
 TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(boost::shared_ptr<IpfixRecord::SourceID> sourceId, TemplateID templateId) {
 	time_t now = time(0);
 	TemplateBuffer::BufferedTemplate* bt = head;
-	
-	//TODO:Print all templates : only for debug, delete after correct behavior
-	printf("ALL TEMPLATES -----------------\n");
+
+#ifdef DEBUG
+	DPRINTF("ALL TEMPLATES ---------------------------");
 	while (bt != 0) {
-		msg(MSG_DEBUG, "bt->sourceID %lu %u %u %u.%u.%u.%u %u %u ptr: %lu size: %lu", bt->sourceID.get()->observationDomainId, bt->sourceID.get()->exporterPort, bt->sourceID.get()->receiverPort, bt->sourceID.get()->exporterAddress.ip[0], bt->sourceID.get()->exporterAddress.ip[1], bt->sourceID.get()->exporterAddress.ip[2], bt->sourceID.get()->exporterAddress.ip[3], bt->sourceID.get()->exporterAddress.len, bt->sourceID.get()->protocol, bt->sourceID.get(), sizeof(IpfixRecord::SourceID));
+		DPRINTF("bt->sourceID %lu %u %u %u.%u.%u.%u %u %u ptr: %lu size: %lu", bt->sourceID.get()->observationDomainId, bt->sourceID.get()->exporterPort, bt->sourceID.get()->receiverPort, bt->sourceID.get()->exporterAddress.ip[0], bt->sourceID.get()->exporterAddress.ip[1], bt->sourceID.get()->exporterAddress.ip[2], bt->sourceID.get()->exporterAddress.ip[3], bt->sourceID.get()->exporterAddress.len, bt->sourceID.get()->protocol, bt->sourceID.get(), sizeof(IpfixRecord::SourceID));
 		
 		bt = (TemplateBuffer::BufferedTemplate*)bt->next;
 	}
-	printf("END ALL TEMPLATES -----------------\n");
+	DPRINTF("END ALL TEMPLATES --------------------------");
 	
 	bt = head;
-	msg(MSG_DEBUG, "Searching for : sourceID %lu %u %u %u.%u.%u.%u  %u %u", sourceId.get()->observationDomainId, sourceId.get()->exporterPort, sourceId.get()->receiverPort, sourceId.get()->exporterAddress.ip[0], sourceId.get()->exporterAddress.ip[1], sourceId.get()->exporterAddress.ip[2], sourceId.get()->exporterAddress.ip[3], sourceId.get()->exporterAddress.len, sourceId.get()->protocol);
+	DPRINTF("Searching for : sourceID %lu %u %u %u.%u.%u.%u  %u %u", sourceId.get()->observationDomainId, sourceId.get()->exporterPort, sourceId.get()->receiverPort, sourceId.get()->exporterAddress.ip[0], sourceId.get()->exporterAddress.ip[1], sourceId.get()->exporterAddress.ip[2], sourceId.get()->exporterAddress.ip[3], sourceId.get()->exporterAddress.len, sourceId.get()->protocol);
+#endif
 	
 	while (bt != 0) {
-		//msg(MSG_DEBUG, "bt->sourceID %lu %u %u %u.%u.%u.%u %u %u ptr: %lu size: %lu", bt->sourceID.get()->observationDomainId, bt->sourceID.get()->exporterPort, bt->sourceID.get()->receiverPort, bt->sourceID.get()->exporterAddress.ip[0], bt->sourceID.get()->exporterAddress.ip[1], bt->sourceID.get()->exporterAddress.ip[2], bt->sourceID.get()->exporterAddress.ip[3], bt->sourceID.get()->exporterAddress.len, bt->sourceID.get()->protocol, bt->sourceID.get(), sizeof(IpfixRecord::SourceID));
-		
 		if ((*(bt->sourceID.get()) == *(sourceId.get())) && (bt->templateID == templateId)){
 			if ((bt->expires) && (bt->expires < now)) {
 				destroyBufferedTemplate(sourceId, templateId);
@@ -57,7 +56,7 @@ TemplateBuffer::BufferedTemplate* TemplateBuffer::getBufferedTemplate(boost::sha
 		}
 		bt = (TemplateBuffer::BufferedTemplate*)bt->next;
 	}
-	printf("getBufferedTemplate not found!!! \n");
+	DPRINTF("getBufferedTemplate not found!!!");
 	return 0;
 }
 

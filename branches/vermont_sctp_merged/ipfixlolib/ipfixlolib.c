@@ -916,6 +916,58 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
         return 0;
 }
 
+#ifdef SUPPORT_SCTP
+/*
+ * function used by SCTP to reconnect to a collector, if connection
+ * was lost. After succesful reconnection resend all active templates.
+ * i: index of the collector in the exporters collector_arr
+ */
+int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
+	int ret;
+	time_t time_now = time(NULL);
+	int sock = init_send_sctp_socket( exporter->collector_arr[i].addr );
+	//int sock = exporter->collector_arr[i].data_socket;
+	exporter->collector_arr[i].last_reconnect_attempt_time = time_now;
+	if( sock < 0) {
+		msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP socket creation in reconnect failed, %s", strerror(errno));
+		exporter->collector_arr[i].last_reconnect_attempt_time = time_now;
+		return -1;
+	}else {
+		if(connect(sock, (struct sockaddr*)&(exporter->collector_arr[i].addr), sizeof(exporter->collector_arr[i].addr) ) < 0) {
+		msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP reconnect failed, %s", strerror(errno));
+		close(sock);
+		exporter->collector_arr[i].state = C_DISCONNECTED;
+		return -1;
+		}
+		exporter->collector_arr[i].data_socket = sock;
+		//reconnected -> resend all active templates
+		ret = ipfix_prepend_header(exporter,
+		exporter->template_sendbuffer->committed_data_length,
+		exporter->template_sendbuffer
+		);
+		ret = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
+		exporter->template_sendbuffer->entries,
+		exporter->template_sendbuffer->current,
+		(struct sockaddr*)&(exporter->collector_arr[i].addr),
+		sizeof(exporter->collector_arr[i].addr),
+		0,0,
+		0,//Stream Number
+		0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
+		0
+		);
+		msg(MSG_VDEBUG, "ipfix_sctp_reconnect(): %d TMPlate Bytes sent to SCTP collectors",ret);
+		if (ret == -1){
+			msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP sending templates after reconnection failed, %s", strerror(errno));
+			close(exporter->collector_arr[i].data_socket);
+			exporter->collector_arr[i].state = C_DISCONNECTED;
+			return -1;
+		}else{
+			exporter->collector_arr[i].state = C_CONNECTED;
+			return sock;
+		}
+	}
+}
+#endif /*SUPPORT_SCTP*/
 
 /*******************************************************************/
 /* Transmission                                                    */
@@ -1235,53 +1287,6 @@ static int ipfix_send_data(ipfix_exporter* exporter)
         return ret;
 }
 
-#ifdef SUPPORT_SCTP
-int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
-	int ret;
-	time_t time_now = time(NULL);
-	int sock = init_send_sctp_socket( exporter->collector_arr[i].addr );
-	//int sock = exporter->collector_arr[i].data_socket;
-	exporter->collector_arr[i].last_reconnect_attempt_time = time_now;
-	if( sock < 0) {
-		msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP socket creation in reconnect failed, %s", strerror(errno));
-		exporter->collector_arr[i].last_reconnect_attempt_time = time_now;
-		return -1;
-	}else {
-		if(connect(sock, (struct sockaddr*)&(exporter->collector_arr[i].addr), sizeof(exporter->collector_arr[i].addr) ) < 0) {
-		msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP reconnect failed, %s", strerror(errno));
-		close(sock);
-		exporter->collector_arr[i].state = C_DISCONNECTED;
-		return -1;
-		}
-		exporter->collector_arr[i].data_socket = sock;
-		//reconnected -> resend all active templates
-		ret = ipfix_prepend_header(exporter,
-		exporter->template_sendbuffer->committed_data_length,
-		exporter->template_sendbuffer
-		);
-		ret = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
-		exporter->template_sendbuffer->entries,
-		exporter->template_sendbuffer->current,
-		(struct sockaddr*)&(exporter->collector_arr[i].addr),
-		sizeof(exporter->collector_arr[i].addr),
-		0,0,
-		0,//Stream Number
-		0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
-		0
-		);
-		msg(MSG_VDEBUG, "ipfix_sctp_reconnect(): %d TMPlate Bytes sent to SCTP collectors",ret);
-		if (ret == -1){
-			msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP sending templates after reconnection failed, %s", strerror(errno));
-			close(exporter->collector_arr[i].data_socket);
-			exporter->collector_arr[i].state = C_DISCONNECTED;
-			return -1;
-		}else{
-			exporter->collector_arr[i].state = C_CONNECTED;
-			return sock;
-		}
-	}
-}
-#endif /*SUPPORT_SCTP*/
 
 /*
  Send data to collectors
