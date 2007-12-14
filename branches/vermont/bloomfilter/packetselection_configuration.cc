@@ -158,6 +158,7 @@ void PacketSelectionConfiguration::configure()
 			}
 			filter->addProcessor(new IPHeaderFilter(header, offset, size, comp, value));
 		} else if (tagMatches(i, "connectionFilter")) {
+#ifdef HAVE_GSL
 			xmlNodePtr j = i->xmlChildrenNode;
 			int bytes = 0;
 			int timeout = 0;
@@ -177,6 +178,9 @@ void PacketSelectionConfiguration::configure()
 				j = j->next;
 			}
 			filter->addProcessor(new ConnectionFilter(timeout, bytes, hashFunctions, size));
+#else
+			THROWEXCEPTION("Cannot configure ConnectionFilter because connection filter was disabled at compile time");
+#endif
 		}	
 		i = i->next;
 	}

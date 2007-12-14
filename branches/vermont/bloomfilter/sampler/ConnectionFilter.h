@@ -1,3 +1,5 @@
+#ifdef HAVE_GSL
+
 #ifndef _CONNECTION_FILTER_H_
 #define _CONNECTION_FILTER_H_
 
@@ -18,5 +20,7 @@ protected:
 	unsigned timeout;
 	unsigned exportBytes;
 };
+
+#endif
 
 #endif

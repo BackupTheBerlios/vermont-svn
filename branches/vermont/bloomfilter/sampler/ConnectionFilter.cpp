@@ -1,3 +1,5 @@
+#ifdef HAVE_GSL
+
 #include "ConnectionFilter.h"
 
 ConnectionFilter::ConnectionFilter(unsigned timeout, unsigned bytes, unsigned hashFunctions, unsigned filterSize)
@@ -80,3 +82,5 @@ bool ConnectionFilter::processPacket(const Packet* p)
 	msg(MSG_FATAL, "ConnectionFilter: SOMTHING IS SCRWED UP, YOU SHOULD NEVER SEE THIS MESSAGE!");
 	return false; // make compiler happy
 }
+
+#endif
