@@ -43,6 +43,7 @@ SUBDIRS(common concentrator ipfixlolib sampler)
 ADD_EXECUTABLE(vermont
 	collector_configuration.cc
 	exporter_configuration.cc
+	pcapexporter_configuration.cc
 	metering_configuration.cc
 	observer_configuration.cc
 	vermont.cc
