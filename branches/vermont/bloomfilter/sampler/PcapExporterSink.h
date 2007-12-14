@@ -17,22 +17,22 @@ public:
 
         void runSink()
         {
-                msg(MSG_DEBUG, "Sink: now starting ExporterSink thread");
+                msg(MSG_DEBUG, "PcapExporterSink: now starting ExporterSink thread");
                 thread.run(this);
         };
 
         bool terminateSink()
         {
                 exitFlag = true;
+                msg(MSG_DEBUG, "PcapExporterSink: waiting for exporter thread");
+                thread.join();
+                msg(MSG_DEBUG, "PcapExporterSink: exporter thread joined");
 		if (dumper) {
 			if (-1 == pcap_dump_flush(dumper)) {
 				msg(MSG_FATAL, "PcapExporterSink: Could not flush dump file");
 			}
 			pcap_dump_close(dumper);
 		}
-                msg(MSG_DEBUG, "Sink: waiting for exporter thread");
-                thread.join();
-                msg(MSG_DEBUG, "Sink: exporter thread joined");
 
 		return true;
         };
