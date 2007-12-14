@@ -57,7 +57,7 @@ bool ConnectionFilter::processPacket(const Packet* p)
 			else
 				diffVal = -tmp;
 			exportFilter.set(key.data, key.len, diffVal);
-			if (tmp - diffVal <= 0) {
+			if (exportFilter.get(key.data, key.len) <= 0) {
 				connectionFilter.set(key.data, key.len, p->timestamp.tv_sec);
 			}
 			DPRINTF("ConnectionFilter: We have to export %i bytes after exporting this packet", exportFilter.get(key.data, key.len));
