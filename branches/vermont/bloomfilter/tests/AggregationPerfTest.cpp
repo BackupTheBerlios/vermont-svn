@@ -62,7 +62,7 @@ void AggregationPerfTest::expressTest()
 	shutdown();
 }
 
-Rule::Field* AggregationPerfTest::createRuleField(const string& typeId)
+Rule::Field* AggregationPerfTest::createRuleField(const std::string& typeId)
 {
 	Rule::Field* ruleField = new Rule::Field();
 	ruleField->modifier = Rule::Field::KEEP;

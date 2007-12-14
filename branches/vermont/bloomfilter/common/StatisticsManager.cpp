@@ -4,6 +4,7 @@
 #include <string>
 #include <unistd.h>
 
+using namespace std;
 
 StatisticsManager::StatisticsManager()
 	: Thread(threadWrapper), interval(10000)
