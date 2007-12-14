@@ -53,6 +53,7 @@ void PcapExporterConfiguration::startSystem()
 
 void PcapExporterConfiguration::stopSystem()
 {
-	exporterSink->terminateSink();
+	if (exporterSink)
+		exporterSink->terminateSink();
 }
 
