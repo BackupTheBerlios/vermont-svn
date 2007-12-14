@@ -30,7 +30,7 @@ static Packet* getNextPacket(pcap_t* dev)
 
 	pcapData = pcap_next(dev, &packetHeader);
 	p = packetManager.getNewInstance();
-	p->init((char*)pcapData, packetHeader.caplen, packetHeader.ts);
+	p->init((char*)pcapData, packetHeader.caplen, packetHeader.ts, packetHeader.len);
 	
 	return p;
 }

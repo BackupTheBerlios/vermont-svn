@@ -57,6 +57,7 @@ public:
 	bool prepare(const std::string& filter);
 	static void doLogging(void *arg);
 	virtual std::string getStatistics();
+	int getDataLinkType();
 
 
 protected:

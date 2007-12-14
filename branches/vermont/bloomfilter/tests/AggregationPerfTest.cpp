@@ -153,7 +153,7 @@ void AggregationPerfTest::start(unsigned int numpackets)
 	ConcurrentQueue<Packet*>* filterq = filter->getQueue();
 	for (unsigned int i=0; i<numpackets; i++) {
 		Packet* p = packetManager->getNewInstance();
-		p->init((char*)packetdata, packetdatalen, curtime);
+		p->init((char*)packetdata, packetdatalen, curtime, packetdatalen);
 		filterq->push(p);
 	}
 }
