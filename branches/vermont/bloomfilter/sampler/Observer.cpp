@@ -396,6 +396,11 @@ bool Observer::prepare(const std::string& filter)
 				goto out2;
 			}
 			break;
+		case DLT_LINUX_SLL:
+			if (IP_HEADER_OFFSET != 16) {
+				msg(MSG_FATAL, "IP_HEADER_OFFSET on linux cooked devices has to be 16 Bytes. Please adjust that value via configure --with-ipheader-offset");
+				goto out2;
+			}
 		default:
 			msg(MSG_ERROR, "You are using an unkown IP_HEADER_OFFSET and data link combination. This can make problems. Please check if you use the correct IP_HEADER_OFFSET for your data link, if you see strange IPFIX/PSAMP packets.");
 		}
