@@ -87,7 +87,7 @@
 	    <templateRefreshRate>100</templateRefreshRate>
 	</udpTemplateManagement>
 	<sctpManagement>
-		<dataLifetime unit="msec">0</dataLifetime>
+		<dataLifetime unit="msec">10000</dataLifetime>
 		<reconnectTimeout unit="msec">5</reconnectTimeout>
 	</sctpManagement>
 	<collector>
@@ -98,7 +98,7 @@
 	</collector>
 	<!--<collector>
 		<ipAddressType>4</ipAddressType>
-		<ipAddress>127.0.0.1</ipAddress>
+		<ipAddress>10.32.136.3</ipAddress>
 		<transportProtocol>17</transportProtocol>
 		<port>4711</port>
 	</collector>-->

@@ -430,18 +430,19 @@ class IpfixRecord {
 			bool operator==(const struct SourceID & x) {
 				if(protocol == 132) /* compare file descriptors instead of IP addresses because of possible multihoming */
 					return (observationDomainId == x.observationDomainId) && 
-					(exporterPort == x.exporterPort) && 
-					(receiverPort == x.receiverPort) && 
-					(protocol == x.protocol) && 
+// 					(exporterPort == x.exporterPort) && 
+// 					(receiverPort == x.receiverPort) && 
+// 					(protocol == x.protocol) && 
 					(fileDescriptor == x.fileDescriptor);
-				else
+				else /* UDP: fileDescriptor only specifies the Collector endpoint*/
 					return (observationDomainId == x.observationDomainId) && 
 					(exporterPort == x.exporterPort) && 
-					(receiverPort == x.receiverPort) && 
-					(protocol == x.protocol) && 
+					//(receiverPort == x.receiverPort) &&
+					(fileDescriptor == x.fileDescriptor) && 
+					//(protocol == x.protocol) && 
 					(exporterAddress.len == x.exporterAddress.len) && 
 					(memcmp(exporterAddress.ip, x.exporterAddress.ip, exporterAddress.len) == 0 );
-					// && (fileDescriptor == x.fileDescriptor);
+					
 			}
 		};
 

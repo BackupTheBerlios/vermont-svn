@@ -503,7 +503,7 @@ int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
 // argument T_SENT is ignored in ipfix_find_template
         int found_index = ipfix_find_template(exporter,template_id, T_SENT);
 	if (found_index >= 0) {
-		if( (exporter->template_arr[found_index].state == T_SENT) || ((exporter->template_arr[found_index].state == T_COMMITED)) ){
+		if(exporter->template_arr[found_index].state == T_SENT){
 			msg(MSG_VDEBUG, "IPFIX: ipfix_remove_template_set: creating withdrawal msg for ID: %d, validity %d", template_id, exporter->template_arr[found_index].state);
 			char *p_pos;
 			char *p_end;
@@ -527,10 +527,13 @@ int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
 			exporter->template_arr[found_index].field_count = 0;
 			exporter->template_arr[found_index].state = T_WITHDRAWN;
 			msg(MSG_VDEBUG, "IPFIX: ipfix_remove_template_set: ... Withdrawn");
+       		}
+       		if(exporter->template_arr[found_index].state == T_COMMITED) {
+			ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]) );
 		}
-        }else {
-                msg(MSG_ERROR, "IPFIX: remove_template ID %u not found", template_id);
-                return -1;
+        }else{
+		msg(MSG_ERROR, "IPFIX: remove_template ID %u not found", template_id);
+		return -1;
         }
         return ret;
 }
@@ -1533,13 +1536,13 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
                 // we must overwrite the old template.
                 // first, clean up the old template:
 		switch (exporter->template_arr[found_index].state){
-                	case T_COMMITED:
 			case T_SENT:
 				// create a withdrawal message first
 				ipfix_remove_template_set(exporter, exporter->template_arr[found_index].template_id);
 			case T_WITHDRAWN:
 				// send withdrawal messages
 				ipfix_send_templates(exporter);
+			case T_COMMITED:
 			case T_UNCLEAN:
 			case T_TOBEDELETED:
 				// nothing to do, template can be deleted

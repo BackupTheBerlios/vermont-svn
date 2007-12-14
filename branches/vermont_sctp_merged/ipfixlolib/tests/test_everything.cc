@@ -55,6 +55,9 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}	
 	
+	ipfix_set_sctp_lifetime(my_exporter, 5);
+	printf("SCTP datalifetime set to %d\n", my_exporter->sctp_lifetime);
+	
 	ready();
 	
 	
