@@ -65,7 +65,7 @@ void ExporterConfiguration::readUdpTemplateManagement(xmlNodePtr p)
 	xmlNodePtr i = p->xmlChildrenNode;
 	while (NULL != i) {
 		if (tagMatches(i, "templateRefreshTimeout")) {
-			templateRefreshTime = getTimeInMsecs(i);
+			templateRefreshTime = getTimeInSecs(i);
 		} else if (tagMatches(i, "templateRefreshRate")) {
 			templateRefreshRate = (unsigned)atoi(getContent(i).c_str());
 		}
@@ -81,7 +81,7 @@ void ExporterConfiguration::readSctpManagement(xmlNodePtr p)
 			dataLifetime = getTimeInMsecs(i);
 		} 
 		if (tagMatches(i, "reconnectTimeout")) {
-			reconnectTimeout = getTimeInMsecs(i);
+			reconnectTimeout = getTimeInSecs(i);
 		} 
 		i = i->next;
 	}

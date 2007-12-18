@@ -1,22 +1,38 @@
 <ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
 
-    <observationPoint id="1">
+	<collectingProcess id="1">
+		<observationDomainId>12345</observationDomainId>
+		<listener>
+			<ipAddressType>4</ipAddressType>
+			<ipAddress>192.168.1.33</ipAddress>
+			<transportProtocol>132</transportProtocol>
+			<port>1500</port>
+		</listener>
+		<udpTemplateLifetime unit="sec">15</udpTemplateLifetime>
+		<next>
+			<exportingProcessId>1</exportingProcessId>
+		</next>
+	</collectingProcess>
+    
+    
+    <!--<observationPoint id="1">
 	<observationDomainId>4711</observationDomainId>
 	<type>pcap</type>
 	<parameters>
-		<interface>eth1</interface>
+		<interface>lo</interface>
 		<pcap_filter>ip</pcap_filter>
 	</parameters>
 	<next>
 	    <meteringProcessId>1</meteringProcessId>
 	</next>
-    </observationPoint>
-    <meteringProcess id="1">
+    </observationPoint>-->	
+    <!--<meteringProcess id="1">
 	    <flowMetering>
 		    <rule>
 			    <templateId>998</templateId>
 			    <flowKey>
 				    <ieName>sourceIPv4Address</ieName>
+				    <modifier>mask/16</modifier>
 			    </flowKey>
 			    <flowKey>
 				    <ieName>destinationIPv4Address</ieName>
@@ -33,75 +49,32 @@
 	    <next>
 	    	<exportingProcessId>1</exportingProcessId>
 	    </next>
-    </meteringProcess>
-    <!--<meteringProcess id="2">
-	    <flowMetering>
-		    <rule>
-			    <templateId>4711</templateId>
-			    <flowKey>
-				    <ieName>protocolIdentifier</ieName>
-				    <match>UDP</match>
-			    </flowKey>
-		    </rule>
-		    <expiration>
-			    <activeTimeout unit="sec">5</activeTimeout>
-			    <inactiveTimeout unit="sec">5</inactiveTimeout>
-		    </expiration>
-	    </flowMetering>
-	    <next>
-		    <exportingProcessId>1</exportingProcessId>
-	    </next>
     </meteringProcess>-->
-    <!-- 
-    <meteringProcess id="1">
-	    <packetSelection>
-		    <randOutOfN>
-			    <population>10</population>
-			    <sample>5</sample>
-		    </randOutOfN>
-	    </packetSelection>
-	    <packetReporting>
-		    <templateId>888</templateId>
-		    <reportedIE>
-			    <ieName>sourceIPv4Address</ieName>
-		    </reportedIE>
-		    <reportedIE>
-			    <ieName>destinationIPv4Address</ieName>
-		    </reportedIE>
-		    <reportedIE>
-			    <ieName>protocolIdentifier</ieName>
-		    </reportedIE>
-	    </packetReporting>
-	    <next>
-		    <exportingProcessId>1</exportingProcessId>
-	    </next>
-    </meteringProcess>
-    !-->    
+    
     <exportingProcess id="1">
 	<ipfixPacketRestrictions>
 	    <maxPacketSize>1500</maxPacketSize>
 	    <maxExportDelay unit="msec">500</maxExportDelay>
 	</ipfixPacketRestrictions>
 	<udpTemplateManagement>
- 	    <templateRefreshTimeout unit="sec">10</templateRefreshTimeout>
+	    <templateRefreshTimeout unit="msec">10</templateRefreshTimeout>
 	    <templateRefreshRate>100</templateRefreshRate>
 	</udpTemplateManagement>
 	<sctpManagement>
-		<dataLifetime unit="msec">10000</dataLifetime>
-		<reconnectTimeout unit="sec">5</reconnectTimeout>
+		<dataLifetime unit="msec">7</dataLifetime>
 	</sctpManagement>
-	<collector>
+<!--	<collector>
 	    <ipAddressType>4</ipAddressType>
-	    <ipAddress>127.0.0.1</ipAddress>
+	    <ipAddress>192.168.1.38</ipAddress>
 	    <transportProtocol>132</transportProtocol>
 	    <port>1500</port>
-	</collector>
-	<!--<collector>
+	</collector>-->
+	<collector>
 		<ipAddressType>4</ipAddressType>
-		<ipAddress>10.32.136.3</ipAddress>
+		<ipAddress>127.0.0.1</ipAddress>
 		<transportProtocol>17</transportProtocol>
 		<port>4711</port>
-	</collector>-->
+	</collector>
     </exportingProcess>
 
     
