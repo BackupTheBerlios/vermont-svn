@@ -1,6 +1,6 @@
 /*
- * IPFIX Concentrator Module Library
- * Copyright (C) 2004 Christoph Sommer <http://www.deltadevelopment.de/users/christoph/ipfix/>
+ * IPFIX Concentrator Module Library - SCTP Receiver
+ * Copyright (C) 2007 Alex Melnik
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -111,9 +111,6 @@ void IpfixReceiverSctpIpV4::run() {
 	
 	while(!exit) {
 		
-		boost::shared_ptr<IpfixRecord::SourceID> sourceID(new IpfixRecord::SourceID);
-		boost::shared_array<uint8_t> data(new uint8_t[MAX_MSG_LEN]);
-		
 		readfds = fd_array; // because select() changes readfds
 		ret = select(maxfd + 1, &readfds, NULL, NULL, NULL); // check only for something to read
 		if ((ret == -1) && (errno == EINTR)) {
@@ -143,6 +140,7 @@ void IpfixReceiverSctpIpV4::run() {
 // 		check all connected sockets for new available data
 		for (rfd = listen_socket + 1; rfd <= maxfd; ++rfd) {
       			if (FD_ISSET(rfd, &readfds)) {
+				boost::shared_array<uint8_t> data(new uint8_t[MAX_MSG_LEN]);
       				ret = recvfrom(rfd, data.get(), MAX_MSG_LEN, 0, 
       					(struct sockaddr*)&clientAddress, &clientAddressLen);
 				if (ret == 0) { // shut down initiated
@@ -151,6 +149,8 @@ void IpfixReceiverSctpIpV4::run() {
 				}else{
 					if (isHostAuthorized(&clientAddress.sin_addr,
 					    sizeof(clientAddress.sin_addr))) {
+						boost::shared_ptr<IpfixRecord::SourceID> sourceID(new IpfixRecord::SourceID);
+		
 						memcpy(sourceID->exporterAddress.ip, &clientAddress.sin_addr.s_addr, 4);
 						sourceID->exporterAddress.len = 4;
 						sourceID->exporterPort = ntohs(clientAddress.sin_port);
