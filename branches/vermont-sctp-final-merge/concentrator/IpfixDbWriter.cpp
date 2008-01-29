@@ -230,9 +230,13 @@ int  IpfixDbWriter::onDataDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecor
     /** if statement counter lower as  max count, insert record in statement buffer*/
     if(statements.statemReceived < statements.maxStatements) {	
 	/** make an sql insert statement from the record data */
-	statements.statemBuffer[statements.statemReceived] = getInsertStatement(
+	if((statements.statemBuffer[statements.statemReceived] = getInsertStatement(
 		statements.statemBuffer[statements.statemReceived], 
-		sourceID, dataTemplateInfo, length, data, statements.lockTables, statements.maxLocks);
+		sourceID, dataTemplateInfo, length, data, statements.lockTables, statements.maxLocks))
+		== NULL) {
+	    /* what can we do? */
+	    return 1;
+	}
 	DPRINTF("Insert statement: %s\n", statements.statemBuffer[statements.statemReceived]);	
 	/** statemBuffer is filled ->  insert in table*/	
 	if(statements.statemReceived == statements.maxStatements-1) {
@@ -435,6 +439,8 @@ char* IpfixDbWriter::getInsertStatement(char* statemStr, IpfixRecord::SourceID* 
     char tablename[TABLE_WIDTH] ;
     DPRINTF("flowstartsec: %d", flowstartsec);
     const char* tablen = getTableName(flowstartsec);
+    if(tablen == NULL)
+	return NULL;
     strcpy(tablename, tablen);
     /** Insert statement = INSERT INTO + tablename +  Columnsname + Values of record*/
     strcat(statemStr, tablename);
@@ -555,7 +561,7 @@ const char* IpfixDbWriter::getTableName(uint64_t flowstartsec)
 	cache.tableBuffer[cache.countBuffTable].startTableTime = 0;
 	cache.tableBuffer[cache.countBuffTable].endTableTime = 0;
 	cache.tableBuffer[cache.countBuffTable].TableName[0] = '\0';
-	return 0; 
+	return NULL; 
     }
 
     /** If end of tablebuffer reached ?  Begin from  the start (keep recently used) */  
