@@ -655,9 +655,10 @@ int IpfixDbWriter::getExporterID(IpfixRecord::SourceID* sourceID)
     int exporterID = 0;
 
     char statementStr[EXPORTER_WIDTH];
-    uint32_t expIp;
+    uint32_t expIp = 0;
 
-    expIp = *(uint32_t*)(sourceID->exporterAddress.ip); 
+    if(sourceID->exporterAddress.len == 4) 
+	expIp = *(uint32_t*)(sourceID->exporterAddress.ip); 
 
 #ifdef DEBUG
     DPRINTF("Content of exporterBuffer\n");
@@ -849,7 +850,12 @@ IpfixDbWriter::IpfixDbWriter(const char* host, const char* db,
     portNum = port;
     socketName = 0;
     flags = 0;
+    srcId.exporterAddress.len = 0;
     srcId.observationDomainId = observationDomainId;
+    srcId.exporterPort = 0;
+    srcId.receiverPort = 0;
+    srcId.protocol = 0;
+    srcId.fileDescriptor = 0;
 
     /**Initialize table cache*/	  
     cache.countBuffTable = 0;
