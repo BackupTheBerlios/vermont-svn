@@ -1,6 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
-/*                            Gerhard Muenz                               */
+/*    Copyright (C) 2007 Gerhard Muenz                                    */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -18,31 +17,24 @@
 /**************************************************************************/
 
 /**
- * @author Lothar Braun <braunl@informatik.uni-tuebingen.de>
+ * @author Gerhard Muenz <muenz@informatik.uni-tuebingen.de>
  */
 
-#include "examplemodule.h"
+#include "countmodule.h"
 
 #include <iostream>
 #include <cstdlib>
 
-/* demonstrates the use of libdetectionModule */
+
 int main(int argc, char** argv) 
 {
-	msgStr.setName("First Examplemodule");
-	msgStr.setLevel(MsgStream::INFO);
-		
-        msgStr.print(MsgStream::INFO, "Got command line arguments:");
-        for (int i = 0; i != argc; ++i) {
-                msgStr << MsgStream::INFO << "Argument " << i << ": " << argv[i] << MsgStream::endl;
-        }
+    msgStr.setName("CountModule");
 
-        if (argc == 2) {
-                ExampleModule m(argv[1]);
-                return m.exec();
-        }
+    if (argc == 2) {
+	CountModule m(argv[1]);
+	return m.exec();
+    }
 
-        ExampleModule m;
-        return m.exec();
-
+    msgStr.print(MsgStream::ERROR, "Configuration file argument is missing!");
+    exit(-1);
 }

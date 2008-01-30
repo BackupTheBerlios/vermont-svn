@@ -3,29 +3,16 @@
 	<collector>
 		<workingDir>../working_dir/</workingDir>
 		<modules>
-      <!--
-      <module>
-          <filename>../detectionmodules/statmodules/sw-module/sw-module</filename>
-            <run>yes</run>
-            <configFile>sw-module.xml</configFile>
-      </module>
-      <module>
-          <filename>../detectionmodules/sfd2/sfdmodule</filename>
-            <run>yes</run>
-            <configFile>sfd2/idmef.xml</configFile>
-            <arg>sfd2/addresses.conf</arg>
-      </module>
-      -->
-      <module>
-          <filename>../detectionmodules/statmodules/wkp-module/wkp-module</filename>
-            <run>yes</run>
-            <configFile>wkp-module.xml</configFile>
-      </module>
+			<module>
+			        <filename>../detectionmodules/examplemodules/third/examplemodule</filename>
+                                <run>yes</run>
+				<configFile>test.xml</configFile>
+			</module>
 		</modules>
 		<transport_proto>UDP</transport_proto>
 		<listenPort>1500</listenPort>
 		<detectmod_killtime>0</detectmod_killtime>
-		<restartOnCrash>no</restartOnCrash>
+		<restartOnCrash>yes</restartOnCrash>
 		<exchangeProtocol type="files">
 			<packetDir>packet_dir/</packetDir>
 		</exchangeProtocol>
@@ -41,8 +28,10 @@
 		<xmlBlasters>
                   <xmlBlaster>
                     <prop>managerID manager</prop>
+		    <!--
                     <prop>plugin/socket/hostname 127.0.0.1</prop>
                     <prop>plugin/socket/port 7607</prop>
+		    -->
                     <prop>queue/connection/type RAM</prop>
                     <prop>xmlBlaster/logging/configFileName log4cplus.properties</prop>
                     <prop>log4cplus.rootLogger WARN, STDOUT</prop>

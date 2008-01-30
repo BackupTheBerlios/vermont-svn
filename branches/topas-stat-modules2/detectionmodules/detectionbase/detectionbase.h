@@ -92,38 +92,38 @@ class DetectionBase
 			if (confObj->selectNodeIfExists(config_space::XMLBLASTER)) {
 				unsigned int count = 0;
 				do {
-					if(confObj->enterNodeIfNotEmpty()) {;
-					    /* Property does handle properties in the java-way */
-					    Property::MapType propMap;
-					    std::vector<std::string> props;
-					    /* get all properties */
-					    if (config->selectNodeIfExists(config_space::XMLBLASTER_PROP)) {
-						do {
-						    props.push_back(config->getValue());
-						} while (config->selectNextNodeIfExists(config_space::XMLBLASTER_PROP))
-					    } else {
-						msgStr << MsgStream::WARN << "No <" << config_space::XMLBLASTER_PROP 
-						    << "> statement in config file, using default values"
-						    << MsgStream::endl;
+				    if(confObj->enterNodeIfNotEmpty()) {;
+					/* Property does handle properties in the java-way */
+					Property::MapType propMap;
+					std::vector<std::string> props;
+					/* get all properties */
+					if (config->selectNodeIfExists(config_space::XMLBLASTER_PROP)) {
+					    do {
+						props.push_back(config->getValue());
+					    } while (config->selectNextNodeIfExists(config_space::XMLBLASTER_PROP))
+					} else {
+					    msgStr << MsgStream::WARN << "No <" << config_space::XMLBLASTER_PROP 
+						<< "> statement in config file, using default values"
+						<< MsgStream::endl;
 
-					    }
-					    for (unsigned i = 0; i != props.size(); ++i) {
-						unsigned seperatorPos;
-						if (std::string::npos != (seperatorPos = props[i].find(' '))) {
-						    std::string key = std::string(props[i].begin(), props[i].begin() + seperatorPos);
-						    std::string value  = std::string(props[i].begin() + seperatorPos + 1, props[i].end());
-						    propMap[key] = value;
-						}
-					    }
-					    /* global configuration for each xmlBlaster connection */
-					    std::string instanceName = "connection-" + ++count;
-					    GlobalRef globalRef =  Global::getInstance().createInstance(instanceName, &propMap);
-					    /* get module id here */
-					    analyzerId = globalRef.getElement()->getInstanceId();
-					    analyzerId = std::string(analyzerId.begin() + analyzerId.find_last_of("/") + 1, analyzerId.end());
-					    xmlBlasters.push_back(globalRef);
-					    confObj->leaveNode();
 					}
+					for (unsigned i = 0; i != props.size(); ++i) {
+					    unsigned seperatorPos;
+					    if (std::string::npos != (seperatorPos = props[i].find(' '))) {
+						std::string key = std::string(props[i].begin(), props[i].begin() + seperatorPos);
+						std::string value  = std::string(props[i].begin() + seperatorPos + 1, props[i].end());
+						propMap[key] = value;
+					    }
+					}
+					/* global configuration for each xmlBlaster connection */
+					std::string instanceName = "connection-" + ++count;
+					GlobalRef globalRef =  Global::getInstance().createInstance(instanceName, &propMap);
+					/* get module id here */
+					analyzerId = globalRef.getElement()->getInstanceId();
+					analyzerId = std::string(analyzerId.begin() + analyzerId.find_last_of("/") + 1, analyzerId.end());
+					xmlBlasters.push_back(globalRef);
+					confObj->leaveNode();
+				    }
 				} while (confObj->selectNextNodeIfExists(config_space::XMLBLASTER))
 			} else {
 				msgStr << MsgStream::WARN << "No <" << config_space::XMLBLASTER << "> statement in config file" << MsgStream::endl;
@@ -305,7 +305,8 @@ class DetectionBase
 								delete confObj;
 							} catch (const exceptions::XMLException &e) {
 								msgStr.print(MsgStream::ERROR, e.what());
-								dbase->sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
+								dbase->sendControlMessage("<result oid='" + dbase->analyzerName + "-"+ dbase->analyzerId + 
+											  "'>Manager: " + std::string(e.what()) + "</result>");
 							}
 						}
 					}				
@@ -330,7 +331,8 @@ class DetectionBase
 							delete confObj;
 						} catch (const exceptions::XMLException &e) {
 							msgStr.print(MsgStream::ERROR, e.what());
-							dbase->sendControlMessage("<result>Manager: " + std::string(e.what()) + "</result>");
+							dbase->sendControlMessage("<result oid='" + dbase->analyzerName + "-"+ dbase->analyzerId + 
+										  "'>Manager: " + std::string(e.what()) + "</result>");
 						}						
 					}
  				}				
@@ -398,8 +400,11 @@ class DetectionBase
         IdmefMessage& getNewIdmefMessage()
         {
                 delete currentMessage;
-                currentMessage = new IdmefMessage(analyzerName, analyzerId, classification, IdmefMessage::ALERT);
-		currentMessage->setAnalyzerAttr("", topasID, "", "");
+		std::string moduleId = analyzerName + "-" + analyzerId;
+                currentMessage = new IdmefMessage(analyzerName, moduleId, classification, IdmefMessage::ALERT);
+		currentMessage->setAnalyzerAttr("", config_space::TOPAS, "", "");
+		currentMessage->createAnalyzerNode("ipv4-addr", "127.0.0.1", "255.255.255.255", "B305");
+		currentMessage->setAnalyzerNodeIdAttr(topasID);
                 return *currentMessage;
         
         }
@@ -467,9 +472,12 @@ protected:
 	void registerModule(const std::string& analyzerName)
 	{
 		this->analyzerName = analyzerName;
+		std::string moduleId = analyzerName + "-" + analyzerId;
 		/* send <Heartbeat> message to all xmlBlaster servers and subscribe for update messages */
-		IdmefMessage* heartbeatMessage = new IdmefMessage(analyzerName, analyzerId, classification, IdmefMessage::HEARTBEAT);
-		heartbeatMessage->setAnalyzerAttr("", topasID, "", "");
+		IdmefMessage* heartbeatMessage = new IdmefMessage(analyzerName, moduleId, classification, IdmefMessage::HEARTBEAT);
+		heartbeatMessage->setAnalyzerAttr("", config_space::TOPAS, "", "");
+		heartbeatMessage->createAnalyzerNode("ipv4-addr", "127.0.0.1", "255.255.255.255", "B305");
+		heartbeatMessage->setAnalyzerNodeIdAttr(topasID);
 		for (unsigned i = 0; i != commObjs.size(); ++i) {
 			std::string managerID = (*xmlBlasters[i].getElement()).getProperty().getProperty(config_space::MANAGER_ID);
 			if (managerID == "") {
@@ -478,7 +486,7 @@ protected:
 				managerID = config_space::DEFAULT_MANAGER_ID;
 			}
 			heartbeatMessage->publish(*commObjs[i], managerID);
-			commObjs[i]->subscribe(analyzerName + "-" + analyzerId, XmlBlasterCommObject::MESSAGE);
+			commObjs[i]->subscribe(moduleId, XmlBlasterCommObject::MESSAGE);
 		}
 		delete heartbeatMessage;
 	}

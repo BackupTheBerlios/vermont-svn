@@ -26,7 +26,7 @@
 
 const char offlineFile[] = "datastore.txt";
 
-ExampleModule::ExampleModule()
+ExampleModule::ExampleModule() 
 #ifdef OFFLINE_ENABLED
         : DetectionBase<ExampleDataStorage, OfflineInputPolicy<ExampleDataStorage> >()
 #else
@@ -51,14 +51,14 @@ void ExampleModule::init()
 	/* signal handlers */
 	if (signal(SIGTERM, sigTerm) == SIG_ERR) {
 		msg(MSG_ERROR, "Couldn't install signal handler for SIGTERM.\n ");
-        }
+        } 
 	if (signal(SIGINT, sigInt) == SIG_ERR) {
 		msg(MSG_ERROR, "Couldn't install signal handler for SIGINT.\n ");
-        }
+        } 	
 
 #ifdef OFFLINE_ENABLED
-	/* open file with offline data */
-	if(!OfflineInputPolicy<ExampleDataStorage>::openOfflineFile(offlineFile)) {
+	/* open file with offline data */ 
+	if(!OfflineInputPolicy<ExampleDataStorage>::openOfflineFile(offlineFile)) {	    
 	    msgStr << MsgStream::ERROR << "Could not open offline data file" << MsgStream::endl;
 	}
 #else
@@ -88,7 +88,7 @@ void ExampleModule::init()
         outfile.open("first.txt");
 }
 
-ExampleModule::~ExampleModule()
+ExampleModule::~ExampleModule() 
 {
 	outfile.close();
 	if(storefile.is_open())
@@ -100,28 +100,28 @@ void ExampleModule::update(XMLConfObj* xmlObj)
 {
 	msgStr << MsgStream::INFO << "Update received! ";
 	if (xmlObj->nodeExists("stop")) {
-		msgStr << "-> stoping module..." << msgStr::endl;
+		msgStr.print(MsgStream::INFO, "Update: Stopping module.");
 		stop();
 	} else if (xmlObj->nodeExists("restart")) {
-		msgStr << "-> restarting module..." << msgStr::endl;
+		msgStr.print(MsgStream::INFO, "Update: Restarting module.");
 		restart();
 	} else if (xmlObj->nodeExists("config")) {
-		msgStr << "-> updating module configuration..." << msgStr::endl;
+		msgStr.print(MsgStream::INFO, "Update: Changing module configuration.");
 	} else { // add your commands here
-		msgStr << "-> unknown operation" << msgStr::endl;
+		msgStr.print(MsgStream::INFO, "Update: Unsupported operation.");
 	}
 }
 #endif
 
-void ExampleModule::test(ExampleDataStorage* store)
+void ExampleModule::test(ExampleDataStorage* store) 
 {
 	msgStr.print(MsgStream::INFO, "Perform TEST");
 
-#ifndef OFFLINE_ENABLE
+#ifndef OFFLINE_ENABLED
 	/* store data storage for offline use */
 	storefile << store;
 #endif
-
+    
         /* lets count the collected ip-addresses and compare
            that number to the threshold
         */
@@ -132,7 +132,7 @@ void ExampleModule::test(ExampleDataStorage* store)
                 counter[(*store)[i]]++;
         }
 
-
+        
         outfile << std::endl << "Destination addresses found in more than " << threshold
                 << " records: " << std::endl;
 
@@ -143,7 +143,7 @@ void ExampleModule::test(ExampleDataStorage* store)
         for (std::map<IpAddress, int>::const_iterator i = counter.begin();
              i != counter.end(); ++i) {
                 if (i->second > threshold) {
-                        outfile << "Found " << i->first << " in " << i->second
+                        outfile << "Found " << i->first << " in " << i->second 
                                 << " records" <<  std::endl;
 
 #ifdef IDMEF_SUPPORT_ENABLED

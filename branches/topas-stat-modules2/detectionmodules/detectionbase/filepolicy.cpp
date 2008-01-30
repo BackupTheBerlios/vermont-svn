@@ -35,25 +35,27 @@
 
 
 
-SemShmNotifier::SemShmNotifier() {
+SemShmNotifier::SemShmNotifier() 
+{
 	std::string tmp;
-  std::cin >> semKey >> shmKey >> tmp;
-
+        std::cin >> semKey >> shmKey >> tmp;
+	
 	if (tmp == "USE_FILES") {
 		useFiles_ = true;
 	} else {
 		useFiles_ = false;
 	}
-
+	
 	std::cin >> packetDir;
 
-  if (-1 == (semId = semget(semKey, 0, 0))) {
-    std::cerr << "Could not open semaphore:" << strerror(errno) << std::endl;
-    throw std::runtime_error("Could not open semaphore");
-  }
-
-  nps = new shared::SharedObj(shmKey);
-
+        if (-1 == (semId = semget(semKey, 0, 0))) {
+                std::cerr << "Could not open semaphore:" << strerror(errno) << std::endl;
+                throw std::runtime_error("Could not open semaphore");
+        }
+        
+	
+        nps = new shared::SharedObj(shmKey);
+	
 	if (!useFiles_) {
 		int id = shmget(nps->getStorageKey(), nps->getStorageSize(), S_IRWXU);
 		if (-1 == id) {
@@ -62,8 +64,9 @@ SemShmNotifier::SemShmNotifier() {
 		void* ptr = shmat(id, NULL, SHM_RDONLY);
 		if ((void*)-1 == ptr) {
 			throw std::runtime_error(std::string("SemShmNotifier: Could not attach shared memory storage area: ") + strerror(errno));
+			
 		}
-
+		
 		IpfixShm::setShmPointer((byte*)ptr);
 		IpfixShm::setShmSize(nps->getStorageSize());
 	}
@@ -77,39 +80,40 @@ SemShmNotifier::~SemShmNotifier()
 
 int SemShmNotifier::wait() const
 {
-  /* wait for incoming packet */
-  struct sembuf semaphore;
+        /* wait for incoming packet */
+        struct sembuf semaphore;
 	bool tryAgain = false;
 	do {
-      semaphore.sem_num = 0;
-      semaphore.sem_op = -1;
-      semaphore.sem_flg = 0;
-      if (-1 == semop(semId, &semaphore, 1)) {
-        // where we interupted by a signal?
-        if (errno == EINTR) {
-          tryAgain = true;
-        } else {
-          std::cerr << "Detection Modul (SemShmNotifier::wait()): Error decrementing the semaphore: " << strerror(errno) << std::endl;
-				  tryAgain = false;
-			  }
-      } else {
-			  tryAgain = false;
-		  }
-	  } while (tryAgain);
-
-  return 1;
+        	semaphore.sem_num = 0;
+	        semaphore.sem_op = -1;
+	        semaphore.sem_flg = 0;
+	        if (-1 == semop(semId, &semaphore, 1)) {
+			// where we interupted by a signal?
+			if (errno == EINTR) {
+				tryAgain = true;
+			} else {
+	                	std::cerr << "Detection Modul (SemShmNotifier::wait()): Error decrementing the semaphore: " 
+					  << strerror(errno) << std::endl;
+				tryAgain = false;
+			}
+	        } else {
+			tryAgain = false;
+		}
+	} while (tryAgain);
+        return 1;
 }
 
 int SemShmNotifier::notify() const
 {
-  struct sembuf semaphore;
+        struct sembuf semaphore;
 
-  // decrement semaphore
-  semaphore.sem_num = 0;
-  semaphore.sem_op = -1;
-  semaphore.sem_flg = 0;
-  if (-1 == semop(semId, &semaphore, 1)) {
-    std::cerr << "Detection Modul (SemShmNotifier::notify()): Error decrementing the semaphore: " << strerror(errno) << std::endl;
-  }
-  return 0;
+        // decrement semaphore
+        semaphore.sem_num = 0;
+        semaphore.sem_op = -1;
+        semaphore.sem_flg = 0;
+        if (-1 == semop(semId, &semaphore, 1)) {
+                std::cerr << "Detection Modul (SemShmNotifier::notify()): Error decrementing the semaphore: " 
+                          << strerror(errno) << std::endl;
+        }
+        return 0;
 }

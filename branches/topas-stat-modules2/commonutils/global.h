@@ -31,15 +31,15 @@
 #include <ostream>
 
 
-namespace config_space
+namespace config_space 
 {
         static const std::string path_to_config = "./";
         static const std::string collector_config = "collector.xml";
         //static const std::string packet_path = "../packet_dir/";
-
+                
         static const int SHM_SIZE = 100;
         static const int MAX_PATH_SIZE = 30;
-
+        
         static const unsigned MAX_FILES = 100000;
 
         static const int DEFAULT_LISTEN_PORT = 4711;
@@ -54,11 +54,11 @@ namespace config_space
 	static const std::string CONFIG_FILE="configFile";
 	static const std::string RUN="run";
 	static const std::string ARG="arg";
-  static const std::string COLLECTOR_STRING="collector";
-  static const std::string LISTEN_PORT="listenPort";
-  static const std::string KILL_TIME="detectmod_killtime";
-  static const std::string RESTART_ON_CRASH="restartOnCrash";
-  static const std::string PACKET_DIRECTORY="packetDir";
+        static const std::string COLLECTOR_STRING="collector";
+        static const std::string LISTEN_PORT="listenPort";
+        static const std::string KILL_TIME="detectmod_killtime";
+        static const std::string RESTART_ON_CRASH="restartOnCrash";
+        static const std::string PACKET_DIRECTORY="packetDir";
 	static const std::string PLAYER="player";
 	static const std::string EXCHANGE_PROTOCOL="exchangeProtocol";
 	static const std::string EP_TYPE="type";
@@ -89,7 +89,7 @@ namespace config_space
         static const unsigned DEFAULT_KILL_TIME = 30;
 };
 
-namespace error_states
+namespace error_states 
 {
         static const int INIT_ERROR = -1;
         static const int CONFIG_ERROR = -2;

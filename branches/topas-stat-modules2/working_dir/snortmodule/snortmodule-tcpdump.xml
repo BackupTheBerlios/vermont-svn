@@ -4,13 +4,8 @@
 		<fifo>/tmp/snortfifo</fifo>
 		<calculate_ipheader_checksum>true</calculate_ipheader_checksum>
 		<calculate_transportheader_checksum>true</calculate_transportheader_checksum>
-		<!--
 		<execute>/usr/sbin/tcpdump -v -e -n -r /tmp/snortfifo</execute>
-		-->
-		<execute>/usr/local/bin/snort -r /tmp/snortfifo -c /etc/snort/snort.conf -l /tmp/ -k none</execute>
-		<config_file>/etc/snort/snort.conf</config_file>
-		<rule_file>/etc/snort/rules/own.rules</rule_file>
-		<accept_source_ids>1234</accept_source_ids>
+		<accept_source_ids></accept_source_ids>
 		<debug_level>4</debug_level>
 	</snortmodule>
 	<xmlwrapper>
