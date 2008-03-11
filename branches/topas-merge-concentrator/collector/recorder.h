@@ -44,7 +44,7 @@ public:
 	 * Constructor...
 	 * @param rec Specifies if recorder is used for recording or for reading files.
 	 */
-	RecorderBase(bool rec = true) : packetCallback(0), recording(rec), do_abort(false) {}
+	RecorderBase(bool rec = true) : packetProcessor(0), recording(rec), do_abort(false) {}
 
 	/**
 	 * Virtual destructor...
@@ -69,15 +69,15 @@ public:
 	void abort() {do_abort = true;}
 
 	/**
-	 * Sets the callback function which is called whenever a packet has to be sent to
+	 * Sets the packet processor which is used to inject packets into
 	 * the collector when replaying IPFIX traffic.
 	 */
-	void setPacketCallback(VERMONT::IpfixPacketProcessor* pp) {
-		packetCallback = pp;
+	void setPacketProcessor(VERMONT::IpfixPacketProcessor* pp) {
+		packetProcessor = pp;
 	}
 
 protected:
-	VERMONT::IpfixPacketProcessor* packetCallback;
+	VERMONT::IpfixPacketProcessor* packetProcessor;
 	bool recording;
 	volatile bool do_abort;
 };

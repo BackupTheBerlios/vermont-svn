@@ -319,8 +319,7 @@ void Collector::readRecording(XMLConfObj* config)
 			if (recorder)
 				delete recorder;
 			recorder = new FileRecorder(tmp, FileRecorder::PrepareReplaying);
-			// TODO: NEW CONCENTRATOR
-			//recorder->setPacketCallback(Collector::messageCallBackFunction);
+			recorder->setPacketProcessor(this);
 			replaying = true;
 			VERMONT::msg(MSG_INFO, "Collector now starts in replay mode");
 		} else {

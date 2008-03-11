@@ -20,7 +20,7 @@
 
 
 #include <commonutils/packetstats.h>
-
+#include <concentrator/IpfixRecord.hpp>
 
 #include <sys/time.h>
 
@@ -101,6 +101,7 @@ void FileRecorder::play()
 	std::string line;
 	FILE* fd;
 	uint8_t* data = new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH];
+	VERMONT::IpfixRecord::SourceID* sourceId = new VERMONT::IpfixRecord::SourceID();
 	unsigned int time;
 	unsigned long fileNumber;
 	std::ofstream originalValues("filerecorder.orig");
@@ -136,13 +137,11 @@ void FileRecorder::play()
 		originalValues << time / 1000 << std::endl;
 		replayValues   << t    / 1000 << std::endl;
 		
-		// TODO: NEW CONCENTRATOR
-		//if (packetCallback) {
-		//	packetCallback(NULL, data, len);
-		//}
+		if (packetProcessor) {
+			packetProcessor->processPacket(boost::shared_array<uint8_t>(data), len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID>(sourceId));
+		}
 
 	}
-	delete data; data = 0;
 }
 
 };
