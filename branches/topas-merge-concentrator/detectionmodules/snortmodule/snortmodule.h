@@ -29,6 +29,8 @@
 #include <string>
 #include <fstream>
 
+namespace TOPAS {
+
 /**\brief Manages external detecion engine.
 * 
 * Used to start, end, init the externel detection modul. 
@@ -146,6 +148,8 @@ private:
 
 	static void * xmlWrapperEntry(void *pipename);
 #endif
+
+};
 
 };
 

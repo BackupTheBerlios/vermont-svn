@@ -25,18 +25,17 @@ public:
 	virtual int onDataTemplateDestruction(VERMONT::IpfixRecord::SourceID* sourceID, VERMONT::IpfixRecord::DataTemplateInfo* dataTemplateInfo);
 
 	virtual Storage* getStorage() = 0;
-
+	
+        void subscribeId(uint16_t id) 
+        {
+                idList.push_back(id);
+        }
 protected:
 	virtual Storage* storage() = 0;
 
 private:
 	Mutex lock;
         std::vector<uint16_t> idList;
-
-        void subscribeId(uint16_t id) 
-        {
-                idList.push_back(id);
-        }
 
         bool isIdInList(uint16_t id) const
         {

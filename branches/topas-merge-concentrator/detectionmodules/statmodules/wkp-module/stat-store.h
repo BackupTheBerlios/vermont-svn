@@ -25,13 +25,13 @@
 
 #include "shared.h"
 #include <datastore.h>
-#include <concentrator/ipfix.h>
 #include <map>
 #include <vector>
 #include <algorithm> // <vector> does not have a member function find(...)
 #include <iostream>
 #include <sstream>
 
+namespace TOPAS {
 
 // ==================== STORAGE CLASS StatStore ====================
 
@@ -61,10 +61,10 @@ class StatStore : public DataStore {
   ~StatStore();
   // it is ~StatStore which updates PreviousData (PreviousData = Data;)
 
-  bool recordStart(SourceID sourceId);
+  bool recordStart(VERMONT::IpfixRecord::SourceID sourceId);
   void recordEnd();
-  void addFieldData(int id, byte * fieldData, int fieldDataLength,
-		    EnterpriseNo eid = 0);
+  void addFieldData(int id, uint8_t* fieldData, int fieldDataLength,
+		    VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid = 0);
 
   std::map<EndPoint,Info> getData() const {return Data;}
   std::map<EndPoint,Info> getPreviousData() const {return PreviousData;}
@@ -124,6 +124,8 @@ class StatStore : public DataStore {
   // As they will be set by a function, Stat::init(), that doesn't have any
   // StatStore object argument to help call these functions, we absolutely need
   // static and public "setters", wich are programmed hereafter.
+
+};
 
 };
 

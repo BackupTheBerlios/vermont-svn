@@ -22,6 +22,7 @@
 #include <iostream>
 #include <fstream>
 
+namespace TOPAS {
 
 ExampleModule::ExampleModule() 
         : DetectionBase<ExampleDataStorage, UnbufferedFilesInputPolicy<SemShmNotifier, ExampleDataStorage> >()
@@ -39,10 +40,10 @@ void ExampleModule::init()
 {
 	/* signal handlers */
 	if (signal(SIGTERM, sigTerm) == SIG_ERR) {
-		msg(MSG_ERROR, "Couldn't install signal handler for SIGTERM.\n ");
+		VERMONT::msg(MSG_ERROR, "Couldn't install signal handler for SIGTERM.\n ");
         } 
 	if (signal(SIGINT, sigInt) == SIG_ERR) {
-		msg(MSG_ERROR, "Couldn't install signal handler for SIGINT.\n ");
+		VERMONT::msg(MSG_ERROR, "Couldn't install signal handler for SIGINT.\n ");
         } 	
         /* we want to receive all destination ip address fields */
         subscribeTypeId(IPFIX_TYPEID_destinationIPv4Address);
@@ -124,3 +125,5 @@ void ExampleModule::sigInt(int signum)
 {
 	stop();
 }
+
+};

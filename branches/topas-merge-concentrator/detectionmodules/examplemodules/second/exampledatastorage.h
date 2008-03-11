@@ -26,13 +26,15 @@
 #include <datastore.h>
 #include <iostream>
 
+namespace TOPAS {
+
 // 4 bytes - ip address
 // 1 bytes - bits for subnet mask
 // 2 bytes - port
 class IpAndPort 
 {
 public:
-        byte data[7]; 
+        uint8_t data[7]; 
         bool operator<(const IpAndPort& other) const 
         {
                 return memcmp(data, other.data, 7)<0?true:false;
@@ -53,7 +55,7 @@ class ExampleDataStorage : public DataStore
          * Will be invoked, whenever a new data record starts
          * Will be used by @c DetectionBase
          */
-        bool recordStart(SourceID);
+        bool recordStart(VERMONT::IpfixRecord::SourceID);
 
         /**
          * Will be invoke, whenever a data record ends
@@ -65,7 +67,7 @@ class ExampleDataStorage : public DataStore
          * Inserts the field with fieldId id into the storage class
          * Will be used by DetectionBase
          */
-        void addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid = 0);
+        void addFieldData(int id, uint8_t* fieldData, int fieldDataLength, VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid = 0);
 
 
         
@@ -103,6 +105,8 @@ class ExampleDataStorage : public DataStore
         IpAndPort ipAndPort;
         bool gotIp, gotPort;
         int packetCount;
+};
+
 };
 
 #endif

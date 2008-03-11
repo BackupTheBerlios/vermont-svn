@@ -21,6 +21,7 @@
 
 #include <cassert>
 
+namespace TOPAS {
 
 ExampleDataStorage::ExampleDataStorage() 
 {
@@ -34,7 +35,7 @@ ExampleDataStorage::~ExampleDataStorage()
 {
 }
 
-void ExampleDataStorage::addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid) 
+void ExampleDataStorage::addFieldData(int id, uint8_t* fieldData, int fieldDataLength, VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid) 
 {
         switch (id) {
         case IPFIX_TYPEID_destinationIPv4Address:
@@ -71,7 +72,7 @@ void ExampleDataStorage::addFieldData(int id, byte* fieldData, int fieldDataLeng
 }
 
 
-bool ExampleDataStorage::recordStart(SourceID id) 
+bool ExampleDataStorage::recordStart(VERMONT::IpfixRecord::SourceID id) 
 {
         assert(recordStarted == false);
         recordStarted = true;
@@ -90,3 +91,5 @@ void ExampleDataStorage::recordEnd()
         
         recordStarted = false;
 }
+
+};

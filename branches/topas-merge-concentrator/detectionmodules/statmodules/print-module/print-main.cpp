@@ -20,6 +20,8 @@
 
 #include "print-main.h"
 
+namespace TOPAS {
+
 Print::Print(const std::string & configfile)
   : DetectionBase< PrintStore,
 		   UnbufferedFilesInputPolicy<SemShmNotifier, PrintStore> >(configfile) {
@@ -30,10 +32,10 @@ void Print::init(const std::string & configfile) {
 
 	/* signal handlers */
 	if (signal(SIGTERM, sigTerm) == SIG_ERR) {
-		msg(MSG_ERROR, "Couldn't install signal handler for SIGTERM.\n ");
+		VERMONT::msg(MSG_ERROR, "Couldn't install signal handler for SIGTERM.\n ");
         } 
 	if (signal(SIGINT, sigInt) == SIG_ERR) {
-		msg(MSG_ERROR, "Couldn't install signal handler for SIGINT.\n ");
+		VERMONT::msg(MSG_ERROR, "Couldn't install signal handler for SIGINT.\n ");
         } 	
 
   ConfObj * config;
@@ -200,3 +202,5 @@ void Print::sigInt(int signum)
 {
 	stop();
 }
+
+};

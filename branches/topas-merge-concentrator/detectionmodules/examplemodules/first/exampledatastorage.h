@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                            Gerhard Muenz                               */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
@@ -27,6 +27,7 @@
 #include <datastore.h>
 #include <ipaddress.h>
 
+namespace TOPAS {
 
 class ExampleDataStorage : public DataStore 
 {
@@ -37,7 +38,7 @@ class ExampleDataStorage : public DataStore
         /**
          * Inserts the field with fieldId id into the storage class.
          */
-        void addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid = 0);
+        void addFieldData(int id, uint8_t* fieldData, int fieldDataLength, VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid = 0);
 
         
         
@@ -65,5 +66,7 @@ class ExampleDataStorage : public DataStore
  private:
         std::vector<IpAddress> addresses;
 };
+
+}; // namespace TOPAS
 
 #endif

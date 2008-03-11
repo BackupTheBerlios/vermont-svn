@@ -22,6 +22,7 @@
 #include "shared.h"
 #include <cmath>
 
+namespace TOPAS {
 
 /* KOLMOGOROV-SMIRNOV TEST OF HOMOGENEITY
  *
@@ -436,3 +437,5 @@ double ks_test (std::list<int64_t> sample1, std::list<int64_t> sample2,
   return 1 - K(n_approx,d);
 
 }
+
+};

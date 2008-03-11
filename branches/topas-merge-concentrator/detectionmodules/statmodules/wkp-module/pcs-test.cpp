@@ -23,6 +23,7 @@
 #include <iostream>
 #include <fstream>
 
+namespace TOPAS {
 
 /* PEARSON CHI-SQUARE TEST OF HOMOGENEITY
  *
@@ -336,3 +337,5 @@ double pcs_test ( const std::list<int64_t> & sample1,
   return gsl_cdf_chisq_Q(q, noc-1); // = Pr(Q >= q) = 1 - Pr(Q <= q)
 
 }
+
+};

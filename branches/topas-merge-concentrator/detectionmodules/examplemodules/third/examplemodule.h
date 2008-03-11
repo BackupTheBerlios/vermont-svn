@@ -19,7 +19,7 @@
 #ifndef _EXAMPLEMODULE_H_
 #define _EXAMPLEMODULE_H_
 
-#include<signal.h>
+#include <signal.h>
 
 #include "exampledatastorage.h"
 
@@ -29,6 +29,7 @@
 
 #include <fstream>
 
+namespace TOPAS {
 
 class ExampleModule : public DetectionBase<ExampleDataStorage, UnbufferedFilesInputPolicy<SemShmNotifier, ExampleDataStorage> > 
 {
@@ -75,5 +76,6 @@ private:
         void init();
 };
 
+};
 
 #endif

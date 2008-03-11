@@ -24,10 +24,14 @@
 #include <list>
 #include <fstream>
 
+namespace TOPAS {
+
 void mMultiply(double *,double *,double *,int);
 void mPower(double *,int,double *,int *,int,int);
 double K(int,double);
 
 double ks_test(std::list<int64_t>, std::list<int64_t>, std::ofstream &);
+
+};
 
 #endif

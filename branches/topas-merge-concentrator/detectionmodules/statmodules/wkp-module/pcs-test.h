@@ -25,6 +25,8 @@
 #include <list>
 #include <gsl/gsl_cdf.h>
 
+namespace TOPAS {
+
 void pcs_categories ( std::list<int64_t>, std::list<int64_t>,
 		      std::vector<unsigned> &, std::vector<unsigned> &,
 		      std::ofstream & outfile );
@@ -33,4 +35,5 @@ double pcs_test ( const std::list<int64_t> &,
 		  const std::list<int64_t> &,
 		  std::ofstream & outfile );
 
+};
 #endif

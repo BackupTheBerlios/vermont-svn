@@ -24,6 +24,10 @@
 #include <list>
 #include <fstream>
 
+namespace TOPAS {
+
 double wmw_test(std::list<int64_t>, std::list<int64_t>, bool, std::ofstream &);
+
+};
 
 #endif

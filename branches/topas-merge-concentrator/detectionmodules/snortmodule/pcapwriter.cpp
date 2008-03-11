@@ -25,6 +25,7 @@
 #include "pcapwriter.h"
 #include <iostream>
 
+namespace TOPAS {
 
 
 /*----------------------------------------------------------------------
@@ -429,3 +430,4 @@ unsigned long pcapwriter::get_packets_read(){
 	return packets_read;
 }
 
+};

@@ -1,5 +1,7 @@
 #include "cusum-test.h"
 
+namespace TOPAS {
+
 // update the cumulative sum g
 double cusum(int64_t X, double beta, double g) {
 
@@ -11,3 +13,5 @@ double cusum(int64_t X, double beta, double g) {
 
   return g;
 }
+
+};

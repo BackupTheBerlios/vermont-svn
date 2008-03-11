@@ -18,6 +18,8 @@
 
 #include "bloomfilter.h"
 
+namespace TOPAS {
+
 const uint8_t bitmask[8] =
 {
     0x01, //00000001
@@ -160,3 +162,4 @@ std::ostream & operator << (std::ostream & os, const BloomFilter & b)
     return os;
 }
 
+};

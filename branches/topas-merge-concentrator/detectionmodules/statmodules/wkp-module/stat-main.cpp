@@ -42,6 +42,8 @@
 #include "pcs-test.h"
 #include "cusum-test.h"
 
+namespace TOPAS {
+
 // ==================== Config File Constants =====================
 #define CONFIGTAG_Preferences "preferences"
 #define CONFIGTAG_OutputVerbosity "warning_verbosity"
@@ -2160,3 +2162,5 @@ void Stat::sigInt(int signum)
 {
     stop();
 }
+
+};

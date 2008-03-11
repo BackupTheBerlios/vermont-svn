@@ -20,6 +20,8 @@
 
 #include "print-store.h"
 
+namespace TOPAS {
+
 PrintStore::PrintStore()
   : sourceAddress(0,0,0,0), destinationAddress(0,0,0,0) {
 
@@ -33,7 +35,7 @@ PrintStore::PrintStore()
 
 }
 
-bool PrintStore::recordStart(SourceID) {
+bool PrintStore::recordStart(VERMONT::IpfixRecord::SourceID) {
 
   if (recordStarted)
     std::cerr << "PrintStore::recordStart() was called while having a started record!\n";
@@ -42,8 +44,8 @@ bool PrintStore::recordStart(SourceID) {
 
 }
 
-void PrintStore::addFieldData(int id, byte * fieldData, int fieldDataLength,
-			      EnterpriseNo eid) {
+void PrintStore::addFieldData(int id, uint8_t * fieldData, int fieldDataLength,
+			      VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid) {
 
   // we subscribed to (see Print::init()):
   // - IPFIX_TYPEID_flowStartSeconds and IPFIX_TYPEID_flowEndSeconds
@@ -195,3 +197,5 @@ void PrintStore::recordEnd() {
   return;
 
 }
+
+};

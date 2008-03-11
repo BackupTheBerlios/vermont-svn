@@ -23,7 +23,7 @@
  */
 
 #include "snortmodule.h"
-#include <concentrator/msg.h>
+#include <concentrator/common/msg.h>
 //static void sigIntMain(int signum);
 //static void sigTermMain(int signum);
 //static Snortmodule* snort;
@@ -31,6 +31,8 @@
  *
  * Reads the config file and starts the module
  */
+
+using namespace TOPAS;
 
 int main(int argc, char **argv)
 {
@@ -47,7 +49,7 @@ int main(int argc, char **argv)
 */	
 	try {
                 if (argc != 2) {
-                        msg(MSG_ERROR, "No config file specified. Taking default values");
+                        VERMONT::msg(MSG_ERROR, "No config file specified. Taking default values");
                         snort->readConfig("");
                 } else {
                         snort->readConfig(argv[1]);
@@ -57,7 +59,7 @@ int main(int argc, char **argv)
 		delete snort;
 		return ret;
 	}catch (std::exception e) {
-                msg(MSG_FATAL, "Got unhandled exception: %s", e.what());
+                VERMONT::msg(MSG_FATAL, "Got unhandled exception: %s", e.what());
                 return 0;
         }
 }

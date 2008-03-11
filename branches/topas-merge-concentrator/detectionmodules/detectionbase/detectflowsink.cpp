@@ -38,7 +38,7 @@ inline int DetectFlowSink<Storage>::onDataRecord(VERMONT::IpfixRecord::SourceID*
         lock.lock();
         Storage* buf = storage();
         if(buf) {
-		if (buf->recordStart(sourceID)) {
+		if (buf->recordStart(*sourceID)) {
 			buf->setValid(true);
 			for (uint16_t i = 0; i < ti->fieldCount; ++i) {
 				if (isIdInList(ti->fieldInfo[i].type.id)) {
@@ -65,10 +65,10 @@ inline int DetectFlowSink<Storage>::onOptionsRecord(VERMONT::IpfixRecord::Source
 template <class Storage>
 inline int DetectFlowSink<Storage>::onDataDataRecord(VERMONT::IpfixRecord::SourceID* sourceID, VERMONT::IpfixRecord::DataTemplateInfo* dti, uint16_t length, VERMONT::IpfixRecord::Data* data)
 {
-        lock();
+        lock.lock();
         Storage* buf = storage();
         if(buf) {
-		if (buf->recordStart(sourceID)) {
+		if (buf->recordStart(*sourceID)) {
 			buf->setValid(true);
 			for (uint16_t i = 0; i < dti->fieldCount; ++i) {
 				if (isIdInList(dti->fieldInfo[i].type.id)) {

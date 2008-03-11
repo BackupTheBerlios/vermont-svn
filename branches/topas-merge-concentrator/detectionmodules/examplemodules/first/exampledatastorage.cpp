@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                            Gerhard Muenz                               */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
@@ -19,6 +19,7 @@
 
 #include "exampledatastorage.h"
 
+namespace TOPAS {
 
 ExampleDataStorage::ExampleDataStorage() 
 {
@@ -30,7 +31,7 @@ ExampleDataStorage::~ExampleDataStorage()
         /* do nothing */
 }
 
-void ExampleDataStorage::addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid) 
+void ExampleDataStorage::addFieldData(int id, uint8_t* fieldData, int fieldDataLength, VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid) 
 {
         // We subscribed only to the "Destination ip address" field (see ExampleModule::ExampleModule())
         // These ip addresses are stored in a vector
@@ -62,3 +63,5 @@ std::ifstream& operator>>(std::ifstream& is, ExampleDataStorage* store)
 	}
 	return is;
 }
+
+}; // namespace TOPAS

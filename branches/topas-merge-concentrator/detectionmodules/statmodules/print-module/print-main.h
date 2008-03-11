@@ -30,6 +30,8 @@
 #include <fstream>
 #include <sstream>
 
+namespace TOPAS {
+
 class Print : public DetectionBase< PrintStore,
 	      UnbufferedFilesInputPolicy<SemShmNotifier, PrintStore> > {
 
@@ -72,6 +74,8 @@ class Print : public DetectionBase< PrintStore,
 	static void sigInt(int);
 
   void init(const std::string & configfile);
+
+};
 
 };
 

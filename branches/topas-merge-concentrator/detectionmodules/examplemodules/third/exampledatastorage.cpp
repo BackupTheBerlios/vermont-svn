@@ -18,6 +18,8 @@
 
 #include "exampledatastorage.h"
 
+namespace TOPAS {
+
 
 ExampleDataStorage::ExampleDataStorage() 
 	: sourceAddress(0,0,0,0), destinationAddress(0,0,0,0), sourcePort(0), destinationPort(0)
@@ -31,7 +33,7 @@ ExampleDataStorage::~ExampleDataStorage()
         /* do nothing */
 }
 
-void ExampleDataStorage::addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid) 
+void ExampleDataStorage::addFieldData(int id, uint8_t* fieldData, int fieldDataLength, VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid) 
 {
 	// only record 4 byte ip addresses
 	if (id == IPFIX_TYPEID_sourceIPv4Address) {
@@ -49,7 +51,7 @@ void ExampleDataStorage::addFieldData(int id, byte* fieldData, int fieldDataLeng
 	}
 }
 
-bool ExampleDataStorage::recordStart(SourceID)
+bool ExampleDataStorage::recordStart(VERMONT::IpfixRecord::SourceID)
 {
 	//std::cout << "new record started" << std::endl;
 	if (recordStarted) {
@@ -69,3 +71,5 @@ void ExampleDataStorage::recordEnd()
 		std::cerr << "More than one record in ExampleDataStorage!!!!!!" << std::endl;
 	}
 }
+
+};

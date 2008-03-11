@@ -20,6 +20,8 @@
 #include <gsl/gsl_rng.h>
 #include <stdint.h>
 
+namespace TOPAS {
+
 /* GenericKey class holding uint8_t* input for BloomFilter hash functions */
 template<unsigned size> class GenericKey
 {
@@ -206,4 +208,4 @@ class BloomFilter : public HashFunctions
 std::ostream & operator << (std::ostream &, const BloomFilter &);
 
 
-
+};

@@ -24,6 +24,8 @@
 #include <fstream>
 
 
+namespace TOPAS {
+
 // ==================== STORAGE CLASS StatStore ====================
 
 
@@ -40,7 +42,7 @@ StatStore::~StatStore() {
 
 }
 
-bool StatStore::recordStart(SourceID sourceId) {
+bool StatStore::recordStart(VERMONT::IpfixRecord::SourceID sourceId) {
 
     if (beginMonitoring != true)
 	return false;
@@ -52,7 +54,7 @@ bool StatStore::recordStart(SourceID sourceId) {
 
 }
 
-void StatStore::addFieldData(int id, byte * fieldData, int fieldDataLength, EnterpriseNo eid) {
+void StatStore::addFieldData(int id, uint8_t* fieldData, int fieldDataLength, VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid) {
     // we subscribed to: see Stat::init_*()-functions
     // addFieldData will be executed until there are no more fieldData
     // in the current IPFIX record; so we are sure to get everything
@@ -399,3 +401,5 @@ std::vector<EndPoint> StatStore::endPointList;
 int StatStore::endPointListMaxSize = 0;
 
 bool StatStore::beginMonitoring = false;
+
+};

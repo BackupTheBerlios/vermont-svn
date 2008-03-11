@@ -24,14 +24,12 @@
 
 #include "snortstore.h"
 
-
-#include <concentrator/ipfix.h>
-
-
 #include <cstring>
 #include <iostream>
 #include <cassert>
 #include <algorithm>
+
+namespace TOPAS {
 
 SnortStore::SnortStore():is_valid(false) {
 }
@@ -40,7 +38,7 @@ SnortStore::~SnortStore() {
 	delete packet;
 }
 
-void SnortStore::addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid) {
+void SnortStore::addFieldData(int id, uint8_t* fieldData, int fieldDataLength, VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid) {
 	switch (id) {
 		// IP-Header
 		case IPFIX_TYPEID_sourceIPv4Address:
@@ -144,7 +142,7 @@ void SnortStore::addFieldData(int id, byte* fieldData, int fieldDataLength, Ente
 	}
 }
 
-bool SnortStore::recordStart(SourceID sourceid) {
+bool SnortStore::recordStart(VERMONT::IpfixRecord::SourceID sourceid) {
 	is_valid=true;
 	packet = new PcapPacket;
 	packet->ts_sec =time(NULL);
@@ -158,3 +156,5 @@ void SnortStore::recordEnd() {
 PcapPacket* SnortStore::get_record(){
 	return packet;
 }
+
+};

@@ -22,6 +22,8 @@
 
 #include <iostream>
 
+namespace TOPAS {
+
 ExampleModule::ExampleModule() 
         : DetectionBase<ExampleDataStorage>()
 {
@@ -43,10 +45,10 @@ void ExampleModule::init()
 {
 	/* signal handlers */
 	if (signal(SIGTERM, sigTerm) == SIG_ERR) {
-		msg(MSG_ERROR, "Couldn't install signal handler for SIGTERM.\n ");
+		VERMONT::msg(MSG_ERROR, "Couldn't install signal handler for SIGTERM.\n ");
         } 
 	if (signal(SIGINT, sigInt) == SIG_ERR) {
-		msg(MSG_ERROR, "Couldn't install signal handler for SIGINT.\n ");
+		VERMONT::msg(MSG_ERROR, "Couldn't install signal handler for SIGINT.\n ");
         } 	
 
         subscribeTypeId(IPFIX_TYPEID_destinationIPv4Address);
@@ -131,3 +133,5 @@ void ExampleModule::sigInt(int signum)
 {
 	stop();
 }
+
+};

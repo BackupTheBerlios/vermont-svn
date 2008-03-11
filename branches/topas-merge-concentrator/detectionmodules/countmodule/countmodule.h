@@ -27,6 +27,7 @@
 
 #include <fstream>
 
+namespace TOPAS {
 
 class CountModule : public DetectionBase<CountStore> 
 {
@@ -77,5 +78,6 @@ to do this)
 	bool checkThresholds(const Counters& count);
 };
 
+};
 
 #endif

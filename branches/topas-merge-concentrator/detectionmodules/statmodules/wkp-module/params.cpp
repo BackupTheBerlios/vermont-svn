@@ -1,5 +1,7 @@
 #include "params.h"
 
+namespace TOPAS {
+
 void Params::init(int size)
 {
     cov = gsl_matrix_calloc (size, size);
@@ -14,3 +16,5 @@ void Params::init(int size)
 	sumsOfProducts.push_back(v);
     }
 }
+
+};

@@ -29,6 +29,8 @@
 #include <vector>
 #include <iostream>
 
+namespace TOPAS {
+
 // ======================== STRUCT Info ========================
 
 // this structure is used to store traffic information
@@ -179,5 +181,7 @@ std::ostream & operator << (std::ostream &, const std::vector<int64_t> &);
 std::ostream & operator << (std::ostream &, const std::vector<double> &);
 std::ostream & operator << (std::ostream &, const std::list<std::vector<int64_t> > &);
 std::ostream & operator << (std::ostream &, const std::map<EndPoint,Info> &);
+
+};
 
 #endif

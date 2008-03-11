@@ -4,6 +4,7 @@
 
 #include <string>
 
+namespace TOPAS {
 
 namespace ConfigStrings
 {
@@ -41,6 +42,8 @@ namespace ConfigStrings
 	static const std::string UPDATE_SNORT_RULE_FILE = "updateSnortRuleFile";
 	static const std::string APPEND_SNORT_RULE_FILE = "appendSnortRuleFile";
 	static const std::string CLEAR_SNORT_RULE_FILE = "clearSnortRuleFile";
+
+};
 
 };
 

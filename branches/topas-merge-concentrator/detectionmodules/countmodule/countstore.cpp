@@ -21,6 +21,7 @@
 
 #include <cassert>
 
+namespace TOPAS {
 
 BloomFilter CountStore::bfilter;
 bool CountStore::countPerSrcIp = false;
@@ -29,7 +30,7 @@ bool CountStore::countPerSrcPort = false;
 bool CountStore::countPerDstPort = false;
 
 
-void CountStore::addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid) 
+void CountStore::addFieldData(int id, uint8_t* fieldData, int fieldDataLength, VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid) 
 {
     switch (id) {
 	case IPFIX_TYPEID_sourceIPv4Address:
@@ -101,7 +102,7 @@ void CountStore::addFieldData(int id, byte* fieldData, int fieldDataLength, Ente
 }
 
 
-bool CountStore::recordStart(SourceID id) 
+bool CountStore::recordStart(VERMONT::IpfixRecord::SourceID id) 
 {
     assert(recordStarted == false);
     flowKey.reset();
@@ -272,3 +273,5 @@ void CountStore::updatePortCountMap(PortCountMap& countmap, PortCountMap::iterat
 		<< " o:"<< iter->second.octetCount <<" p:" << iter->second.packetCount << " f:" << iter->second.flowCount
 		<< MsgStream::endl;
 }
+
+};

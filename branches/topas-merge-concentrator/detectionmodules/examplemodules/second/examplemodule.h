@@ -29,6 +29,7 @@
 
 #include <fstream>
 
+namespace TOPAS {
 
 class ExampleModule : public DetectionBase<ExampleDataStorage> 
 {
@@ -71,6 +72,9 @@ private:
 	static void sigInt(int);
 
         void init();
+};
+
+
 };
 
 

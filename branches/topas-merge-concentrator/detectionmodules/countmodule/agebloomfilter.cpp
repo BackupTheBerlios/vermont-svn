@@ -18,6 +18,8 @@
 
 #include "agebloomfilter.h"
 
+namespace TOPAS {
+
 void AgeArray::resize(uint32_t size)
 {
     free(array);
@@ -112,3 +114,4 @@ std::ostream & operator << (std::ostream & os, const AgeBloomFilter & b)
     return os;
 }
 
+};

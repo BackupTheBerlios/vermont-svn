@@ -25,6 +25,7 @@
 #include <iostream>
 #include <cstdlib>
 
+using namespace TOPAS;
 
 int main(int argc, char** argv) 
 {

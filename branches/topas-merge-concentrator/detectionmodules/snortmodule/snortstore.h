@@ -24,6 +24,9 @@
 #include "pcappacket.h"
 #include <time.h>
 #include <vector>
+
+namespace TOPAS {
+
 /**\brief Snortmodule datastorage class
  *
  * Used to assemble and store one packet which is later processed by the writer.
@@ -34,16 +37,18 @@ public:
         SnortStore();
         ~SnortStore();
 
-        bool recordStart(SourceID);
+        bool recordStart(VERMONT::IpfixRecord::SourceID);
         void recordEnd();
 
-        void addFieldData(int id, byte* fieldData, int fieldDataLength, EnterpriseNo eid = 0); ///< Used by the collector to store data
+        void addFieldData(int id, uint8_t* fieldData, int fieldDataLength, VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo eid = 0); ///< Used by the collector to store data
 
 	PcapPacket* get_record(); ///< Used to get the record
 	bool is_valid;	
 private:
 	PcapPacket *packet; 
 	uint64_t mstime;
+
+};
 
 };
 

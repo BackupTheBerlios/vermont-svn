@@ -28,6 +28,7 @@
 
 #include <fstream>
 
+namespace TOPAS {
 
 class ExampleModule
 #ifdef OFFLINE_ENABLED
@@ -79,5 +80,6 @@ private:
         void init();
 };
 
+}; // namespace TOPAS
 
 #endif

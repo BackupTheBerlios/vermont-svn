@@ -23,6 +23,7 @@
 #include <iostream>
 #include <fstream>
 
+namespace TOPAS {
 
 const char offlineFile[] = "datastore.txt";
 
@@ -50,10 +51,10 @@ void ExampleModule::init()
 {
 	/* signal handlers */
 	if (signal(SIGTERM, sigTerm) == SIG_ERR) {
-		msg(MSG_ERROR, "Couldn't install signal handler for SIGTERM.\n ");
+		VERMONT::msg(MSG_ERROR, "Couldn't install signal handler for SIGTERM.\n ");
         } 
 	if (signal(SIGINT, sigInt) == SIG_ERR) {
-		msg(MSG_ERROR, "Couldn't install signal handler for SIGINT.\n ");
+		VERMONT::msg(MSG_ERROR, "Couldn't install signal handler for SIGINT.\n ");
         } 	
 
 #ifdef OFFLINE_ENABLED
@@ -174,3 +175,5 @@ void ExampleModule::sigInt(int signum)
 {
 	stop();
 }
+
+};

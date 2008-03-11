@@ -8,6 +8,8 @@
 // for pca (matrices etc.)
 #include <gsl/gsl_matrix.h>
 
+namespace TOPAS {
+
 // ======================== class Params ========================
 // this class holds all the test parameters and the varaibles
 // needed for the pca
@@ -103,6 +105,8 @@ public:
 
   bool wkp_updated;
   bool cusum_updated;
+
+};
 
 };
 

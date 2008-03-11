@@ -25,6 +25,8 @@
 #include <iostream>
 #include <cstdlib>
 
+using namespace TOPAS;
+
 /* demonstrates the use of libdetectionModule */
 int main(int argc, char** argv) 
 {
@@ -42,3 +44,4 @@ int main(int argc, char** argv)
         return m.exec();
 
 }
+

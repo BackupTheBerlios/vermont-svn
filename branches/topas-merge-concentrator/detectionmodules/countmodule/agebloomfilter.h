@@ -20,6 +20,8 @@
 #include <gsl/gsl_rng.h>
 #include "bloomfilter.h"
 
+namespace TOPAS {
+
 class AgeArray {
     friend std::ostream & operator << (std::ostream &, const AgeArray &);
 
@@ -75,3 +77,5 @@ class AgeBloomFilter : public HashFunctions
 };
 
 std::ostream & operator << (std::ostream &, const AgeBloomFilter &);
+
+};

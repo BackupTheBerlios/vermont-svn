@@ -25,6 +25,8 @@
 #include "pcappacket.h"
 #include <stdio.h>
 
+namespace TOPAS {
+
 #define PCAP_MAGIC 0xa1b2c3d4 ///< Special PCAP_MAGIC to show what file format we are using
 #define PADDING 2048
 
@@ -112,6 +114,8 @@ private:
 	};
         
 	pseudoh_t pseudoh;
+
+};
 
 };
 #endif

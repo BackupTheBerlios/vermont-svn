@@ -23,6 +23,7 @@
 #include <cmath>
 #include <gsl/gsl_cdf.h>
 
+namespace TOPAS {
 
 /* WILCOXON-MANN-WHITNEY RANKS TEST
  *
@@ -507,3 +508,5 @@ double wmw_test( std::list<int64_t> sample1, std::list<int64_t> sample2,
     return gsl_cdf_gaussian_Q (d, sigma);
 
 }
+
+};

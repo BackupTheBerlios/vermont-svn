@@ -17,10 +17,10 @@
 /**************************************************************************/
 
 #include "countmodule.h"
-#include <concentrator/ipfix_names.h>
 
 #include <iostream>
 
+namespace TOPAS {
 
 bool CountModule::verbose = false;
 
@@ -352,3 +352,5 @@ void CountModule::sigInt(int signum)
 {
     stop();
 }
+
+};

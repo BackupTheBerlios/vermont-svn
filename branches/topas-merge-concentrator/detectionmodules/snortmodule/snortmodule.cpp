@@ -28,9 +28,11 @@
 #include <pthread.h>
 #include "snortmodule.h"
 
-#include <concentrator/msg.h>
+#include <concentrator/common/msg.h>
 
 #include <fstream>
+
+namespace TOPAS {
 
 using namespace ConfigStrings;
 bool Snortmodule::shutdown=false;
@@ -71,18 +73,18 @@ Snortmodule::Snortmodule(const std::string& filename) : DetectionBase<SnortStore
 	subscribeTypeId(IPFIX_TYPEID_flowStartSeconds);
 	subscribeTypeId(IPFIX_TYPEID_flowStartMilliSeconds);
 	subscribeTypeId(IPFIX_TYPEID_flowStartMicroSeconds);
-	msg(MSG_DIALOG, "Snortmodule: Warning! I will interprete flowStartMicroSeconds as complement for flowStartSeconds (deviating from IPFIX info model).");
+	VERMONT::msg(MSG_DIALOG, "Snortmodule: Warning! I will interprete flowStartMicroSeconds as complement for flowStartSeconds (deviating from IPFIX info model).");
 
 	// Sighandlers		
 	if (signal(SIGTERM, sigTerm) == SIG_ERR) {
-               msg(MSG_ERROR, "Snortmodule: Couldn't install signal handler for SIGTERM.");
+               VERMONT::msg(MSG_ERROR, "Snortmodule: Couldn't install signal handler for SIGTERM.");
         } 
 	if (signal(SIGINT, sigInt) == SIG_ERR) {
-               msg(MSG_ERROR, "Snortmodule: Couldn't install signal handler for SIGINT.");
+               VERMONT::msg(MSG_ERROR, "Snortmodule: Couldn't install signal handler for SIGINT.");
         } 	
 
 	if (signal(SIGCHLD, sigChild) == SIG_ERR) {
-                msg(MSG_ERROR, "Snortmodule: Couldn't install signal handler for SIGCHLD.\n Crashing of external detectionengine won't be detected");
+                VERMONT::msg(MSG_ERROR, "Snortmodule: Couldn't install signal handler for SIGCHLD.\n Crashing of external detectionengine won't be detected");
         }
 	setAlarmTime(0);	
 }
@@ -93,10 +95,10 @@ Snortmodule::~Snortmodule(){
 
 
 void Snortmodule::init(){
-	msg(MSG_INFO, "Snortmodule: Setting up...");
+	VERMONT::msg(MSG_INFO, "Snortmodule: Setting up...");
 	/* create FIFO */
 	if ((mknod(FIFO, S_IFIFO | 0666, 0)) < 0){
-		msg(MSG_ERROR, "Snortmodule: mknod failed");
+		VERMONT::msg(MSG_ERROR, "Snortmodule: mknod failed");
 		throw exceptions::DetectionModuleError("Snortmodule", "Can't create FIFO", strerror(errno));
 	}
 
@@ -106,14 +108,14 @@ void Snortmodule::init(){
 		wrapperConfig.module = (void *) this;
 		wrapperConfig_t* args=&wrapperConfig;
 		if(pthread_create(&wrapperConfig.Id, NULL, Snortmodule::xmlWrapperEntry, (void *)args)){
-			msg(MSG_ERROR, "Snortmodule: xmlWrapper startup FAILED");
+			VERMONT::msg(MSG_ERROR, "Snortmodule: xmlWrapper startup FAILED");
 			throw exceptions::DetectionModuleError("Snortmodule", "Wrapper failed", strerror(errno));
 		}
 	} 
-	else msg(MSG_INFO, "Snortmodule: xmlWrapper is DISABLED");
+	else VERMONT::msg(MSG_INFO, "Snortmodule: xmlWrapper is DISABLED");
 
 #else 
-	msg(MSG_INFO, "Snortmodule: xmlWrapper is DISABLED (not supported)");
+	VERMONT::msg(MSG_INFO, "Snortmodule: xmlWrapper is DISABLED (not supported)");
 
 #endif
 	
@@ -164,15 +166,15 @@ void Snortmodule::init(){
 	sleep(3);
 	fifofd=fopen(FIFO, "w");
 	if(fifofd < 0){
-		msg(MSG_ERROR, "Snortmodule: Can't open FIFO");
+		VERMONT::msg(MSG_ERROR, "Snortmodule: Can't open FIFO");
 		throw exceptions::DetectionModuleError("Snortmodule", "Can't open FIFO", strerror(errno));
 	}
  	
 	/*Write initial pcap file header to external application*/
-	msg(MSG_INFO, "Snortmodule: External application running... Init writer and sending pcap file header");
+	VERMONT::msg(MSG_INFO, "Snortmodule: External application running... Init writer and sending pcap file header");
 	writer->init(fifofd,calc_thcs,calc_iphcs);
 	writer->writedummypacket(); // for debug proposes only
-	msg(MSG_INFO, "Snortmodule: All set up");
+	VERMONT::msg(MSG_INFO, "Snortmodule: All set up");
 
 #ifdef IDMEF_SUPPORT_ENABLED
 	/* register module */
@@ -186,9 +188,9 @@ void Snortmodule::init(){
 
 
 void Snortmodule::CleanExit(){
-	msg(MSG_INFO, "Snortmodule: Shutting down...");
+	VERMONT::msg(MSG_INFO, "Snortmodule: Shutting down...");
 	std::cout << "Snortmodule: <---- "<<writer->get_packets_read() <<" packets read " << writer->get_packets_written() << " written and " << (writer->get_packets_read()-writer->get_packets_written()) << " dropped. ---->"<<std::endl;
-	msg(MSG_INFO, "Snortmodule: Cleaning up...");
+	VERMONT::msg(MSG_INFO, "Snortmodule: Cleaning up...");
 
 	delete writer;
 	kill(pid, SIGINT);
@@ -197,26 +199,26 @@ void Snortmodule::CleanExit(){
 #ifdef IDMEF_SUPPORT_ENABLED
 	unlink(wrapperConfig.fifoname.c_str());
 #endif
-	msg(MSG_INFO, "Snortmodule: Exiting");
+	VERMONT::msg(MSG_INFO, "Snortmodule: Exiting");
 }
 
 #ifdef IDMEF_SUPPORT_ENABLED
 void Snortmodule::update(XMLConfObj* xmlObj)
 {
-	msg(MSG_INFO, "Update received!");
+	VERMONT::msg(MSG_INFO, "Update received!");
 	/* stop module */
 	if (xmlObj->nodeExists(config_space::STOP)) {
-		msg(MSG_INFO, "-> stopping snortmodule...");
+		VERMONT::msg(MSG_INFO, "-> stopping snortmodule...");
 		stop();
 	} 
 	/* restart module */
 	else if (xmlObj->nodeExists(config_space::RESTART)) {
-		msg(MSG_INFO, "-> restarting snortmodule...");
+		VERMONT::msg(MSG_INFO, "-> restarting snortmodule...");
 		restart();
 	} 
 	/* get snort configuration */
 	else if (xmlObj->nodeExists(GET_SNORT_CONFIG)) {
-		msg(MSG_INFO, "-> retrieving snort configuration...");
+		VERMONT::msg(MSG_INFO, "-> retrieving snort configuration...");
 		std::ifstream inputStream;
 		char* line = NULL;
 		inputStream.open(config_file.c_str(), std::ios::in);
@@ -236,7 +238,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 	} 
 	/* update snort configuration */
 	else if (xmlObj->nodeExists(UPDATE_SNORT_CONFIG)) {
-		msg(MSG_INFO, "-> updating snort configuration...");
+		VERMONT::msg(MSG_INFO, "-> updating snort configuration...");
 		std::ofstream outputStream;
 		outputStream.open(config_file.c_str(), std::ios::trunc);
 		if (!outputStream) {
@@ -252,7 +254,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 	} 
 	/* get snort rule file */
 	else if (xmlObj->nodeExists(GET_SNORT_RULE_FILE)) {
-		msg(MSG_INFO, "-> retrieving snort rule file...");
+		VERMONT::msg(MSG_INFO, "-> retrieving snort rule file...");
 		std::ifstream inputStream;
 		char* line = NULL;
 		inputStream.open(rule_file.c_str(), std::ios::in);
@@ -272,7 +274,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 	} 
 	/* update snort rule file */
 	else if (xmlObj->nodeExists(UPDATE_SNORT_RULE_FILE)) {
-		msg(MSG_INFO, "-> updating snort rule file...");
+		VERMONT::msg(MSG_INFO, "-> updating snort rule file...");
 		std::ofstream outputStream;
 		outputStream.open(rule_file.c_str(), std::ios::trunc);
 		if (!outputStream) {
@@ -288,7 +290,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 	} 
 	/* append snort rule file */
 	else if (xmlObj->nodeExists(APPEND_SNORT_RULE_FILE)) {
-		msg(MSG_INFO, "-> appending snort rule file...");
+		VERMONT::msg(MSG_INFO, "-> appending snort rule file...");
 		std::ofstream outputStream;
 		outputStream.open(rule_file.c_str(), std::ios::app);
 		if (!outputStream) {
@@ -304,7 +306,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 	} 
 	/* clear snort rule file */
 	else if (xmlObj->nodeExists(CLEAR_SNORT_RULE_FILE)) {
-		msg(MSG_INFO, "-> clearing snort rule file...");
+		VERMONT::msg(MSG_INFO, "-> clearing snort rule file...");
 		std::ofstream outputStream;
 		outputStream.open(rule_file.c_str(), std::ios::trunc);
 		if (!outputStream) {
@@ -316,7 +318,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 			outputStream.close();
 		}
 	} else { // add your commands here
-		msg(MSG_INFO, "-> unknown operation");
+		VERMONT::msg(MSG_INFO, "-> unknown operation");
 	}
 }
 #endif
@@ -324,7 +326,7 @@ void Snortmodule::update(XMLConfObj* xmlObj)
 void Snortmodule::readConfig(const std::string& filename)
 {
         bool doRead = false;
-        msg(MSG_INFO, "Snortmodule: Reading configuration file");
+        VERMONT::msg(MSG_INFO, "Snortmodule: Reading configuration file");
 
         if (!filename.empty()) {
                 config = new ConfObj(filename);
@@ -333,7 +335,7 @@ void Snortmodule::readConfig(const std::string& filename)
         }
         char* tmp;
 	if (doRead && NULL != (tmp = config->getValue(DEBUG_LEVEL))) {
-		                msg_setlevel(atoi(tmp));
+		                VERMONT::msg_setlevel(atoi(tmp));
 	}
 	if (doRead && NULL != (tmp = config->getValue(CONFIG_FILE))) {
 		config_file = tmp;
@@ -416,21 +418,21 @@ void Snortmodule::sigChild(int signum)
 {
 if (shutdown) return;
         
-	msg(MSG_ERROR, "Snortmodule: External detection module died.");
+	VERMONT::msg(MSG_ERROR, "Snortmodule: External detection module died.");
         int status;
         pid_t pid = wait(&status);
         if (pid == -1)
-                msg(MSG_ERROR, "Snortmodule: Can't determine exit state from external detecton module: %s", strerror(errno));
+                VERMONT::msg(MSG_ERROR, "Snortmodule: Can't determine exit state from external detecton module: %s", strerror(errno));
 
         if (WIFEXITED(status)) {
                 if (WEXITSTATUS(status) == 0) {
-                        msg(MSG_ERROR, "Snortmodule: Detection module with pid %i terminated normally.", pid);
+                        VERMONT::msg(MSG_ERROR, "Snortmodule: Detection module with pid %i terminated normally.", pid);
                 }else {
-                        msg(MSG_ERROR, "Snortmodule: Detection module with pid %i terminated abnormally. Return value was: %i", pid, status);
+                        VERMONT::msg(MSG_ERROR, "Snortmodule: Detection module with pid %i terminated abnormally. Return value was: %i", pid, status);
                 }
         } else {
                 if (WIFSIGNALED(status)) {
-                        msg(MSG_ERROR, "Snortmodule: Detection module with pid %i was terminated by signal %i", pid, WTERMSIG(status));
+                        VERMONT::msg(MSG_ERROR, "Snortmodule: Detection module with pid %i was terminated by signal %i", pid, WTERMSIG(status));
                 }
         }
 	shutdown=true;
@@ -463,11 +465,11 @@ void * Snortmodule::xmlWrapperEntry(void *args)
 	Snortmodule* object;
 	object=(Snortmodule* )config->module;
 
-	msg(MSG_INFO, "Snortmodule: xmlWrapper startup...");
+	VERMONT::msg(MSG_INFO, "Snortmodule: xmlWrapper startup...");
    
 	/* create FIFO */
 	if ((mknod(config->fifoname.c_str(), S_IFIFO | 0666, 0)) < 0){
-	      	msg(MSG_ERROR, "Snortmodule: Wrapper mknod failed");
+	      	VERMONT::msg(MSG_ERROR, "Snortmodule: Wrapper mknod failed");
 		throw exceptions::DetectionModuleError("Snortmodule", "Can't create wrapper-FIFO", strerror(errno));
    	}
      
@@ -477,7 +479,7 @@ void * Snortmodule::xmlWrapperEntry(void *args)
         ssize_t read;
         fp = fopen(config->fifoname.c_str(), "r");
         if (fp == NULL){
-		msg(MSG_ERROR, "Snortmodule: Wrapper FIFO open failed");
+		VERMONT::msg(MSG_ERROR, "Snortmodule: Wrapper FIFO open failed");
 		throw exceptions::DetectionModuleError("Snortmodule", "Can't open wrapper-FIFO", strerror(errno));
 
 	}
@@ -510,7 +512,7 @@ void * Snortmodule::xmlWrapperEntry(void *args)
 				 }
 				 
 			 } else {
-				 msg(MSG_ERROR, "Snortmodule: analyzerid attribute or <Node> tag is missing");
+				 VERMONT::msg(MSG_ERROR, "Snortmodule: analyzerid attribute or <Node> tag is missing");
 			 }
 			 object->sendIdmefMessage(config->topic,message);
 			 message="";
@@ -522,4 +524,7 @@ void * Snortmodule::xmlWrapperEntry(void *args)
     	unlink(config->fifoname.c_str());
 	pthread_exit(NULL);
 }
+
 #endif
+};
+

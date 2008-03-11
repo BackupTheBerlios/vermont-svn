@@ -116,7 +116,7 @@ public:
 		sourceId = new VERMONT::IpfixRecord::SourceID();
 
 		flowSink = fs;
-		flowSink->run();
+		flowSink->runSink();
 		ipfixParser.addFlowSink(flowSink);
         }
 
@@ -125,7 +125,6 @@ public:
 		flowSink->terminateSink();
 		delete flowSink;
         }
-
 
         void import(Notifier& notifier) {
                 static FILE* fd;
@@ -197,36 +196,42 @@ class BufferedFilesInputPolicy : public InputPolicyBase<Notifier, Storage>
 {
 public:
 	BufferedFilesInputPolicy()
-		: filePolicy(new DetectFlowSink<Storage>())
+		: sink(new BufferedDetectSink<Storage>()), filePolicy(sink)
 	{
 		
 	}
 
         void importToStorage() 
         {
-        	filePolicy.import();        
+        	filePolicy.import(this->getNotifier());        
         }
 
         Storage* getStorage()
         {
-		filePolicy.getStorage();
+		sink->getStorage();
         }
 
+	void subscribeId(uint16_t id) {
+		sink->subscribeId(id);
+	}
 
+	void subscribeSourceId(uint16_t id) {
+		filePolicy.subscribeSourceId(id);
+	}
 private:
+	BufferedDetectSink<Storage>* sink;
 	FilePolicy<Notifier, Storage> filePolicy;
-	
 };
 
 template <
 class Notifier,
 class Storage
 >
-class UnBufferedFilesInputPolicy : public InputPolicyBase<Notifier, Storage>
+class UnbufferedFilesInputPolicy : public InputPolicyBase<Notifier, Storage>
 {
 public:
-	UnBufferedFilesInputPolicy()
-		: filePolicy(new UnBufferedDetectSink<Storage>())
+	UnbufferedFilesInputPolicy()
+		: sink(new UnBufferedDetectSink<Storage>()), filePolicy(sink)
 	{
 		
 	}
@@ -238,10 +243,18 @@ public:
 
 	Storage* getStorage()
 	{
-		filePolicy.getStorage();
+		sink->getStorage();
 	}
 
+	void subscribeId(uint16_t id) {
+		sink->subscribeId(id);
+	}
+
+	void subscribeSourceId(uint16_t id) {
+		filePolicy.subscribeSourceId(id);
+	}
 private:
+	UnBufferedDetectSink<Storage>* sink;
 	FilePolicy<Notifier, Storage> filePolicy;
 };
 

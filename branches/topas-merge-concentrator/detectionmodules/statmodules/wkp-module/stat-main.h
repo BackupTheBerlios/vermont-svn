@@ -31,6 +31,8 @@
 #include <algorithm> // sort(...), unique(...)
 
 
+namespace TOPAS {
+
 // ========================== CLASS Stat ==========================
 
 // constants for metrics
@@ -209,5 +211,6 @@ class Stat
 	std::ofstream storefile;
 };
 
+};
 
 #endif

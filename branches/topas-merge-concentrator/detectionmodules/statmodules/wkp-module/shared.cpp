@@ -24,6 +24,8 @@
 #include <ostream>
 #include <sstream>
 
+namespace TOPAS {
+
 // ============== SOME METHODS FOR CLASS EndPoint ================
 
 // Needed to create filenames etc.
@@ -187,3 +189,5 @@ std::ostream & operator << (std::ostream & os, const std::list<std::vector<int64
   }
   return os;
 }
+
+};
