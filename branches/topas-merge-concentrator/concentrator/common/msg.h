@@ -12,6 +12,9 @@
 
 #ifdef __cplusplus
 extern "C" {
+
+namespace VERMONT {
+
 #endif
 
 /* function prototype for message logging */  
@@ -99,6 +102,7 @@ void vermont_exception(const int, const char*, const char*, const char*, const c
 #endif
 
 #ifdef __cplusplus
+};
 }
 #endif
 

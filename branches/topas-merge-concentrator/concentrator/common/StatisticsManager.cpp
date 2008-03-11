@@ -4,6 +4,8 @@
 #include <string>
 #include <unistd.h>
 
+namespace VERMONT {
+
 
 StatisticsManager::StatisticsManager()
 	: Thread(threadWrapper), interval(10000)
@@ -50,7 +52,7 @@ void StatisticsManager::setInterval(long milliseconds)
 	interval = milliseconds;
 }
 
-void StatisticsManager::setOutput(const string& output)
+void StatisticsManager::setOutput(const std::string& output)
 {
 	outputFile = output;
 }
@@ -70,9 +72,9 @@ void StatisticsManager::runStats()
 		fprintf(f, "statistics dump at %lu\n", time(0));
 
 		mutex.lock();
-		list<StatisticsModule*>::const_iterator iter = statModules.begin();
+		std::list<StatisticsModule*>::const_iterator iter = statModules.begin();
 		while (iter != statModules.end()) {
-			string text = (*iter)->getStatistics();
+			std::string text = (*iter)->getStatistics();
 			fprintf(f, "%s\n", text.c_str());
 			iter++;
 		}
@@ -91,3 +93,5 @@ void StatisticsManager::stop()
 {
 	join();
 }
+
+};

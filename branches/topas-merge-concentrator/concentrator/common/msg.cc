@@ -19,6 +19,8 @@
 
 #ifdef __cplusplus
 extern "C" {
+
+namespace VERMONT {
 #endif
 
 
@@ -319,6 +321,7 @@ extern "C" {
 	}*/
 
 #ifdef __cplusplus
+};
 }
 #endif
 

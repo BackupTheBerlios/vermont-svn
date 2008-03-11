@@ -23,6 +23,8 @@
 
 #include <stdint.h>
 
+namespace VERMONT {
+
 /* CRC16 table calculated by Mark G. Mendel. From xmodem.h, public domain */
 static const uint16_t table[] = {
 	0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
@@ -81,5 +83,7 @@ inline uint16_t crc16(uint16_t seed, uint16_t length, const char* data)
 
 	return i;
 }
+
+};
 
 #endif

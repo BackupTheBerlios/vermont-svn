@@ -33,6 +33,8 @@
 #include <stdlib.h>
 #include <boost/smart_ptr.hpp>
 
+namespace VERMONT {
+
 #define HASHTABLE_SIZE 65536
 
 /**
@@ -183,5 +185,7 @@ class Hashtable : public FlowSource, StatisticsModule {
 		void updatePointers(const Packet* p);
 
 };
-	
+
+};
+
 #endif

@@ -32,6 +32,8 @@
 
 using namespace std;
 
+namespace VERMONT {
+
 /**
  * Initializes memory for a new bucket in @c ht containing @c data
  */
@@ -1423,3 +1425,5 @@ std::string Hashtable::getStatistics()
 	oss << "Hashtable: number of exported entries       : " << diff << endl;
 	return oss.str();
 }
+
+};

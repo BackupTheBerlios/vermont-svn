@@ -28,6 +28,8 @@
 #include "IpfixReceiver.hpp"
 #include "IpfixPacketProcessor.hpp"
 
+namespace VERMONT {
+
 /**
  * Represents a collector
  */
@@ -45,6 +47,8 @@ class IpfixCollector {
 	protected:
 		std::list<IpfixReceiver*> ipfixReceivers;
 		std::list<IpfixPacketProcessor*> packetProcessors;
+
+};
 
 };
 

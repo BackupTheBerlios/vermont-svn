@@ -32,6 +32,8 @@
 #include "common/ManagedInstance.h"
 #include "ipfixlolib/encoding.h"
 
+namespace VERMONT {
+
 // the various header types (actually, HEAD_PAYLOAD is not neccessarily a header but it works like one for
 // our purposes)
 #define HEAD_RAW                  1
@@ -453,6 +455,8 @@ private:
 	Mutex refCountLock;
 
 	bool packetFreed;
+
+};
 
 };
 

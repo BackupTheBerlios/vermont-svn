@@ -38,6 +38,8 @@
 #include <netdb.h>
 #include <fstream>
 
+namespace VERMONT {
+
 IpfixRawdirReader::IpfixRawdirReader(std::string packet_directory_path) : packet_directory_path(packet_directory_path) {
 	boost::filesystem::path //full_path(boost::filesystem::initial_path<boost::filesystem::path>());
 	full_path = boost::filesystem::system_complete(boost::filesystem::path(packet_directory_path, boost::filesystem::native));
@@ -115,6 +117,8 @@ void IpfixRawdirReader::run() {
 		//sleep(1);
 	}
 }
+
+};
 
 #endif //HAVE_BOOST_FILESYSTEM
 

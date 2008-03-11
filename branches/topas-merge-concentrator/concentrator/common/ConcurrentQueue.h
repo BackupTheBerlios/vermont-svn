@@ -18,6 +18,8 @@
 #include "TimeoutSemaphore.h"
 #include "msg.h"
 
+namespace VERMONT {
+
 template<class T>
 class ConcurrentQueue
 {
@@ -172,6 +174,8 @@ class ConcurrentQueue
 		TimeoutSemaphore popSemaphore;
 		TimeoutSemaphore pushSemaphore;
 		std::string ownerName;
+};
+
 };
 
 #endif

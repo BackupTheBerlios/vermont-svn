@@ -21,9 +21,13 @@
 #include "common/msg.h"
 #include "IpfixRecord.hpp"
 
+namespace VERMONT {
+
 IpfixRecord::IpfixRecord() {
 }
 
 IpfixRecord::~IpfixRecord() {
 }
+
+};
 

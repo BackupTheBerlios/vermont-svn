@@ -30,6 +30,8 @@
 #include "IpfixRecord.hpp"
 #include "FlowSink.hpp"
 
+namespace VERMONT {
+
 class IpfixParser;
         
 /**
@@ -42,6 +44,8 @@ class IpfixPacketProcessor {
 		virtual int processPacket(boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<IpfixRecord::SourceID> sourceId) = 0; /**< process (e.g. parse and enqueue) the given raw network packet */
 
 	protected:
+
+};
 
 };
 

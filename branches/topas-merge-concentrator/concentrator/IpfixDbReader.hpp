@@ -38,6 +38,8 @@
 
 #include <mysql.h>
 
+namespace VERMONT {
+
 /**
  *      IpfixDbReader powered the communication to the database server
  *      also between the other structs
@@ -97,7 +99,7 @@ class IpfixDbReader : public FlowSource {
 		IpfixDbReader::columnDB* getColumnByName(const char* name);
 };
 
-        
+};
 
 #endif
 

@@ -23,6 +23,8 @@
 #include <stdio.h>
 #include "IpfixPrinter.hpp"
 
+namespace VERMONT {
+
 /**
  * print functions which have formerly been in IpfixParser.cpp
  */
@@ -427,3 +429,4 @@ int IpfixPrinter::onDataDataRecord(IpfixRecord::SourceID* sourceID, IpfixRecord:
 	return 0;
 }
 
+};

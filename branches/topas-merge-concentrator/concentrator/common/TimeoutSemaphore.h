@@ -22,6 +22,8 @@
 #include "msg.h"
 #include "Time.h"
 
+namespace VERMONT {
+
 class TimeoutSemaphore
 {
 private:
@@ -216,6 +218,8 @@ public:
 	    DPRINTF("restarting");
 	    exitFlag = false;
 	}
+};
+
 };
 
 #endif

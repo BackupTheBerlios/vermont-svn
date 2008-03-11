@@ -34,6 +34,8 @@
 #include "IpfixReceiver.hpp"
 #include "IpfixPacketProcessor.hpp"
 
+namespace VERMONT {
+
 /**
  * reads raw packets from a directory containing one file per packet
  */
@@ -47,6 +49,8 @@ class IpfixRawdirReader : public IpfixReceiver {
 		std::string packet_directory_path;
 		boost::filesystem::directory_iterator dir_iterator;
 		boost::filesystem::directory_iterator end_iterator;
+};
+
 };
 
 #endif

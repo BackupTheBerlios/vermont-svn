@@ -29,6 +29,8 @@
  * EXPORTER_WIDTH    : Length of the string for operations on exporter table
  */
 
+namespace VERMONT {
+
 #ifdef DB_SUPPORT_ENABLED
 
 #define STARTLEN         60             
@@ -36,5 +38,7 @@
 #define COL_WIDTH        40
 #define INS_WIDTH        25
 #define EXPORTER_WIDTH   80
+
+};
 
 #endif

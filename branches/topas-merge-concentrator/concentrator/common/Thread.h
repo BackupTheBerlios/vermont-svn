@@ -16,6 +16,8 @@
 
 #include <pthread.h>
 
+namespace VERMONT {
+
 typedef void* (*ThreadFunc)(void *);
 
 class Thread
@@ -73,6 +75,8 @@ class Thread
 		pthread_t thread;
 		bool thread_created; /**< true after Thread::run() was called */
 		ThreadFunc f;
+};
+
 };
 
 #endif

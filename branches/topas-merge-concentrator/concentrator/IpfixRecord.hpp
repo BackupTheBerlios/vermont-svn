@@ -29,6 +29,8 @@
 #include "ipfix.hpp"
 #include "Packet.h"
 
+namespace VERMONT {
+
 #define MAX_ADDRESS_LEN 16
 
 typedef uint16_t TemplateID;
@@ -510,6 +512,8 @@ class IpfixOptionsTemplateDestructionRecord : public IpfixRecord {
 class IpfixDataTemplateDestructionRecord : public IpfixRecord {
 	public:
 		boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo;
+};
+
 };
 
 #endif

@@ -25,6 +25,8 @@
 #include "ipfixlolib/ipfixlolib.h"
 #include <vector>
 
+namespace VERMONT {
+
 /**
  * IPFIX Exporter interface.
  *
@@ -82,6 +84,8 @@ class IpfixSender : public FlowSink {
 		uint8_t conversionRingbuffer[65536]; /**< Ringbuffer used to store converted imasks between @c ipfix_put_data_field() and @c ipfix_send() */
 		uint16_t recordsInDataSet; /**< The number of records in the current data set */
 		uint16_t currentTemplateId; /**< Template ID of the unfinished data set */
+};
+
 };
 
 #endif

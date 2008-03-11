@@ -20,6 +20,8 @@
 
 #include "FlowSource.hpp"
 
+namespace VERMONT {
+
 FlowSource::FlowSource() {
 }
 
@@ -36,3 +38,4 @@ void FlowSource::push(boost::shared_ptr<IpfixRecord> ipfixRecord) {
 	}
 }
 
+};

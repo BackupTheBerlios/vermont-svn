@@ -42,6 +42,8 @@
 
 #include "common/msg.h"
 
+namespace VERMONT {
+
 #define MAX_MSG_LEN 65536
 
 /**
@@ -886,4 +888,4 @@ IpfixParser::~IpfixParser() {
 
 }
 
-
+};

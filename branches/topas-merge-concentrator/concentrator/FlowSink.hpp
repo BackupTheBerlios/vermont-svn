@@ -29,6 +29,7 @@
 #include "common/Thread.h"
 #include "common/ConcurrentQueue.h"
 
+namespace VERMONT {
 
 /*
  * IPFIX Flow Sink class
@@ -197,6 +198,8 @@ class FlowSink {
 		ConcurrentQueue< boost::shared_ptr<IpfixRecord> > ipfixRecords;
 		Thread thread;
 		bool exitFlag;
+};
+
 };
 
 #endif

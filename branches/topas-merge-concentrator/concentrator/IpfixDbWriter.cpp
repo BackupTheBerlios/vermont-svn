@@ -29,6 +29,8 @@
 #include "IpfixDbWriter.hpp"
 #include "common/msg.h"
 
+namespace VERMONT {
+
 
 /***** Internal types ******************************************************/
 
@@ -953,5 +955,6 @@ int IpfixDbWriter::stop() {
     return 0;
 }
 
+};
 
 #endif

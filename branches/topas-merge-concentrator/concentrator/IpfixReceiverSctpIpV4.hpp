@@ -30,6 +30,8 @@
 #include "IpfixReceiver.hpp"
 #include "IpfixPacketProcessor.hpp"
 
+namespace VERMONT {
+
 //Maximum number of simultanious connections
 #define SCTP_MAX_CONNECTIONS 5
 
@@ -53,6 +55,8 @@ class IpfixReceiverSctpIpV4 : public IpfixReceiver {
 		virtual void run() {}
 
 #endif /*SUPPORT_SCTP*/
+};
+
 };
 
 #endif

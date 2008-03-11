@@ -26,6 +26,8 @@
 #include "Hashtable.hpp"
 #include <pthread.h>
 
+namespace VERMONT {
+
 /**
  * Represents an Aggregator.
  *
@@ -58,6 +60,8 @@ class IpfixAggregator : public FlowSink
 	protected:
 		Rules* rules; /**< Set of rules that define the aggregator */
 		pthread_mutex_t mutex; /**< Mutex to synchronize and/or pause aggregator */
+};
+
 };
 
 #endif

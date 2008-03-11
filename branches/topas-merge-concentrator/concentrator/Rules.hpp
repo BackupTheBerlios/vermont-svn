@@ -28,6 +28,8 @@
 #include "IpfixParser.hpp"
 #include "Rule.hpp"
 
+namespace VERMONT {
+
 #define MAX_RULES 255
 
 /**
@@ -48,5 +50,7 @@ int parseProtoPattern(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo
 int parseIPv4Pattern(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length);
 int parsePortPattern(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length);
 int parseTcpFlags(char* s, IpfixRecord::Data** fdata, IpfixRecord::FieldInfo::Type::Length* length);
+
+};
 
 #endif

@@ -38,6 +38,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+namespace VERMONT {
+
 /** 
  * Does SCTP/IPv4 specific initialization.
  * @param port Port to listen on
@@ -171,5 +173,7 @@ void IpfixReceiverSctpIpV4::run() {
       		}
 	}
 }
+
+};
 
 #endif /*SUPPORT_SCTP*/

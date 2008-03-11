@@ -31,6 +31,8 @@
 #include "IpfixReceiver.hpp"
 #include "IpfixPacketProcessor.hpp"
 
+namespace VERMONT {
+
 class IpfixReceiverUdpIpV4 : public IpfixReceiver {
 	public:
 		IpfixReceiverUdpIpV4(int port, std::string ipAddr = "");
@@ -39,6 +41,8 @@ class IpfixReceiverUdpIpV4 : public IpfixReceiver {
 		virtual void run();
 	private:
 		int listen_socket;
+};
+
 };
 
 #endif

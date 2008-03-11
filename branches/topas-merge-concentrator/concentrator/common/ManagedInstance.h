@@ -24,6 +24,8 @@
 #include "msg.h"
 #include "InstanceManager.h"
 
+namespace VERMONT {
+
 /**
  * represents an instance which can be managed by ResourceManager
  * this class does not have much functionality, whole management process
@@ -80,4 +82,5 @@ class ManagedInstance
 		}
 };
 
+};
 #endif

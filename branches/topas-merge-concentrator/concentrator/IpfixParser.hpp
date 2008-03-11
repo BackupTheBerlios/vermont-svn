@@ -32,6 +32,8 @@
 #include "FlowSink.hpp"
 #include "FlowSource.hpp"
 
+namespace VERMONT {
+
 class TemplateBuffer;
 
 /**
@@ -138,6 +140,8 @@ class IpfixParser : public IpfixPacketProcessor, public FlowSource {
 		void processOptionsTemplateSet(boost::shared_ptr<IpfixRecord::SourceID> sourceId, boost::shared_array<uint8_t> message, IpfixSetHeader* set, uint8_t* endOfMessage);
 		int processNetflowV9Packet(boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<IpfixRecord::SourceID> sourceId);
 		int processIpfixPacket(boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<IpfixRecord::SourceID> sourceId);
+
+};
 
 };
 

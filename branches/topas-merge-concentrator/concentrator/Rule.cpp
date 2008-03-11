@@ -33,6 +33,8 @@
 
 #include "common/msg.h"
 
+namespace VERMONT {
+
 #define MAX_LINE_LEN 256
 
 /* --- constants ------------*/
@@ -521,3 +523,6 @@ int Rule::dataTemplateDataMatches(IpfixRecord::DataTemplateInfo* info, IpfixReco
 	/* all rule fields were matched */
 	return 1;
 }
+
+};
+

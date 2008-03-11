@@ -8,6 +8,7 @@
 #include <time.h>
 #include <sys/time.h>
 
+namespace VERMONT {
 
 
 /* Subtract the `struct timeval' values X and Y,
@@ -56,5 +57,7 @@ inline void addToCurTime(struct timespec* ts, long timediff_ms)
 	ts->tv_sec = tv.tv_sec;
 	ts->tv_nsec = tv.tv_usec * 1000L;
 }
+
+};
 
 #endif

@@ -30,6 +30,8 @@
 
 #include "IpfixPacketProcessor.hpp"
 
+namespace VERMONT {
+
 /**
  * Control structure for receiving process.
  */
@@ -67,6 +69,8 @@ class IpfixReceiver {
 		uint32_t receivedRecords; /**< Statistics: Total number of data (or dataData) records received since last statistics were polled */
 	
 		static void* listenerThread(void* ipfixReceiver_);
+};
+
 };
 
 #endif

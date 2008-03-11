@@ -26,6 +26,8 @@
 #include "FlowSink.hpp"
 #include "IpfixRecord.hpp"
 
+namespace VERMONT {
+
 /*
  * IPFIX Flow Source class
  *
@@ -53,4 +55,5 @@ class FlowSource {
 
 };
 
+};
 #endif

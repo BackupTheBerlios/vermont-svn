@@ -25,6 +25,8 @@
 
 #include "common/msg.h"
 
+namespace VERMONT {
+
 /*
  we start OUR template IDs at <this>
  we need our own template IDs and they should be unique
@@ -459,3 +461,6 @@ void IpfixSender::flowSinkProcess()
 		}
 	}
 }
+
+};
+

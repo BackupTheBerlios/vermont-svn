@@ -35,6 +35,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+namespace VERMONT {
+
 /** 
  * Does UDP/IPv4 specific initialization.
  * @param port Port to listen on
@@ -120,4 +122,6 @@ void IpfixReceiverUdpIpV4::run() {
 		}
 	}
 }
+
+};
 

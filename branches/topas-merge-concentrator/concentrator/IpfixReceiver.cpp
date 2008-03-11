@@ -37,6 +37,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+namespace VERMONT {
+
 
 IpfixReceiver::IpfixReceiver() {
 }
@@ -195,3 +197,4 @@ void IpfixReceiver::stats()
 	receivedRecords = 0;
 }
 
+};

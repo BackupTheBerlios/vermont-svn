@@ -28,6 +28,8 @@
 
 #include "common/msg.h"
 
+namespace VERMONT {
+
 /* go back to SENDER_TEMPLATE_ID_LOW if _HI is reached */
 #define SENDER_TEMPLATE_ID_HI 60000
 
@@ -71,6 +73,8 @@ int IpfixRawdirWriter::addCollector(std::string packetDirectoryName) {
 
 	return 0;
 }
+
+};
 
 #endif //IPFIXLOLIB_RAWDIR_SUPPORT
 

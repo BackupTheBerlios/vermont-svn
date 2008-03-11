@@ -42,6 +42,8 @@
 
 #include "IpfixCollector.hpp"
 
+namespace VERMONT {
+
 /**
  * Adds a PacketProcessor to the list of PacketProcessors
  * @param ipfixCollector Collector to assign the PacketProcessor to
@@ -114,3 +116,4 @@ void IpfixCollector::addIpfixReceiver(IpfixReceiver* ipfixReceiver) {
 	ipfixReceivers.push_back(ipfixReceiver);
 }
 
+};

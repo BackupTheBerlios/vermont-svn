@@ -17,6 +17,8 @@
 
 #include "msg.h"
 
+namespace VERMONT {
+
 class Mutex
 {
 	private:
@@ -95,6 +97,8 @@ class Mutex
 			}
 
 		};
+};
+
 };
 
 #endif

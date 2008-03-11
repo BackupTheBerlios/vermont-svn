@@ -25,6 +25,8 @@
 #include <time.h>
 #include <boost/smart_ptr.hpp>
 
+namespace VERMONT {
+
 #define DEFAULT_TEMPLATE_EXPIRE_SECS  70
 
 /**
@@ -60,6 +62,8 @@ class TemplateBuffer {
 	protected:
 		TemplateBuffer::BufferedTemplate* head; /**< Start of BufferedTemplate chain */
 		IpfixParser* ipfixParser; /**< Pointer to the ipfixParser which instantiated this TemplateBuffer */
+};
+
 };
 
 #endif

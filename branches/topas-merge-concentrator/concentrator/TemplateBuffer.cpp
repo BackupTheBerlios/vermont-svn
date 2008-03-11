@@ -26,6 +26,8 @@
 #include "ipfix.hpp"
 #include "common/msg.h"
 
+namespace VERMONT {
+
 /**
  * Returns a IpfixRecord::TemplateInfo, IpfixRecord::OptionsTemplateInfo, IpfixRecord::DataTemplateInfo or NULL
  */
@@ -152,4 +154,6 @@ TemplateBuffer::~TemplateBuffer() {
 		head = bt2;
 	}
 }
+
+};
 

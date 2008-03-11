@@ -27,6 +27,8 @@
 
 #include "common/msg.h"
 
+namespace VERMONT {
+
 /**
  * Creates a new Aggregator. Do not forget to set the callback functions, then call @c startAggregator().
  * @param ruleFile filename of file containing a set of rules
@@ -269,3 +271,5 @@ void IpfixAggregator::stats()
 	}
 	pthread_mutex_unlock(&mutex);
 }
+
+};

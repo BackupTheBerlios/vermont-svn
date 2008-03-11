@@ -31,6 +31,7 @@
 #include "ipfixlolib/ipfixlolib.h"
 #include "ipfix.hpp"
 
+namespace VERMONT {
 
 int string2typeid(const char *s)
 {
@@ -61,3 +62,6 @@ int string2typelength(const char *s)
 
 	return ix->length;
 }
+
+};
+

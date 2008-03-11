@@ -27,6 +27,8 @@
 #include "concentrator/IpfixSender.hpp"
 #include <vector>
 
+namespace VERMONT {
+
 /**
  * IPFIX Exporter interface that exports raw packets as a series of files in a directory
  */
@@ -36,6 +38,8 @@ class IpfixRawdirWriter : public IpfixSender {
 		~IpfixRawdirWriter();
 
 		int addCollector(std::string packetDirectoryName);
+};
+
 };
 
 #endif

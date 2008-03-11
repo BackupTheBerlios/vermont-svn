@@ -23,6 +23,8 @@
 
 #include "FlowSink.hpp"
 
+namespace VERMONT {
+
 /**
  * IPFIX Printer module.
  *
@@ -54,5 +56,7 @@ class IpfixPrinter : public FlowSink {
 };
 void printProtocol(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data);
 void printFieldData(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* pattern);
+
+};
 
 #endif

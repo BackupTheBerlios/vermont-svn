@@ -7,7 +7,7 @@
 #include <list>
 #include <string>
 
-using namespace std;
+namespace VERMONT {
 
 // statistics output
 class StatisticsModule
@@ -20,10 +20,10 @@ class StatisticsModule
 class StatisticsManager : Thread
 {
 	private:	
-		list<StatisticsModule*> statModules;
+		std::list<StatisticsModule*> statModules;
 		unsigned long			interval;
 		Mutex					mutex;
-		string					outputFile;
+		std::string					outputFile;
 
 		StatisticsManager();
 		static void* threadWrapper(void* sm);
@@ -37,9 +37,10 @@ class StatisticsManager : Thread
 		void start();
 		void stop();
 		void setInterval(long milliseconds);
-		void setOutput(const string& output);
+		void setOutput(const std::string& output);
 
 };
 
+};
 
 #endif 

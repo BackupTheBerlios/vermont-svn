@@ -21,6 +21,8 @@
 #ifndef DEFS_H
 #define DEFS_H
 
+namespace VERMONT {
+
 /*
  * global definitions for Vermont
  */
@@ -31,6 +33,6 @@
  */
 #define PCAP_DEFAULT_CAPTURE_LENGTH 128
 
-
+};
 
 #endif /*DEFS_H*/

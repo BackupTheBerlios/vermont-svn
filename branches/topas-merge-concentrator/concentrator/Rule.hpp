@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include "IpfixReceiver.hpp"
 
+namespace VERMONT {
+
 #define MAX_RULE_FIELDS 255
 
 class Hashtable;
@@ -83,6 +85,8 @@ class Rule {
 		Packet::IPProtocolType validProtocols; /**< types of protocols which are valid for specified rule */
 		Rule::Field** patternFields;  /**< contains array of rules which contain a pattern for packet matching */
 		uint16_t patternFieldsLen;
+};
+
 };
 
 #endif

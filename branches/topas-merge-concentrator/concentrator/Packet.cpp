@@ -16,6 +16,9 @@
 
 #include "Packet.h"
 
+namespace VERMONT {
 
 // keeps track on how many packets we received until now
 unsigned long Packet::totalPacketsReceived = 0;
+
+};

@@ -33,6 +33,8 @@
 
 #include "common/msg.h"
 
+namespace VERMONT {
+
 #define MAX_LINE_LEN 256
 
 /* --- constants ------------*/
@@ -373,4 +375,6 @@ Rules::Rules(char* fname) {
 	delete ruleField;
 	delete currentRule;
 }
+
+};
 

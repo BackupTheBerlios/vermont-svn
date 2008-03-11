@@ -22,6 +22,8 @@
 
 #include "FlowSink.hpp"
 
+namespace VERMONT {
+
 FlowSink::FlowSink() 
     : ipfixRecords(), thread(flowSinkProcess), exitFlag(false) 
 {
@@ -117,3 +119,5 @@ ConcurrentQueue< boost::shared_ptr<IpfixRecord> >* FlowSink::getSinkQueue()
 {
 	return &ipfixRecords;
 }
+
+};

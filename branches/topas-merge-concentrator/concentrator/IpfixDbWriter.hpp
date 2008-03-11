@@ -35,6 +35,8 @@
 #include <netinet/in.h>
 #include <time.h>
 
+namespace VERMONT {
+
 #define EXPORTERID 0
 
 /**
@@ -134,6 +136,7 @@ class IpfixDbWriter : public FlowSink {
 		void addColumnEntry(char* sql, uint64_t insert, bool quoted, bool lastcolumn);
 };
 
+};
 
 #endif
 

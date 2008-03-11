@@ -28,6 +28,8 @@
 #include "IpfixDbReader.hpp"
 #include "common/msg.h"
 
+namespace VERMONT {
+
 /***** Internal Functions ****************************************************/
 
 void copyUintNetByteOrder(IpfixRecord::Data* dest, char* src, IpfixRecord::FieldInfo::Type type);
@@ -512,5 +514,7 @@ out1:
 	THROWEXCEPTION("IpfixDbReader creation failed");
 	return;
 }
+
+};
 
 #endif

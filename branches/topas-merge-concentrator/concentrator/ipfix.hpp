@@ -21,6 +21,8 @@
 #ifndef IPFIX_H
 #define IPFIX_H
 
+namespace VERMONT {
+
 #define IPFIX_LENGTH_octet 1
 #define IPFIX_LENGTH_unsigned16 2
 #define IPFIX_LENGTH_unsigned32 4
@@ -236,5 +238,7 @@ int string2typelength(const char*s);
 #define IPFIX_LENGTH_totalLengthIPv4                IPFIX_LENGTH_unsigned16
 
 #define MAX_MSG_LEN   65536
+
+};
 
 #endif
