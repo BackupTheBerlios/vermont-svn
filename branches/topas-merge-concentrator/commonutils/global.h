@@ -16,8 +16,8 @@
 /*    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA    */
 /**************************************************************************/
 
-#ifndef _GLOBAL_H_
-#define _GLOBAL_H_
+#ifndef _TOPAS_GLOBAL_H_
+#define _TOPAS_GLOBAL_H_
 
 
 #include "exceptions.h"
@@ -28,6 +28,8 @@
 
 #include <string>
 #include <ostream>
+
+namespace TOPAS {
 
 typedef enum {
 	UDP_IPV4,
@@ -100,5 +102,7 @@ namespace error_states
         static const int DETECTION_MODULE_ERROR = -3;
         static const int RUN_ERROR = -4;
 }
+
+};
 
 #endif

@@ -28,6 +28,8 @@
 #include <sys/time.h>
 #include <time.h>
 
+namespace TOPAS {
+
 IdmefMessage::IdmefMessage(const std::string& analyzerName, const std::string& analyzerId,
 			   const std::string& classification, MessageType type) 
 {
@@ -679,6 +681,8 @@ std::string IdmefMessage::getNtpStamp()
 	gettimeofday(&t, 0);
 	ss << "0x" << t.tv_sec + OFFSET_1970 << ".0x" << (((uint64_t)t.tv_usec) << 32) / 1000000;  
 	return ss.str();
-}
+};
+
+};
 
 #endif //IDMEF_SUPPORT_ENABLED

@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -32,7 +32,9 @@
 #include <stdexcept>
 #include <iostream>
 
-using namespace shared;
+namespace TOPAS {
+
+namespace shared {
 
 SharedObj::SharedObj() 
 	: deleteBlock(true)
@@ -198,13 +200,12 @@ FileCounter::operator unsigned () const
 
 /******************************************************************* Friend functions **************************************************************/
 
-
-namespace shared {
-
 std::ostream& operator<<(std::ostream& os, const FileCounter& fc) 
 {
         os << fc.i;
         return os;
 }
+
+};
 
 };

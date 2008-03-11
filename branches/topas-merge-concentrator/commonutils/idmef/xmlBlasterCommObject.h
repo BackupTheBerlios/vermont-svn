@@ -34,6 +34,8 @@ using namespace org::xmlBlaster::client;
 using namespace org::xmlBlaster::client::qos;
 using namespace org::xmlBlaster::client::key;
 
+namespace TOPAS {
+
 class XmlBlasterCommObject : public I_Callback,
 			     public I_ConnectionProblems
 {
@@ -108,6 +110,8 @@ private:
 	Mutex mutex;
 	/* The reference to the log object for this instance */
 	I_Log& log_;
+};
+
 };
 
 #endif //IDMEF_SUPPORT_ENABLED

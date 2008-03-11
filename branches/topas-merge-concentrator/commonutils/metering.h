@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -25,6 +25,7 @@
 #include <map>
 #include <fstream>
 
+namespace TOPAS {
 
 /**
  * This class is for analysing the work of the collector and the detection
@@ -54,6 +55,8 @@ private:
 	static std::string directoryName;
 
 	std::ofstream outfile;
+};
+
 };
 
 #endif

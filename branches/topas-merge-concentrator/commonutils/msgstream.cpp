@@ -19,6 +19,7 @@
 
 #include "msgstream.h"
 
+namespace TOPAS {
 
 void MsgStream::setName(const std::string& newname)
 {
@@ -114,3 +115,4 @@ void MsgStream::rawPrint(MsgLevel level, const std::string& msg)
   }
 }
 
+};

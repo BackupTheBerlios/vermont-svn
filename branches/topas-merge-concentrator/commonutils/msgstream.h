@@ -25,6 +25,8 @@
 #include <fstream>
 #include <iostream>
 
+namespace TOPAS {
+
 /**
  * Message Stream class as a C++ alternative to the msg(...) function of msg.h/c
  *
@@ -283,5 +285,7 @@ inline MsgStream& operator<<(MsgStream& ms, double input)
 	ms.logfile << input;
     return ms;
 }
+
+};
 
 #endif

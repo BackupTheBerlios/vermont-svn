@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 
+namespace TOPAS {
 
 std::string Metering::directoryName = "";
 
@@ -63,3 +64,5 @@ void Metering::setDirectoryName(const std::string& dirname)
         }
 	directoryName = dirname;
 }
+
+};

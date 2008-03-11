@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                            Gerhard Muenz                               */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
@@ -31,10 +31,10 @@
 #include <iostream>
 #include <cstring>
 
-
+namespace TOPAS {
 /* FIXME: remove all the dirty hacks!!!!! */
 
-    XMLConfObj::XMLConfObj(const std::string& filename, XmlType sourceType)
+XMLConfObj::XMLConfObj(const std::string& filename, XmlType sourceType)
 {
     if (sourceType == XML_FILE) {
 	documentTree = xmlReadFile(filename.c_str(), NULL, 0);
@@ -253,3 +253,5 @@ std::string XMLConfObj::toString()
     xmlBufferFree(xmlBufPtr);
     return ret;
 }
+
+};

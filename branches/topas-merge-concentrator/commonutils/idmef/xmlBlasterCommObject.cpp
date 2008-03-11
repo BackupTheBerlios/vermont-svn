@@ -21,6 +21,8 @@
 
 #include "xmlBlasterCommObject.h"
 
+namespace TOPAS {
+
 XmlBlasterCommObject::XmlBlasterCommObject(Global& glob) 
 	: ME("XmlBlasterCommObject"),
 	  global_(glob),
@@ -151,5 +153,7 @@ bool XmlBlasterCommObject::isConnected()
 {
 	return con.isAlive();
 }
+
+};
 
 #endif //IDMEF_SUPPORT_ENABLED

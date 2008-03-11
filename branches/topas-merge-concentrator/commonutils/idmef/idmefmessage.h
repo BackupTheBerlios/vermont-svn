@@ -22,6 +22,7 @@
 #ifndef IDMEFMESSAGE_H
 #define IDMEFMESSAGE_H
 
+
 /**
  * @author Raimondas Sasnauskas <sasnausk@informatik.uni-tuebingen.de>
  * @author Lothar Braun <braunl@informatik.uni-tuebingen.de>
@@ -37,6 +38,8 @@
 #include <vector>
 
 #include "xmlBlasterCommObject.h"
+
+namespace TOPAS {
 
 /**
  * The IdmefMessage class creates a IDMEF-Message with the DIADEM extension
@@ -362,6 +365,8 @@ private:
          */
         bool isMultipleNode(const std::string& nodeName);
         
+};
+
 };
 
 #endif

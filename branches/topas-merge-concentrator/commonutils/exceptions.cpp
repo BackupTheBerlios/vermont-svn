@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -20,7 +20,9 @@
 
 #include <sstream>
 
-using namespace exceptions;
+namespace TOPAS {
+
+namespace exceptions {
 
 DetectionModuleError::DetectionModuleError(const std::string& who, const std::string& mess, const std::string& expl) 
 {
@@ -39,3 +41,7 @@ const char* DetectionModuleError::what() const throw()
 {
         return s.c_str();
 }
+
+};
+
+};

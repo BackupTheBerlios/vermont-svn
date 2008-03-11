@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                            Gerhard Muenz                               */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
@@ -31,6 +31,8 @@
 #include <string>
 #include <vector>
 
+
+namespace TOPAS {
 
 /**
  * Supports configuration file using XML-Files. This class is intended to substitute the old
@@ -271,6 +273,8 @@ private:
 	XMLConfObj xmlObj;
 	std::string s;
 	std::vector<char*> allocated;
+};
+
 };
 
 #endif 
