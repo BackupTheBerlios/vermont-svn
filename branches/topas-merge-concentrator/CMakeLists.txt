@@ -51,10 +51,6 @@ IF (Boost_FOUND)
         FIND_LIBRARY(Boost_REGEX_LIBRARY NAMES boost_regex-mt boost_regex PATHS ${Boost_LIBRARY_DIRS})
         FIND_LIBRARY(Boost_FILESYSTEM_LIBRARY NAMES boost_filesystem-mt boost_filesystem PATHS ${Boost_LIBRARY_DIRS})
         FIND_LIBRARY(Boost_UNIT_TEST_FRAMEWORK_LIBRARY NAMES boost_unit_test_framework-mt boost_unit_test_framework PATHS ${Boost_LIBRARY_DIRS})
-        TARGET_LINK_LIBRARIES(vermont
-                ${Boost_REGEX_LIBRARY}
-                ${Boost_FILESYSTEM_LIBRARY}
-        )
 ELSE (Boost_FOUND)
         MESSAGE(FATAL_ERROR "Could not find boost libraries")
         REMOVE_DEFINITIONS(-DHAVE_BOOST_FILESYSTEM)
