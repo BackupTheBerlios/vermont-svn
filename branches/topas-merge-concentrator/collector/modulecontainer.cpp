@@ -165,6 +165,6 @@ std::vector<std::string> ModuleContainer::getRunningModules()
 	}
 	return ret;
 }
+#endif
 
 };
-#endif

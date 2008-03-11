@@ -404,7 +404,7 @@ void Manager::sendControlMessage(const std::string& message)
 		commObjs[i]->publish(message, managerID);
 	}
 }
+#endif
 
 };
 
-#endif
