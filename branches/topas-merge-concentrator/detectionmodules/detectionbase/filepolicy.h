@@ -110,11 +110,7 @@ template <
 class FilePolicy {
 public:
         FilePolicy(DetectFlowSink<Buffer>* fs)
-                :data(NULL)
         {
-                data = new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH];
-		sourceId = new VERMONT::IpfixRecord::SourceID();
-
 		flowSink = fs;
 		flowSink->runSink();
 		ipfixParser.addFlowSink(flowSink);
@@ -135,18 +131,21 @@ public:
 		static uint16_t len = 0;
 
                 for ( i = notifier.getFrom(); i != notifier.getTo(); ++i) {
+			boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId(new VERMONT::IpfixRecord::SourceID);
 			if (notifier.useFiles()) {
+				boost::shared_array<uint8_t> message(new uint8_t[MAX_MSG_LEN]);
 				snprintf(filename, filesize, "%s%i", notifier.getPacketDir().c_str(), (int)i);
 				if (NULL == (fd = fopen(filename, "rb"))) {
 					std::cerr << "Detection modul: Could not open file"
 						  << filename << ": " << strerror(errno) 
 						  << std::endl;
 				}
-				
+
 				read(fileno(fd), &len, sizeof(uint16_t));
-				read(fileno(fd), data, len);
-				if (isSourceIdInList(*(uint16_t*)(data + 12))) {
-					ipfixParser.processPacket(boost::shared_array<uint8_t>(data), len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID>(sourceId));
+				read(fileno(fd), sourceId.get(), sizeof(VERMONT::IpfixRecord::SourceID));
+				read(fileno(fd), message.get(), len);
+				if (isSourceIdInList(*(uint16_t*)(message.get() + 12))) {
+					ipfixParser.processPacket(message, len, sourceId);
 				}
 				if (EOF == fclose(fd)) {
 					std::cerr << "Detection Modul: Could not close "
@@ -154,9 +153,11 @@ public:
 						  << std::endl;
 				}
 			} else {
+				uint8_t* data = new uint8_t[MAX_MSG_LEN];
 				len = IpfixShm::readPacket(&data);
-				if (isSourceIdInList(*(uint16_t*)(data+12))) {
-					ipfixParser.processPacket(boost::shared_array<uint8_t>(data), len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID>(sourceId));
+				boost::shared_array<uint8_t> message(data);
+				if (isSourceIdInList(*(uint16_t*)(message.get() + 12))) {
+					ipfixParser.processPacket(message, len, sourceId);
 				}
 			}
                 }
@@ -169,8 +170,6 @@ public:
 
 protected:
         VERMONT::IpfixParser ipfixParser;
-	VERMONT::IpfixRecord::SourceID* sourceId;
-        uint8_t* data;
 	DetectFlowSink<Buffer>* flowSink;
 	std::vector<uint16_t> sourceIdList;
 

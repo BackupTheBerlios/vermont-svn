@@ -81,7 +81,7 @@ class DetectionBase
         {
 		if(configFile == "")
 		    return;
-	    
+
 		confObj = new XMLConfObj(configFile, XMLConfObj::XML_FILE);
 
 #ifdef IDMEF_SUPPORT_ENABLED
@@ -218,8 +218,6 @@ class DetectionBase
 			msgStr << MsgStream::INFO << "restart() called during module initialization! Exiting." << MsgStream::endl;
 			return -1;
 		}
-		
-
 
                 state = RUN;
                 pthread_create(&testThread, NULL,
@@ -244,6 +242,7 @@ class DetectionBase
         }
 
 	static void* workThreadFunc(void* detectionbase_) {
+		VERMONT::msg(MSG_FATAL, "workThreadFunc");
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
@@ -268,6 +267,7 @@ class DetectionBase
          */
         static void* testThreadFunc(void* detectionbase_) 
         {
+		VERMONT::msg(MSG_FATAL, "testThreadFunc");
 		unsigned testInterval;
 		time_t testTime, t;
 

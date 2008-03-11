@@ -32,9 +32,9 @@ public:
         }
 protected:
 	virtual Storage* storage() = 0;
+	Mutex lock;
 
 private:
-	Mutex lock;
         std::vector<uint16_t> idList;
 
         bool isIdInList(uint16_t id) const
@@ -57,17 +57,26 @@ template <class Storage>
 class BufferedDetectSink : public DetectFlowSink<Storage>
 {
 public:
+	BufferedDetectSink()
+	{
+		s = new Storage();
+	}
+
 	virtual Storage* getStorage() 
 	{
-		return NULL;
+		Storage* tmp = s;
+		DetectFlowSink<Storage>::lock.lock();
+		s = new Storage();
+		DetectFlowSink<Storage>::lock.unlock();
+		return tmp;
 	}
 
 protected:
 	virtual Storage* storage() {
-		return NULL;
+		return s;
 	}
 
-
+	Storage* s;
 };
 
 template <class Storage>
@@ -76,15 +85,28 @@ class UnBufferedDetectSink : public DetectFlowSink<Storage>
 public:
 	virtual Storage* getStorage() 
 	{
-		return NULL;
+		while (!newStorages) {
+			usleep(100);
+		}
+		DetectFlowSink<Storage>::lock.lock();
+		Storage* tmp = *storeList.begin();
+		storeList.pop_front();
+		if (storeList.size() == 0)
+			newStorages = false;
+		DetectFlowSink<Storage>::lock.unlock();
+		return tmp;
 	}
 
 protected:
 	virtual Storage* storage() {
-		return NULL;
+		Storage* tmp = new Storage();
+		storeList.push_back(tmp);
+		newStorages = true;
+		return tmp;
 	}
 
-
+	std::list<Storage*> storeList;
+	volatile bool newStorages;
 };
 
 

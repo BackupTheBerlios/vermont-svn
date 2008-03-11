@@ -45,7 +45,7 @@ SemShmNotifier::SemShmNotifier()
 	} else {
 		useFiles_ = false;
 	}
-	
+
 	std::cin >> packetDir;
 
         if (-1 == (semId = semget(semKey, 0, 0))) {
