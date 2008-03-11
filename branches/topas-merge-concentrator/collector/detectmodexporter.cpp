@@ -75,7 +75,7 @@ int DetectModExporter::exportToSink(boost::shared_array<uint8_t> message, uint16
                 counter++;
 	} else {
                 static IpfixShm* ipfixShm = NULL;
-                ipfixShm = IpfixShm::writePacket(data, len);
+                ipfixShm = IpfixShm::writePacket(message, len);
                 if (ipfixShm) {
         		ipfixPacketStore.pushIpfixPacket(sourceId, ipfixShm);
                 } else {
