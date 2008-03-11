@@ -1,5 +1,6 @@
 PROJECT(COLLECTOR)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
+SET(CMAKE_MODULE_PATH ${CMAKE_ROOT}/Modules ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 SUBDIRS(concentrator commonutils collector detectionmodules)
 
@@ -34,6 +35,20 @@ LINK_DIRECTORIES(${CMAKE_BUILD_DIR}/concentrator ${CMAKE_BUILD_DIR}/commonutils)
 #################################### Locate gsl ################################################
 
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/modules/FindGSL.cmake)
+
+#################################### sctp #####################################################
+
+OPTION(SUPPORT_SCTP "Support SCTP transport protocol" ON)
+IF (SUPPORT_SCTP)
+    FIND_PACKAGE(Sctp REQUIRED)
+    MARK_AS_ADVANCED(
+        SCTP_LIBRARIES
+        SCTP_INCLUDE_DIR
+    )
+    ADD_DEFINITIONS(-DSUPPORT_SCTP)
+ELSE (SUPPORT_SCTP)
+    REMOVE_DEFINITIONS(-DSUPPORT_SCTP)
+ENDIF (SUPPORT_SCTP)
 
 #################################### boost ####################################################
 
