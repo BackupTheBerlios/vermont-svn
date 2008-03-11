@@ -18,10 +18,7 @@
 
 #include "sharedobj.h"
 #include "exceptions.h"
-
-
-#include <concentrator/msg.h>
-
+#include "global.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>

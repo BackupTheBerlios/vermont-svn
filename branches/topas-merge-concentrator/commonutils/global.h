@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -21,14 +21,18 @@
 
 
 #include "exceptions.h"
-#include "../concentrator/rcvIpfix.h"
-
+#include <concentrator/common/msg.h>
 
 #include <stdarg.h>
 
 
 #include <string>
 #include <ostream>
+
+typedef enum {
+	UDP_IPV4,
+	SCTP_IPV4
+} Receiver_Type;
 
 
 namespace config_space 

@@ -20,7 +20,7 @@
 #include "confobj.h"
 
 
-#include <concentrator/msg.h>
+#include <concentrator/common/msg.h>
 
 
 #include <sys/types.h>

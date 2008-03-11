@@ -28,14 +28,10 @@
 #include "sharedobj.h"
 #include "mutex.h"
 
-
-#include <concentrator/msg.h>
-
-
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
-
+#include <stdint.h>
 
 #include <list>
 #include <cctype>
@@ -58,7 +54,7 @@ struct PacketStats
  */
 class PacketStorage {
 public:
-        uint16_t readPacket(byte** d) { return 0; }
+        uint16_t readPacket(uint8_t** d) { return 0; }
         virtual void proceedOnePacket() = 0;
 protected:
         PacketStorage() {}
@@ -72,7 +68,7 @@ protected:
 class IpfixFile : public PacketStorage
 {
 public:
-        static IpfixFile* writePacket(const char* filename, const byte* data, uint16_t length);
+        static IpfixFile* writePacket(const char* filename, const uint8_t* data, uint16_t length);
         
         virtual void proceedOnePacket();
 private:
@@ -101,12 +97,12 @@ private:
 class IpfixShm : public PacketStorage {
 public:
 
-	static void setShmPointer(byte*);
+	static void setShmPointer(uint8_t*);
 	static void setShmSize(size_t);
 
-	static uint16_t readPacket(byte** d);
+	static uint16_t readPacket(uint8_t** d);
         virtual void proceedOnePacket();
-        static IpfixShm* writePacket(const byte* d, uint16_t len);
+        static IpfixShm* writePacket(const uint8_t* d, uint16_t len);
 
 
 private:
@@ -124,17 +120,17 @@ private:
 	/**
 	 * start of the shared memory block
 	 */
-	static byte* startLocation;
+	static uint8_t* startLocation;
 
 	/**
 	 * the next incoming paket will be written to this location
 	 */
-	static byte* writePosition;
+	static uint8_t* writePosition;
 
 	/**
 	 * pointer to the first not yet  processed ipfix packet
 	 */
-	static byte* readPosition;
+	static uint8_t* readPosition;
 	
 	/**
 	 * total size of the shared memory block

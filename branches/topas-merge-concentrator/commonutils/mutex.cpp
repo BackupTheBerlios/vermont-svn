@@ -17,9 +17,7 @@
 /**************************************************************************/
 
 #include "mutex.h"
-
-
-#include <concentrator/msg.h>
+#include "global.h"
 
 
 #include <cstring>
