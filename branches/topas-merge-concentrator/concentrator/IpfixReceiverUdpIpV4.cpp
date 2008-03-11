@@ -32,6 +32,7 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -89,15 +90,36 @@ IpfixReceiverUdpIpV4::~IpfixReceiverUdpIpV4() {
 void IpfixReceiverUdpIpV4::run() {
 	struct sockaddr_in clientAddress;
 	socklen_t clientAddressLen;
-	
+
+	fd_set fdread;
+	int ret;
+	struct timeval timeout;
+
 	while(!exit) {
 		boost::shared_array<uint8_t> data(new uint8_t[MAX_MSG_LEN]);
 		boost::shared_ptr<IpfixRecord::SourceID> sourceID(new IpfixRecord::SourceID);
 		int n;
-
+		
+		// use select so that we do not block in recvfrom, when no
+		// data is coming and TOPAS is shut down
+		do {
+			FD_ZERO(&fdread);
+			FD_SET(listen_socket, &fdread);
+			timeout.tv_usec = 0;
+			timeout.tv_sec = 1;
+			if (-1 == ret) {
+				msg(MSG_FATAL, "Error in select: %s", strerror(errno));
+				break;
+			} else {
+				if (exit) { 
+					return;
+				}
+			}
+		} while (0 >= (ret = select(listen_socket + 1, &fdread, NULL, NULL, &timeout)));
 		clientAddressLen = sizeof(struct sockaddr_in);
 		n = recvfrom(listen_socket, data.get(), MAX_MSG_LEN,
 			     0, (struct sockaddr*)&clientAddress, &clientAddressLen);
+
 		if (n < 0) {
 			msg(MSG_DEBUG, "recvfrom returned without data, terminating listener thread");
 			break;
