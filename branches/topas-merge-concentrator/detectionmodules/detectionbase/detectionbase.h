@@ -242,7 +242,6 @@ class DetectionBase
         }
 
 	static void* workThreadFunc(void* detectionbase_) {
-		VERMONT::msg(MSG_FATAL, "workThreadFunc");
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
@@ -267,7 +266,6 @@ class DetectionBase
          */
         static void* testThreadFunc(void* detectionbase_) 
         {
-		VERMONT::msg(MSG_FATAL, "testThreadFunc");
 		unsigned testInterval;
 		time_t testTime, t;
 
