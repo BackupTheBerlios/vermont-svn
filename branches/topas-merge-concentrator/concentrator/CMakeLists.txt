@@ -17,7 +17,6 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 
-SUBDIRS(common ipfixlolib)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/concentrator)
 
 ADD_LIBRARY(concentrator
@@ -43,5 +42,11 @@ ADD_LIBRARY(concentrator
 	IpfixDbReader.cpp
 	IpfixDbWriter.cpp
 	Packet.cpp
+	common/TimeoutSemaphore.cpp
+	common/msg.cc
+	common/StatisticsManager.cpp
+	ipfixlolib/encoding.c
+	ipfixlolib/ipfixlolib.c
+	ipfixlolib/ipfix_names.c
 )
 
