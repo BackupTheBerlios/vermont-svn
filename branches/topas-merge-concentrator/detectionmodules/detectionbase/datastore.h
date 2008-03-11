@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -19,15 +19,16 @@
 #ifndef _DATA_STORE_H_
 #define _DATA_STORE_H_
 
-#include <concentrator/rcvIpfix.h>
-#include <concentrator/ipfix.h>
-#include <concentrator/common.h>
+#include <concentrator/IpfixReceiver.hpp>
+#include <concentrator/ipfix.hpp>
 
 #include <commonutils/msgstream.h>
 
 #include <map>
 #include <vector>
 #include <stdexcept>
+
+namespace TOPAS {
 
 extern MsgStream msgStr;; // is defined in detectionbase.cpp
 
@@ -65,7 +66,7 @@ class DataStore
          * @param fieldData transmitted data
          * @param len Size of fieldData
          */
-        void addFieldData(int id, byte* fieldData, int len, EnterpriseNo enterprise = 0) {}
+        void addFieldData(int id, uint8_t* fieldData, int len, EnterpriseNo enterprise = 0) {}
 
         /**
          * Will be called whenever a new record starts.
@@ -78,7 +79,7 @@ class DataStore
          *
          * @return True for accepting the record, false otherwise
          */
-        bool recordStart(SourceID) { return true; }
+        bool recordStart(VERMONT::IpfixReceiver::SourceID&) { return true; }
 
         /**
          * Indicates that all subscribed fields within a record where
@@ -110,5 +111,6 @@ private:
 	bool valid;
 };
 
+};
 
 #endif

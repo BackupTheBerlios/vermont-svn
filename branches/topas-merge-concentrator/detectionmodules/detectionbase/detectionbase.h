@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*         2007 Raimondas Sasnauskas <sasnausk@informatik.uni-tuebigen.de */
 /*              Gerhard Muenz                                             */
 /*                                                                        */
@@ -47,6 +47,8 @@
 
 #include <stdexcept>
 #include <vector>
+
+namespace TOPAS {
 
 
 extern MsgStream msgStr; // is defined in detectionbase.cpp
@@ -562,4 +564,5 @@ volatile typename DetectionBase<DataStorage, InputPolicy>::State
 	DetectionBase<DataStorage, InputPolicy>::state = 
 		(typename DetectionBase<DataStorage, InputPolicy>::State)0; // RUN
 
+};
 #endif

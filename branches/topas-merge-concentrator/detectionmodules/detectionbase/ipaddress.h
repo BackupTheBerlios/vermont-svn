@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                            Gerhard Muenz                               */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
@@ -22,6 +22,8 @@
 
 #include <concentrator/rcvIpfix.h>
 #include <stdexcept>
+
+namespace TOPAS {
 
 /**
  * Encapsultes an IpAddress (Ipv4)
@@ -144,5 +146,7 @@ private:
 // stream operators write and read IP address in dot format
 std::ostream& operator<<(std::ostream&, const IpAddress&);
 std::istream& operator>>(std::istream&, IpAddress&);
+
+};
 
 #endif

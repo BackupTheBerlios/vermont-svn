@@ -25,6 +25,8 @@
 #include <fstream>
 #include <iostream>
 
+namespace TOPAS {
+
 
 /** 
  * Reads storage data from file and returns them into a storage object. 
@@ -99,5 +101,7 @@ private:
 };
 
 template <class Storage> std::ifstream OfflineInputPolicy<Storage>::inputstr;
+
+};
 
 #endif

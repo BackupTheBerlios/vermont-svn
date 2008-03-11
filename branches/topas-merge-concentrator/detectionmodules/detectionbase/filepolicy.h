@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -37,6 +37,8 @@
 
 #include <list>
 #include <iostream>
+
+namespace TOPAS {
 
 /**
  * Uses signals, semaphores and a shared memory block
@@ -360,6 +362,8 @@ private:
 	unsigned maxBuffers;	
 	unsigned bufferErrors;
 	Mutex packetLock; // locked as long as buffers is empty
+};
+
 };
 
 #endif

@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                            Gerhard Muenz                               */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
@@ -19,5 +19,8 @@
 
 #include "detectionbase.h"
 
+namespace TOPAS {
+
 MsgStream msgStr(MsgStream::WARN, "DetectionBase");
 
+};

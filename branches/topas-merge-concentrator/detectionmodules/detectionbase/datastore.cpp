@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -18,6 +18,8 @@
 
 #include "datastore.h"
 
+namespace TOPAS {
+
 uint64_t DataStore::fieldToInt(byte* data, unsigned len) 
 {
         switch (len) {
@@ -34,3 +36,4 @@ uint64_t DataStore::fieldToInt(byte* data, unsigned len)
         }
 }
 
+};
