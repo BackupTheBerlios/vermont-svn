@@ -90,8 +90,7 @@ IpfixShm::IpfixShm()
 {
 }
 
-// TODO: write sourceID
-IpfixShm* IpfixShm::writePacket(boost::shared_array<uint8_t> message, uint16_t len)
+IpfixShm* IpfixShm::writePacket(boost::shared_array<uint8_t> message, uint16_t len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId)
 {
         if (!instance) {
                 instance = new IpfixShm();
@@ -112,7 +111,7 @@ IpfixShm* IpfixShm::writePacket(boost::shared_array<uint8_t> message, uint16_t l
                 return NULL;
 	}
 	
-	if ((writePosition + len + sizeof(len)) >= (startLocation + size)) {
+	if ((writePosition + len + sizeof(len) + sizeof(VERMONT::IpfixRecord::SourceID)) >= (startLocation + size)) {
 		// we only write a complete packet to the shared memory
 		// if there is not enough space to do that, we'll start at the
 		// the beginning of the buffer
@@ -129,7 +128,7 @@ IpfixShm* IpfixShm::writePacket(boost::shared_array<uint8_t> message, uint16_t l
 		writePosition = startLocation;
 	}
 
-	if (writeBeforeRead && (writePosition + len + sizeof(len)) > readPosition) {
+	if (writeBeforeRead && (writePosition + len + sizeof(len) + sizeof(VERMONT::IpfixRecord::SourceID)) > readPosition) {
 		//msg(MSG_ERROR, "%i %i", (writePosition - startLocation), (readPosition - startLocation));
 		VERMONT::msg(MSG_ERROR, "IpfixShm: Shared memory block too small!");
                 return NULL;
@@ -137,15 +136,16 @@ IpfixShm* IpfixShm::writePacket(boost::shared_array<uint8_t> message, uint16_t l
 
 	//msg(MSG_ERROR, "Writing packet len: %i", len);
 	memcpy(writePosition, &len, sizeof(len));
+	memcpy(writePosition + sizeof(len), sourceId.get(), sizeof(VERMONT::IpfixRecord::SourceID));
 	//msg(MSG_FATAL, "written: %i", *(uint16_t*)writePosition);
-	memcpy(writePosition + sizeof(len), message.get(), len);
+	memcpy(writePosition + sizeof(len) + sizeof(VERMONT::IpfixRecord::SourceID), message.get(), len);
 	//msg(MSG_FATAL, "written: %#06x", ntohs(*(uint16_t*)(writePosition+sizeof(len))));
-	writePosition += sizeof(len) + len;
+	writePosition += sizeof(len) + len + sizeof(VERMONT::IpfixRecord::SourceID);
 
         return instance;
 }
 
-uint16_t IpfixShm::readPacket(uint8_t** data) {
+uint16_t IpfixShm::readPacket(uint8_t** data, VERMONT::IpfixRecord::SourceID** sourceId) {
 	// go to the next packet;
 	// packetSize == 0 for the first packet
 	readPosition += packetSize;
@@ -167,6 +167,8 @@ uint16_t IpfixShm::readPacket(uint8_t** data) {
 	}
 	
 	//msg(MSG_FATAL, "reading: %#06x",  ntohs(*(uint16_t*)readPosition));
+	*sourceId = (VERMONT::IpfixRecord::SourceID*)readPosition;
+	readPosition += sizeof(VERMONT::IpfixRecord::SourceID);
 	*data = readPosition;
 	
 	
@@ -175,7 +177,8 @@ uint16_t IpfixShm::readPacket(uint8_t** data) {
 
 void IpfixShm::proceedOnePacket()
 {
-        readPacket(&readPosition);
+	static VERMONT::IpfixRecord::SourceID* ptr;
+        readPacket(&readPosition, &ptr);
 }
 
 void IpfixShm::setShmPointer(uint8_t* ptr)

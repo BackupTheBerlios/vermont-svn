@@ -131,8 +131,8 @@ public:
 		static uint16_t len = 0;
 
                 for ( i = notifier.getFrom(); i != notifier.getTo(); ++i) {
-			boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId(new VERMONT::IpfixRecord::SourceID);
 			if (notifier.useFiles()) {
+				boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId(new VERMONT::IpfixRecord::SourceID);
 				boost::shared_array<uint8_t> message(new uint8_t[MAX_MSG_LEN]);
 				snprintf(filename, filesize, "%s%i", notifier.getPacketDir().c_str(), (int)i);
 				if (NULL == (fd = fopen(filename, "rb"))) {
@@ -154,10 +154,16 @@ public:
 				}
 			} else {
 				uint8_t* data = new uint8_t[MAX_MSG_LEN];
-				len = IpfixShm::readPacket(&data);
+				uint8_t* readData;
+				VERMONT::IpfixRecord::SourceID* sourceId = new VERMONT::IpfixRecord::SourceID;
+				VERMONT::IpfixRecord::SourceID* readId;
+				len = IpfixShm::readPacket(&readData, &readId);
+				memcpy(data, readData, len);
+				memcpy(sourceId, readId, sizeof(VERMONT::IpfixRecord::SourceID));
 				boost::shared_array<uint8_t> message(data);
+				boost::shared_ptr<VERMONT::IpfixRecord::SourceID> ptr(sourceId);
 				if (isSourceIdInList(*(uint16_t*)(message.get() + 12))) {
-					ipfixParser.processPacket(message, len, sourceId);
+					ipfixParser.processPacket(message, len, ptr);
 				}
 			}
                 }

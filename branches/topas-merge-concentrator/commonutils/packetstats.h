@@ -104,9 +104,9 @@ public:
 	static void setShmPointer(uint8_t*);
 	static void setShmSize(size_t);
 
-	static uint16_t readPacket(uint8_t** d);
+	static uint16_t readPacket(uint8_t** d, VERMONT::IpfixRecord::SourceID** sourceId);
         virtual void proceedOnePacket();
-        static IpfixShm* writePacket(boost::shared_array<uint8_t> message, uint16_t len);
+        static IpfixShm* writePacket(boost::shared_array<uint8_t> message, uint16_t len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId);
 
 
 private:

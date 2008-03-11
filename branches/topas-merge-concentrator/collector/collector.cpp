@@ -226,8 +226,10 @@ void Collector::readMisc(XMLConfObj* config)
 	if (config->nodeExists(config_space::TRANSPORT_PROTO)) {
 		tmp = config->getValue(config_space::TRANSPORT_PROTO);
 		if (tmp == "UDP") {
+			VERMONT::msg(MSG_INFO, "Collector configured for UDP transport protocol");
 			receiverType = UDP_IPV4;
 		} else if (tmp == "SCTP") {
+			VERMONT::msg(MSG_INFO, "Collector configured for SCTP transport protocol");
 			receiverType = SCTP_IPV4;
 		} else 
 			throw exceptions::ConfigError("Unkown transport protocol: " + tmp);
@@ -299,7 +301,6 @@ void Collector::readExchangeProtocol(XMLConfObj* config)
 		}
 		config->leaveNode();
 	} else if (type == config_space::EP_SHM) {
-		throw exceptions::ConfigError("Shm-Support is currently broken");
 		config->enterNode(config_space::EXCHANGE_PROTOCOL);
 		/* get shared memory size */
 		exporter->setExportingStyle(DetectModExporter::USE_SHARED_MEMORY);
@@ -430,10 +431,12 @@ void Collector::run()
 		VERMONT::msg(MSG_INFO, "Initializing IpfixCollector");
 		VERMONT::IpfixCollector ipfixCollector;
 		VERMONT::IpfixReceiver* ipfixReceiver;
-		if (receiverType = UDP_IPV4) {
+		if (receiverType == UDP_IPV4) {
 			ipfixReceiver = new VERMONT::IpfixReceiverUdpIpV4(listenPort);
-		} else {
+		} else if (receiverType == SCTP_IPV4)  {
 			ipfixReceiver = new VERMONT::IpfixReceiverSctpIpV4(listenPort);
+		} else {
+			VERMONT::msg(MSG_FATAL, "Collector: Unkown receiver type detected. You should never see this!!!");
 		}
 
 		ipfixCollector.addIpfixReceiver(ipfixReceiver);
