@@ -57,7 +57,7 @@ public:
 	 * @param message Ipfix packet data
 	 * @param len Length of data.
 	 */
-        virtual void record(boost::shared_array<uint8_t> message, uint16_t len) = 0;
+        virtual void record(boost::shared_array<uint8_t> message, uint16_t len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId) = 0;
 
 	/**
 	 * Interface method for replaying recorded IPFIX packets. This method is intended
@@ -100,7 +100,7 @@ public:
          * @param message Ipfix packet data
          * @param len Length of data.       
 	 */
-        virtual void record(boost::shared_array<uint8_t> message, uint16_t len) {}
+        virtual void record(boost::shared_array<uint8_t> message, uint16_t len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId) {}
 
 	/**
 	 * Dummy play function. Will return immediately.
@@ -140,7 +140,7 @@ public:
          * @param message Ipfix packet data
          * @param len Length of data.	 
 	 */
-        virtual void record(boost::shared_array<uint8_t> message, uint16_t len);
+        virtual void record(boost::shared_array<uint8_t> message, uint16_t len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId);
 
 	/**
 	 * Replays the recorded IPFIX packets. They are passed to the collector depending on the time

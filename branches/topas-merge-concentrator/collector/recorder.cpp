@@ -82,7 +82,7 @@ unsigned int FileRecorder::usecs()
 	return (tv.tv_sec * 1000000) + (tv.tv_usec);
 }
 
-void FileRecorder::record(boost::shared_array<uint8_t> message, uint16_t len)
+void FileRecorder::record(boost::shared_array<uint8_t> message, uint16_t len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId)
 {
 	if (!recording) {
 		return;
@@ -91,7 +91,7 @@ void FileRecorder::record(boost::shared_array<uint8_t> message, uint16_t len)
 	aktTime = usecs();
 	
 	snprintf(fileName, fileNameSize, "%s%lu", storagePath.c_str(), number);
-	IpfixFile::writePacket(fileName, message, len);
+	IpfixFile::writePacket(fileName, message, len, sourceId);
 	indexFile << aktTime - startTime << "\t" << number << std::endl;
 	number++;
 }
@@ -101,12 +101,12 @@ void FileRecorder::play()
 	std::string line;
 	FILE* fd;
 	uint8_t* data = new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH];
-	VERMONT::IpfixRecord::SourceID* sourceId = new VERMONT::IpfixRecord::SourceID();
 	unsigned int time;
 	unsigned long fileNumber;
 	std::ofstream originalValues("filerecorder.orig");
 	std::ofstream replayValues("filerecorder.replay");
 	while (std::getline(indexFile, line) && !do_abort) {
+		boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId(new VERMONT::IpfixRecord::SourceID());
 		sscanf(line.c_str(), "%u %lu", &time, &fileNumber);
 
 		snprintf(fileName, fileNameSize, "%s%lu", storagePath.c_str(), fileNumber);
@@ -119,6 +119,7 @@ void FileRecorder::play()
 
 		uint16_t len;
 		read(fileno(fd), &len, sizeof(uint16_t));
+		read(fileno(fd), sourceId.get(), sizeof(VERMONT::IpfixRecord::SourceID));
 		read(fileno(fd), data, len);
 		if (EOF == fclose(fd)) {
 			delete data; data = 0;
@@ -138,7 +139,7 @@ void FileRecorder::play()
 		replayValues   << t    / 1000 << std::endl;
 		
 		if (packetProcessor) {
-			packetProcessor->processPacket(boost::shared_array<uint8_t>(data), len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID>(sourceId));
+			packetProcessor->processPacket(boost::shared_array<uint8_t>(data), len, sourceId);
 		}
 
 	}

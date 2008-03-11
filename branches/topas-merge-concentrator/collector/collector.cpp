@@ -455,8 +455,8 @@ int Collector::processPacket(boost::shared_array<uint8_t> message, uint16_t leng
 {
 	metering->addValue();
         static int ret;
-	recorder->record(message, length);
-        ret = exporter->exportToSink(message, length);
+	recorder->record(message, length, sourceId);
+        ret = exporter->exportToSink(message, length, sourceId);
         man->newPacket();
         return ret;
 }

@@ -55,10 +55,7 @@ DetectModExporter::~DetectModExporter()
         delete nps; nps = 0;
 }
 
-int DetectModExporter::exportToSink(boost::shared_array<uint8_t> message, uint16_t len) {
-
-        uint32_t sourceId = ntohl(*(uint32_t*)(message[12])); // see Ipfix-Protocol
-
+int DetectModExporter::exportToSink(boost::shared_array<uint8_t> message, uint16_t len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId) {
 	if (exchangeStyle == USE_FILES) {
                 static shared::FileCounter counter;
                 static IpfixFile* ipfixFile = NULL;
@@ -66,9 +63,9 @@ int DetectModExporter::exportToSink(boost::shared_array<uint8_t> message, uint16
                 static char* filename = new char[filesize];
 
                 snprintf(filename, filesize, "%s%i", packetDir.c_str(), (int)counter);
-                ipfixFile = IpfixFile::writePacket(filename, message, len);
+                ipfixFile = IpfixFile::writePacket(filename, message, len, sourceId);
                 if (ipfixFile) {
-	                ipfixPacketStore.pushIpfixPacket(sourceId, ipfixFile);
+	                ipfixPacketStore.pushIpfixPacket(sourceId->observationDomainId, ipfixFile);
                 } else {
                         return -1;
                 }
@@ -77,7 +74,7 @@ int DetectModExporter::exportToSink(boost::shared_array<uint8_t> message, uint16
                 static IpfixShm* ipfixShm = NULL;
                 ipfixShm = IpfixShm::writePacket(message, len);
                 if (ipfixShm) {
-        		ipfixPacketStore.pushIpfixPacket(sourceId, ipfixShm);
+        		ipfixPacketStore.pushIpfixPacket(sourceId->observationDomainId, ipfixShm);
                 } else {
                         return -1;
                 }

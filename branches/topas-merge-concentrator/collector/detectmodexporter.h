@@ -22,6 +22,7 @@
 
 #include <commonutils/packetstats.h>
 #include <concentrator/IpfixParser.hpp>
+#include <concentrator/IpfixRecord.hpp>
 
 namespace TOPAS {
 
@@ -69,7 +70,7 @@ public:
 	 * @param data IPFIX data (likely one IPFIX packet)
 	 * @param len Length of IPFIX data.
 	 */
-        int exportToSink(boost::shared_array<uint8_t> message, uint16_t len);
+        int exportToSink(boost::shared_array<uint8_t> message, uint16_t len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId);
 
 	/**
 	 * Clears all processed data from the data sink.
