@@ -20,7 +20,6 @@
 #ifndef _IP_ADDRESS_H_
 #define _IP_ADDRESS_H_
 
-#include <concentrator/rcvIpfix.h>
 #include <stdexcept>
 
 namespace TOPAS {
@@ -42,7 +41,7 @@ public:
          * @param c Third byte of address
          * @param d Fourth byte of address
          */
-        IpAddress( byte a, byte b, byte c, byte d)
+        IpAddress( uint8_t a, uint8_t b, uint8_t c, uint8_t d)
         {
 		setAddress(a, b, c, d);
         }
@@ -51,7 +50,7 @@ public:
          * Constructor
          * @param a 4 byte sized array containing an ip address
          */
-        IpAddress(const byte a[4])
+        IpAddress(const uint8_t a[4])
         {
 		setAddress(a);
         }
@@ -98,12 +97,12 @@ public:
         std::string toString() const;
         void fromString(const std::string &);
 
-	void setAddress(const byte a[4])
+	void setAddress(const uint8_t a[4])
 	{
 		setAddress(a[0], a[1], a[2], a[3]);
 	}
 
-	void setAddress( byte a, byte b, byte c, byte d)
+	void setAddress( uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 	{
                 address[0] = a;
                 address[1] = b;
@@ -118,21 +117,21 @@ public:
 	 * Warning: netmask is not checked before being applied
 	 * 0 <= m1,m2,m3,m4 <= 255 (or 0x00 and 0xFF)
 	 */
-	IpAddress mask (byte m1, byte m2, byte m3, byte m4) {
+	IpAddress mask (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4) {
 	  return IpAddress( address[0] & m1, address[1] & m2, address[2] & m3, address[3] & m4 );
 	}
 
-	IpAddress mask (const byte m[4]) {
+	IpAddress mask (const uint8_t m[4]) {
 	  return IpAddress( address[0] & m[0], address[1] & m[1], address[2] & m[2], address[3] & m[3] );
 	}
 
   IpAddress mask (short);
 
-	void remanent_mask (byte m1, byte m2, byte m3, byte m4) {
+	void remanent_mask (uint8_t m1, uint8_t m2, uint8_t m3, uint8_t m4) {
 	  setAddress( address[0] & m1, address[1] & m2, address[2] & m3, address[3] & m4 );
 	}
 
-	void remanent_mask (const byte m[4]) {
+	void remanent_mask (const uint8_t m[4]) {
 	  setAddress( address[0] & m[0], address[1] & m[1], address[2] & m[2], address[3] & m[3] );
 	}
 

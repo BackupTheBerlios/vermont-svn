@@ -19,15 +19,9 @@
 #ifndef _INPUTPOLICYBASE_H_
 #define _INPUTPOLICYBASE_H_
 
-
-#include "detectcallbacks.h"
-
-
 #include <commonutils/mutex.h>
 
-
 #include <pthread.h>
-
 
 #include <vector>
 

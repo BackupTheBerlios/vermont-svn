@@ -21,13 +21,13 @@
 
 
 #include "inputpolicybase.h"
-#include "detectcallbacks.h"
-
+#include "detectflowsink.h"
 
 #include <commonutils/global.h>
 #include <commonutils/sharedobj.h>
-#include <commonutils/metering.h>
 #include <commonutils/packetstats.h>
+#include <concentrator/IpfixRecord.hpp>
+#include <concentrator/IpfixParser.hpp>
 
 
 #include <sys/types.h>
@@ -35,7 +35,7 @@
 #include <errno.h>
 
 
-#include <list>
+#include <vector>
 #include <iostream>
 
 namespace TOPAS {
@@ -103,57 +103,27 @@ private:
 
 
 
-
-/**
- * Extracts whole Ipfix-Packets out of files and imports them directly into
- * a storage class
- */
 template <
         class Notifier,
         class Buffer
 >
-class PacketReader {
+class FilePolicy {
 public:
-        PacketReader()
-                : packetProcessor(NULL), data(NULL)
+        FilePolicy(DetectFlowSink<Buffer>* fs)
+                :data(NULL)
         {
-		Metering::setDirectoryName("metering/");
-		metering = new Metering("packetreader");
-                data = new byte[config_space::MAX_IPFIX_PACKET_LENGTH];
+                data = new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH];
+		sourceId = new VERMONT::IpfixRecord::SourceID();
 
-                /* build CallbackInfo */
-                CallbackInfo cbi;
-
-                cbi.handle = this;
-                
-                cbi.templateCallbackFunction = newTemplateArrived<PacketReader, Buffer>;
-                cbi.optionsTemplateCallbackFunction = newOptionsTemplateArrived<PacketReader, Buffer>;
-                cbi.dataTemplateCallbackFunction = newDataTemplateArrived<PacketReader, Buffer>;
-                
-                cbi.dataRecordCallbackFunction = newDataRecordArrived<PacketReader, Buffer>;
-                cbi.optionsRecordCallbackFunction = newOptionRecordArrived<PacketReader, Buffer>;
-                cbi.dataDataRecordCallbackFunction = newDataRecordFixedFieldsArrived<PacketReader, Buffer>;
-                
-                cbi.templateDestructionCallbackFunction = templateDestroyed<PacketReader, Buffer>;
-                cbi.optionsTemplateDestructionCallbackFunction = optionsTemplateDestroyed<PacketReader, Buffer>;
-                cbi.dataTemplateDestructionCallbackFunction = dataTemplateDestroyed<PacketReader, Buffer>;
-                /*
-                  create an packetProcessor and ipfixParser
-                  we don't need an receiver because we do the "receiving" work by hand
-                */
-                IpfixParser* ipfixParser = createIpfixParser();
-                addIpfixParserCallbacks(ipfixParser, cbi);
-                                
-                packetProcessor = createIpfixPacketProcessor();
-                setIpfixParser(packetProcessor, ipfixParser);
+		flowSink = fs;
+		flowSink->run();
+		ipfixParser.addFlowSink(flowSink);
         }
 
-        ~PacketReader() 
+        ~FilePolicy() 
         {
-                if (packetProcessor)
-                        destroyIpfixPacketProcessor(packetProcessor);
-                delete data;
-		delete metering;
+		flowSink->terminateSink();
+		delete flowSink;
         }
 
 
@@ -177,9 +147,8 @@ public:
 				read(fileno(fd), &len, sizeof(uint16_t));
 				read(fileno(fd), data, len);
 				if (isSourceIdInList(*(uint16_t*)(data + 12))) {
-					packetProcessor->processPacketCallbackFunction(packetProcessor->ipfixParser, data, len);
+					ipfixParser.processPacket(boost::shared_array<uint8_t>(data), len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID>(sourceId));
 				}
-				metering->addValue();
 				if (EOF == fclose(fd)) {
 					std::cerr << "Detection Modul: Could not close "
 						  << filename << ": " << strerror(errno)
@@ -187,49 +156,24 @@ public:
 				}
 			} else {
 				len = IpfixShm::readPacket(&data);
-                                metering->addValue();
 				if (isSourceIdInList(*(uint16_t*)(data+12))) {
-					packetProcessor->processPacketCallbackFunction(packetProcessor->ipfixParser, data, len);
+					ipfixParser.processPacket(boost::shared_array<uint8_t>(data), len, boost::shared_ptr<VERMONT::IpfixRecord::SourceID>(sourceId));
 				}
 			}
                 }
         }
 
 
-
-        void subscribeId(int id) 
-        {
-                idList.push_back(id);
-        }
-
 	void subscribeSourceId(uint16_t id) {
 		sourceIdList.push_back(id);
 	}
 
 protected:
-        std::vector<int> idList;
+        VERMONT::IpfixParser ipfixParser;
+	VERMONT::IpfixRecord::SourceID* sourceId;
+        uint8_t* data;
+	DetectFlowSink<Buffer>* flowSink;
 	std::vector<uint16_t> sourceIdList;
-        IpfixPacketProcessor* packetProcessor;
-	Mutex recordMutex;
-        byte* data;
-	Metering* metering;
-
-	virtual Buffer* getBuffer() = 0;
-
-
-        bool isIdInList(int id) const
-        {
-		if (idList.empty()) {
-			return true;
-		}
-                /* TODO: think about hashing */
-                for (std::vector<int>::const_iterator i = idList.begin(); i != idList.end(); ++i) {
-                        if ((*i) == id)
-                                return true;
-                }
-                
-                return false;
-        }
 
 	bool isSourceIdInList(uint16_t id) const
 	{
@@ -243,126 +187,168 @@ protected:
 		}
 		return false;
 	}
-
-        friend int newTemplateArrived<PacketReader, Buffer>(void* handle,  SourceID sourceID, TemplateInfo* ti);
-        friend int newDataRecordArrived<PacketReader, Buffer>(void* handle, SourceID sourceID, TemplateInfo* ti,
-							      uint16_t length, FieldData* data);
-        friend int templateDestroyed<PacketReader, Buffer>(void* handle, SourceID sourceID, TemplateInfo* ti);
-        friend int newOptionsTemplateArrived<PacketReader, Buffer>(void* handle, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo);
-        friend int newOptionRecordArrived<PacketReader, Buffer>(void* handle, SourceID sourceID, OptionsTemplateInfo* oti,
-								uint16_t length, FieldData* data);
-        friend int optionsTemplateDestroyed<PacketReader, Buffer>(void* handle, SourceID sourceID, OptionsTemplateInfo* optionsTemplateInfo);
-        friend int newDataTemplateArrived<PacketReader, Buffer>(void* handle, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
-        friend int newDataRecordFixedFieldsArrived<PacketReader, Buffer>(void* handle, SourceID sourceID,
-									 DataTemplateInfo* ti, uint16_t length,
-									 FieldData* data);
-        friend int dataTemplateDestroyed<PacketReader, Buffer>(void* handle, SourceID sourceID, DataTemplateInfo* dataTemplateInfo);
 };
 
-
-
-/** 
- * Extracts IPFIX packets from files and imports them direcly into a storage
- * class. All data is buffered into one storage class till the data is fetched
- * using @c getStorage().
- */ 
 template <
-	class Notifier,
-	class Storage
+class Notifier,
+class Storage
 >
-class BufferedFilesInputPolicy : public InputPolicyBase<Notifier, Storage>, public PacketReader<Notifier, Storage> {
+class BufferedFilesInputPolicy : public InputPolicyBase<Notifier, Storage>
+{
 public:
-	BufferedFilesInputPolicy() {
-		buffer = new Storage();
-	}
-
-	~BufferedFilesInputPolicy() {
-		if (buffer) 
-			delete buffer;
-	}
-
-	void importToStorage() {
-		packetLock.lock();
-		import(this->getNotifier());
-		packetLock.unlock();
-	}
-
-	/**
-	 * Returns a storage object. This object contains all data buffered since last call to @c getStorage().
-	 * The method returns an empty object if no data was buffered.
-	 * @return buffered IFPIX data.
-	 */
-        Storage* getStorage()
-        {
-                packetLock.lock();
-                Storage* ret = buffer;
-                buffer = new Storage();
-                packetLock.unlock();
-                return ret;
-        }
+	BufferedFilesInputPolicy()
+		: filePolicy(new DetectFlowSink<Storage>())
+	{
 		
-private:
-	Storage* buffer;
-	Mutex packetLock;
-
-	Storage* getBuffer() { return buffer; }
-};
-
-
-
-/** 
- * Extracts IPFIX packets from files and imports them into a storage class. 
- * Each IPFIX record is seperately stored within an instance of the Storage class.
- */ 
-template <
-	class Notifier,
-	class Storage
->
-class UnbufferedFilesInputPolicy : public InputPolicyBase<Notifier, Storage>, public PacketReader<Notifier, Storage> {
-public:
-	UnbufferedFilesInputPolicy() : maxBuffers(256), bufferErrors(0) {
-		packetLock.lock();
 	}
 
-	~UnbufferedFilesInputPolicy() {
-	}
-
-	void importToStorage() {
-		import(this->getNotifier());
-	}
-
-	/**
-	 * Returns storage if there are new records available. Blocks if no records available.
-	 */
-        Storage* getStorage()
+        void importToStorage() 
         {
-		packetLock.lock();
-		PacketReader<Notifier, Storage>::recordMutex.lock();
-		Storage* ret = *buffers.begin();
-		buffers.pop_front();
-		PacketReader<Notifier, Storage>::recordMutex.unlock();
-		return ret;
+        	filePolicy.import();        
         }
 
+        Storage* getStorage()
+        {
+		filePolicy.getStorage();
+        }
+
+
 private:
-	Storage* getBuffer() {
-		if(buffers.size() >= maxBuffers) // Buffer is full
-		{
-			bufferErrors++;
-			msg(MSG_ERROR, "DetectionBase: getBuffer() returns NULL, record will be dropped! %lu", bufferErrors);
-			return NULL;
-		}
-		Storage* ret = new Storage();
-		buffers.push_back(ret);
-		packetLock.unlock();
-		return ret;
+	FilePolicy<Notifier, Storage> filePolicy;
+	
+};
+
+template <
+class Notifier,
+class Storage
+>
+class UnBufferedFilesInputPolicy : public InputPolicyBase<Notifier, Storage>
+{
+public:
+	UnBufferedFilesInputPolicy()
+		: filePolicy(new UnBufferedDetectSink<Storage>())
+	{
+		
 	}
 
-	std::list<Storage*> buffers;
-	unsigned maxBuffers;	
-	unsigned bufferErrors;
-	Mutex packetLock; // locked as long as buffers is empty
+	void importToStorage() 
+	{
+		filePolicy.import(this->getNotifier());
+	}
+
+	Storage* getStorage()
+	{
+		filePolicy.getStorage();
+	}
+
+private:
+	FilePolicy<Notifier, Storage> filePolicy;
 };
+
+
+
+///** 
+// * Extracts IPFIX packets from files and imports them direcly into a storage
+// * class. All data is buffered into one storage class till the data is fetched
+// * using @c getStorage().
+// */ 
+//template <
+//	class Notifier,
+//	class Storage
+//>
+//class BufferedFilesInputPolicy : public InputPolicyBase<Notifier, Storage>, public PacketReader<Notifier, Storage> {
+//public:
+//	BufferedFilesInputPolicy() {
+//		buffer = new Storage();
+//	}
+//
+//	~BufferedFilesInputPolicy() {
+//		if (buffer) 
+//			delete buffer;
+//	}
+//
+//	void importToStorage() {
+//		packetLock.lock();
+//		import(this->getNotifier());
+//		packetLock.unlock();
+//	}
+//
+//	/**
+//	 * Returns a storage object. This object contains all data buffered since last call to @c getStorage().
+//	 * The method returns an empty object if no data was buffered.
+//	 * @return buffered IFPIX data.
+//	 */
+//        Storage* getStorage()
+//        {
+//                packetLock.lock();
+//                Storage* ret = buffer;
+//                buffer = new Storage();
+//                packetLock.unlock();
+//                return ret;
+//        }
+//		
+//private:
+//	Storage* buffer;
+//	Mutex packetLock;
+//
+//	Storage* getBuffer() { return buffer; }
+//};
+//
+//
+//
+///** 
+// * Extracts IPFIX packets from files and imports them into a storage class. 
+// * Each IPFIX record is seperately stored within an instance of the Storage class.
+// */ 
+//template <
+//	class Notifier,
+//	class Storage
+//>
+//class UnbufferedFilesInputPolicy : public InputPolicyBase<Notifier, Storage>, public PacketReader<Notifier, Storage> {
+//public:
+//	UnbufferedFilesInputPolicy() : maxBuffers(256), bufferErrors(0) {
+//		packetLock.lock();
+//	}
+//
+//	~UnbufferedFilesInputPolicy() {
+//	}
+//
+//	void importToStorage() {
+//		import(this->getNotifier());
+//	}
+//
+//	/**
+//	 * Returns storage if there are new records available. Blocks if no records available.
+//	 */
+//        Storage* getStorage()
+//        {
+//		packetLock.lock();
+//		PacketReader<Notifier, Storage>::recordMutex.lock();
+//		Storage* ret = *buffers.begin();
+//		buffers.pop_front();
+//		PacketReader<Notifier, Storage>::recordMutex.unlock();
+//		return ret;
+//        }
+//
+//private:
+//	Storage* getBuffer() {
+//		if(buffers.size() >= maxBuffers) // Buffer is full
+//		{
+//			bufferErrors++;
+//			msg(MSG_ERROR, "DetectionBase: getBuffer() returns NULL, record will be dropped! %lu", bufferErrors);
+//			return NULL;
+//		}
+//		Storage* ret = new Storage();
+//		buffers.push_back(ret);
+//		packetLock.unlock();
+//		return ret;
+//	}
+//
+//	std::list<Storage*> buffers;
+//	unsigned maxBuffers;	
+//	unsigned bufferErrors;
+//	Mutex packetLock; // locked as long as buffers is empty
+//};
 
 };
 
