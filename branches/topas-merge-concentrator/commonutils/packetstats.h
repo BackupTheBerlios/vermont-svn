@@ -40,6 +40,7 @@
 #include <stdexcept>
 
 #include <boost/smart_ptr.hpp>
+#include <concentrator/IpfixRecord.hpp>
 
 namespace TOPAS {
 
@@ -71,7 +72,7 @@ protected:
 class IpfixFile : public PacketStorage
 {
 public:
-        static IpfixFile* writePacket(const char* filename, boost::shared_array<uint8_t> message, uint16_t length);
+        static IpfixFile* writePacket(const char* filename, boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId);
         
         virtual void proceedOnePacket();
 private:

@@ -29,7 +29,7 @@ Mutex IpfixFile::listLock;
 std::list<std::string> IpfixFile::fileNames;
 
 
-IpfixFile* IpfixFile::writePacket(const char* filename, boost::shared_array<uint8_t> message, uint16_t length)
+IpfixFile* IpfixFile::writePacket(const char* filename, boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId)
 {
         if (!ipfixFile)
                 ipfixFile = new IpfixFile();
@@ -46,6 +46,11 @@ IpfixFile* IpfixFile::writePacket(const char* filename, boost::shared_array<uint
 	if (!out.write((const char*)&length, sizeof(length))) {
 		VERMONT::msg(MSG_FATAL, "Collector: Couldn't write packet length to file system: %s\n", strerror(errno));
                 return NULL;
+	}
+
+	if (!out.write((const char*)sourceId.get(), sizeof(VERMONT::IpfixRecord::SourceID))) {
+		VERMONT::msg(MSG_FATAL, "Collector: Couldn't write SourceID structure to the file system: %s\n", strerror(errno));
+		return NULL;
 	}
 
 	if (!out.write((const char*)message.get(), length)) {
@@ -85,6 +90,7 @@ IpfixShm::IpfixShm()
 {
 }
 
+// TODO: write sourceID
 IpfixShm* IpfixShm::writePacket(boost::shared_array<uint8_t> message, uint16_t len)
 {
         if (!instance) {
