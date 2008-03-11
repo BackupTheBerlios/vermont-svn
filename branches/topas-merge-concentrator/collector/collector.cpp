@@ -348,7 +348,7 @@ void Collector::readIDMEF(XMLConfObj* config)
 			    if (config->selectNodeIfExists(config_space::XMLBLASTER_PROP)) {
 				do {
 				    props.push_back(config->getValue());
-				} while (config->selectNextNodeIfExists(config_space::XMLBLASTER_PROP))
+				} while (config->selectNextNodeIfExists(config_space::XMLBLASTER_PROP));
 			    } else {
 				msg(MSG_INFO, ("No <" + config_space::XMLBLASTER_PROP + 
 					    "> statement in config file, using default values").c_str());
@@ -370,7 +370,8 @@ void Collector::readIDMEF(XMLConfObj* config)
 			    man->xmlBlasters.push_back(globalRef);
 			    config->leaveNode();
 			}
-		} while (config->selectNextNodeIfExists(config_space::XMLBLASTER)) {
+		} while (config->selectNextNodeIfExists(config_space::XMLBLASTER)); 
+	}
 	config->leaveNode();
 #endif
 }

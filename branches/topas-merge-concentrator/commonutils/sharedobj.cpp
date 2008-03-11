@@ -202,9 +202,12 @@ FileCounter::operator unsigned () const
 /******************************************************************* Friend functions **************************************************************/
 
 
-std::ostream& shared::operator<<(std::ostream& os, const FileCounter& fc) 
+namespace shared {
+
+std::ostream& operator<<(std::ostream& os, const FileCounter& fc) 
 {
         os << fc.i;
         return os;
 }
 
+};

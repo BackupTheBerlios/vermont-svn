@@ -97,10 +97,10 @@ class DetectionBase
 					Property::MapType propMap;
 					std::vector<std::string> props;
 					/* get all properties */
-					if (config->selectNodeIfExists(config_space::XMLBLASTER_PROP)) {
+					if (confObj->selectNodeIfExists(config_space::XMLBLASTER_PROP)) {
 					    do {
-						props.push_back(config->getValue());
-					    } while (config->selectNextNodeIfExists(config_space::XMLBLASTER_PROP))
+						props.push_back(confObj->getValue());
+					    } while (confObj->selectNextNodeIfExists(config_space::XMLBLASTER_PROP));
 					} else {
 					    msgStr << MsgStream::WARN << "No <" << config_space::XMLBLASTER_PROP 
 						<< "> statement in config file, using default values"
@@ -124,7 +124,7 @@ class DetectionBase
 					xmlBlasters.push_back(globalRef);
 					confObj->leaveNode();
 				    }
-				} while (confObj->selectNextNodeIfExists(config_space::XMLBLASTER))
+				} while (confObj->selectNextNodeIfExists(config_space::XMLBLASTER));
 			} else {
 				msgStr << MsgStream::WARN << "No <" << config_space::XMLBLASTER << "> statement in config file" << MsgStream::endl;
 			}
