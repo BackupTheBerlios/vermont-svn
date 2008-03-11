@@ -31,7 +31,9 @@
 #include <commonutils/exceptions.h>
 #include <commonutils/packetstats.h>
 
+#include <concentrator/IpfixReceiver.hpp>
 #include <concentrator/IpfixReceiverUdpIpV4.hpp>
+#include <concentrator/IpfixReceiverSctpIpV4.hpp>
 #include <concentrator/IpfixCollector.hpp>
 
 #include <signal.h>
@@ -220,6 +222,17 @@ void Collector::readDetectionModules(XMLConfObj* config)
 void Collector::readMisc(XMLConfObj* config)
 {
 	std::string tmp;
+	/* transport protocol */
+	if (config->nodeExists(config_space::TRANSPORT_PROTO)) {
+		tmp = config->getValue(config_space::TRANSPORT_PROTO);
+		if (tmp == "UDP") {
+			receiverType = UDP_IPV4;
+		} else if (tmp == "SCTP") {
+			receiverType = SCTP_IPV4;
+		} else 
+			throw exceptions::ConfigError("Unkown transport protocol: " + tmp);
+	}
+
 	/* port to listen on */
 	if (config->nodeExists(config_space::LISTEN_PORT)) {
 		tmp = config->getValue(config_space::LISTEN_PORT);
@@ -416,9 +429,14 @@ void Collector::run()
 		
 		VERMONT::msg(MSG_INFO, "Initializing IpfixCollector");
 		VERMONT::IpfixCollector ipfixCollector;
-		VERMONT::IpfixReceiverUdpIpV4 ipfixReceiver(listenPort);
+		VERMONT::IpfixReceiver* ipfixReceiver;
+		if (receiverType = UDP_IPV4) {
+			ipfixReceiver = new VERMONT::IpfixReceiverUdpIpV4(listenPort);
+		} else {
+			ipfixReceiver = new VERMONT::IpfixReceiverSctpIpV4(listenPort);
+		}
 
-		ipfixCollector.addIpfixReceiver(&ipfixReceiver);
+		ipfixCollector.addIpfixReceiver(ipfixReceiver);
 		ipfixCollector.addIpfixPacketProcessor(this);
 
 		ipfixCollector.start();
@@ -431,6 +449,8 @@ void Collector::run()
 		
 		VERMONT::msg(MSG_INFO, "Shutting down IpfixCollector");
 		ipfixCollector.stop();
+
+		delete ipfixReceiver;
 		/*
 		VERMONT::msg(MSG_INFO, "Waiting for manager to shut down");
 		int err;

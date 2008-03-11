@@ -61,6 +61,7 @@ namespace config_space
 	static const std::string RUN="run";
 	static const std::string ARG="arg";
         static const std::string COLLECTOR_STRING="collector";
+	static const std::string TRANSPORT_PROTO="transportProto";
         static const std::string LISTEN_PORT="listenPort";
         static const std::string KILL_TIME="detectmod_killtime";
         static const std::string RESTART_ON_CRASH="restartOnCrash";
