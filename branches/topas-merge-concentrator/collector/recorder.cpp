@@ -82,7 +82,7 @@ unsigned int FileRecorder::usecs()
 	return (tv.tv_sec * 1000000) + (tv.tv_usec);
 }
 
-void FileRecorder::record(const uint8_t* data, uint16_t len)
+void FileRecorder::record(boost::shared_array<uint8_t> message, uint16_t len)
 {
 	if (!recording) {
 		return;
@@ -91,7 +91,7 @@ void FileRecorder::record(const uint8_t* data, uint16_t len)
 	aktTime = usecs();
 	
 	snprintf(fileName, fileNameSize, "%s%lu", storagePath.c_str(), number);
-	IpfixFile::writePacket(fileName, data, len);
+	IpfixFile::writePacket(fileName, message, len);
 	indexFile << aktTime - startTime << "\t" << number << std::endl;
 	number++;
 }

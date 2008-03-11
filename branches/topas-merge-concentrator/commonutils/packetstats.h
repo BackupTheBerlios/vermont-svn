@@ -39,6 +39,8 @@
 #include <string>
 #include <stdexcept>
 
+#include <boost/smart_ptr.hpp>
+
 namespace TOPAS {
 
 /**
@@ -69,7 +71,7 @@ protected:
 class IpfixFile : public PacketStorage
 {
 public:
-        static IpfixFile* writePacket(const char* filename, const uint8_t* data, uint16_t length);
+        static IpfixFile* writePacket(const char* filename, boost::shared_array<uint8_t> message, uint16_t length);
         
         virtual void proceedOnePacket();
 private:
@@ -103,7 +105,7 @@ public:
 
 	static uint16_t readPacket(uint8_t** d);
         virtual void proceedOnePacket();
-        static IpfixShm* writePacket(const uint8_t* d, uint16_t len);
+        static IpfixShm* writePacket(boost::shared_array<uint8_t> message, uint16_t len);
 
 
 private:

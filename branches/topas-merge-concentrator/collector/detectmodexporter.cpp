@@ -55,9 +55,9 @@ DetectModExporter::~DetectModExporter()
         delete nps; nps = 0;
 }
 
-int DetectModExporter::exportToSink(VERMONT::IpfixParser*, const uint8_t* data, uint16_t len) {
+int DetectModExporter::exportToSink(boost::shared_array<uint8_t> message, uint16_t len) {
 
-        uint32_t sourceId = ntohl(*(uint32_t*)(data+12)); // see Ipfix-Protocol
+        uint32_t sourceId = ntohl(*(uint32_t*)(message[12])); // see Ipfix-Protocol
 
 	if (exchangeStyle == USE_FILES) {
                 static shared::FileCounter counter;
@@ -66,7 +66,7 @@ int DetectModExporter::exportToSink(VERMONT::IpfixParser*, const uint8_t* data, 
                 static char* filename = new char[filesize];
 
                 snprintf(filename, filesize, "%s%i", packetDir.c_str(), (int)counter);
-                ipfixFile = IpfixFile::writePacket(filename, data, len);
+                ipfixFile = IpfixFile::writePacket(filename, message, len);
                 if (ipfixFile) {
 	                ipfixPacketStore.pushIpfixPacket(sourceId, ipfixFile);
                 } else {

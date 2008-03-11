@@ -66,11 +66,10 @@ public:
 	 * Inserts the IPFIX data into the data sink. The modules will not be notified
 	 * about the new data arriving at the sink. Use @c notifyAll() to perform
 	 * the notification process.
-	 * @param ipfixParser Not used.
 	 * @param data IPFIX data (likely one IPFIX packet)
 	 * @param len Length of IPFIX data.
 	 */
-        int exportToSink(VERMONT::IpfixParser* /*ipfixParser*/, const uint8_t* data, uint16_t len);
+        int exportToSink(boost::shared_array<uint8_t> message, uint16_t len);
 
 	/**
 	 * Clears all processed data from the data sink.

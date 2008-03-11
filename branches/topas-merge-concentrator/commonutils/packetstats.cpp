@@ -29,7 +29,7 @@ Mutex IpfixFile::listLock;
 std::list<std::string> IpfixFile::fileNames;
 
 
-IpfixFile* IpfixFile::writePacket(const char* filename, const uint8_t* data, uint16_t length)
+IpfixFile* IpfixFile::writePacket(const char* filename, boost::shared_array<uint8_t> message, uint16_t length)
 {
         if (!ipfixFile)
                 ipfixFile = new IpfixFile();
@@ -43,12 +43,12 @@ IpfixFile* IpfixFile::writePacket(const char* filename, const uint8_t* data, uin
 	}
                 
 
-	if (!out.write((char*)&length, sizeof(length))) {
+	if (!out.write((const char*)&length, sizeof(length))) {
 		VERMONT::msg(MSG_FATAL, "Collector: Couldn't write packet length to file system: %s\n", strerror(errno));
                 return NULL;
 	}
 
-	if (!out.write((char*)data, length)) {
+	if (!out.write((const char*)message.get(), length)) {
 		VERMONT::msg(MSG_FATAL, "Collector: Couldn't write packet data to file system: %s\n", strerror(errno));
                 return NULL;
 	}
@@ -85,7 +85,7 @@ IpfixShm::IpfixShm()
 {
 }
 
-IpfixShm* IpfixShm::writePacket(const uint8_t* data, uint16_t len)
+IpfixShm* IpfixShm::writePacket(boost::shared_array<uint8_t> message, uint16_t len)
 {
         if (!instance) {
                 instance = new IpfixShm();
@@ -132,7 +132,7 @@ IpfixShm* IpfixShm::writePacket(const uint8_t* data, uint16_t len)
 	//msg(MSG_ERROR, "Writing packet len: %i", len);
 	memcpy(writePosition, &len, sizeof(len));
 	//msg(MSG_FATAL, "written: %i", *(uint16_t*)writePosition);
-	memcpy(writePosition + sizeof(len), data, len);
+	memcpy(writePosition + sizeof(len), message.get(), len);
 	//msg(MSG_FATAL, "written: %#06x", ntohs(*(uint16_t*)(writePosition+sizeof(len))));
 	writePosition += sizeof(len) + len;
 

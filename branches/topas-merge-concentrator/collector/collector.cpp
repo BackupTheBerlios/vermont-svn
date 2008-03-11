@@ -454,16 +454,12 @@ void Collector::run()
 
 int Collector::processPacket(boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId)
 {
-	// TODO: NEW CONCENTRATOR
-	/*
 	metering->addValue();
         static int ret;
-	recorder->record(data, len);
-        ret = exporter->exportToSink(ipfixParser, data, len);
+	recorder->record(message, length);
+        ret = exporter->exportToSink(message, length);
         man->newPacket();
         return ret;
-	*/
-	return 0;
 }
 
 void Collector::sigInt(int /*sig*/) 

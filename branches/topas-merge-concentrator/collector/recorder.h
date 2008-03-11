@@ -54,10 +54,10 @@ public:
 	/**
 	 * Interface method for recording IPFIX packets. Every incoming IPFIX packet
 	 * will be passed to this function before it is passed to the detection modules.
-	 * @param data Ipfix packet data
+	 * @param message Ipfix packet data
 	 * @param len Length of data.
 	 */
-        virtual void record(const uint8_t* data, uint16_t len) = 0;
+        virtual void record(boost::shared_array<uint8_t> message, uint16_t len) = 0;
 
 	/**
 	 * Interface method for replaying recorded IPFIX packets. This method is intended
@@ -97,10 +97,10 @@ public:
 
 	/**
 	 * Dummy recording function. It does not perform any recording at all.
-         * @param data Ipfix packet data
+         * @param message Ipfix packet data
          * @param len Length of data.       
 	 */
-        virtual void record(const uint8_t* data, uint16_t len) {}
+        virtual void record(boost::shared_array<uint8_t> message, uint16_t len) {}
 
 	/**
 	 * Dummy play function. Will return immediately.
@@ -137,10 +137,10 @@ public:
 	/**
 	 * Stores IPFIX packets into the directory specified in the constructor. The incoming packets
 	 * are numbered in a strict ascending order and the files are named according to this number.
-         * @param data Ipfix packet data
+         * @param message Ipfix packet data
          * @param len Length of data.	 
 	 */
-        virtual void record(const uint8_t* data, uint16_t len);
+        virtual void record(boost::shared_array<uint8_t> message, uint16_t len);
 
 	/**
 	 * Replays the recorded IPFIX packets. They are passed to the collector depending on the time
