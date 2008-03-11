@@ -39,7 +39,8 @@ static void setupGlobalKey()
 
 static void testBloomFilter()
 {
-	BloomFilter* bf = new BloomFilter(10, 1000);
+	HashParams hashParams(10);
+	BloomFilter* bf = new BloomFilter(&hashParams, 1000);
 
 	BOOST_REQUIRE(bf->get(key1.data, key1.len) == false);
 	BOOST_REQUIRE(bf->get(key1.data, key1.len) == false);
@@ -57,7 +58,8 @@ static void testBloomFilter()
 
 static void testCountBloomFilter()
 {
-	CountBloomFilter* bf = new CountBloomFilter(10, 1000);
+	HashParams hashParams(10);
+	CountBloomFilter* bf = new CountBloomFilter(&hashParams, 1000);
 
 	std::cout << "bf(key1) == " << bf->get(key1.data, key1.len) << std::endl;
         BOOST_REQUIRE(bf->get(key1.data, key1.len) == 0);
@@ -93,7 +95,8 @@ static void testCountBloomFilter()
 
 static void testAgeBloomFilter()
 {
-	AgeBloomFilter* bf = new AgeBloomFilter(10, 1000);
+	HashParams hashParams(10);
+	AgeBloomFilter* bf = new AgeBloomFilter(&hashParams, 1000);
 
 	time_t now = time(NULL);
 	time_t later = now + 10;

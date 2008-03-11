@@ -1,8 +1,6 @@
 #ifndef _MIN_BLOOMFILTER_
 #define _MIN_BLOOMFILTER_
 
-#ifdef HAVE_GSL
-
 #include "BloomFilterBase.h"
 
 #include "msg.h"
@@ -16,19 +14,25 @@ template <class T>
 class MinBloomFilter : public BloomFilterBase<T>
 {
 	public:
-		MinBloomFilter(unsigned hashFunctions, size_t filterSize)
-			: BloomFilterBase<T>(hashFunctions, filterSize) {}
+		MinBloomFilter(HashParams* hashParams, size_t filterSize, bool CMS = true)
+			: BloomFilterBase<T>(hashParams, filterSize, CMS) {}
 
 		virtual ~MinBloomFilter() {}
 
 
-		virtual typename T::ValueType  get(uint8_t* input, size_t len) const {
+		virtual typename T::ValueType  get(const uint8_t* input, size_t len) const {
 			typename T::ValueType  ret = INT_MAX;
 			typename T::ValueType  current;
-			for(unsigned i=0; i != BloomFilterBase<T>::hf_number; i++) {   
-				current = BloomFilterBase<T>::filter.get(
-					BloomFilterBase<T>::hashU(input, len, 
-						BloomFilterBase<T>::filterSize(), BloomFilterBase<T>::hf_list[i].seed));
+			for(unsigned i=0; i != BloomFilterBase<T>::hfList->len; i++) {   
+				if (BloomFilterBase<T>::CMS_) {
+					current = BloomFilterBase<T>::filter_[0].get(
+						BloomFilterBase<T>::hashU(input, len, 
+							BloomFilterBase<T>::filterSize(), BloomFilterBase<T>::hfList->seed[i]));
+				} else {
+					current = BloomFilterBase<T>::filter_[i].get(
+						BloomFilterBase<T>::hashU(input, len,
+							BloomFilterBase<T>::filterSize(), BloomFilterBase<T>::hfList->seed[i]));
+				}
 				if (current < ret)
 					ret = current;
 			}
@@ -36,16 +40,20 @@ class MinBloomFilter : public BloomFilterBase<T>
 			return ret;
 		}
 
-		virtual void set(uint8_t* input, size_t len, typename T::ValueType v) {
+		virtual void set(const uint8_t* input, size_t len, typename T::ValueType v) {
 			//msg(MSG_DEBUG, "MinBloomFilter.set(): %i", v);
-			for(unsigned i=0; i != BloomFilterBase<T>::hf_number; i++) {
-				BloomFilterBase<T>::filter.set(BloomFilterBase<T>::hashU(input,	len,
-					BloomFilterBase<T>::filterSize(), 
-					BloomFilterBase<T>::hf_list[i].seed), v);
+			for(unsigned i=0; i != BloomFilterBase<T>::hfList->len; i++) {
+				if (BloomFilterBase<T>::CMS_) {
+					BloomFilterBase<T>::filter_[0].set(BloomFilterBase<T>::hashU(input, len,
+						BloomFilterBase<T>::filterSize(), 
+						BloomFilterBase<T>::hfList->seed[i]), v);
+				} else {
+					BloomFilterBase<T>::filter_[i].set(BloomFilterBase<T>::hashU(input, len,
+						BloomFilterBase<T>::filterSize(), 
+						BloomFilterBase<T>::hfList->seed[i]), v);
+				}
 			}
 		}
 };
-
-#endif
 
 #endif

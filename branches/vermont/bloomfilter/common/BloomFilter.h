@@ -19,8 +19,6 @@
 #ifndef _BLOOMFILTER_H_
 #define _BLOOMFILTER_H_
 
-#ifdef HAVE_GSL
-
 #include "BloomFilterBase.h"
 
 #include <ostream>
@@ -30,10 +28,11 @@ class Bitmap {
     friend std::ostream & operator << (std::ostream &, const Bitmap &);
 
     public:
-	Bitmap(size_t size) : bitmap(NULL)
+	Bitmap(size_t size = 0) : bitmap(NULL)
 	{
 	    resize(size);
 	}
+
 
 	~Bitmap()
 	{
@@ -63,16 +62,12 @@ class BloomFilter : public BloomFilterBase<Bitmap>
     friend std::ostream & operator << (std::ostream &, const BloomFilter &);
 
     public:
-	BloomFilter(unsigned hashfunctions, size_t size) : BloomFilterBase<Bitmap>(hashfunctions, size) {}
+	BloomFilter(HashParams* hashParams, size_t size, bool CMS = true) : BloomFilterBase<Bitmap>(hashParams, size, CMS) {}
 
 	virtual ~BloomFilter() {}
 
-	virtual bool get(uint8_t* input, size_t len) const;
-	virtual void set(uint8_t* input, size_t len, bool v = true);
+	virtual bool get(const uint8_t* input, size_t len) const;
+	virtual void set(const uint8_t* input, size_t len, bool v = true);
 };
-
-std::ostream & operator << (std::ostream &, const BloomFilter &);
-
-#endif // HAVE_GSL
 
 #endif // _BLOOMFILTER_H_

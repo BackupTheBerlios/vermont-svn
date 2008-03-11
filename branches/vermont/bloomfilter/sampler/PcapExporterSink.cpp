@@ -24,7 +24,7 @@ void* PcapExporterSink::pcapExporterSink(void* data)
 {
 	PcapExporterSink* sink = static_cast<PcapExporterSink*>(data);
 	ConcurrentQueue<Packet*> *queue = sink->getQueue();
-	Packet* p;
+	Packet* p = NULL;
 	bool result;
 	pcap_pkthdr packetHeader;
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -42,6 +42,7 @@ void* PcapExporterSink::pcapExporterSink(void* data)
 			packetHeader.len = p->pcap_packet_length;
 			pcap_dump((unsigned char*)sink->dumper, &packetHeader, p->data);
 		}
+		p->removeReference();
 	}
 
 	return NULL;

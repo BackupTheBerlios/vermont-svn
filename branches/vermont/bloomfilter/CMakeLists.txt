@@ -151,9 +151,11 @@ IF (DEBUG)
 	message(STATUS "Configuring build process for debug version")
 	REMOVE_DEFINITIONS(-O3)
 	ADD_DEFINITIONS(-O0 -g -pg -Wall -Werror -DDEBUG)
+	SET_TARGET_PROPERTIES(vermont PROPERTIES LINK_FLAGS "-g -pg")
 ELSE (DEBUG)
 	REMOVE_DEFINITIONS(-O0 -g -pg -Wall -Werror -DDEBUG)
 	ADD_DEFINITIONS(-O3 -Wall)
+	SET_TARGET_PROPERTIES(vermont PROPERTIES LINK_FLAGS "")
 ENDIF (DEBUG)
 
 
@@ -235,9 +237,16 @@ TARGET_LINK_LIBRARIES(vermont ${PCAP_LIBRARY})
 
 ### connection filter
 
-OPTION(CONNECTION_FILTER "Enables/disables the connection filter. (Needs libgsl)" ON)
+OPTION(CONNECTION_FILTER "Enables/disables the connection filter." ON)
 
 IF (CONNECTION_FILTER)
+	ADD_DEFINITIONS(-DHAVE_CONNECTION_FILTER)
+ENDIF(CONNECTION_FILTER)
+
+### gsl
+
+OPTION(USE_GSL "Enables/disables GSL in connectionflter." ON)
+IF (USE_GSL)
 	FIND_PACKAGE(GSL)
 	MARK_AS_ADVANCED(
 		GSL_INCLUDE_DIR
@@ -248,12 +257,13 @@ IF (CONNECTION_FILTER)
 	IF (GSL_FOUND)
 		MESSAGE(STATUS "GNU scientific library found")
 	ELSE (GSL_FOUND)
-		MESSAGE(FATAL_ERROR "GNU scientific library not found. Please install the library or use -DUSE_CONNECTION_FILTER=OFF")
+		MESSAGE(FATAL_ERROR "GNU scientific library not found. Please
+			install the library or use -DUSE_CONNECTION_FILTER=OFF
+			or USE_GSL=OFF")
 	ENDIF (GSL_FOUND)
 	ADD_DEFINITIONS(-DHAVE_GSL)
-	ADD_DEFINITIONS(-DHAVE_CONNECTION_FILTER)
 	TARGET_LINK_LIBRARIES(vermont ${GSL_LIBRARIES})
-ENDIF(CONNECTION_FILTER)
+ENDIF (USE_GSL)
 
 ### tools
 

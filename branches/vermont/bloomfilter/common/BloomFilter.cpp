@@ -16,8 +16,6 @@
 /*    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA    */
 /**************************************************************************/
 
-#ifdef HAVE_GSL
-
 #include "BloomFilter.h"
 
 const uint8_t bitmask[8] =
@@ -72,26 +70,27 @@ std::ostream & operator<< (std::ostream & os, const Bitmap & b)
     return os;
 }
 
-void BloomFilter::set(uint8_t* input, size_t len, bool) 
+void BloomFilter::set(const uint8_t* input, size_t len, bool) 
 {
-    for(unsigned i=0; i < hf_number; i++) {
-	filter.set(hashU(input, len, filterSize(), hf_list[i].seed));
+    for(unsigned i=0; i < hfList->len; i++) {
+    	if (CMS_)
+            filter_[0].set(hashU(input, len, filterSize(), hfList->seed[i]));
+	else 
+	    filter_[i].set(hashU(input, len, filterSize(), hfList->seed[i]));
     }
 }
 
-bool BloomFilter::get(uint8_t* input, size_t len) const
+bool BloomFilter::get(const uint8_t* input, size_t len) const
 {
-    for(unsigned i=0; i < hf_number; i++) {
-	if(filter.get(hashU(input, len, filterSize(), hf_list[i].seed)) == false)
-	    return false;
+    for(unsigned i=0; i < hfList->len; i++) {
+        if (CMS_) {
+	    if (filter_[0].get(hashU(input, len, filterSize(), hfList->seed[i])) == false)
+	        return false;
+        } else {
+            if (filter_[i].get(hashU(input, len, filterSize(), hfList->seed[i])) == false)
+	        return false;
+	}
     }
     return true;
 }
 
-std::ostream & operator << (std::ostream & os, const BloomFilter & b) 
-{
-    os << b.filter;
-    return os;
-}
-
-#endif // HAVE_GSL

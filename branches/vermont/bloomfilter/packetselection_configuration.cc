@@ -158,7 +158,7 @@ void PacketSelectionConfiguration::configure()
 			}
 			filter->addProcessor(new IPHeaderFilter(header, offset, size, comp, value));
 		} else if (tagMatches(i, "connectionFilter")) {
-#ifdef HAVE_GSL
+#ifdef HAVE_CONNECTION_FILTER
 			xmlNodePtr j = i->xmlChildrenNode;
 			int bytes = 0;
 			int timeout = 0;

@@ -1,4 +1,4 @@
-#ifdef HAVE_GSL
+#ifdef HAVE_CONNECTION_FILTER
 
 #ifndef _CONNECTION_FILTER_H_
 #define _CONNECTION_FILTER_H_
@@ -11,9 +11,12 @@
 class ConnectionFilter : public PacketProcessor {
 public:
 	ConnectionFilter(unsigned timeout, unsigned bytes, unsigned hashFunctions, unsigned FilterSize);
+	ConnectionFilter(unsigned timeout, unsigned bytes, unsigned hashFunctions, unsigned FilterSize, unsigned seed);
+
 
 	virtual bool processPacket(const Packet* p);
 protected:
+	HashParams hashParams;
 	AgeBloomFilter synFilter;
 	CountBloomFilter exportFilter;
 	AgeBloomFilter connectionFilter;

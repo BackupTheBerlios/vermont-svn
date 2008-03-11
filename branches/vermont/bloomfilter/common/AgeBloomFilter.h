@@ -19,8 +19,6 @@
 #ifndef _AGE_BLOOMFILTER_H_
 #define _AGE_BLOOMFILTER_H_
 
-#ifdef HAVE_GSL
-
 #include "MinBloomFilter.h"
 
 #include <ostream>
@@ -31,7 +29,7 @@ class AgeArray {
 	friend std::ostream & operator << (std::ostream &, const AgeArray &);
 
 	public:
-		AgeArray(size_t size) : array(NULL)
+		AgeArray(size_t size = 0) : array(NULL)
 		{
 			resize(size);
 		}
@@ -57,7 +55,5 @@ std::ostream & operator << (std::ostream &, const AgeArray &);
 
 
 typedef MinBloomFilter<AgeArray> AgeBloomFilter;
-
-#endif // HAVE_GSL
 
 #endif // _AGE_BLOOMFILTER_H_

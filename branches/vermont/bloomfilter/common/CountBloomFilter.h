@@ -1,8 +1,6 @@
 #ifndef _COUNT_BLOOMFILTER_H_
 #define _COUNT_BLOOMFILTER_H_
 
-#ifdef HAVE_GSL
-
 #include "MinBloomFilter.h"
 
 
@@ -10,7 +8,7 @@
 
 class CountArray {
 	public:
-		CountArray(size_t size) : array(NULL) {
+		CountArray(size_t size = 0) : array(NULL) {
 			resize(size);
 		}
 
@@ -32,7 +30,5 @@ class CountArray {
 };
 
 typedef MinBloomFilter<CountArray> CountBloomFilter;
-
-#endif
 
 #endif

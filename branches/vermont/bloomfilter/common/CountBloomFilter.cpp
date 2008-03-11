@@ -1,5 +1,3 @@
-#ifdef HAVE_GSL
-
 #include "CountBloomFilter.h"
 
 void CountArray::resize(size_t size)
@@ -42,4 +40,3 @@ std::ostream & operator << (std::ostream & os, const CountArray & a)
     return os;
 }
 
-#endif

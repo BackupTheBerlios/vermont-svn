@@ -16,15 +16,13 @@
 /*    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA    */
 /**************************************************************************/
 
-#ifdef HAVE_GSL
-
 #include "AgeBloomFilter.h"
 
 void AgeArray::resize(uint32_t size)
 {
 	free(array);
 	array_size = size;
-	array = (agetime_t*)(malloc(size*sizeof(agetime_t)));
+	array = (agetime_t*)malloc(size*sizeof(agetime_t));
 	clear();
 }
 
@@ -57,5 +55,3 @@ std::ostream & operator << (std::ostream & os, const AgeArray & a)
     return os;
 }
 
-
-#endif // HAVE_GSL

@@ -2,12 +2,14 @@
 #define _BLOOMFILTER_BASE_H_
 
 #ifdef HAVE_GSL
-
 #include <gsl/gsl_rng.h>
+#endif
+
 #include <stdint.h>
 #include <cstring>
 #include <ctime>
 
+#include <sampler/Packet.h>
 
 /* GenericKey class holding uint8_t* input for BloomFilter hash functions */
 template<unsigned size> class GenericKey
@@ -78,6 +80,25 @@ class QuintupleKey
 			memset(data,0,sizeof(data));
 		}
 
+		QuintupleKey(const Packet* p) : len(15) 
+		{
+			memset(data,0, sizeof(data));
+			uint32_t ip1, ip2;
+			uint16_t port1, port2;
+			if (p->ipProtocolType == Packet::TCP) {
+				ip1 = *((uint32_t*)(p->netHeader + 12));
+				ip2 = *((uint32_t*)(p->netHeader + 16));
+				port1 = *((uint16_t*)(p->transportHeader));
+				port2 = *((uint16_t*)(p->transportHeader + 2));
+
+				getQuintuple()->srcIp   = ip1>ip2?ip1:ip2;
+				getQuintuple()->dstIp   = ip1>ip2?ip2:ip1;
+				getQuintuple()->proto   = p->ipProtocolType;
+				getQuintuple()->srcPort = port1>port2?port1:port2;
+				getQuintuple()->dstPort = port1>port2?port2:port1;
+			}
+		}
+
 		inline Quintuple* getQuintuple()
 		{
 			return (Quintuple*)data;
@@ -94,7 +115,22 @@ class QuintupleKey
 		}
 };
 
+struct HashParams
+{
+	HashParams(size_t l, unsigned startSeed = time(0)) : len(l) {
+		seed = (uint32_t*)calloc(sizeof(uint32_t), len);
+		srand(startSeed);
+		for(unsigned i=0; i < len; i++) {
+			seed[i] = rand();
+		}
+	}
 
+	~HashParams() {
+		free(seed);
+	}
+	size_t len;
+	uint32_t* seed;
+};
 
 /**
  * BloomFilterBase provides hash functions for filters and is the interface for all type of 
@@ -114,44 +150,45 @@ template <class T>
 class BloomFilterBase
 {
 	public:
-		BloomFilterBase(unsigned hashFunctions, unsigned filterSize) : hf_list(NULL),
-			hf_number(hashFunctions), filterSize_(filterSize), filter(filterSize)
+		BloomFilterBase(HashParams* hashParams, unsigned filterSize, bool CMS = true) : hfList(hashParams),
+			filterSize_(filterSize), CMS_(CMS)
 		{
+#ifdef HAVE_GSL
 			r = gsl_rng_alloc (gsl_rng_fishman18);
-			hf_number = hashFunctions;
-			initHF();
+#endif
+			if (CMS_) {
+				filterCount_ = 1;
+			} else {
+				filterCount_ = hashParams->len;
+			}
+
+			filter_ = new T[filterCount_];
+			for (unsigned i = 0; i != filterCount_; ++i) {
+				filter_[i].resize(filterSize_);
+			}
+		
 			clear();
 		}
 
 		virtual ~BloomFilterBase()
 		{
-			free(hf_list);
+#ifdef HAVE_GSL
 			gsl_rng_free(r);
+#endif
+			delete[] filter_;
 		}
 
-		virtual typename T::ValueType get(uint8_t* data, size_t len) const = 0;
-		virtual void set(uint8_t* data, size_t len, typename T::ValueType) = 0;
+		virtual typename T::ValueType get(const uint8_t* data, size_t len) const = 0;
+		virtual void set(const uint8_t* data, size_t len, typename T::ValueType) = 0;
 
 		size_t filterSize() const {
 			return filterSize_;
 		}
 
-	//protected:
-		void initHF()
-		{
-			free(hf_list);
-			hf_list = NULL;
-			if(hf_number > 0)
-			{
-				hf_list = (hash_params*) calloc(sizeof(hash_params), hf_number);
-				srand(time(0));
-				for(unsigned i=0; i < hf_number; i++) {
-					hf_list[i].seed = rand();
-				}
-			}
-		}
 
-		uint32_t hashU(uint8_t* input, uint16_t len, uint32_t max, uint32_t seed) const
+	protected:
+	/*
+		uint32_t hashU(const uint8_t* input, uint16_t len, uint32_t max, uint32_t seed) const
 		{
 			uint32_t random;
 			uint32_t result = 0;
@@ -162,6 +199,32 @@ class BloomFilterBase
 			}
 			return result % max;
 		}
+	*/
+#ifdef HAVE_GSL
+		uint32_t hashU(const uint8_t* input, uint16_t len, uint32_t max, uint32_t seed) const
+		{
+			uint32_t random;
+			uint32_t result = 0;
+			gsl_rng_set(r, seed);
+			const unsigned prime = 249989;
+			for (unsigned i = 0; i < len; i++) {
+				//random = gsl_rng_uniform_int (r, max);
+				//result = (result + random*input[i]) % max;
+				//result += input[i]*random;
+
+				random = gsl_rng_uniform_int(r, prime);
+				result += input[i] * random;
+			}
+			result %= prime;
+			return result % max;
+		}
+#else
+		uint32_t hashU(const uint8_t* input, uint16_t len, uint32_t max, uint32_t seed) const
+		{
+			// TODO
+			return 0;
+		}
+#endif
 
 		int32_t ggT(uint32_t m, uint32_t n)
 		{
@@ -176,25 +239,21 @@ class BloomFilterBase
 
 		void clear()
 		{
-			filter.clear();
+			for (unsigned i = 0; i != filterCount_; ++i) {
+				filter_[i].clear();
+			}
 		}
 
-
+#ifdef HAVE_GSL
 		gsl_rng * r;
-
-		struct hash_params
-		{
-			uint32_t seed;
-		};
-
-		hash_params* hf_list;
-		unsigned hf_number;
-		size_t filterSize_;
-		T filter;
-};
-
-
-
 #endif
+
+		const HashParams* hfList;
+
+		size_t filterSize_;
+		T* filter_;
+		size_t filterCount_;
+		bool CMS_;
+};
 
 #endif
