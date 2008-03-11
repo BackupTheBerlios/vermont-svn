@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -31,6 +31,8 @@
 #include <iostream>
 #include <algorithm>
 
+namespace TOPAS {
+
 
 FileRecorder::FileRecorder(const std::string& s, bool rec)
         : RecorderBase(rec), number(0)
@@ -54,9 +56,9 @@ FileRecorder::FileRecorder(const std::string& s, bool rec)
 FileRecorder::~FileRecorder()
 {
 	if (!recording) {
-		msg(MSG_INFO, "Calculating drift times in replaying process ... ");
-		msg(MSG_DEBUG, "Minimum drift time: %i ms", *std::min_element(times.begin(), times.end()));
-		msg(MSG_DEBUG, "Maximum drift time: %i ms", *std::max_element(times.begin(), times.end()));
+		VERMONT::msg(MSG_INFO, "Calculating drift times in replaying process ... ");
+		VERMONT::msg(MSG_DEBUG, "Minimum drift time: %i ms", *std::min_element(times.begin(), times.end()));
+		VERMONT::msg(MSG_DEBUG, "Maximum drift time: %i ms", *std::max_element(times.begin(), times.end()));
                 // write the in a file
 		std::ofstream outfile("filerecorder.diffs");
 		unsigned res = 0;
@@ -64,10 +66,10 @@ FileRecorder::~FileRecorder()
 			res += times[i];
 			outfile << times[i] << std::endl;
 		}
-		msg(MSG_INFO, "Arithmetic mean drift time was %i ms.", res/times.size());
+		VERMONT::msg(MSG_INFO, "Arithmetic mean drift time was %i ms.", res/times.size());
 
 		res = 0;
-		msg(MSG_DEBUG, "Geometric mean drift time was %i ms.", res);
+		VERMONT::msg(MSG_DEBUG, "Geometric mean drift time was %i ms.", res);
 	}
 	delete fileName; fileName = 0;
 }
@@ -80,7 +82,7 @@ unsigned int FileRecorder::usecs()
 	return (tv.tv_sec * 1000000) + (tv.tv_usec);
 }
 
-void FileRecorder::record(const byte* data, uint16_t len)
+void FileRecorder::record(const uint8_t* data, uint16_t len)
 {
 	if (!recording) {
 		return;
@@ -98,7 +100,7 @@ void FileRecorder::play()
 {
 	std::string line;
 	FILE* fd;
-	byte* data = new byte[config_space::MAX_IPFIX_PACKET_LENGTH];
+	uint8_t* data = new uint8_t[config_space::MAX_IPFIX_PACKET_LENGTH];
 	unsigned int time;
 	unsigned long fileNumber;
 	std::ofstream originalValues("filerecorder.orig");
@@ -125,7 +127,7 @@ void FileRecorder::play()
 		static unsigned int t;
 		if ((usecs() - startTime) < time) {
 			if (-1 == usleep(time - t)) {
-				msg(MSG_ERROR, "Error waiting for recording time");
+				VERMONT::msg(MSG_ERROR, "Error waiting for recording time");
 			}
 		}
 		t = usecs() - startTime;
@@ -134,10 +136,13 @@ void FileRecorder::play()
 		originalValues << time / 1000 << std::endl;
 		replayValues   << t    / 1000 << std::endl;
 		
-		if (packetCallback) {
-			packetCallback(NULL, data, len);
-		}
+		// TODO: NEW CONCENTRATOR
+		//if (packetCallback) {
+		//	packetCallback(NULL, data, len);
+		//}
 
 	}
 	delete data; data = 0;
 }
+
+};

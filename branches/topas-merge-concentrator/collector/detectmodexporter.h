@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -21,8 +21,9 @@
 
 
 #include <commonutils/packetstats.h>
-#include <concentrator/rcvIpfix.h>
+#include <concentrator/IpfixParser.hpp>
 
+namespace TOPAS {
 
 class ModuleContainer;
 class DetectMod;
@@ -69,7 +70,7 @@ public:
 	 * @param data IPFIX data (likely one IPFIX packet)
 	 * @param len Length of IPFIX data.
 	 */
-        int exportToSink(IpfixParser* /*ipfixParser*/, const byte* data, uint16_t len);
+        int exportToSink(VERMONT::IpfixParser* /*ipfixParser*/, const uint8_t* data, uint16_t len);
 
 	/**
 	 * Clears all processed data from the data sink.
@@ -129,6 +130,8 @@ private:
         std::string packetDir;
 
 	ExchangeStyle exchangeStyle;
+};
+
 };
 
 #endif

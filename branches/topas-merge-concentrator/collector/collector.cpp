@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -31,6 +31,8 @@
 #include <commonutils/exceptions.h>
 #include <commonutils/packetstats.h>
 
+#include <concentrator/IpfixReceiverUdpIpV4.hpp>
+#include <concentrator/IpfixCollector.hpp>
 
 #include <signal.h>
 #include <unistd.h>
@@ -48,6 +50,7 @@
 #include <cstdio>
 #include <iostream>
 
+namespace TOPAS {
 
 /******* Static variables ***************************/
 
@@ -67,7 +70,7 @@ void cleanPacketDir(const std::string& dirName)
 		return;
 	DIR* dir = opendir(dirName.c_str());
 	if (NULL == dir) {
-		msg(MSG_ERROR, "Could not open directory %s", dirName.c_str());
+		VERMONT::msg(MSG_ERROR, "Could not open directory %s", dirName.c_str());
 		return;
 	}
 	struct dirent *dent = NULL;
@@ -76,7 +79,7 @@ void cleanPacketDir(const std::string& dirName)
 	while (NULL != (dent = readdir(dir))) {
 		filename = dirName + dent->d_name;
 		if (-1 == lstat(filename.c_str(), &buf)) {
-			msg(MSG_ERROR, "lstat error on %s: %s", filename.c_str(), strerror(errno));
+			VERMONT::msg(MSG_ERROR, "lstat error on %s: %s", filename.c_str(), strerror(errno));
 			continue;
 		}
 		if (S_ISREG(buf.st_mode)) {
@@ -98,16 +101,16 @@ Collector::Collector()
 
 Collector::~Collector() 
 {
-	msg(MSG_DEBUG, "Entering Collector::~Collector()");
-	msg(MSG_DEBUG, "Deleting manager");
+	VERMONT::msg(MSG_DEBUG, "Entering Collector::~Collector()");
+	VERMONT::msg(MSG_DEBUG, "Deleting manager");
 	delete man; man = 0;
-	msg(MSG_DEBUG, "Deleting exporter");
+	VERMONT::msg(MSG_DEBUG, "Deleting exporter");
 	delete exporter; exporter = 0;
-	msg(MSG_DEBUG, "Deleting recorder");
+	VERMONT::msg(MSG_DEBUG, "Deleting recorder");
 	delete recorder; recorder = 0;
-	msg(MSG_DEBUG, "Cleaning packet directory");
-	::cleanPacketDir(packetDir);
-	msg(MSG_DEBUG, "Leaving Collector::~Collector()");
+	VERMONT::msg(MSG_DEBUG, "Cleaning packet directory");
+	cleanPacketDir(packetDir);
+	VERMONT::msg(MSG_DEBUG, "Leaving Collector::~Collector()");
 }
 
 void Collector::readConfig(const std::string& configFile) 
@@ -121,14 +124,14 @@ void Collector::readConfig(const std::string& configFile)
 		if (config->nodeExists(config_space::WORKING_DIR)) {
 			readWorkingDir(config);
 		} else {
-			msg(MSG_INFO, "No working directory specified. "
+			VERMONT::msg(MSG_INFO, "No working directory specified. "
 			    "Assuming current directory");
 		}
 
 		if (config->nodeExists(config_space::DETECTIONMODULES)) {
 			readDetectionModules(config);
 		} else {
-			msg(MSG_INFO, "No detection modules to start.");
+			VERMONT::msg(MSG_INFO, "No detection modules to start.");
 		}
 		
 		readMisc(config);
@@ -157,7 +160,7 @@ void Collector::readConfig(const std::string& configFile)
 		
 		Metering::setDirectoryName("metering/");
 	} catch(exceptions::XMLException& e) {
-		msg(MSG_FATAL, "Error configuring collector: %s", e.what());
+		VERMONT::msg(MSG_FATAL, "Error configuring collector: %s", e.what());
 		delete config;
 		throw e;
 	}
@@ -168,14 +171,14 @@ void Collector::readWorkingDir(XMLConfObj* config)
 	std::string tmp;
 	tmp = config->getValue(config_space::WORKING_DIR);
 	if (-1 == chdir(tmp.c_str())) {
-		msg(MSG_FATAL, "Failed to set working directory to %s: %s",
+		VERMONT::msg(MSG_FATAL, "Failed to set working directory to %s: %s",
 		    tmp.c_str(), strerror(errno));
 		throw exceptions::ConfigError(std::string("Failed to set "
 							  "working directory to ") +
 					      tmp.c_str() + ": " 
 					      + strerror(errno));
 	} else {
-		msg(MSG_INFO, "Successfully changed working direcory "
+		VERMONT::msg(MSG_INFO, "Successfully changed working direcory "
 		    "to: %s", tmp.c_str());
 	}
 }
@@ -211,7 +214,7 @@ void Collector::readDetectionModules(XMLConfObj* config)
 		while (config->selectNextNodeIfExists(config_space::DETECTIONMODULE));
 	}
 	config->leaveNode();
-	msg(MSG_INFO, "Extracted all detection modules from config file.");
+	VERMONT::msg(MSG_INFO, "Extracted all detection modules from config file.");
 }
 
 void Collector::readMisc(XMLConfObj* config)
@@ -222,10 +225,10 @@ void Collector::readMisc(XMLConfObj* config)
 		tmp = config->getValue(config_space::LISTEN_PORT);
 		std::stringstream sstream(tmp);
 		sstream >> listenPort;
-		msg(MSG_INFO, "Listening on port %i", listenPort);
+		VERMONT::msg(MSG_INFO, "Listening on port %i", listenPort);
 	} else {
 		listenPort = config_space::DEFAULT_LISTEN_PORT;
-		msg(MSG_INFO, "No port specified, taking default port %i", listenPort);
+		VERMONT::msg(MSG_INFO, "No port specified, taking default port %i", listenPort);
 	}
 
 	/* killtime */
@@ -233,10 +236,10 @@ void Collector::readMisc(XMLConfObj* config)
 		tmp = config->getValue(config_space::KILL_TIME);
 		std::stringstream sstream(tmp);
 		sstream >> man->killTime;
-		msg(MSG_INFO, "Detection module kill time: %i seconds", man->killTime);
+		VERMONT::msg(MSG_INFO, "Detection module kill time: %i seconds", man->killTime);
 	} else {
 		man->killTime = config_space::DEFAULT_KILL_TIME;
-		msg(MSG_INFO, "No timeout specified. Taking default time span: %i seconds",
+		VERMONT::msg(MSG_INFO, "No timeout specified. Taking default time span: %i seconds",
 		    man->killTime);
 	}
 
@@ -257,9 +260,9 @@ void Collector::readMisc(XMLConfObj* config)
 	}
 		
 	if (man->restartOnCrash) {
-		msg(MSG_INFO, "Restarting detection modules turned on");
+		VERMONT::msg(MSG_INFO, "Restarting detection modules turned on");
 	} else {
-		msg(MSG_INFO, "Restarting detection modules turned off");
+		VERMONT::msg(MSG_INFO, "Restarting detection modules turned off");
 	}
 
 }
@@ -276,7 +279,7 @@ void Collector::readExchangeProtocol(XMLConfObj* config)
 		/* packetdir for storing IPFIX-Files */
 		if (config->nodeExists(config_space::PACKET_DIRECTORY)) {
 			packetDir = config->getValue(config_space::PACKET_DIRECTORY);
-			::cleanPacketDir(packetDir);
+			cleanPacketDir(packetDir);
 			exporter->setPacketDir(packetDir);
 		} else {
 			throw exceptions::ConfigError("No tmp directory for IPFIX-files specified");
@@ -310,15 +313,16 @@ void Collector::readRecording(XMLConfObj* config)
 				delete recorder;
 			recorder = new FileRecorder(tmp, FileRecorder::PrepareRecording);
 			replaying = false;
-			msg(MSG_INFO, "Turned on recorder. IPFIX packets will be stored in %s",
+			VERMONT::msg(MSG_INFO, "Turned on recorder. IPFIX packets will be stored in %s",
 			    tmp.c_str());
 		} else if (type == config_space::REPLAY) {
 			if (recorder)
 				delete recorder;
 			recorder = new FileRecorder(tmp, FileRecorder::PrepareReplaying);
-			recorder->setPacketCallback(Collector::messageCallBackFunction);
+			// TODO: NEW CONCENTRATOR
+			//recorder->setPacketCallback(Collector::messageCallBackFunction);
 			replaying = true;
-			msg(MSG_INFO, "Collector now starts in replay mode");
+			VERMONT::msg(MSG_INFO, "Collector now starts in replay mode");
 		} else {
 			throw exceptions::ConfigError("Only \"" + config_space::REPLAY + "\", \""
 						      + config_space::RECORD + "\" or \"" 
@@ -350,7 +354,7 @@ void Collector::readIDMEF(XMLConfObj* config)
 				    props.push_back(config->getValue());
 				} while (config->selectNextNodeIfExists(config_space::XMLBLASTER_PROP));
 			    } else {
-				msg(MSG_INFO, ("No <" + config_space::XMLBLASTER_PROP + 
+				VERMONT::msg(MSG_INFO, ("No <" + config_space::XMLBLASTER_PROP + 
 					    "> statement in config file, using default values").c_str());
 			    }
 			    for (unsigned i = 0; i != props.size(); ++i) {
@@ -388,83 +392,78 @@ void Collector::run()
 	pthread_t managerThreadId;
 	int ret_val;
 	if ((ret_val = pthread_create(&managerThreadId, NULL, Manager::run, man)) != 0) {
-		msg(MSG_FATAL, "Collector: Couldn't create manager thread: %s", strerror(ret_val));
+		VERMONT::msg(MSG_FATAL, "Collector: Couldn't create manager thread: %s", strerror(ret_val));
 		throw std::runtime_error("Collector isn't able to run without a mangager");
 	}
 
 	if (SIG_ERR == signal(SIGINT, sigInt)) {
-		msg(MSG_ERROR, "Collector: Can't install signal handler for SIGINT: %s",
+		VERMONT::msg(MSG_ERROR, "Collector: Can't install signal handler for SIGINT: %s",
 		    strerror(errno));
 		return;
 	}
 	if (SIG_ERR == signal(SIGTERM, sigInt)) {
-		msg(MSG_ERROR, "Collector: Can't install signal handler for SIGTERM: %s",
+		VERMONT::msg(MSG_ERROR, "Collector: Can't install signal handler for SIGTERM: %s",
 		    strerror(errno));
 		return;
 	}
 
 	if (replaying) {
-		msg(MSG_INFO, "Starting replaying process");
+		VERMONT::msg(MSG_INFO, "Starting replaying process");
 		recorder->play();
-		msg(MSG_INFO, "Replayed traffic. System will be shut down");
+		VERMONT::msg(MSG_INFO, "Replayed traffic. System will be shut down");
 	} else {
 		/* start the collecting process */
 		
-		msg(MSG_INFO, "Initializing IpfixCollector");
-		initializeIpfixCollectors();
-		IpfixCollector* ipfixCollector = createIpfixCollector();
+		VERMONT::msg(MSG_INFO, "Initializing IpfixCollector");
+		VERMONT::IpfixCollector ipfixCollector;
+		VERMONT::IpfixReceiverUdpIpV4 ipfixReceiver(listenPort);
 
-		IpfixReceiver* ipfixReceiver = createIpfixReceiver(receiverType, listenPort);
-		addIpfixReceiver(ipfixCollector, ipfixReceiver);
+		ipfixCollector.addIpfixReceiver(&ipfixReceiver);
+		ipfixCollector.addIpfixPacketProcessor(this);
 
-		msg(MSG_INFO, "Initializing PacketProcessor");
-		IpfixPacketProcessor* packetProcessor = createIpfixPacketProcessor();
-		packetProcessor->processPacketCallbackFunction = Collector::messageCallBackFunction;
-		
-		addIpfixPacketProcessor(ipfixCollector, packetProcessor);
-		msg(MSG_INFO, "Starting IpfixCollector");
-		startIpfixCollector(ipfixCollector);
+		ipfixCollector.start();
 
 		while (!terminateCollector) {
 			pause();
 		}
-		msg(MSG_INFO, "Shutdown arrived, waiting 2 seconds before exit...");
+		VERMONT::msg(MSG_INFO, "Shutdown arrived, waiting 2 seconds before exit...");
 		sleep(2);
 		
-		msg(MSG_INFO, "Shutting down IpfixCollector");
-		
-		stopIpfixCollector(ipfixCollector);
-		deinitializeIpfixCollectors();
-
+		VERMONT::msg(MSG_INFO, "Shutting down IpfixCollector");
+		ipfixCollector.stop();
 		/*
-		msg(MSG_INFO, "Waiting for manager to shut down");
+		VERMONT::msg(MSG_INFO, "Waiting for manager to shut down");
 		int err;
 		if (0 != (err = pthread_join(managerThreadId, NULL))) {
-			msg(MSG_ERROR, "Error waiting on manager: %s", strerror(err));
+			VERMONT::msg(MSG_ERROR, "Error waiting on manager: %s", strerror(err));
 		}
 		*/
 		
-		msg(MSG_INFO, "IpfixCollector was shut down");
+		VERMONT::msg(MSG_INFO, "IpfixCollector was shut down");
 	}
-	msg(MSG_INFO, "Shutting down modules ...");
+	VERMONT::msg(MSG_INFO, "Shutting down modules ...");
 	man->prepareShutdown();
 	man->killModules();
-	msg(MSG_INFO, "Modules where shut down");
-	msg(MSG_INFO, "Shutting down manager thread");
+	VERMONT::msg(MSG_INFO, "Modules where shut down");
+	VERMONT::msg(MSG_INFO, "Shutting down manager thread");
 	if (ESRCH == pthread_cancel(managerThreadId)) {
-		msg(MSG_ERROR, "Could not shout down manager thread: No such thread");
+		VERMONT::msg(MSG_ERROR, "Could not shout down manager thread: No such thread");
 	}
-	msg(MSG_INFO, "Manager was successfully shut down");
+	VERMONT::msg(MSG_INFO, "Manager was successfully shut down");
 }
 
-int Collector::messageCallBackFunction(IpfixParser* ipfixParser, byte* data, uint16_t len) 
+int Collector::processPacket(boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId)
 {
+	// TODO: NEW CONCENTRATOR
+	/*
 	metering->addValue();
         static int ret;
 	recorder->record(data, len);
         ret = exporter->exportToSink(ipfixParser, data, len);
         man->newPacket();
         return ret;
+	*/
+	return 0;
 }
 
 void Collector::sigInt(int /*sig*/) 
@@ -484,3 +483,6 @@ void Collector::setReceiverType(Receiver_Type r_t)
 {
         receiverType = r_t;
 }
+
+};
+

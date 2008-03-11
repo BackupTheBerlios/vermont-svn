@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -18,9 +18,9 @@
 
 #include "collectorconfobj.h"
 
+#include <commonutils/global.h>
 
-#include <concentrator/msg.h>
-
+namespace TOPAS {
 
 CollectorConfObj::CollectorConfObj(const std::string& file) 
         : XMLConfObj(file, XML_FILE)
@@ -35,9 +35,9 @@ CollectorConfObj::~CollectorConfObj()
 
 void CollectorConfObj::checkConfig()
 {
-	msg(MSG_INFO, "Checking configuration...");
+	VERMONT::msg(MSG_INFO, "Checking configuration...");
 	/* TODO: implement this */
-	msg(MSG_INFO, "Configuration successfully checked!");
+	VERMONT::msg(MSG_INFO, "Configuration successfully checked!");
 }
 
 
@@ -45,3 +45,5 @@ void CollectorConfObj::checkValue(const std::string& section, const std::string 
 {
 	/* TODO: implement this */
 }
+
+};

@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -21,7 +21,7 @@
 
 
 #include <commonutils/exceptions.h>
-#include <concentrator/msg.h>
+#include <concentrator/common/msg.h>
 
 
 #include <sys/types.h>
@@ -33,6 +33,8 @@
 #include <pthread.h>
 
 #include <fstream>
+
+namespace TOPAS {
 
 /* static variables */
 ModuleContainer Manager::runningModules;
@@ -47,11 +49,11 @@ Manager::Manager(DetectModExporter* exporter)
         this->exporter = exporter;
         /* install signal handlers */
         if (SIG_ERR == signal(SIGALRM, sigAlarm)) {
-                msg(MSG_ERROR, "Manager: Couldn't install signal handler for SIGALRM.\n"
+                VERMONT::msg(MSG_ERROR, "Manager: Couldn't install signal handler for SIGALRM.\n"
 		               "Failure in detection modules won't be detected");
         }
         if (SIG_ERR == signal(SIGCHLD, sigChild)) {
-                msg(MSG_ERROR, "Manager: Couldn't install signal handler for SIGCHLD.\n"
+                VERMONT::msg(MSG_ERROR, "Manager: Couldn't install signal handler for SIGCHLD.\n"
 		    "Crashing detection modules won't be detected");
         }
 
@@ -62,11 +64,11 @@ Manager::Manager(DetectModExporter* exporter)
 Manager::~Manager()
 {
 #ifdef IDMEF_SUPPORT_ENABLED
-        msg(MSG_DEBUG, "Disconnecting from xmlBlaster servers");
+        VERMONT::msg(MSG_DEBUG, "Disconnecting from xmlBlaster servers");
         for (unsigned i = 0; i != commObjs.size(); ++i) {
 		std::string managerID = (*xmlBlasters[i].getElement()).getProperty().getProperty(config_space::MANAGER_ID);
 		if (managerID == "") {
-			msg(MSG_INFO, ("Using default " + config_space::MANAGER_ID + " \""
+			VERMONT::msg(MSG_INFO, ("Using default " + config_space::MANAGER_ID + " \""
 				       + config_space::DEFAULT_MANAGER_ID + "\"").c_str());
 			managerID = config_space::DEFAULT_MANAGER_ID;
 		}
@@ -84,13 +86,13 @@ void Manager::addDetectionModule(const std::string& modulePath,
 				 ModuleState s)
 {
         if (modulePath.size() == 0) {
-                msg(MSG_ERROR, "Manager: Got empty path to detection module");
+                VERMONT::msg(MSG_ERROR, "Manager: Got empty path to detection module");
         }
         
         /* cancel action when file doesn't exist */
         struct stat buffer;
         if (-1 == lstat(modulePath.c_str(), &buffer)) {
-                msg(MSG_ERROR, "Can't stat %s: %s", modulePath.c_str(), strerror(errno));
+                VERMONT::msg(MSG_ERROR, "Can't stat %s: %s", modulePath.c_str(), strerror(errno));
                 return;
         }
 
@@ -111,14 +113,14 @@ void Manager::startModules()
         runningModules.topasID = config_space::TOPAS + "-" + topasID;
 
         /* connect to all xmlBlaster servers */
-        msg(MSG_INFO, "Connecting to xmlBlaster servers");
+        VERMONT::msg(MSG_INFO, "Connecting to xmlBlaster servers");
         for (unsigned i = 0; i != xmlBlasters.size(); ++i) {
                 try {
                         XmlBlasterCommObject* comm = new XmlBlasterCommObject(*xmlBlasters[i].getElement());
                         comm->connect();
                         commObjs.push_back(comm);
                 } catch (const XmlBlasterException &e) {
-                        msg(MSG_FATAL, "Cannot connect to xmlBlaster: ", e.what());
+                        VERMONT::msg(MSG_FATAL, "Cannot connect to xmlBlaster: ", e.what());
                         throw std::runtime_error("Make sure, the xmlBlaster server is up and running.");
                 }
         }
@@ -130,7 +132,7 @@ void Manager::startModules()
         for (unsigned i = 0; i != commObjs.size(); ++i) {
 		std::string managerID = (*xmlBlasters[i].getElement()).getProperty().getProperty(config_space::MANAGER_ID);
                 if (managerID == "") {
-                        msg(MSG_INFO, ("Using default " + config_space::MANAGER_ID + " \""
+                        VERMONT::msg(MSG_INFO, ("Using default " + config_space::MANAGER_ID + " \""
                                        + config_space::DEFAULT_MANAGER_ID + "\"").c_str());
                         managerID = config_space::DEFAULT_MANAGER_ID;
                 }
@@ -150,7 +152,7 @@ void Manager::sigAlarm(int)
         if (shutdown)
                 return;
 
-        msg(MSG_ERROR, "Manager: One or more detection modules seem to parse their files to slowly.");
+        VERMONT::msg(MSG_ERROR, "Manager: One or more detection modules seem to parse their files to slowly.");
 	runningModules.findAndKillSlowModule();
 }
 
@@ -159,37 +161,37 @@ void Manager::sigChild(int sig)
         if (shutdown)
                 return;
 
-        msg(MSG_ERROR, "Manager: A detection module exited.");
+        VERMONT::msg(MSG_ERROR, "Manager: A detection module exited.");
         int status;
         pid_t pid = wait(&status);
         if (pid == -1)
-                msg(MSG_ERROR, "Manager: Can't determine exit state from "
+                VERMONT::msg(MSG_ERROR, "Manager: Can't determine exit state from "
 		    "detecton module: %s", strerror(errno));
 
         if (WIFEXITED(status)) {
                 if (WEXITSTATUS(status) == 0) {
-                        msg(MSG_ERROR, "Manager: Detection module with pid %i "
+                        VERMONT::msg(MSG_ERROR, "Manager: Detection module with pid %i "
 			    "terminated with exit state 0. Not restarting module", pid);
 			runningModules.setState(pid, DetectMod::Remove);
 			return;
                 }else {
-                        msg(MSG_ERROR, "Manager: Detection module with pid %i "
+                        VERMONT::msg(MSG_ERROR, "Manager: Detection module with pid %i "
 			    "terminated abnormally. Return value was: %i", pid, status);
 			runningModules.setState(pid, DetectMod::Crashed);
                 }
         } else {
                 if (WIFSIGNALED(status)) {
-                        msg(MSG_ERROR, "Manager: Detection module with pid %i was "
+                        VERMONT::msg(MSG_ERROR, "Manager: Detection module with pid %i was "
 			    "terminated by signal %i", pid, WTERMSIG(status));
 			runningModules.setState(pid, DetectMod::Crashed);
                 }
         }
         
         if (restartOnCrash) {
-                msg(MSG_INFO, "Manager: Restarting crashed module");
+                VERMONT::msg(MSG_INFO, "Manager: Restarting crashed module");
                 runningModules.restartCrashedModule(pid, exporter);
         } else {
-                msg(MSG_INFO, "Manager: Not restarting crashed module");
+                VERMONT::msg(MSG_INFO, "Manager: Not restarting crashed module");
                 runningModules.deleteModule(pid);
         }
 }
@@ -217,7 +219,7 @@ void* Manager::run(void* data)
 					man->update(confObj);
 					delete confObj;
 				} catch (const exceptions::XMLException &e) {
-					msg(MSG_ERROR, e.what());
+					VERMONT::msg(MSG_ERROR, e.what());
 					man->sendControlMessage("<result oid='" + config_space::TOPAS + "-" + man->topasID + "'>Manager: " + 
 								std::string(e.what()) + "</result>");
 				}
@@ -256,7 +258,7 @@ void Manager::killModules()
 #ifdef IDMEF_SUPPORT_ENABLED
 void Manager::update(XMLConfObj* xmlObj)
 {
-	msg(MSG_INFO, "Update for topas received!");
+	VERMONT::msg(MSG_INFO, "Update for topas received!");
 
 	/* start a module */
         if (xmlObj->nodeExists(config_space::START)) {
@@ -264,19 +266,19 @@ void Manager::update(XMLConfObj* xmlObj)
 			std::string filename = xmlObj->getAttribute(config_space::START, config_space::MODULE_FILENAME);
 			std::string config_file = xmlObj->getAttribute(config_space::START, config_space::CONFIG_FILE);
 			if (availableModules.find(filename) != availableModules.end()) {
-				msg(MSG_INFO, "Manager: starting module...");
+				VERMONT::msg(MSG_INFO, "Manager: starting module...");
 				availableModules[filename][0] = config_file;
 				runningModules.createModule(filename, availableModules[filename]);
 				runningModules.startModules(exporter);
 				sendControlMessage("<result oid=\"" + config_space::TOPAS + "-" + topasID + "\">Manager: module \"" + 
 						   filename + "\" started</result>");
 			} else {
-				msg(MSG_ERROR, ("Manager: module \"" + filename + "\" is not available").c_str());
+				VERMONT::msg(MSG_ERROR, ("Manager: module \"" + filename + "\" is not available").c_str());
 				sendControlMessage("<result oid='" + config_space::TOPAS + "-" + topasID + "\">Manager: module '" + 
 						   filename + "\" is not available</result>");
 			}
 		} catch (const exceptions::XMLException &e) {
-			msg(MSG_ERROR, e.what());
+			VERMONT::msg(MSG_ERROR, e.what());
 			sendControlMessage("<result oid='" + config_space::TOPAS + "-" + topasID + "'>Manager: " + std::string(e.what()) + 
 					   "</result>");
 		}
@@ -285,13 +287,13 @@ void Manager::update(XMLConfObj* xmlObj)
 		try {
 			std::string filename = xmlObj->getAttribute(config_space::GET_MODULE_CONFIG, config_space::MODULE_FILENAME);
 			if (availableModules.find(filename) != availableModules.end()) {
-				msg(MSG_INFO, "Manager: retrieving module configuration file...");
+				VERMONT::msg(MSG_INFO, "Manager: retrieving module configuration file...");
 				std::string config_file = availableModules[filename][0];
 				std::ifstream inputStream;
 				char* line = NULL;
 				inputStream.open(config_file.c_str(), std::ios::in);
 				if (!inputStream) {
-					msg(MSG_ERROR, ("Manager: Can't open \"" + config_file + "\"").c_str());
+					VERMONT::msg(MSG_ERROR, ("Manager: Can't open \"" + config_file + "\"").c_str());
 					sendControlMessage("<result oid='" + config_space::TOPAS + "-" + topasID + 
 							   "'>Manager: Can't open \"" + config_file + "\"</result>");
 				} else {
@@ -305,12 +307,12 @@ void Manager::update(XMLConfObj* xmlObj)
 					inputStream.close();
 				}
 			} else {
-				msg(MSG_ERROR, ("Manager: module \"" + filename + "\" is not available").c_str());
+				VERMONT::msg(MSG_ERROR, ("Manager: module \"" + filename + "\" is not available").c_str());
 				sendControlMessage("<result oid='" + config_space::TOPAS + "-" + topasID + "'>Manager: module \"" + 
 						   filename + "\" is not available</result>");
 			}
 		} catch (const exceptions::XMLException &e) {
-			msg(MSG_ERROR, e.what());
+			VERMONT::msg(MSG_ERROR, e.what());
 			sendControlMessage("<result oid='" + config_space::TOPAS + "-" + topasID + "'>Manager: " + std::string(e.what()) + 
 					   "</result>");
 		}
@@ -319,12 +321,12 @@ void Manager::update(XMLConfObj* xmlObj)
 		try {
 			std::string filename = xmlObj->getAttribute(config_space::UPDATE_MODULE_CONFIG, config_space::MODULE_FILENAME);
 			if (availableModules.find(filename) != availableModules.end()) {
-				msg(MSG_INFO, "Manager: updating module configuration file...");
+				VERMONT::msg(MSG_INFO, "Manager: updating module configuration file...");
 				std::string config_file = availableModules[filename][0];
 				std::ofstream outputStream;
 				outputStream.open(config_file.c_str(), std::ios::trunc);
 				if (!outputStream) {
-					msg(MSG_ERROR, ("Manager: Can't open \"" + config_file + "\"").c_str());
+					VERMONT::msg(MSG_ERROR, ("Manager: Can't open \"" + config_file + "\"").c_str());
 					sendControlMessage("<result oid='" + config_space::TOPAS + "-" + topasID + "'>Manager: Can't open \"" + 
 							   config_file + "\" for writing</result>");
 				} else {
@@ -336,12 +338,12 @@ void Manager::update(XMLConfObj* xmlObj)
 					outputStream.close();
 				}
 			} else {
-				msg(MSG_ERROR, ("Manager: module \"" + filename + "\" is not available").c_str());
+				VERMONT::msg(MSG_ERROR, ("Manager: module \"" + filename + "\" is not available").c_str());
 				sendControlMessage("<result oid='" + config_space::TOPAS + "-" + topasID + "'>Manager: module \"" + filename + 
 						   "\" is not available</result>");
 			}
 		} catch (const exceptions::XMLException &e) {
-			msg(MSG_ERROR, e.what());
+			VERMONT::msg(MSG_ERROR, e.what());
 			sendControlMessage("<result oid='" + config_space::TOPAS + "-" + topasID + "'>Manager: " + std::string(e.what()) + 
 					   "</result>");
 		}
@@ -381,14 +383,14 @@ void Manager::update(XMLConfObj* xmlObj)
 						   "'>No running modules available</result>");
 			}
 		} catch (const exceptions::XMLException &e) {
-			msg(MSG_ERROR, e.what());
+			VERMONT::msg(MSG_ERROR, e.what());
 			sendControlMessage("<result oid='" + config_space::TOPAS + "-" + topasID + "'>Manager: " + std::string(e.what()) + 
 					   "</result>");
 		}
         }
 	/* add commands here */
 	else { 
-		msg(MSG_INFO, "Manager: unknown operation");
+		VERMONT::msg(MSG_INFO, "Manager: unknown operation");
         }
 }
 
@@ -402,5 +404,7 @@ void Manager::sendControlMessage(const std::string& message)
 		commObjs[i]->publish(message, managerID);
 	}
 }
+
+};
 
 #endif

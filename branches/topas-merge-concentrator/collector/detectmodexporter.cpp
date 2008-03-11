@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -22,8 +22,7 @@
 #include "modulecontainer.h"
 
 
-#include <concentrator/rcvIpfix.h>
-#include <concentrator/msg.h>
+#include <concentrator/common/msg.h>
 #include <commonutils/global.h>
 #include <commonutils/packetstats.h>
 
@@ -41,6 +40,7 @@
 #include <string>
 #include <sstream>
 
+namespace TOPAS {
 
 DetectModExporter::DetectModExporter()
 	: nps(NULL), exchangeStyle(USE_FILES)
@@ -55,7 +55,7 @@ DetectModExporter::~DetectModExporter()
         delete nps; nps = 0;
 }
 
-int DetectModExporter::exportToSink(IpfixParser*, const byte* data, uint16_t len) {
+int DetectModExporter::exportToSink(VERMONT::IpfixParser*, const uint8_t* data, uint16_t len) {
 
         uint32_t sourceId = ntohl(*(uint32_t*)(data+12)); // see Ipfix-Protocol
 
@@ -102,7 +102,7 @@ void DetectModExporter::notify(DetectMod* module)
 	semaphore.sem_op = 2;
 	semaphore.sem_flg = 0;
 	if (-1 == semop(module->getSemId(), &semaphore, 1)) {
-		msg(MSG_ERROR, "Manager: Error setting semaphore: %s\n"
+		VERMONT::msg(MSG_ERROR, "Manager: Error setting semaphore: %s\n"
                     "This could be responsible for killing %s in the future",
 		    strerror(errno), module->getFileName().c_str());
 	}
@@ -137,7 +137,7 @@ int DetectModExporter::wait(DetectMod* module)
                                continue; 
                         }
 
-        		msg(MSG_ERROR, "Manager: Error setting semaphore: %s\n"
+        		VERMONT::msg(MSG_ERROR, "Manager: Error setting semaphore: %s\n"
                             "This could be responsible for killing %s in the future",
                 	    strerror(errno), module->getFileName().c_str());
                         return -1;
@@ -223,6 +223,8 @@ void DetectModExporter::setSharedMemorySize(size_t size)
 		throw std::runtime_error(std::string("DetectModExporter: Could not attach shared memory storage area: ") + strerror(errno));
 	}
 
-	IpfixShm::setShmPointer((byte*)shmPtr);
+	IpfixShm::setShmPointer((uint8_t*)shmPtr);
 	IpfixShm::setShmSize(size);
 }
+
+};

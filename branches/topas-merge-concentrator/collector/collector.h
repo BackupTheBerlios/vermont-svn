@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -23,13 +23,16 @@
  * @author Lothar Braun <braunl@informatik.uni-tuebingen.de>
  */
 
-#include <concentrator/ipfix.h>
-#include <concentrator/rcvIpfix.h>
 #include <commonutils/metering.h>
+#include <commonutils/global.h>
+
+#include <concentrator/IpfixReceiver.hpp>
+#include <concentrator/IpfixPacketProcessor.hpp>
 
 
 #include <string>
 
+namespace TOPAS {
 
 class Manager;
 class CollectorConfObj;
@@ -43,7 +46,7 @@ class XMLConfObj;
  * a detectionmodule exporter object.
  * The detection module manager is started and controlled by this class 
  */
-class Collector
+class Collector : public VERMONT::IpfixPacketProcessor
 {
 public:
         /**
@@ -85,6 +88,8 @@ public:
          * @param r_t Type of receiver
          */
         void setReceiverType(Receiver_Type r_t);
+
+	virtual int processPacket(boost::shared_array<uint8_t> message, uint16_t length, boost::shared_ptr<VERMONT::IpfixRecord::SourceID> sourceId);
 
  private:
         static Manager* man;
@@ -140,17 +145,6 @@ public:
 
  protected:
         /**
-         * Function replacing processMessage() in libconcentrator.
-         * This function takes all the IPFIX packets coming from the network interfaces and writes them
-         * to the path specified in the configuration file (see @c collector::read_config())
-         * @param ifr not used
-         * @param data Data extracted from the IPFIX packet
-         * @param len Length of extracted data
-         * @return 0 if operation succeded, -1 otherwise
-         */
-        static int messageCallBackFunction(IpfixParser*, byte* data, uint16_t len);
-
-        /**
          * Signal handler for signal SIGINT.
          * The function initiates cleanup process.
          * @param sig Emitted signal
@@ -160,6 +154,8 @@ public:
 
         int listenPort;
         Receiver_Type receiverType;
+};
+
 };
 
 #endif

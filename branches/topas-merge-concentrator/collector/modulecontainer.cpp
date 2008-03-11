@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -20,7 +20,9 @@
 #include "detectmodexporter.h"
 
 
-#include <concentrator/msg.h>
+#include <concentrator/common/msg.h>
+
+namespace TOPAS {
 
 
 ModuleContainer::ModuleContainer()
@@ -60,7 +62,7 @@ void ModuleContainer::restartCrashedModule(pid_t pid, DetectModExporter* exporte
                         return;
                 }
         }
-	msg(MSG_ERROR, "ModuleContainer::restartCrashedModule(): Could "
+	VERMONT::msg(MSG_ERROR, "ModuleContainer::restartCrashedModule(): Could "
 	    "not find module with pid %i", pid);
 }
 
@@ -80,7 +82,7 @@ void ModuleContainer::startModules(DetectModExporter* exporter)
 		// do not start already running or stopped modules
 		if (detectionModules[i]->getState() != DetectMod::NotRunning)
 			continue;
-                msg(MSG_INFO, "Starting module number %d: %s", i+1, 
+                VERMONT::msg(MSG_INFO, "Starting module number %d: %s", i+1, 
 		    detectionModules[i]->getFileName().c_str());
                 exporter->installNotification(*detectionModules[i]);
                 detectionModules[i]->run();
@@ -110,7 +112,7 @@ void ModuleContainer::setState(pid_t pid, DetectMod::State state)
 			return;
 		}
 	}
-	msg(MSG_ERROR, "ModuleContainer::setState(): Could not find module "
+	VERMONT::msg(MSG_ERROR, "ModuleContainer::setState(): Could not find module "
 	    "with pid %i", pid);
 }
 
@@ -120,7 +122,7 @@ void ModuleContainer::notifyAll(DetectModExporter* exporter)
         int i = 0;
         while (i < detectionModules.size()) {
                 if (detectionModules[i]->getState() == DetectMod::Remove) {
-                        msg(MSG_INFO, "Finaly removing detection module!");
+                        VERMONT::msg(MSG_INFO, "Finaly removing detection module!");
                         detectionModules.erase(detectionModules.begin() + i);
                         continue;
                 }
@@ -163,4 +165,6 @@ std::vector<std::string> ModuleContainer::getRunningModules()
 	}
 	return ret;
 }
+
+};
 #endif

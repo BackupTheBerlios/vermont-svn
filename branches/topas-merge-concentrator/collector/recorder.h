@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -20,13 +20,14 @@
 #define _RECORDER_H_
 
 
-#include <concentrator/rcvIpfix.h>
-
-
 #include <string>
 #include <fstream>
 #include <vector>
 
+#include <concentrator/IpfixReceiver.hpp>
+#include <concentrator/IpfixPacketProcessor.hpp>
+
+namespace TOPAS {
 
 /**
  * Base class for all recording/playing modules. This is a pure interface
@@ -56,7 +57,7 @@ public:
 	 * @param data Ipfix packet data
 	 * @param len Length of data.
 	 */
-        virtual void record(const byte* data, uint16_t len) = 0;
+        virtual void record(const uint8_t* data, uint16_t len) = 0;
 
 	/**
 	 * Interface method for replaying recorded IPFIX packets. This method is intended
@@ -71,12 +72,12 @@ public:
 	 * Sets the callback function which is called whenever a packet has to be sent to
 	 * the collector when replaying IPFIX traffic.
 	 */
-	void setPacketCallback(ProcessPacketCallbackFunction* pp) {
+	void setPacketCallback(VERMONT::IpfixPacketProcessor* pp) {
 		packetCallback = pp;
 	}
 
 protected:
-	ProcessPacketCallbackFunction* packetCallback;
+	VERMONT::IpfixPacketProcessor* packetCallback;
 	bool recording;
 	volatile bool do_abort;
 };
@@ -99,7 +100,7 @@ public:
          * @param data Ipfix packet data
          * @param len Length of data.       
 	 */
-        virtual void record(const byte* data, uint16_t len) {}
+        virtual void record(const uint8_t* data, uint16_t len) {}
 
 	/**
 	 * Dummy play function. Will return immediately.
@@ -139,7 +140,7 @@ public:
          * @param data Ipfix packet data
          * @param len Length of data.	 
 	 */
-        virtual void record(const byte* data, uint16_t len);
+        virtual void record(const uint8_t* data, uint16_t len);
 
 	/**
 	 * Replays the recorded IPFIX packets. They are passed to the collector depending on the time
@@ -158,6 +159,8 @@ private:
 	char* fileName;
 
 	std::vector<int> times;
+};
+
 };
 
 #endif

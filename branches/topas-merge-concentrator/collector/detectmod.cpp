@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -20,7 +20,7 @@
 
 
 #include <commonutils/global.h>
-#include <concentrator/msg.h>
+#include <concentrator/common/msg.h>
 
 
 #include <signal.h>
@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <errno.h>
 
+namespace TOPAS {
 
 DetectMod::DetectMod(const std::string& filename)
 	: busy(false)
@@ -119,7 +120,7 @@ void DetectMod::stopModule()
 	state = DetectMod::Crashed;
         kill(pid, SIGTERM);
         if (-1 == semctl(semId,0,IPC_RMID,NULL)) {
-                msg(MSG_ERROR, "DetectMod: Error deleting semaphore to %s: %s", filename.c_str(), strerror(errno));
+                VERMONT::msg(MSG_ERROR, "DetectMod: Error deleting semaphore to %s: %s", filename.c_str(), strerror(errno));
         }
 }
 
@@ -143,9 +144,9 @@ void DetectMod::restart()
 void DetectMod::restartCrashed()
 {
         if (-1 == semctl(semId,0,IPC_RMID,NULL)) {
-                msg(MSG_ERROR, "DetectMod: Error deleting semaphore to %s: %s", filename.c_str(), strerror(errno));
+                VERMONT::msg(MSG_ERROR, "DetectMod: Error deleting semaphore to %s: %s", filename.c_str(), strerror(errno));
         } else {
-                msg(MSG_INFO, "DetectMod: Successfully removed semaphore");
+                VERMONT::msg(MSG_INFO, "DetectMod: Successfully removed semaphore");
         }
         run();
 }
@@ -159,3 +160,5 @@ DetectMod::State DetectMod::getState()
 {
 	return state;
 }
+
+};

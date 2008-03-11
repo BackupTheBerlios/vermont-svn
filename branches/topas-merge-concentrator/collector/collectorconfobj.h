@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*    Copyright (C) 2005-2007 Lothar Braun <mail@lobraun.de>              */
+/*    Copyright (C) 2005-2008 Lothar Braun <mail@lobraun.de>              */
 /*                                                                        */
 /*    This library is free software; you can redistribute it and/or       */
 /*    modify it under the terms of the GNU Lesser General Public          */
@@ -25,6 +25,7 @@
 
 #include <string>
 
+namespace TOPAS {
 
 /**
  * Parses XML-files, stores the parsed values and does a consistency check.
@@ -56,6 +57,8 @@ class CollectorConfObj : public XMLConfObj {
          * Checks if all necessary entries are available and if the combination of all enties makes sens
          */
         void checkConfig();
+};
+
 };
 
 #endif 
