@@ -103,6 +103,7 @@ out1:
  * @return 0 on success, non-zero on error
  */
 int IpfixReceiver::stop() {
+	exit = 1;
 	if (pthread_mutex_lock(&mutex) != 0) {
 		msg(MSG_FATAL, "IpfixReceiver::stop(): Could not lock mutex");
 		return -1;
