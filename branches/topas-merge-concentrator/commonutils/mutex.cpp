@@ -41,7 +41,7 @@ void Mutex::lock()
 {
 	int ret = sem_wait(&mutex);
 	if (ret != 0) {
-		msg(MSG_ERROR, "Mutex: Error locking mutex: %s" , strerror(ret));
+		VERMONT::msg(MSG_ERROR, "Mutex: Error locking mutex: %s" , strerror(ret));
 	}
 }
 
@@ -50,7 +50,7 @@ void Mutex::unlock()
 {
         int ret = sem_post(&mutex);
         if ( ret != 0 ) {
-                msg(MSG_ERROR, "Mutex: Error unlocking mutex: %s", strerror(ret));
+                VERMONT::msg(MSG_ERROR, "Mutex: Error unlocking mutex: %s", strerror(ret));
         }
 }
 

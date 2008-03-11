@@ -38,18 +38,18 @@ IpfixFile* IpfixFile::writePacket(const char* filename, const uint8_t* data, uin
 	std::ofstream out;
 	out.open(filename, std::ios::binary);
 	if (!out.is_open()) {
-		msg(MSG_ERROR, "Collector: Couldn't open file %s for writing: %s\n", filename, strerror(errno));
+		VERMONT::msg(MSG_ERROR, "Collector: Couldn't open file %s for writing: %s\n", filename, strerror(errno));
                 return NULL;
 	}
                 
 
 	if (!out.write((char*)&length, sizeof(length))) {
-		msg(MSG_FATAL, "Collector: Couldn't write packet length to file system: %s\n", strerror(errno));
+		VERMONT::msg(MSG_FATAL, "Collector: Couldn't write packet length to file system: %s\n", strerror(errno));
                 return NULL;
 	}
 
 	if (!out.write((char*)data, length)) {
-		msg(MSG_FATAL, "Collector: Couldn't write packet data to file system: %s\n", strerror(errno));
+		VERMONT::msg(MSG_FATAL, "Collector: Couldn't write packet data to file system: %s\n", strerror(errno));
                 return NULL;
 	}
                 
@@ -92,17 +92,17 @@ IpfixShm* IpfixShm::writePacket(const uint8_t* data, uint16_t len)
         }
 	
         if (len == 0) {
-                msg(MSG_ERROR, "IpfixShm: Got empty packet!!!!");
+                VERMONT::msg(MSG_ERROR, "IpfixShm: Got empty packet!!!!");
                 return NULL;
 	}
 
 	if (startLocation == NULL) {
-		msg(MSG_ERROR, "IpfixShm: No shared memory storage area allocated!");
+		VERMONT::msg(MSG_ERROR, "IpfixShm: No shared memory storage area allocated!");
                 return NULL;
 	}
 
 	if (len > size) {
-		msg(MSG_ERROR, "IpfixShm: Packet too long for shared memory");
+		VERMONT::msg(MSG_ERROR, "IpfixShm: Packet too long for shared memory");
                 return NULL;
 	}
 	
@@ -115,7 +115,7 @@ IpfixShm* IpfixShm::writePacket(const uint8_t* data, uint16_t len)
 		bzero(writePosition, ((startLocation + size) - writePosition));
 
 		if (readPosition >= writePosition) {
-			msg(MSG_ERROR, "IpfixShm: Shared memory block too small. Trashing packet!!!!!");
+			VERMONT::msg(MSG_ERROR, "IpfixShm: Shared memory block too small. Trashing packet!!!!!");
                         return NULL;
 		}
 
@@ -125,7 +125,7 @@ IpfixShm* IpfixShm::writePacket(const uint8_t* data, uint16_t len)
 
 	if (writeBeforeRead && (writePosition + len + sizeof(len)) > readPosition) {
 		//msg(MSG_ERROR, "%i %i", (writePosition - startLocation), (readPosition - startLocation));
-		msg(MSG_ERROR, "IpfixShm: Shared memory block too small!");
+		VERMONT::msg(MSG_ERROR, "IpfixShm: Shared memory block too small!");
                 return NULL;
 	}
 

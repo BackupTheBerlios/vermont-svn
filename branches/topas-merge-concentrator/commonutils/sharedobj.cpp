@@ -45,7 +45,7 @@ SharedObj::SharedObj()
                 ++shmKey;
         }
         if (shmId == -1) {
-                msg(MSG_FATAL, "Shared_Obj: Could not allocate shared memory: %s\n", strerror(errno));
+                VERMONT::msg(MSG_FATAL, "Shared_Obj: Could not allocate shared memory: %s\n", strerror(errno));
                 throw exceptions::DetectionModuleError("SharedObj: Could not work without shared memory segment");
         }
         
@@ -75,7 +75,7 @@ SharedObj::~SharedObj()
 {
 	if (deleteBlock) {
 		if (-1 == shmctl(shmId, IPC_RMID, NULL)) {
-			msg(MSG_ERROR, "Shared_Obj: Can't delete shared memory block: %s", strerror(errno));
+			VERMONT::msg(MSG_ERROR, "Shared_Obj: Can't delete shared memory block: %s", strerror(errno));
 		}
 	}
 }
