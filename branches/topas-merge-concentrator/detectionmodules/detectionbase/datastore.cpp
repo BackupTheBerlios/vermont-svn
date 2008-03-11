@@ -20,7 +20,7 @@
 
 namespace TOPAS {
 
-uint64_t DataStore::fieldToInt(byte* data, unsigned len) 
+uint64_t DataStore::fieldToInt(uint8_t* data, unsigned len) 
 {
         switch (len) {
         case 1:

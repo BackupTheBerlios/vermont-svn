@@ -20,6 +20,7 @@
 #define _DATA_STORE_H_
 
 #include <concentrator/IpfixReceiver.hpp>
+#include <concentrator/IpfixRecord.hpp>
 #include <concentrator/ipfix.hpp>
 
 #include <commonutils/msgstream.h>
@@ -30,7 +31,7 @@
 
 namespace TOPAS {
 
-extern MsgStream msgStr;; // is defined in detectionbase.cpp
+extern MsgStream msgStr; // is defined in detectionbase.cpp
 
 /**
  * Base class for all storage modules (You don't have to
@@ -66,7 +67,7 @@ class DataStore
          * @param fieldData transmitted data
          * @param len Size of fieldData
          */
-        void addFieldData(int id, uint8_t* fieldData, int len, EnterpriseNo enterprise = 0) {}
+        void addFieldData(int id, uint8_t* fieldData, int len, VERMONT::IpfixRecord::FieldInfo::Type::EnterpriseNo enterprise = 0) {}
 
         /**
          * Will be called whenever a new record starts.
@@ -79,7 +80,7 @@ class DataStore
          *
          * @return True for accepting the record, false otherwise
          */
-        bool recordStart(VERMONT::IpfixReceiver::SourceID&) { return true; }
+        bool recordStart(VERMONT::IpfixRecord::SourceID&) { return true; }
 
         /**
          * Indicates that all subscribed fields within a record where
@@ -94,7 +95,7 @@ class DataStore
          * @param n Field data to transform
          * @param length Length of field data
          */
-       uint64_t fieldToInt(byte* n, unsigned length);
+       uint64_t fieldToInt(uint8_t* n, unsigned length);
 
 	/**
 	 * Checkes wether the buffer is valid or not. A buffer may
