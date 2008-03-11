@@ -286,6 +286,7 @@ void Collector::readExchangeProtocol(XMLConfObj* config)
 		}
 		config->leaveNode();
 	} else if (type == config_space::EP_SHM) {
+		throw exceptions::ConfigError("Shm-Support is currently broken");
 		config->enterNode(config_space::EXCHANGE_PROTOCOL);
 		/* get shared memory size */
 		exporter->setExportingStyle(DetectModExporter::USE_SHARED_MEMORY);
