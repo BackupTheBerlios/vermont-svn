@@ -35,6 +35,8 @@
 
 #include "pcappacket.h"
 
+#include <string.h>
+
 
 PcapPacket::PcapPacket() : iphps_p(0), iphps_size(0), ippps_p(0), ippps_size(0), hdr_tcp(false), hdr_udp(false), ts_sec(0), ts_usec(0) {};
 PcapPacket::~PcapPacket(){
