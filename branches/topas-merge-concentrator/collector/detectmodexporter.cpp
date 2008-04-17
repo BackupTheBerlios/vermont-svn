@@ -109,7 +109,6 @@ void DetectModExporter::notify(DetectMod* module)
 int DetectModExporter::wait(DetectMod* module)
 {
         static struct sembuf semaphore;
-        static struct timespec t;
         static bool wait;
 
         // TODO: quick and dirty hack. remove the module if it isn't run!
@@ -124,14 +123,13 @@ int DetectModExporter::wait(DetectMod* module)
         */
 	semaphore.sem_num = 0;
 	semaphore.sem_op = 0;
-	semaphore.sem_flg = 0;
-        t.tv_sec = 0;
-        t.tv_nsec = 10000;
+	semaphore.sem_flg = IPC_NOWAIT;
         wait = true;
         while (wait) { 
-        	if (-1 == semtimedop(module->getSemId(), &semaphore, 1, &t)) {
+		if (-1 == semop(module->getSemId(), &semaphore, 1)) {
                         if (errno == EAGAIN && module->getState() == DetectMod::Running) {
-                               continue; 
+                                usleep(10);
+                                continue; 
                         }
 
         		VERMONT::msg(MSG_ERROR, "Manager: Error setting semaphore: %s\n"
