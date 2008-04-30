@@ -1,0 +1,44 @@
+#ifndef IPFIXEXPORTERCFG_H_
+#define IPFIXEXPORTERCFG_H_
+
+#include "Cfg.h"
+#include "CollectorCfg.h"
+#include "concentrator/IpfixSender.hpp"
+
+class IpfixExporterCfg
+	: public CfgHelper<IpfixSender, IpfixExporterCfg>
+{
+	friend class ConfigManager;
+public:
+	virtual ~IpfixExporterCfg();
+
+	virtual IpfixExporterCfg* create(XMLElement* elem);
+
+	virtual IpfixSender* createInstance();
+
+	bool deriveFrom(IpfixExporterCfg* old);
+	
+	bool equalTo(IpfixExporterCfg* other);
+
+protected:
+	IpfixExporterCfg(XMLElement* elem);
+
+private:
+	/** this holds the info for all the hosts we want to export to */
+	std::vector<CollectorCfg*> collectors;
+
+	/** udpTemplateManagement */
+	unsigned templateRefreshTime;
+	unsigned templateRefreshRate;
+
+	/** packet restrictions */
+	uint16_t maxPacketSize;
+	unsigned exportDelay;
+	
+	uint32_t udpRateLimit;
+	
+	int recordsPerPacket;
+	int recordLength;
+};
+
+#endif /*IPFIXEXPORTERCFG_H_*/
