@@ -87,7 +87,6 @@ Observer::Observer(const std::string& interface, bool offline) : thread(Observer
 	captureInterface(NULL), fileName(NULL), replaceTimestampsFromFile(false),
 	stretchTimeInt(1), stretchTime(1.0), autoExit(true),
 	statTotalLostPackets(0), statTotalRecvPackets(0)
-
 {
 	if(offline) {
 		readFromFile = true;
@@ -288,7 +287,7 @@ void *Observer::observerThread(void *arg)
 			// initialize packet structure (init copies packet data)
 			p = obs->packetManager.getNewInstance();
 			p->init((char*)pcapData, 
-				// in constrast to live capturing, the data length is not limited
+				// in contrast to live capturing, the data length is not limited
 				// to any snap length when reading from a pcap file
 				(packetHeader.caplen < obs->capturelen) ? packetHeader.caplen : obs->capturelen, 
 				packetHeader.ts, obs->observationDomainID);
@@ -572,7 +571,7 @@ int Observer::getPcapStats(struct pcap_stat *out)
 /**
  * statistics function called by StatisticsManager
  */
-std::string Observer::getStatisticsXML()
+std::string Observer::getStatisticsXML(double interval)
 {
 	ostringstream oss;
     pcap_stat pstats;
@@ -580,8 +579,8 @@ std::string Observer::getStatisticsXML()
     	statTotalLostPackets += pstats.ps_drop;
     	statTotalRecvPackets += pstats.ps_recv;
     	oss << "<pcap>";
-    	oss << "<received type=\"packets\">" << pstats.ps_recv << "</received>";
-    	oss << "<dropped type=\"packets\">" << pstats.ps_drop << "</dropped>";
+    	oss << "<received type=\"packets\">" << (uint32_t)((double)pstats.ps_recv/interval) << "</received>";
+    	oss << "<dropped type=\"packets\">" << (uint32_t)((double)pstats.ps_drop/interval) << "</dropped>";
     	oss << "<totalReceived type=\"packets\">" << statTotalRecvPackets << "</totalReceived>";
     	oss << "<totalDropped type=\"packets\">" << statTotalLostPackets << "</totalDropped>";
     	oss << "</pcap>";
@@ -589,10 +588,10 @@ std::string Observer::getStatisticsXML()
 	uint64_t diff = receivedBytes-lastReceivedBytes;
 	lastReceivedBytes += diff;
 	oss << "<observer>";
-	oss << "<processed type=\"bytes\">" << diff << "</processed>";
+	oss << "<processed type=\"bytes\">" << (uint32_t)((double)diff/interval) << "</processed>";
 	diff = processedPackets-lastProcessedPackets;
 	lastProcessedPackets += diff;
-	oss << "<processed type=\"packets\">" << diff << "</processed>";
+	oss << "<processed type=\"packets\">" << (uint32_t)((double)diff/interval) << "</processed>";
 	oss << "</observer>";
 	return oss.str();
 }

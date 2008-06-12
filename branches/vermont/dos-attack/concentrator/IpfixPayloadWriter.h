@@ -36,17 +36,21 @@ class IpfixPayloadWriter
 	  public Source<NullEmitable*>
 {
 	public:
-		IpfixPayloadWriter(string path, string prefix, uint32_t noconns); 
+		IpfixPayloadWriter(string path, string prefix, uint32_t noconns, bool ignoreEmptyPayload); 
 		virtual ~IpfixPayloadWriter();
 		
 		virtual void onDataDataRecord(IpfixDataDataRecord* record);
+		
+	protected:
+		virtual void performShutdown();
 
 	private:
 		string path;
 		string filenamePrefix;
 		uint32_t noConnections; // how many connections of a run should be recorded?
-		uint32_t connCounter;	// counts current number of connections/flows
+		list<Connection*> connections; // sorted list of recorded connections
 		bool filewarningIssued; 
+		bool ignoreEmptyPayload; // ignores all flows with empty payload when set
 };
 
 #endif

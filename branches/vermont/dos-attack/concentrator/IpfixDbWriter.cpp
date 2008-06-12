@@ -454,7 +454,7 @@ void IpfixDbWriter::getInsertStatement(char* statemStr, IpfixRecord::SourceID* s
 
 				case IPFIX_TYPEID_flowStartMilliSeconds:
 					// if flowStartSeconds is not stored in one of the columns, but flowStartMilliSeconds is,
-					// the we use flowStartMilliSeconds for table access
+					// then we use flowStartMilliSeconds for table access
 					// This is realized by storing this value only if flowStartSeconds has not yet been seen.
 					// A later appearing flowStartSeconds will override this value.
 					if (flowstartsec==0)
@@ -472,17 +472,11 @@ void IpfixDbWriter::getInsertStatement(char* statemStr, IpfixRecord::SourceID* s
 					break;
 			}
 		}
-
+		
 		DPRINTF("saw ipfix id %d in packet with intdata %llX", identify[j].ipfixId, intdata);
 
 		addColumnEntry(ColNames, identify[j].cname, false, j==numberOfColumns-1);
 		addColumnEntry(ColValues, intdata, true, j==numberOfColumns-1);
-	}
-
-	if (flowstartsec == 0) {
-		statemStr[0] = 0;
-		//THROWEXCEPTION("failed to get timing data from ipfix packet. this is a critical error at the moment, as no valid table can be determined. Aborting");
-		return;
 	}
 
 	/**make whole query string for the insert statement*/
@@ -504,6 +498,10 @@ void IpfixDbWriter::getInsertStatement(char* statemStr, IpfixRecord::SourceID* s
 		else if(strncmp(tablename, locks[j], TABLE_WIDTH) == 0)
 		/* found tablename */
 		break;
+	}
+	
+	if (flowstartsec == 0) {
+		msg(MSG_ERROR, "IpfixDbWriter: Failed to get timing data from record. Will be saved in default table: %s", statemStr);
 	}
 }
 
@@ -697,8 +695,7 @@ int IpfixDbWriter::getExporterID(IpfixRecord::SourceID* sourceID)
 	MYSQL_ROW dbRow;
 	int exporterID = 0;
 
-	char selectStr[70];
-	char stringtmp[10];
+	char statementStr[EXPORTER_WIDTH];
 	uint32_t expIp;
 	
 	expIp = *(uint32_t*)(sourceID->exporterAddress.ip);
@@ -724,14 +721,9 @@ int IpfixDbWriter::getExporterID(IpfixRecord::SourceID* sourceID)
 
 	// it is not: try to get it from the database
 
-	snprintf(selectStr, ARRAY_SIZE(selectStr), "%s", "SELECT id FROM exporter WHERE sourceID=");
-	snprintf(stringtmp, ARRAY_SIZE(stringtmp),"%u",sourceID->observationDomainId);
-	strncat(selectStr, stringtmp,strlen(stringtmp)+1);
-	strncat(selectStr," AND srcIP=",(11*sizeof(char))+1);
-	snprintf(stringtmp, ARRAY_SIZE(stringtmp),"%u",expIp);
-	strncat(selectStr, stringtmp,strlen(stringtmp)+1);
+	sprintf(statementStr, "SELECT id FROM exporter WHERE sourceID=%u AND srcIp=%u", sourceID->observationDomainId, expIp);
 
-	if(mysql_query(conn, selectStr) != 0) {
+	if(mysql_query(conn, statementStr) != 0) {
 		msg(MSG_ERROR,"IpfixDbWriter: Select on exporter table failed. Error: %s",
 				mysql_error(conn));
 		return 0;// If a failure occurs, return exporterID = 0
@@ -750,25 +742,21 @@ int IpfixDbWriter::getExporterID(IpfixRecord::SourceID* sourceID)
 	}
 	else
 	{
+		mysql_free_result(dbResult);
+		
 		/**ExporterID is not in exporter table - insert expID and expIp and return the exporterID*/
 		char LockExporter[STARTLEN] = "LOCK TABLES exporter WRITE";
 		char UnLockExporter[STARTLEN] = "UNLOCK TABLES";
-		char insertStr[70] = "INSERT INTO exporter (ID,sourceID,srcIP) VALUES('NULL','";
-		snprintf(stringtmp, ARRAY_SIZE(stringtmp), "%u",sourceID->observationDomainId);
-		strncat(insertStr,stringtmp,strlen(stringtmp)+1);
-		strncat(insertStr,"','",(3*sizeof(char))+1);
-		snprintf(stringtmp, ARRAY_SIZE(stringtmp), "%u",expIp);
-		strncat(insertStr, stringtmp,strlen(stringtmp)+1);
-		strncat(insertStr,"')",(2*sizeof(char))+1);
+		sprintf(statementStr, "INSERT INTO exporter (ID,sourceID,srcIP) VALUES ('NULL','%u','%u')",
+				sourceID->observationDomainId, expIp);
 
-		mysql_free_result(dbResult);
 		if(mysql_query(conn, LockExporter) != 0) {
 			msg(MSG_ERROR,"IpfixDbWriter: Lock of exporter table failed. Error: %s",
 					mysql_error(conn));
 			return 0;
 		}
 
-		if(mysql_query(conn, insertStr) != 0) {
+		if(mysql_query(conn, statementStr) != 0) {
 			msg(MSG_ERROR,"IpfixDbWriter: Insert in exporter table failed. Error: %s",
 					conn);
 			/**Unlock the table when a failure occur*/
