@@ -187,41 +187,21 @@ class BloomFilterBase
 
 
 	protected:
-	/*
-		uint32_t hashU(const uint8_t* input, uint16_t len, uint32_t max, uint32_t seed) const
-		{
-			uint32_t random;
-			uint32_t result = 0;
-			gsl_rng_set(r, seed);
-			for(unsigned i = 0; i < len; i++) {
-				random = gsl_rng_get (r);
-				result = (random*result + input[i]);
-			}
-			return result % max;
-		}
-	*/
+
 #ifdef HAVE_GSL
 		uint32_t hashU(const uint8_t* input, uint16_t len, uint32_t max, uint32_t seed) const
 		{
-			uint32_t random;
 			uint32_t result = 0;
 			gsl_rng_set(r, seed);
-			const unsigned prime = 249989;
 			for (unsigned i = 0; i < len; i++) {
-				//random = gsl_rng_uniform_int (r, max);
-				//result = (result + random*input[i]) % max;
-				//result += input[i]*random;
-
-				random = gsl_rng_uniform_int(r, prime);
-				result += input[i] * random;
+				result += input[i] * gsl_rng_uniform(r);
 			}
-			result %= prime;
 			return result % max;
 		}
 #else
 		uint32_t hashU(const uint8_t* input, uint16_t len, uint32_t max, uint32_t seed) const
 		{
-			// TODO
+			// TODO: create a function that does not need gsl
 			return 0;
 		}
 #endif
