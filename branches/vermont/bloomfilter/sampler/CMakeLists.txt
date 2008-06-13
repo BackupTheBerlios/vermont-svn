@@ -33,6 +33,7 @@ ADD_LIBRARY(sampler
 	regExFilter.cpp
 	ExpressHookingFilter.cpp
 	ConnectionFilter.cpp
+	StateConnectionFilter.cpp
 	PcapExporterSink.cpp
 )
 
