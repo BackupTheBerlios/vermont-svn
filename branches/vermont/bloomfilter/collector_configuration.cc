@@ -106,7 +106,7 @@ void CollectorConfiguration::setUp()
 	}
 
 	for (unsigned i = 0; i != listeners.size(); ++i) {
-		IpfixReceiver* ipfixReceiver;
+		IpfixReceiver* ipfixReceiver = NULL;
 		switch(listeners[i]->protocolType){
 			case 17:
 				ipfixReceiver = new IpfixReceiverUdpIpV4(listeners[i]->port, listeners[i]->ipAddress);
