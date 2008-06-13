@@ -82,8 +82,8 @@ Observer::Observer(const std::string& interface, InstanceManager<Packet>* manage
 	captureDevice(NULL), capturelen(PCAP_DEFAULT_CAPTURE_LENGTH), pcap_timeout(PCAP_TIMEOUT), 
 	pcap_promisc(1), ready(false), filter_exp(0), packetManager(manager),
 	receivedBytes(0), lastReceivedBytes(0), processedPackets(0), 
-	lastProcessedPackets(0), captureInterface(NULL),
-	fileName(NULL), replaceTimestampsFromFile(false),
+	lastProcessedPackets(0), 
+	captureInterface(NULL), fileName(NULL), replaceTimestampsFromFile(false),
 	stretchTimeInt(1), stretchTime(1.0), exitFlag(false)
 {
 	if(offline) {
@@ -300,7 +300,7 @@ void *Observer::observerThread(void *arg)
 			p->init((char*)pcapData, 
 				// in constrast to live capturing, the data length is not limited
 				// to any snap length when reading from a pcap file
-				(packetHeader.caplen<obs->capturelen) ? packetHeader.caplen : obs->capturelen, 
+				(packetHeader.caplen < obs->capturelen) ? packetHeader.caplen : obs->capturelen, 
 				packetHeader.ts,
 				packetHeader.len);
 
