@@ -43,7 +43,7 @@ bool StateConnectionFilter::processPacket(const Packet* p, bool connFilterResult
 		if (exportList.find(key) != exportList.end() && exportList.find(key)->second > 0) {
 			DPRINTF("StateConnectionFilter: Connection known, exporting packet");
 			exportList[key] -= payloadLen;
-			DPRINTF("StateConnectionFilter: We have to export %i bytes after exporting this packet", exportList[key].exportBytes>0?exportList[key].exportBytes:0);
+			DPRINTF("StateConnectionFilter: We have to export %i bytes after exporting this packet", exportList[key]>0?exportList[key]:0);
 			return true;
 		} else {
 			if (exportList.find(key) != exportList.end()) {

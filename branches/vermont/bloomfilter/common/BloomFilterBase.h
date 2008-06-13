@@ -194,7 +194,7 @@ class BloomFilterBase
 			uint32_t result = 0;
 			gsl_rng_set(r, seed);
 			for (unsigned i = 0; i < len; i++) {
-				result += input[i] * gsl_rng_uniform(r);
+				result += input[i] * gsl_rng_get(r);
 			}
 			return result % max;
 		}
