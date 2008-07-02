@@ -73,6 +73,15 @@ class IpfixRecord
 		struct TemplateInfo {
 			TemplateInfo() : fieldInfo(NULL), destroyed(false), freePointers(true) {	}
 
+			TemplateInfo(const TemplateInfo& t)
+			{
+				templateId = t.templateId;
+				fieldCount = t.fieldCount; /**< number of regular fields */
+				fieldInfo = (IpfixRecord::FieldInfo*)malloc(fieldCount*sizeof(FieldInfo));
+				memcpy(fieldInfo, t.fieldInfo, fieldCount*sizeof(FieldInfo));
+				userData = t.userData;
+			}
+
 			~TemplateInfo() {
 				if (freePointers) free(fieldInfo);
 			}
@@ -308,6 +317,21 @@ class IpfixRecord
 			OptionsTemplateInfo() : scopeInfo(NULL), fieldInfo(NULL) {
 			}
 
+			OptionsTemplateInfo(const OptionsTemplateInfo& t)
+			{
+				templateId = t.templateId;
+				
+				scopeCount = t.scopeCount;
+				scopeInfo = (FieldInfo*)malloc(scopeCount*sizeof(FieldInfo));
+				memcpy(scopeInfo, t.scopeInfo, scopeCount*sizeof(FieldInfo));
+				
+				fieldCount = t.fieldCount; /**< number of regular fields */
+				fieldInfo = (FieldInfo*)malloc(fieldCount*sizeof(FieldInfo));
+				memcpy(fieldInfo, t.fieldInfo, fieldCount*sizeof(FieldInfo));
+				
+				userData = t.userData;
+			}
+
 			~OptionsTemplateInfo() {
 				free(fieldInfo);
 				free(scopeInfo);
@@ -327,6 +351,23 @@ class IpfixRecord
 		struct DataTemplateInfo : public TemplateInfo
 		{
 			DataTemplateInfo() : dataInfo(NULL), data(NULL) {
+			}
+			
+			DataTemplateInfo(const DataTemplateInfo& t)
+			{
+				templateId = t.templateId;
+				preceding = t.preceding;
+				
+				fieldCount = t.fieldCount;
+				fieldInfo = (FieldInfo*)malloc(fieldCount*sizeof(FieldInfo));
+				memcpy(fieldInfo, t.fieldInfo, fieldCount*sizeof(FieldInfo));
+
+				dataCount = t.dataCount;
+				dataInfo = (FieldInfo*)malloc(dataCount*sizeof(FieldInfo));
+				memcpy(dataInfo, t.dataInfo, dataCount*sizeof(FieldInfo));
+				
+				userData = t.userData;
+				freePointers = t.freePointers;
 			}
 
 			~DataTemplateInfo() {
@@ -368,15 +409,40 @@ class IpfixRecord
 			void* userData; /**< pointer to a field that can be used by higher-level modules */			
 		};
 
+		/* This struct is called SourceID for historic reasons. 
+		 * A better name would be something like TemplateScope (TransportSession + ObservationDomainId)
+		 */
 		struct SourceID {
 
 			struct ExporterAddress {
-				char ip[MAX_ADDRESS_LEN];
+				uint8_t ip[MAX_ADDRESS_LEN];
 				uint8_t len;
 			};
 
 			uint32_t observationDomainId;
 			SourceID::ExporterAddress exporterAddress;
+			uint16_t exporterPort;
+			uint16_t receiverPort;
+			uint8_t protocol;
+			int fileDescriptor;
+
+			bool operator==(const struct SourceID & x) {
+				if(protocol == 132) /* compare file descriptors instead of IP addresses because of possible multihoming */
+					return (observationDomainId == x.observationDomainId) && 
+// 					(exporterPort == x.exporterPort) && 
+// 					(receiverPort == x.receiverPort) && 
+// 					(protocol == x.protocol) && 
+					(fileDescriptor == x.fileDescriptor);
+				else /* UDP: fileDescriptor only specifies the Collector endpoint*/
+					return (observationDomainId == x.observationDomainId) && 
+					(exporterPort == x.exporterPort) && 
+					//(receiverPort == x.receiverPort) &&
+					(fileDescriptor == x.fileDescriptor) && 
+					//(protocol == x.protocol) && 
+					(exporterAddress.len == x.exporterAddress.len) && 
+					(memcmp(exporterAddress.ip, x.exporterAddress.ip, exporterAddress.len) == 0 );
+					
+			}
 		};
 
 		boost::shared_ptr<IpfixRecord::SourceID> sourceID;

@@ -99,10 +99,10 @@ ThreadCPUInterface::SystemInfo ThreadCPUInterface::getSystemInfo()
 	if (fscanf(f, "cpu %*u %*u %*u %*u %*u %*u %*u %*u") != 0)
 		THROWEXCEPTION("failed to parse file '%s'", procfile.c_str());
 	int g;
-	while (g = getc(f)) if (g=='\n' || g==EOF) break;
+	while ((g = getc(f))) if (g=='\n' || g==EOF) break;
 	uint32_t sys, user;
 	while (fscanf(f, "cpu%*d %u %*u %u %*u %*u %*u %*u %*u", &user, &sys) == 2) {
-		while (g = getc(f)) if (g=='\n' || g==EOF) break;
+		while ((g = getc(f))) if (g=='\n' || g==EOF) break;
 		si.sysJiffies.push_back(sys);
 		si.userJiffies.push_back(user);
 	}

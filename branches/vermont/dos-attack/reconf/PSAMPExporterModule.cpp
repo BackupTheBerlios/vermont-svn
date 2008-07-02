@@ -153,7 +153,7 @@ error2:
 // send out the IPFIX packet stream and reset
 void PSAMPExporterModule::flushPacketStream() {
 	// end the packet stream and send the IPFIX packet out through the wire
-	ipfix_end_data_set(exporter);
+	ipfix_end_data_set(exporter, numPacketsToRelease);
 	ipfix_send(exporter);
 
 	DPRINTF("dropping %d packets", numPacketsToRelease);
@@ -172,22 +172,10 @@ void PSAMPExporterModule::flushPacketStream() {
 	pckCount = 0;
 }
 
-bool PSAMPExporterModule::addCollector(const char *address, unsigned short port, const char *protocol)
+bool PSAMPExporterModule::addCollector(const char *address, unsigned short port, ipfix_transport_protocol protocol)
 {
-	ipfix_transport_protocol proto;
-
-	if(strcasecmp(protocol, "TCP") == 0) {
-		proto = TCP;
-	} else if(strcasecmp(protocol, "UDP") == 0) {
-		proto = UDP;
-	} else {
-		msg(MSG_ERROR, "ExporterSink: invalid protocol %s for %s",
-		    protocol, address);
-		return false;
-	}
-
 	DPRINTF("Adding %s://%s:%d", protocol, address, port);
-	return(ipfix_add_collector(exporter, address, port, proto) == 0);
+	return(ipfix_add_collector(exporter, address, port, protocol) == 0);
 }
 
 void PSAMPExporterModule::receive(Packet* p)

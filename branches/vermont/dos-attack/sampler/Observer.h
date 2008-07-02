@@ -58,6 +58,7 @@ public:
 	bool prepare(const std::string& filter);
 	static void doLogging(void *arg);
 	virtual std::string getStatisticsXML(double interval);
+	int getDataLinkType();
 
 
 protected:
@@ -120,6 +121,8 @@ protected:
 	uint16_t stretchTimeInt; // 1 means no timing change, 0 means that stretchTimes (float) is used
 	float stretchTime;
 	bool autoExit;
+	
+	bool slowMessageShown;	// true if message was shown that vermont is too slow to read file in time
 	
 	uint32_t statTotalLostPackets;
 	uint32_t statTotalRecvPackets;

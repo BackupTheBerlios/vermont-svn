@@ -19,6 +19,7 @@
 #include "cfg/PacketIDMEFReporterCfg.h"
 #include "cfg/IpfixDbReaderCfg.h"
 #include "cfg/IpfixDbWriterCfg.h"
+#include "cfg/IpfixDbWriterPgCfg.h"
 #include "cfg/IpfixPayloadWriterCfg.h"
 
 #include <cassert>
@@ -49,7 +50,16 @@ Cfg* ConfigManager::configModules[] = {
 	new IpfixDbReaderCfg(NULL),
 	new IpfixDbWriterCfg(NULL),
 #endif
+#ifdef PG_SUPPORT_ENABLED
+	new IpfixDbWriterPgCfg(NULL),
+#endif
 };
+
+ConfigManager::ConfigManager()
+	: graph(NULL), document(NULL), old_document(NULL), sensorManager(NULL)
+{
+	
+}
 
 ConfigManager::~ConfigManager()
 {
@@ -102,7 +112,8 @@ void ConfigManager::parseConfig(std::string fileName)
 				if (smcfg) {
 					// SensorManager will not be connected to any modules, so its instance 
 					// needs to be started manually
-					smcfg->setGraphIS(this); 									
+					smcfg->setGraphIS(this);
+					sensorManager = smcfg->getInstance();
 				}
 				
 				graph->addNode(cfg);
@@ -162,6 +173,11 @@ void ConfigManager::shutdown()
 		Cfg* cfg = topoNodes[i]->getCfg();
 		msg(MSG_INFO, "shutting down module %s (id=%u)", cfg->getName().c_str(), cfg->getID());
 		cfg->shutdown(true, true);
+	}
+	
+	// trigger sensorManager to get the final statistics of this Vermont run
+	if (sensorManager) {
+		sensorManager->retrieveStatistics();
 	}
 
 	// disconnect the modules

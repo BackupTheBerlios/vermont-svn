@@ -85,7 +85,7 @@ Observer::Observer(const std::string& interface, bool offline) : thread(Observer
 	receivedBytes(0), lastReceivedBytes(0), processedPackets(0), 
 	lastProcessedPackets(0), 
 	captureInterface(NULL), fileName(NULL), replaceTimestampsFromFile(false),
-	stretchTimeInt(1), stretchTime(1.0), autoExit(true),
+	stretchTimeInt(1), stretchTime(1.0), autoExit(true), slowMessageShown(false),
 	statTotalLostPackets(0), statTotalRecvPackets(0)
 {
 	if(offline) {
@@ -112,6 +112,7 @@ Observer::~Observer()
 	msg(MSG_DEBUG, "Observer: destructor called");
 
 	shutdown(false);
+
 
 	/* collect and output statistics */
 	pcap_stat pstats;
@@ -200,7 +201,7 @@ void *Observer::observerThread(void *arg)
 	
 			// initialize packet structure (init copies packet data)
 			p = packetManager.getNewInstance();
-			p->init((char*)pcapData, packetHeader.caplen, packetHeader.ts, obs->observationDomainID);
+			p->init((char*)pcapData, packetHeader.caplen, packetHeader.ts, obs->observationDomainID, packetHeader.len);
 	
 			obs->receivedBytes += packetHeader.caplen;
 	
@@ -231,6 +232,11 @@ void *Observer::observerThread(void *arg)
 		struct timeval first = {0,0};
 		// differences
 		struct timeval wait_val, delta_now, delta_file, delta_to_be;
+		
+		// make compiler happy ...
+		delta_to_be.tv_sec = 0;
+		delta_to_be.tv_usec = 0;
+
 		struct timespec wait_spec;
 		bool firstPacket = true;
 		// read-from-file loop
@@ -241,7 +247,7 @@ void *Observer::observerThread(void *arg)
 			if(!pcapData) {
 				/* no packet data was available */
 				if(feof(fh))
-				        msg(MSG_DIALOG, "Observer: reached end of file.");
+				        msg(MSG_DIALOG, "Observer: reached end of file (%llu packets)", obs->processedPackets);
       				break;
       			}
 			DPRINTFL(MSG_VDEBUG, "got new packet!");
@@ -277,7 +283,10 @@ void *Observer::observerThread(void *arg)
 						msg(MSG_INFO, "Observer: nanosleep returned nonzero value");
 				}
 				else if (delta_now.tv_sec > (delta_to_be.tv_sec + 1) && obs->stretchTime!=INFINITY)
-				    msg(MSG_ERROR, "Observer: reading from file is more than 1 second behind schedule!");
+				    if (!obs->slowMessageShown) {
+				    	obs->slowMessageShown = true;
+				    	msg(MSG_ERROR, "Observer: reading from file is more than 1 second behind schedule!");
+				    }
 			}
 
 			// optionally replace the timestamp with current time
@@ -290,9 +299,8 @@ void *Observer::observerThread(void *arg)
 				// in contrast to live capturing, the data length is not limited
 				// to any snap length when reading from a pcap file
 				(packetHeader.caplen < obs->capturelen) ? packetHeader.caplen : obs->capturelen, 
-				packetHeader.ts, obs->observationDomainID);
+				packetHeader.ts, obs->observationDomainID, packetHeader.len);
 
-			obs->receivedBytes += packetHeader.caplen;
 
 			DPRINTF("received packet at %u.%04u, len=%d",
 				(unsigned)p->timestamp.tv_sec,
@@ -301,7 +309,7 @@ void *Observer::observerThread(void *arg)
 				);
 
 			// update statistics
-			obs->receivedBytes += ntohs(*(uint16_t*)(p->netHeader+2));
+			obs->receivedBytes += packetHeader.caplen;
 			obs->processedPackets++;
 	
 			while (!obs->exitFlag) {
@@ -333,7 +341,6 @@ void *Observer::observerThread(void *arg)
  */
 bool Observer::prepare(const std::string& filter)
 {
-	int dataLink = 0;
 	struct in_addr i_netmask, i_network;
 
 	// we need to store the filter expression, because pcap needs
@@ -373,9 +380,8 @@ bool Observer::prepare(const std::string& filter)
 			goto out2;
 		}
 	
-		dataLink = pcap_datalink(captureDevice);
 		// IP_HEADER_OFFSET is set by the configure script
-		switch (dataLink) {
+		switch (getDataLinkType()) {
 		case DLT_EN10MB:
 			if (IP_HEADER_OFFSET != 14 && IP_HEADER_OFFSET != 18) {
 				msg(MSG_FATAL, "IP_HEADER_OFFSET on an ethernet device has to be 14 or 18 Bytes. Please adjust that value via configure --with-ipheader-offset");
@@ -389,6 +395,11 @@ bool Observer::prepare(const std::string& filter)
 				goto out2;
 			}
 			break;
+		case DLT_LINUX_SLL:
+			if (IP_HEADER_OFFSET != 16) {
+				msg(MSG_FATAL, "IP_HEADER_OFFSET on linux cooked devices has to be 16 Bytes. Please adjust that value via configure --with-ipheader-offset");
+				goto out2;
+			}
 		default:
 			msg(MSG_ERROR, "You are using an unkown IP_HEADER_OFFSET and data link combination. This can make problems. Please check if you use the correct IP_HEADER_OFFSET for your data link, if you see strange IPFIX/PSAMP packets.");
 		}
@@ -509,6 +520,11 @@ int Observer::getCaptureLen()
 	return capturelen;
 }
 
+int Observer::getDataLinkType()
+{
+	return pcap_datalink(captureDevice);
+}
+
 void Observer::replaceOfflineTimestamps()
 {
 	replaceTimestampsFromFile = true;
@@ -592,6 +608,7 @@ std::string Observer::getStatisticsXML(double interval)
 	diff = processedPackets-lastProcessedPackets;
 	lastProcessedPackets += diff;
 	oss << "<processed type=\"packets\">" << (uint32_t)((double)diff/interval) << "</processed>";
+	oss << "<totalProcessed type=\"packets\">" << processedPackets << "</totalProcessed>";
 	oss << "</observer>";
 	return oss.str();
 }
