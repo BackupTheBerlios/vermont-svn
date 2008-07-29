@@ -1,1 +1,0 @@
-ADD_LIBRARY(ipfixCollector IpfixCollector.cpp IpfixRecord.cpp FlowSource.cpp FlowSink.cpp common.c ipfix.cpp IpfixReceiver.cpp IpfixReceiverUdpIpV4.cpp IpfixParser.cpp IpfixPacketProcessor.cpp TemplateBuffer.cpp ipfix_names.c msg.c)
