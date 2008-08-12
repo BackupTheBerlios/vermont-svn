@@ -5,6 +5,7 @@
 #include <sampler/SystematicSampler.h>
 #include <sampler/StateConnectionFilter.h>
 #include <sampler/ConnectionFilter.h>
+#include <sampler/AnonFilter.h>
 #include "common/msg.h"
 
 
@@ -44,6 +45,9 @@ PacketFilterCfg::PacketFilterCfg(XMLElement* elem)
 			msg(MSG_INFO, "Filter: Creating connection based sampler");
 			c = new PacketConnectionFilterCfg(e);
 #endif
+		} else if (e->matches("anonFilter")) {
+			msg(MSG_INFO, "Filter: Creating anonymization filter");
+			c = new PacketAnonFilterCfg(e);
 		} else if (e->matches("next")) { // ignore next
 			continue;
 		} else {
@@ -273,3 +277,29 @@ bool PacketConnectionFilterCfg::deriveFrom(PacketConnectionFilterCfg* old)
 	return false;
 }
 #endif
+
+// ----------------------------------------------------------------------------
+
+Module* PacketAnonFilterCfg::getInstance()
+{
+	if (!instance) {
+		instance = new AnonFilter();
+	}
+
+	return (Module*)instance;
+
+}
+
+bool PacketAnonFilterCfg::deriveFrom(PacketConnectionFilterCfg* old)
+{
+	/*
+	if (get("timeout") == old->get("timeout") &&
+	    get("bytes") == old->get("bytes") &&
+	    get("hashFunctions") == old->get("hashFunctions") &&
+	    get("filterSize") == old->get("filterSize")) {
+		return true;
+	}
+	*/
+	return false;
+}
+
