@@ -269,6 +269,31 @@
 					<td>Belongs to connectionBased filter. Specifies the size of the bloom filters that are used by the connection
 						based filter.</td>
 				</tr>
+				<tr>
+					<td>anonFilter</td>
+					<td>none</td>
+					<td>Specifies a filter that performs anonymization on captured network packets. Contains one or more anonFields.</td>
+				</tr>
+				<tr>
+					<td>anonField</td>
+					<td>none</td>
+					<td>Specifies one field and an anonymization method for that field. Contains one anonIE and one anonMethod tag.</td>
+				</tr>
+				<tr>
+					<td>anonIE</td>
+					<td>none</td>
+					<td>Specifies the information element that needs to be anonymized. Belongs to anonField.</td>
+				</tr>
+				<tr>
+					<td>ieName</td>
+					<td>none</td>
+					<td>Specifies the name of the field that needs to be anonymized. Belongs to anonIE.</td>
+				</tr>
+				<tr>
+					<td>anonMethod</td>
+					<td>none</td>
+					<td>Specifies the anonymization method that is used to anonymize a given header field. Belongs to anonField.</td>
+				</tr>
 			</tbody>
 		</table>
 		
