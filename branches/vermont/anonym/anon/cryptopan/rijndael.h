@@ -62,7 +62,7 @@
 //  else decryptError(len);
 //
 
-#pragma warning (disable: 4018)
+//#pragma warning (disable: 4018)
 
 #define _MAX_KEY_COLUMNS (256/32)
 #define _MAX_ROUNDS      14

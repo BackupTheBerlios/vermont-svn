@@ -157,7 +157,7 @@ OPTION(DEBUG "Enable debug code. Vermont will run significantly slower if enable
 IF (DEBUG)
 	message(STATUS "Configuring build process for debug version")
 	REMOVE_DEFINITIONS(-O3)
-	ADD_DEFINITIONS(-O0 -g -pg -Wall -Werror -DDEBUG)
+	ADD_DEFINITIONS(-O0 -g -pg -Wall -DDEBUG)
 	SET_TARGET_PROPERTIES(vermont PROPERTIES LINK_FLAGS "-g -pg")
 ELSE (DEBUG)
 	REMOVE_DEFINITIONS(-O0 -g -pg -Wall -Werror -DDEBUG)

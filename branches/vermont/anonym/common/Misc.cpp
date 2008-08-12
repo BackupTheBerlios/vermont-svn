@@ -3,7 +3,7 @@
 #ifndef _GNU_SOURCE
 size_t strnlen(const char* s, size_t maxlen)
 {
-	int len = 0;
+	size_t len = 0;
 	if (maxlen == 0 || !s) {
 		return 0;
 	}

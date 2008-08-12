@@ -15,21 +15,21 @@ AnonFilter::~AnonFilter()
 	}
 }
 
-AnonPrimitive* AnonFilter::createPrimitive(AnonMethods m, const std::string& paramter)
+AnonPrimitive* AnonFilter::createPrimitive(AnonMethod::Method m, const std::string& paramter)
 {
 	AnonPrimitive* ret = 0;
 	switch (m) {
-	HashSha1:
+	case AnonMethod::HashSha1:
 		ret = new AnonHashSha1();
 		break;
-	ByteWiseHashHmacSha1:
-	ByteWiseHashSha1:
-	ConstOverwrite:
-	ContinousChar:
-	HashHmacSha1:
-	Randomize:
-	Shuffle:
-	Whitenoise:
+	case AnonMethod::ByteWiseHashHmacSha1:
+	case AnonMethod::ByteWiseHashSha1:
+	case AnonMethod::ConstOverwrite:
+	case AnonMethod::ContinousChar:
+	case AnonMethod::HashHmacSha1:
+	case AnonMethod::Randomize:
+	case AnonMethod::Shuffle:
+	case AnonMethod::Whitenoise:
 	default:
 		msg(MSG_ERROR, "AnonPrimitve number %i is unknown", m);
 	}
@@ -37,7 +37,7 @@ AnonPrimitive* AnonFilter::createPrimitive(AnonMethods m, const std::string& par
 	return ret;
 }
 
-void AnonFilter::addAnonymization(uint16_t f, AnonMethods m, const std::string& parameter)
+void AnonFilter::addAnonymization(uint16_t f, AnonMethod::Method  m, const std::string& parameter)
 {
 	AnonPrimitive* a = createPrimitive(m, parameter);
 	methods[f] = a;

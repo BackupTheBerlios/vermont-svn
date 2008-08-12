@@ -10,7 +10,8 @@
 
 #include <map>
 
-class AnonFilter : public PacketProcessor {
+class AnonMethod 
+{
 public:
 	typedef enum {
 		ByteWiseHashHmacSha1,
@@ -22,12 +23,42 @@ public:
 		Randomize,
 		Shuffle,
 		Whitenoise
-	} AnonMethods;
+	} Method;
 
+	static Method stringToMethod(const std::string& m)
+	{
+		if (m == "ByteWiseHashHmacSha1") {
+			return ByteWiseHashHmacSha1;
+		} else if (m == "ByteWiseHashSha1") {
+                        return ByteWiseHashSha1;
+                } else if (m == "ConstOverwrite") {
+                        return ConstOverwrite;
+                } else if (m == "ContinousChar") {
+                        return ContinousChar;
+                }else if (m == "HashHmacSha1") {
+                        return HashHmacSha1;
+                }else if (m == "HashSha1") {
+                        return HashSha1;
+                }else if (m == "Randomize") {
+                        return Randomize;
+                }else if (m == "Shuffle") {
+                        return Shuffle;
+                }else if (m == "Whitenoise") {
+                        return Whitenoise;
+                }
+		THROWEXCEPTION("Unknown anonymization method");
+
+		// make compile happy
+		return ByteWiseHashHmacSha1;
+	}
+};
+
+class AnonFilter : public PacketProcessor {
+public:
 	AnonFilter();
 	~AnonFilter();
 
-	void addAnonymization(uint16_t id, AnonMethods m, const std::string& parameter = "");
+	void addAnonymization(uint16_t id, AnonMethod::Method m, const std::string& parameter = "");
 
 	virtual bool processPacket(const Packet* p);
 protected:
@@ -35,7 +66,7 @@ protected:
 	MethodMap  methods;
 
 private:
-	AnonPrimitive* createPrimitive(AnonMethods m, const std::string& paramter);
+	AnonPrimitive* createPrimitive(AnonMethod::Method m, const std::string& paramter);
 };
 
 #endif
