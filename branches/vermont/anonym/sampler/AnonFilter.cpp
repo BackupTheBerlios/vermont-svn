@@ -31,7 +31,8 @@ AnonPrimitive* AnonFilter::createPrimitive(AnonMethod::Method m, const std::stri
 	case AnonMethod::Shuffle:
 	case AnonMethod::Whitenoise:
 	default:
-		msg(MSG_ERROR, "AnonPrimitve number %i is unknown", m);
+		msg(MSG_FATAL, "AnonPrimitive number %i is unknown", m);
+		THROWEXCEPTION("AnonPrimitive number %i is unknown", m);
 	}
 
 	return ret;
