@@ -21,6 +21,7 @@
 #include "IDMEFExporter.h"
 
 #include <sys/stat.h>
+#include <cstring>
 
 	 
 uint32_t IDMEFExporter::filenameCounter = 0;

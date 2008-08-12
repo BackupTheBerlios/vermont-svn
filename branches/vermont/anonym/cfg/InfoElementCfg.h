@@ -19,7 +19,7 @@ public:
 	
 		try {
 			ieName = get("ieName");
-			std::transform(ieName.begin(), ieName.end(), ieName.begin(), std::tolower);
+			std::transform(ieName.begin(), ieName.end(), ieName.begin(), (int(*)(int))std::tolower);
 		} catch (IllegalEntry ie) { /* ingore missing ieName */ }
 		
 		modifier         = getOptional("modifier");

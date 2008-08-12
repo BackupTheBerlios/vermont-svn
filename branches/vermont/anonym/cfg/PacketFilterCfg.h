@@ -295,7 +295,7 @@ public:
 
 	std::string getIeName() {
 		std::string ret = get("ieName");
-		std::transform(ret.begin(), ret.end(), ret.begin(), std::tolower);
+		std::transform(ret.begin(), ret.end(), ret.begin(), (int(*)(int))std::tolower);
 		return  ret;
 	}
 	std::string getIeId() { return get("ieId"); }
