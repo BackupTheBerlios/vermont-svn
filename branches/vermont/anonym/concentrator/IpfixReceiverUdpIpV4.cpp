@@ -121,10 +121,9 @@ void IpfixReceiverUdpIpV4::run() {
 			if (exitFlag)
 				return;
 		} while (n == 0);
-		
+
 		boost::shared_array<uint8_t> data(new uint8_t[MAX_MSG_LEN]);
 		boost::shared_ptr<IpfixRecord::SourceID> sourceID(new IpfixRecord::SourceID);
-
 
 		clientAddressLen = sizeof(struct sockaddr_in);
 		n = recvfrom(listen_socket, data.get(), MAX_MSG_LEN,
@@ -147,6 +146,7 @@ void IpfixReceiverUdpIpV4::run() {
 			for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 
 				(*i)->processPacket(data, n, sourceID);
 			}
+			pthread_mutex_unlock(&mutex);
 		} else {
 			msg(MSG_FATAL, "packet from unauthorized host %s discarded", inet_ntoa(clientAddress.sin_addr));
 		}
