@@ -24,12 +24,12 @@
  */
 
 
-#include "IpfixCollector.hpp"
-#include "IpfixParser.hpp"
-#include "IpfixPacketProcessor.hpp"
-#include "IpfixReceiverUdpIpV4.hpp"
-#include "IpfixReceiverSctpIpV4.hpp"
-#include "IpfixPrinter.hpp"
+#include "concentrator/IpfixCollector.hpp"
+#include "concentrator/IpfixParser.hpp"
+#include "concentrator/IpfixPacketProcessor.hpp"
+#include "concentrator/IpfixReceiverUdpIpV4.hpp"
+#include "concentrator/IpfixReceiverSctpIpV4.hpp"
+#include "concentrator/IpfixPrinter.hpp"
 #include "reconf/ConnectionQueue.h"
 
 #include "common/msg.h"

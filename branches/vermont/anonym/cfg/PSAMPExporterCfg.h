@@ -3,7 +3,7 @@
 
 #include "Cfg.h"
 #include "CollectorCfg.h"
-#include "PSAMPExporterModule.h"
+#include "reconf/PSAMPExporterModule.h"
 
 #include <vector>
 

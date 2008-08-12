@@ -2,7 +2,7 @@
 #define PCAPEXPORTERCFG_H_
 
 #include "Cfg.h"
-#include "PCAPExporterModule.h"
+#include "reconf/PCAPExporterModule.h"
 
 #include <vector>
 

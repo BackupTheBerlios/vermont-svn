@@ -1,6 +1,6 @@
 #include "PCAPExporterModule.h"
 
-#include "Packet.h"
+#include "sampler/Packet.h"
 
 PCAPExporterModule::PCAPExporterModule(const std::string& file)
 	: fileName(file), dummy(NULL), dumper(NULL), link_type(0)

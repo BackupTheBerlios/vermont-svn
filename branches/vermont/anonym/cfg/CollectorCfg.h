@@ -3,7 +3,7 @@
 
 #include "Cfg.h"
 
-#include "ipfixlolib.h"
+#include "ipfixlolib/ipfixlolib.h"
 
 #include <string>
 

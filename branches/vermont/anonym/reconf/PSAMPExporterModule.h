@@ -19,7 +19,7 @@
 
 #include "common/Thread.h"
 #include "sampler/Template.h"
-#include "Packet.h"
+#include "sampler/Packet.h"
 
 #include "reconf/Module.h"
 #include "reconf/Notifiable.h"

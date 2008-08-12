@@ -1,6 +1,6 @@
 #include "PacketReportingCfg.h"
 #include "PSAMPExporterCfg.h"
-#include "PSAMPExporterModule.h"
+#include "reconf/PSAMPExporterModule.h"
 
 #include "common/defs.h"
 
