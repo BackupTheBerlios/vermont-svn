@@ -24,18 +24,18 @@ public:
 		Whitenoise
 	} AnonMethods;
 
-	typedef enum {
-		SrcIpv4 = 16,
-		DstIpv4 = 20
-	} AnonFields;
-
 	AnonFilter();
+	~AnonFilter();
 
-	void addAnonymization(AnonFields f, AnonMethods m, const std::string& parameter = "");
+	void addAnonymization(uint16_t id, AnonMethods m, const std::string& parameter = "");
 
 	virtual bool processPacket(const Packet* p);
 protected:
-	std::map<AnonFields, AnonPrimitive*> methods;
+	typedef std::map<uint16_t, AnonPrimitive*> MethodMap;
+	MethodMap  methods;
+
+private:
+	AnonPrimitive* createPrimitive(AnonMethods m, const std::string& paramter);
 };
 
 #endif
