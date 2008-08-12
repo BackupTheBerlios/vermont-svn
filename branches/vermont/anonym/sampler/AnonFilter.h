@@ -14,10 +14,10 @@ class AnonMethod
 {
 public:
 	typedef enum {
-		ByteWiseHashHmacSha1,
-		ByteWiseHashSha1,
+		BytewiseHashHmacSha1,
+		BytewiseHashSha1,
 		ConstOverwrite,
-		ContinousChar,
+		ContinuousChar,
 		HashHmacSha1,
 		HashSha1,
 		Randomize,
@@ -27,14 +27,14 @@ public:
 
 	static Method stringToMethod(const std::string& m)
 	{
-		if (m == "ByteWiseHashHmacSha1") {
-			return ByteWiseHashHmacSha1;
-		} else if (m == "ByteWiseHashSha1") {
-                        return ByteWiseHashSha1;
+		if (m == "BytewiseHashHmacSha1") {
+			return BytewiseHashHmacSha1;
+		} else if (m == "BytewiseHashSha1") {
+                        return BytewiseHashSha1;
                 } else if (m == "ConstOverwrite") {
                         return ConstOverwrite;
-                } else if (m == "ContinousChar") {
-                        return ContinousChar;
+                } else if (m == "ContinuousChar") {
+                        return ContinuousChar;
                 }else if (m == "HashHmacSha1") {
                         return HashHmacSha1;
                 }else if (m == "HashSha1") {
@@ -49,7 +49,7 @@ public:
 		THROWEXCEPTION("Unknown anonymization method");
 
 		// make compile happy
-		return ByteWiseHashHmacSha1;
+		return BytewiseHashHmacSha1;
 	}
 };
 

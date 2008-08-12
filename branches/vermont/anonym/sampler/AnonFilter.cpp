@@ -2,6 +2,14 @@
 #include "Template.h"
 
 #include <anon/AnonHashSha1.h>
+#include <anon/AnonBytewiseHashHmacSha1.h>
+#include <anon/AnonBytewiseHashSha1.h>
+#include <anon/AnonConstOverwrite.h>
+#include <anon/AnonContinuousChar.h>
+#include <anon/AnonHashHmacSha1.h>
+#include <anon/AnonRandomize.h>
+#include <anon/AnonShuffle.h>
+
 #include <ipfixlolib/ipfix_names.h>
 
 AnonFilter::AnonFilter()
@@ -22,14 +30,22 @@ AnonPrimitive* AnonFilter::createPrimitive(AnonMethod::Method m, const std::stri
 	case AnonMethod::HashSha1:
 		ret = new AnonHashSha1();
 		break;
-	case AnonMethod::ByteWiseHashHmacSha1:
-	case AnonMethod::ByteWiseHashSha1:
-	case AnonMethod::ConstOverwrite:
-	case AnonMethod::ContinousChar:
-	case AnonMethod::HashHmacSha1:
+	case AnonMethod::BytewiseHashSha1:
+		ret = new AnonBytewiseHashSha1();
+		break;
+	case AnonMethod::ContinuousChar:
+		ret = new AnonContinuousChar();
+		break;
 	case AnonMethod::Randomize:
+		ret = new AnonRandomize();
+		break;
 	case AnonMethod::Shuffle:
+		ret = new AnonShuffle();
+		break;
 	case AnonMethod::Whitenoise:
+	case AnonMethod::HashHmacSha1:
+	case AnonMethod::BytewiseHashHmacSha1:
+	case AnonMethod::ConstOverwrite:
 	default:
 		msg(MSG_FATAL, "AnonPrimitive number %i is unknown", m);
 		THROWEXCEPTION("AnonPrimitive number %i is unknown", m);
