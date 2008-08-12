@@ -23,18 +23,14 @@
 #include "AnonHashSha1.h"
 #include <iostream>
 
-using std::cout;
 
 class AnonBytewiseHashSha1 : public AnonBytewise {
-
 public:
-	
-							AnonBytewiseHashSha1		();
-							~AnonBytewiseHashSha1		();
+	AnonBytewiseHashSha1();
+	~AnonBytewiseHashSha1();
 
 private:
-
-	void					fillTable					();
+	void fillTable();
 
 };
 

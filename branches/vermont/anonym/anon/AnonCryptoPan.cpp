@@ -20,7 +20,7 @@
 
 #include <cstring>
 
-AnonCryptoPan::AnonCryptoPan (string _key)
+AnonCryptoPan::AnonCryptoPan (std::string _key)
 : key (_key), cryptopan ((const UINT8*)key.c_str ())
 {
 }
@@ -29,7 +29,7 @@ AnonCryptoPan::~AnonCryptoPan ()
 {
 }
 
-AnonPrimitive::ANON_RESULT AnonCryptoPan::anonymize	(void* buf, unsigned int len)
+AnonPrimitive::ANON_RESULT AnonCryptoPan::anonymize(void* buf, unsigned int len)
 {
 	assert (len == sizeof (UINT32));
 	UINT32 orig = 0;

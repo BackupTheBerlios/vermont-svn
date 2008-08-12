@@ -19,7 +19,7 @@
 #include "./AnonShorten.h"
 
 AnonShorten::AnonShorten (unsigned int length)
-:	newlen	(length)
+	: newlen(length)
 {
 }
 
@@ -29,7 +29,9 @@ AnonShorten::~AnonShorten ()
 
 AnonPrimitive::ANON_RESULT AnonShorten::anonymize (void* buf, unsigned int len)
 {
-	if (newlen >= len)	return ANON_RESULT (len);
-	else				return ANON_RESULT (newlen);
+	if (newlen >= len)
+		return ANON_RESULT (len);
+	else	
+		return ANON_RESULT (newlen);
 }
 

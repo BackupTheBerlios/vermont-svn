@@ -23,17 +23,14 @@
 #include <vector>
 #include <algorithm>
 
-using std::vector;
-
 class AnonShuffle : public AnonPrimitive {
-	
 public:
-							AnonShuffle			();
-							~AnonShuffle		();
+	AnonShuffle();
+	~AnonShuffle();
 
 protected:
 
-	ANON_RESULT				anonymize			(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 
 };
 

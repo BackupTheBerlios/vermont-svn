@@ -32,9 +32,8 @@ AnonPrimitive::ANON_RESULT AnonBytewise::anonymize (void* buf, unsigned int len)
 	unsigned char* pnt;
 
 	for (unsigned int i=0; i<len; i++) {
-		
-		pnt		= (unsigned char*) buf + i;
-		memset	(pnt, anonbytes [*pnt], 1);
+		pnt = (unsigned char*) buf + i;
+		memset(pnt, anonbytes [*pnt], 1);
 
 	} // for (unsigned int i=0; i<len; i++) 
 

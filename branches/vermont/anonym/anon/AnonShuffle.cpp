@@ -30,7 +30,7 @@ AnonShuffle::~AnonShuffle ()
 
 AnonPrimitive::ANON_RESULT AnonShuffle::anonymize (void* buf, unsigned int len)
 {
-	vector<unsigned char> permvector;
+	std::vector<unsigned char> permvector;
 
 	for (unsigned int i=0; i<len; i++) 
 		permvector.push_back (*(((unsigned char*) buf) + i));

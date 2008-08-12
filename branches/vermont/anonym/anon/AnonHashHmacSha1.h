@@ -26,17 +26,16 @@
 class AnonHashHmacSha1 : public AnonPrimitive {
 
 public:
-								AnonHashHmacSha1		(string hmackey);
-								~AnonHashHmacSha1		();
+	AnonHashHmacSha1(std::string hmackey);
+	~AnonHashHmacSha1();
 
 protected:
-
-	ANON_RESULT					anonymize				(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 
 private:
 
-	char*						key;
-	unsigned short				keylen;
+	char* key;
+	unsigned short keylen;
 	unsigned char				digest [SHA1_DIGLEN];
 };
 

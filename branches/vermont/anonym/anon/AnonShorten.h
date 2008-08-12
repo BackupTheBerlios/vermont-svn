@@ -24,16 +24,14 @@
 class AnonShorten : public AnonPrimitive
 {
 public:
-								AnonShorten			(unsigned int length);
-								~AnonShorten		();
+	AnonShorten(unsigned int length);
+	~AnonShorten();
 			
 protected:
-
-	ANON_RESULT					anonymize			(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 
 private:
-
-	unsigned int				newlen;
+	unsigned int newlen;
 };
 
 #endif // __ANON_SHORTEN_H

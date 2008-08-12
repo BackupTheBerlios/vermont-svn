@@ -21,26 +21,21 @@
 
 #include <string>
 
-using std::string;
-using std::min;
-
 class AnonPrimitive {
-
 public:
-							AnonPrimitive	();
-	virtual					~AnonPrimitive	() {};
+	AnonPrimitive();
+	virtual	~AnonPrimitive() {};
 
-	unsigned int			anonimizeBuffer	(void* buf, unsigned int len);
+	unsigned int anonimizeBuffer(void* buf, unsigned int len);
 
-	AnonPrimitive*			getNext			();
-	void					setNext			(AnonPrimitive* nextprim);
+	AnonPrimitive* getNext();
+	void setNext(AnonPrimitive* nextprim);
 
 protected:
 
 	typedef struct _ANON_RESULT {
-
-		bool			cont;			// continue with the next primitive
-		unsigned int	newlength;		// the new length of the buffer
+		bool cont;	// continue with the next primitive
+		unsigned int newlength;	// the new length of the buffer
 
 		_ANON_RESULT () : cont (false), newlength (0)
 		{
@@ -48,25 +43,25 @@ protected:
 
 		_ANON_RESULT (unsigned int _newlength, bool _cont = true)
 		{
-			cont			= _cont;
-			newlength		= _newlength;
+			cont = _cont;
+			newlength = _newlength;
 		}
 
 		void operator+ (const struct _ANON_RESULT& right)
 		{
-			cont			&= right.cont;
-			newlength		= min (right.newlength, newlength);
+			cont &= right.cont;
+			newlength = std::min(right.newlength, newlength);
 		}
 
 	} ANON_RESULT;
 
 	// anonymize the buffer of length len pointed to by buf
 	// return the new length of the buffer in case it has changed
-	virtual ANON_RESULT anonymize			(void* buf, unsigned int len) = 0;
+	virtual ANON_RESULT anonymize(void* buf, unsigned int len) = 0;
 
 private:
 
-	AnonPrimitive*		next;
+	AnonPrimitive* next;
 
 };
 

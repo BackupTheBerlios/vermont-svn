@@ -23,19 +23,16 @@
 #include <cassert>
 
 class AnonBytewise : public AnonPrimitive {
-
 public:
-
-								AnonBytewise		();
-	virtual						~AnonBytewise		();
+	AnonBytewise();
+	virtual ~AnonBytewise();
 		
 protected:
-
-	ANON_RESULT					anonymize			(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 
 protected:
 
-	unsigned char				anonbytes [256];
+	unsigned char anonbytes [256];
 
 };
 

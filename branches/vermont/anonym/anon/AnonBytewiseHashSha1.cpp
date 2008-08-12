@@ -33,8 +33,7 @@ void AnonBytewiseHashSha1::fillTable ()
 	AnonHashSha1		hashobj;
 
 	for (unsigned short i = 0; i<256; i++) {
-		
-		data					= (unsigned char) i;
+		data = (unsigned char) i;
 		hashobj.anonimizeBuffer	(&data, 1);
 		anonbytes [i]			= data;
 

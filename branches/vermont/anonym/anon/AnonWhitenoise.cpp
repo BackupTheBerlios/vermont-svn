@@ -30,11 +30,11 @@ AnonWhitenoise::~AnonWhitenoise ()
 AnonPrimitive::ANON_RESULT AnonWhitenoise::anonymize (void* buf, unsigned int len)
 {
 	//  how many bits are in the buffer?
-	unsigned int	bits		= len * 8;
+	unsigned int bits = len * 8;
 	
 	// how many bits of these will we flip? Generate a random number and apply the given strength.
-	unsigned int	randbits	= RandomNumberGenerator::generate (0, bits);
-					randbits	= (unsigned int) ceil (((double)randbits / 100.0) * (strength * 10));
+	unsigned int randbits = RandomNumberGenerator::generate (0, bits);
+	randbits = (unsigned int) ceil (((double)randbits / 100.0) * (strength * 10));
 
 	// in any case we will flip at least one bit, if we have any bits
 	if (bits > 0 && randbits == 0)
@@ -44,9 +44,9 @@ AnonPrimitive::ANON_RESULT AnonWhitenoise::anonymize (void* buf, unsigned int le
 	// now we flip randbits in the buffer at random positions
 	//
 
-	unsigned int	flipbit;
-	unsigned char*	byte;
-	unsigned char	mask;
+	unsigned int flipbit;
+	unsigned char* byte;
+	unsigned char mask;
 
 	for (unsigned int i=0; i<randbits; i++) {
 		

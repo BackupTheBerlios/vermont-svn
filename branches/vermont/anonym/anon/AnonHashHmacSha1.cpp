@@ -20,15 +20,15 @@
 
 #include <cstring>
 
-AnonHashHmacSha1::AnonHashHmacSha1 (string hmackey)
+AnonHashHmacSha1::AnonHashHmacSha1 (std::string hmackey)
 {
-	keylen	= (unsigned int) hmackey.length ();
-	key		= new char [keylen + 1];
+	keylen = (unsigned int) hmackey.length ();
+	key = new char [keylen + 1];
 	
 #ifdef WIN32
-	strcpy_s (key, keylen+1, hmackey.c_str ());
+	strcpy_s(key, keylen+1, hmackey.c_str ());
 #else
-	strcpy	(key, hmackey.c_str ());
+	strcpy(key, hmackey.c_str ());
 #endif
 
 }
@@ -46,19 +46,14 @@ AnonPrimitive::ANON_RESULT AnonHashHmacSha1::anonymize (void* buf, unsigned int 
 	unsigned int pos		= 0;
 
 	while (remaining != 0) {
-
 		if (remaining >= SHA1_DIGLEN) {
-				
-			memcpy		((unsigned char*) buf + pos, digest, SHA1_DIGLEN);
-			remaining	-= SHA1_DIGLEN;
-			pos			+= SHA1_DIGLEN;
-
+			memcpy((unsigned char*) buf + pos, digest, SHA1_DIGLEN);
+			remaining -= SHA1_DIGLEN;
+			pos += SHA1_DIGLEN;
 		} else {
-
-			memcpy		((unsigned char*) buf + pos, digest, remaining);
-			remaining	=  0;
-			pos			+= remaining;
-
+			memcpy((unsigned char*) buf + pos, digest, remaining);
+			remaining =  0;
+			pos += remaining;
 		}
 		
 	} // while (remaining != 0) 

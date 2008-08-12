@@ -18,7 +18,7 @@
 
 #include "AnonBytewiseHashHmacSha1.h"
 
-AnonBytewiseHashHmacSha1::AnonBytewiseHashHmacSha1 (string key)
+AnonBytewiseHashHmacSha1::AnonBytewiseHashHmacSha1(std::string key)
 {
 	fillTable (key);
 }
@@ -27,16 +27,16 @@ AnonBytewiseHashHmacSha1::~AnonBytewiseHashHmacSha1 ()
 {
 }
 
-void AnonBytewiseHashHmacSha1::fillTable (string hmackey)
+void AnonBytewiseHashHmacSha1::fillTable (std::string hmackey)
 {
-	unsigned char		data;
-	AnonHashHmacSha1	hashobj (hmackey);
+	unsigned char data;
+	AnonHashHmacSha1 hashobj (hmackey);
 
 	for (unsigned short i = 0; i<256; i++) {
 		
-		data					= (unsigned char) i;
+		data = (unsigned char) i;
 		hashobj.anonimizeBuffer	(&data, 1);
-		anonbytes [i]			= data;
+		anonbytes[i] = data;
 
 	} // for (unsigned short i = 0; i<256; i++) 
 }

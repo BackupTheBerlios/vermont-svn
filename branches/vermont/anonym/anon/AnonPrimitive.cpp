@@ -41,6 +41,6 @@ unsigned int AnonPrimitive::anonimizeBuffer (void* buf, unsigned int len)
 	if (myres.cont && next != NULL) 
 		nextres = next->anonimizeBuffer (buf, myres.newlength);
 
-	return min (myres.newlength, nextres.newlength);
+	return std::min(myres.newlength, nextres.newlength);
 }
 

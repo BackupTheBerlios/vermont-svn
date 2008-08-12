@@ -41,16 +41,14 @@ AnonPrimitive::ANON_RESULT AnonHashSha1::anonymize (void* buf, unsigned int len)
 
 		if (remaining >= SHA1_DIGLEN) {
 				
-			memcpy		((unsigned char*) buf + pos, digest, SHA1_DIGLEN);
-			remaining	-= SHA1_DIGLEN;
-			pos			+= SHA1_DIGLEN;
+			memcpy((unsigned char*) buf + pos, digest, SHA1_DIGLEN);
+			remaining -= SHA1_DIGLEN;
+			pos += SHA1_DIGLEN;
 
 		} else {
-
-			memcpy		((unsigned char*) buf + pos, digest, remaining);
-			remaining	=  0;
-			pos			+= remaining;
-
+			memcpy((unsigned char*) buf + pos, digest, remaining);
+			remaining =  0;
+			pos += remaining;
 		}
 		
 	} // while (remaining != 0) 

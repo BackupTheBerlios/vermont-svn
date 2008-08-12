@@ -35,9 +35,9 @@ unsigned int RandomNumberGenerator::generate ()
 	static unsigned int val = 0;
 
 #ifdef WIN32
-		rand_s (&val);
+	rand_s (&val);
 #else
-		val = rand ();
+	val = rand ();
 #endif
 
 	return val;

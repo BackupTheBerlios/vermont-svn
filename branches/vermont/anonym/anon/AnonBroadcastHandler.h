@@ -22,14 +22,12 @@
 #include "AnonPrimitive.h"
 
 class AnonBroadcastHandler : public AnonPrimitive {
-
 public:
-							AnonBroadcastHandler	();
-							~AnonBroadcastHandler	();
+	AnonBroadcastHandler();
+	~AnonBroadcastHandler();
 protected:
 				
-	ANON_RESULT				anonymize				(void* buf, unsigned int len) ;
-
+	ANON_RESULT anonymize(void* buf, unsigned int len) ;
 };
 
 #endif // __ANON_BROADCAST_HANDLER_H

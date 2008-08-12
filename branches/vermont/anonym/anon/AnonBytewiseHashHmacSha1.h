@@ -23,15 +23,12 @@
 #include "AnonHashHmacSha1.h"
 
 class AnonBytewiseHashHmacSha1 : public AnonBytewise {
-
 public:
-							AnonBytewiseHashHmacSha1		(string key);
-							~AnonBytewiseHashHmacSha1		();
+	AnonBytewiseHashHmacSha1(std::string key);
+	~AnonBytewiseHashHmacSha1();
 
 private:
-
-	void					fillTable						(string hmackey);
-
+	void fillTable(std::string hmackey);
 };
 
 

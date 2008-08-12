@@ -25,12 +25,12 @@
 class AnonRandomize : public AnonPrimitive {
 
 public:
-								AnonRandomize			();
-								~AnonRandomize			();	
+	AnonRandomize();
+	~AnonRandomize();	
 
 protected:
 
-	ANON_RESULT 				anonymize				(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 
 };
 

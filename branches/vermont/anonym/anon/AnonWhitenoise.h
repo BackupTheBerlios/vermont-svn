@@ -24,19 +24,16 @@
 #include <cmath>
 
 class AnonWhitenoise : public AnonPrimitive {
-
 public:
-	
-							AnonWhitenoise				(unsigned char strengthval);
-							~AnonWhitenoise				();
+	AnonWhitenoise(unsigned char strengthval);
+	~AnonWhitenoise();
 
 protected:
-
-	ANON_RESULT				anonymize					(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 
 private:
 
-	unsigned char			strength;
+	unsigned char strength;
 
 };
 

@@ -26,17 +26,15 @@ class AnonHashSha1 : public AnonPrimitive {
 
 public:
 
-								AnonHashSha1		();
-								~AnonHashSha1		();
+	AnonHashSha1();
+	~AnonHashSha1();
 
 protected:
-
-	ANON_RESULT					anonymize				(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 
 private:
-
-	Sha1::SHA1_CTX				sha;
-	unsigned char				digest [SHA1_DIGLEN];
+	Sha1::SHA1_CTX sha;
+	unsigned char digest [SHA1_DIGLEN];
 
 };
 

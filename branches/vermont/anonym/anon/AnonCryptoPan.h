@@ -24,22 +24,20 @@
 #include "cryptopan/panonymizer.h"
 #include "AnonPrimitive.h"
 
-using std::string;
 
 class AnonCryptoPan : public AnonPrimitive {
-
 public:
-						AnonCryptoPan			(string _key);
-						~AnonCryptoPan			();
+	AnonCryptoPan(std::string _key);
+	~AnonCryptoPan();
 
 protected:
 
-	ANON_RESULT			anonymize				(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 
 private:
 
-	string				key;
-	PAnonymizer			cryptopan;
+	std::string key;
+	PAnonymizer cryptopan;
 
 };
 

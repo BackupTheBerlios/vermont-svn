@@ -30,7 +30,6 @@ AnonRandomize::~AnonRandomize ()
 
 AnonPrimitive::ANON_RESULT AnonRandomize::anonymize (void* buf, unsigned int len)
 {
-
 	unsigned int randval;
 
 	for (unsigned int i=0; i<len; i++) {

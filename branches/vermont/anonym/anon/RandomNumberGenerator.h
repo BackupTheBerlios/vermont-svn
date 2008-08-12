@@ -29,9 +29,9 @@
 
 namespace RandomNumberGenerator {
 	
-	void						init				();
-	unsigned int				generate			();
-	unsigned int				generate			(unsigned int rangemin, unsigned int rangemax);
+	void init();
+	unsigned int generate();
+	unsigned int generate(unsigned int rangemin, unsigned int rangemax);
 
 };
 

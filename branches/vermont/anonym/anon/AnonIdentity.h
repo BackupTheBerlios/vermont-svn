@@ -24,12 +24,12 @@
 class AnonIdentity : public AnonPrimitive
 {
 public:
-								AnonIdentity			();
-								~AnonIdentity			();
+	AnonIdentity();
+	~AnonIdentity();
 			
 protected:
 
-	ANON_RESULT					anonymize				(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 
 };
 

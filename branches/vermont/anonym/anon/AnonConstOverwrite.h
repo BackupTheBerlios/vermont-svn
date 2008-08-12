@@ -24,16 +24,15 @@
 class AnonConstOverwrite : public AnonPrimitive {
 
 public:
-								AnonConstOverwrite		(unsigned char byte);
-								~AnonConstOverwrite		();
+	AnonConstOverwrite(unsigned char byte);
+	~AnonConstOverwrite();
 
 protected:
-
-	ANON_RESULT					anonymize				(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 	
 private:
 
-	unsigned char				byteval;
+	unsigned char byteval;
 
 };
 

@@ -22,22 +22,18 @@
 #include "AnonPrimitive.h"
 #include <string>
 
-using std::string;
-
 class AnonContinuousChar : public AnonPrimitive {
 
 public:
-
-								AnonContinuousChar		();
-								~AnonContinuousChar		();	
+	AnonContinuousChar();
+	~AnonContinuousChar();	
 
 protected:
-
-	ANON_RESULT					anonymize				(void* buf, unsigned int len);
+	ANON_RESULT anonymize(void* buf, unsigned int len);
 
 private:
 
-	unsigned char				current;
+	unsigned char current;
 
 };
 
