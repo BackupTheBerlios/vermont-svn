@@ -302,6 +302,9 @@ Module* PacketAnonFilterCfg::getInstance()
 			     ++jt) {
 				XMLElement* e = *jt;
 				if (e->matches("anonIE")) {
+					if(cfg) {
+						THROWEXCEPTION("Only on anonIE tag per anonField tag allowed");
+					}
 					cfg = new InfoElementCfg(*jt);
 				} else if (e->matches("anonMethod")) {
 					method = get("anonMethod", e);
