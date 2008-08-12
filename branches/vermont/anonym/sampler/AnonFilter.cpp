@@ -6,6 +6,7 @@
 #include <anon/AnonBytewiseHashSha1.h>
 #include <anon/AnonConstOverwrite.h>
 #include <anon/AnonContinuousChar.h>
+#include <anon/AnonWhitenoise.h>
 #include <anon/AnonHashHmacSha1.h>
 #include <anon/AnonRandomize.h>
 #include <anon/AnonShuffle.h>
@@ -23,7 +24,7 @@ AnonFilter::~AnonFilter()
 	}
 }
 
-AnonPrimitive* AnonFilter::createPrimitive(AnonMethod::Method m, const std::string& paramter)
+AnonPrimitive* AnonFilter::createPrimitive(AnonMethod::Method m, const std::string& parameter)
 {
 	AnonPrimitive* ret = 0;
 	switch (m) {
@@ -43,9 +44,19 @@ AnonPrimitive* AnonFilter::createPrimitive(AnonMethod::Method m, const std::stri
 		ret = new AnonShuffle();
 		break;
 	case AnonMethod::Whitenoise:
+		ret = new AnonWhitenoise(atoi(parameter.c_str()));
+		break;
 	case AnonMethod::HashHmacSha1:
+		ret = new AnonHashHmacSha1(parameter);
+		break;
 	case AnonMethod::BytewiseHashHmacSha1:
+		ret = new AnonBytewiseHashHmacSha1(parameter);
+		break;
 	case AnonMethod::ConstOverwrite:
+		if (parameter.size() != 1) {
+			THROWEXCEPTION("AnonConstOverwrite only uses one character as key");
+		}
+		ret = new AnonConstOverwrite(parameter.c_str()[0]);
 	default:
 		msg(MSG_FATAL, "AnonPrimitive number %i is unknown", m);
 		THROWEXCEPTION("AnonPrimitive number %i is unknown", m);
