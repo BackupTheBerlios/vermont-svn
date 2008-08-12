@@ -47,6 +47,7 @@ SUBDIRS(
 	sampler
 	reconf
 	idmef
+	anon
 )
 
 ADD_EXECUTABLE(vermont
@@ -64,6 +65,7 @@ TARGET_LINK_LIBRARIES(vermont
 	idmef
 	common
 	osdep
+	anon
 )
 
 INSTALL(TARGETS vermont
