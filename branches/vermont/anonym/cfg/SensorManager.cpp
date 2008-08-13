@@ -126,7 +126,7 @@ void SensorManager::retrieveStatistics()
 	
 	if (smExitFlag) return;
 	
-	int fdlock = open(lockfile.c_str(), O_CREAT|O_RDONLY);
+	int fdlock = open(lockfile.c_str(), O_CREAT|O_RDONLY, 0500);
 	if (fdlock == -1)
 		msg(MSG_DEBUG, "failed to open file %s, error code %d", lockfile.c_str(), errno);
 	
