@@ -1,4 +1,6 @@
 #include "PacketHashtable.h"
+#include <iostream>
+#include <fstream>
 
 #include "crc.hpp"
 
@@ -9,6 +11,8 @@
 PacketHashtable::PacketHashtable(Source<IpfixRecord*>* recordsource, Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime)
 	: BaseHashtable(recordsource, rule, minBufferTime, maxBufferTime)
 {
+	starttime = time(0);
+	written = false; 
 	if (rule->biflowAggregation) 
 		THROWEXCEPTION("PacketAggregator can not perform biflow aggregation, but one of its rules is configured to do that");
 	buildExpHelperTable();
@@ -662,14 +666,15 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 
 	// search bucket inside hashtable
 	Bucket* bucket = buckets[hash];
+
 	if (bucket == 0) {
 		// slot is free, place bucket there
 		DPRINTF("creating new bucket");
 		buckets[hash] = createBucket(buildBucketData(p), p->observationDomainID);
 		atomic_release(&aggInProgress);
+		statTotalEntries++;
 		return;
 	}
-
 	// This slot is already used, search spill chain for equal flow
 	while(1) {
 		if (expEqualFlow(bucket->data.get(), p)) {
@@ -686,13 +691,42 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 
 		if (bucket->next == 0) {
 			DPRINTF("creating bucket\n");
-
+			statTotalEntries++;
+			statMultiEntries++;
 			bucket->next = createBucket(buildBucketData(p), p->observationDomainID);
 			break;
 		}
 		bucket = (Bucket*)bucket->next;
 	}
+	if (!written && time(0)- 300 > starttime) writeHashtable();
 	atomic_release(&aggInProgress);
 }
+void PacketHashtable::writeHashtable()
+{
 
+	int count = 0;
+	ofstream fout("/home/sistmika/vermont/dos-attack/hashtable.txt");
+	if (fout){
+
+		fout << "bucket\tnumber\n";
+		for(uint32_t i = 0x00000000; i < HTABLE_SIZE; i++){
+			Bucket* bucket = buckets[i];
+			if (bucket == 0) count = 0;
+			else{
+				count++;
+				while(bucket->next != 0){
+					count++;
+					bucket = (Bucket*)bucket->next;
+					}
+			}
+			fout << i+1 << "\t" << count  << "\n";
+			count =0;
+		}
+		fout.close();
+		written = true;
+	}
+	else {
+	DPRINTF("unable to open file to write Hashtable\n")
+	}
+}
 

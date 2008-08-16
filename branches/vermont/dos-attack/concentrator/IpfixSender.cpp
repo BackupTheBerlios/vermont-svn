@@ -521,12 +521,13 @@ void IpfixSender::sendRecords(bool forcesend)
 	
 	// TODO: extend ipfixlolib so that as many records as possible may be stored
 	// in one network packet
+	addToCurTime(&nextTimeout, recordCacheTimeout);
 	if ((noCachedRecords >= 10) || forcesend) {
 		// send packet
 		endAndSendDataSet();
 		statSentPackets++;
 		// set next timeout
-		addToCurTime(&nextTimeout, recordCacheTimeout);
+		//addToCurTime(&nextTimeout, recordCacheTimeout);
 	}
 }
 

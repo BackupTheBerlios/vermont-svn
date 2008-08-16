@@ -77,7 +77,10 @@ private:
 	};
 
 	ExpHelperTable expHelperTable;
-	
+	bool written;
+	int starttime;	
+
+	void writeHashtable();
 	void buildExpHelperTable();
 	static void copyDataEqualLengthNoMod(IpfixRecord::Data* bucket, const IpfixRecord::Data* src, ExpFieldData* efd);
 	static void copyDataGreaterLengthIPNoMod(IpfixRecord::Data* bucket, const IpfixRecord::Data* src, ExpFieldData* efd);
