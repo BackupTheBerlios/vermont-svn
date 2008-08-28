@@ -13,7 +13,7 @@ class Packet;
 class PCAPExporterModule : public Module, public Destination<Packet*>, public Source<Packet*>
 {
 public:
-	PCAPExporterModule(const std::string& file);
+	PCAPExporterModule(const std::string& file, bool drop_payload = false);
 	~PCAPExporterModule();
 
 	virtual void receive(Packet* packet);
@@ -31,6 +31,7 @@ private:
 	pcap_dumper_t* dumper;
 	int link_type;
 	int snaplen;
+	bool drop_payload;
 };
 
 #endif

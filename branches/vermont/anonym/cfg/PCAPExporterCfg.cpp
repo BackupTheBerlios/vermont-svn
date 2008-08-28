@@ -6,7 +6,7 @@
 #include <pcap.h>
 
 PCAPExporterCfg::PCAPExporterCfg(XMLElement* elem) 
-	: CfgHelper<PCAPExporterModule, PCAPExporterCfg>(elem, "pcapExporter"), link_type(DLT_EN10MB)
+	: CfgHelper<PCAPExporterModule, PCAPExporterCfg>(elem, "pcapExporter"), link_type(DLT_EN10MB), drop_payload(false)
 { 
 	if (!elem) return;
 
@@ -27,6 +27,15 @@ PCAPExporterCfg::PCAPExporterCfg(XMLElement* elem)
 			}
 		} else if (e->matches("snaplen")) {
 			snaplen = getInt("snaplen", PCAP_MAX_CAPTURE_LENGTH, e);
+		} else if (e->matches("dropPayload")) {
+			std::string v = get("dropPayload", e);
+			if (v == "true") {
+				drop_payload = true;
+			} else if (v == "false") {
+				drop_payload = false;
+			} else {
+				THROWEXCEPTION("Unknown value for dropPayload");
+			}
 		}
 	}
 } 
@@ -44,7 +53,7 @@ PCAPExporterCfg::~PCAPExporterCfg()
 
 PCAPExporterModule* PCAPExporterCfg::createInstance()
 {
-	instance = new PCAPExporterModule(fileName);
+	instance = new PCAPExporterModule(fileName, drop_payload);
 	instance->setDataLinkType(link_type);
 	instance->setSnaplen(snaplen);
 	return instance;

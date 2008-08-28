@@ -2,8 +2,8 @@
 
 #include "sampler/Packet.h"
 
-PCAPExporterModule::PCAPExporterModule(const std::string& file)
-	: fileName(file), dummy(NULL), dumper(NULL), link_type(0), snaplen(PCAP_MAX_CAPTURE_LENGTH)
+PCAPExporterModule::PCAPExporterModule(const std::string& file, bool dp)
+	: fileName(file), dummy(NULL), dumper(NULL), link_type(0), snaplen(PCAP_MAX_CAPTURE_LENGTH), drop_payload(dp)
 {
 }
 
@@ -49,7 +49,11 @@ void PCAPExporterModule::receive(Packet* packet)
 {
 	static struct pcap_pkthdr packetHeader;
 	packetHeader.ts = packet->timestamp;
-	packetHeader.caplen = packet->data_length;
+	if (drop_payload && packet->payload) {
+		packetHeader.caplen = packet->payload - packet->data;
+	} else {
+		packetHeader.caplen = packet->data_length;
+	}
 	packetHeader.len = packet->pcapPacketLength;
 	pcap_dump((unsigned char*)dumper, &packetHeader, packet->data);
 }
