@@ -340,7 +340,7 @@ Module* PacketAnonFilterCfg::getInstance()
 
 }
 
-bool PacketAnonFilterCfg::deriveFrom(PacketConnectionFilterCfg* old)
+bool PacketAnonFilterCfg::deriveFrom(PacketAnonFilterCfg* old)
 {
 	/*
 	if (get("timeout") == old->get("timeout") &&

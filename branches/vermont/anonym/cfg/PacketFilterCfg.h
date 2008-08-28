@@ -305,7 +305,7 @@ public:
 		return false;
 	}
 
-	virtual bool deriveFrom(PacketConnectionFilterCfg* old);
+	virtual bool deriveFrom(PacketAnonFilterCfg* old);
 protected:
 	PacketAnonFilterCfg(XMLElement *e): PacketFilterHelperCfg(e), instance(NULL) { };
 private:
