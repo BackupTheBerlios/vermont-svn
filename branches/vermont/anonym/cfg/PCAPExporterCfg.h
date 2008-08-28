@@ -26,6 +26,7 @@ protected:
 private:
 	std::string fileName;
 	int link_type;
+	int snaplen;
 };
 
 
