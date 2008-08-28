@@ -23,7 +23,8 @@
 				<anonIE>
 					<ieName>destinationIPv4Address</ieName>
 				</anonIE>
-				<anonMethod key="insert key here">HashHmacSha1</anonMethod>
+				<anonMethod>HashHmacSha1</anonMethod>
+				<anonParam>insert key here</anonParam>
 			</anonField>
 		</anonFilter>
 		<next>6</next>

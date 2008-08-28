@@ -296,7 +296,7 @@ Module* PacketAnonFilterCfg::getInstance()
 		if (e->matches("anonField")) {
 			InfoElementCfg* cfg = NULL;
 			std::string method;
-			std::string method_paramter;
+			std::string method_parameter;
 			XMLNode::XMLSet<XMLElement*> set = e->getElementChildren();
 			for (XMLNode::XMLSet<XMLElement*>::iterator jt = set.begin();
 			     jt != set.end();
@@ -309,10 +309,8 @@ Module* PacketAnonFilterCfg::getInstance()
 					cfg = new InfoElementCfg(*jt);
 				} else if (e->matches("anonMethod")) {
 					method = get("anonMethod", e);
-					XMLAttribute* a = e->getAttribute("key");
-					if (a) {
-						method_paramter = a->getValue();
-					}
+				} else if (e->matches("anonParam")) {
+					method_parameter = get("anonParam", e);
 				} else {
 					msg(MSG_ERROR, "Unknown field in anonField");
 					continue;
@@ -326,7 +324,7 @@ Module* PacketAnonFilterCfg::getInstance()
 				msg(MSG_FATAL, "Missing anonymization method in anonField");
 				THROWEXCEPTION("Missing anonymization method in anonField");
 			}
-			instance->addAnonymization(cfg->getIeId(), AnonMethod::stringToMethod(method), method_paramter);
+			instance->addAnonymization(cfg->getIeId(), AnonMethod::stringToMethod(method), method_parameter);
 			delete cfg;
 				
 		} else {
