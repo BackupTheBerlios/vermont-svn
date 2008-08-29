@@ -3,11 +3,15 @@
                 <checkinterval>1</checkinterval>
         </sensorManager>
 
-<observer id="1">
-	<interface>eth0</interface>
-	<pcap_filter>ip</pcap_filter>
-	<next>3</next>
-</observer>
+	        <observer id="1">
+               <!--<interface>lo</interface>-->
+                <filename>/dumps/aussenanbindung.dump</filename>
+                <pcap_filter>ip</pcap_filter>
+                <offlineAutoExit>1</offlineAutoExit>
+               <offlineSpeed>1</offlineSpeed>
+                <captureLength>128</captureLength>
+                <next>3</next>
+        </observer>
 
 <packetQueue id="3">
 	<maxSize>1000</maxSize>

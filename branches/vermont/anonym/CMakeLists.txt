@@ -50,6 +50,13 @@ SUBDIRS(
 	anon
 )
 
+if(COMMAND cmake_policy)
+    cmake_policy(SET CMP0003 NEW)
+    cmake_policy(SET CMP0002 NEW)
+endif(COMMAND cmake_policy)
+
+
+
 ADD_EXECUTABLE(vermont
 	vermont.cc
 )
@@ -190,7 +197,7 @@ ENDIF (SUPPORT_NETFLOWV9)
 
 ### MySQL
 
-OPTION(SUPPORT_MYSQL "Enable dbwriter/dbreader support" ON)
+OPTION(SUPPORT_MYSQL "Enable dbwriter/dbreader support" OFF)
 IF (SUPPORT_MYSQL)
 	FIND_PACKAGE(MySQL REQUIRED)
 	MARK_AS_ADVANCED(
@@ -200,7 +207,7 @@ IF (SUPPORT_MYSQL)
 		MYSQL_CONFIG_PREFER_PATH
 	)
 	IF (NOT MYSQL_FOUND)
-		MESSAGE(FATAL_ERROR "Could not find MySQL libraries. Disabling dbwriter/dbreader support.")
+		MESSAGE(FATAL_ERROR "Could not find MySQL libraries.")
 	ENDIF (NOT MYSQL_FOUND)
 ENDIF (SUPPORT_MYSQL)
 IF (MYSQL_FOUND)
@@ -216,11 +223,11 @@ ENDIF (MYSQL_FOUND)
 
 ### PostgreSQL
 
-OPTION(SUPPORT_PGSQL "Enable PostgresQL support" ON)
+OPTION(SUPPORT_PGSQL "Enable PostgreSQL support" OFF)
 IF (SUPPORT_PGSQL)
 	FIND_PACKAGE(PostgreSQL REQUIRED)
 	IF (NOT POSTGRESQL_FOUND)
-		MESSAGE(FATAL_ERROR "Could not find PostgreSQL libraries. Disabling PostgreSQL support.")
+		MESSAGE(FATAL_ERROR "Could not find PostgreSQL libraries.")
 	ENDIF (NOT POSTGRESQL_FOUND)
 ENDIF (SUPPORT_PGSQL)
 IF (POSTGRESQL_FOUND)
@@ -280,10 +287,9 @@ OPTION(CONNECTION_FILTER "Enables/disables the connection filter." OFF)
 OPTION(USE_GSL "Enables/disables GSL in connectionflter." ON)
 
 IF (CONNECTION_FILTER AND NOT USE_GSL)
- 	MESSAGE(FATAL_ERROR "GSL is needed for Connectionfilter at the moment.
-	You cannot have -DCONNECTION_FILTER=ON and -DUSE_GSL=OFF")
+       MESSAGE(FATAL_ERROR "GSL is needed for Connectionfilter at the moment.
+       You cannot have -DCONNECTION_FILTER=ON and -DUSE_GSL=OFF")
 ENDIF (CONNECTION_FILTER AND NOT USE_GSL)
-
 
 IF (CONNECTION_FILTER)
 	### gsl
@@ -307,7 +313,6 @@ IF (CONNECTION_FILTER)
 	ADD_DEFINITIONS(-DHAVE_CONNECTION_FILTER)
 ENDIF(CONNECTION_FILTER)
 
-
 ### tools
 
 OPTION(WITH_TOOLS "Build misc tools." ON)
@@ -319,7 +324,7 @@ ENDIF (WITH_TOOLS)
 
 ### tests
 
-OPTION(WITH_TESTS "Build unit tests." ON)
+OPTION(WITH_TESTS "Build unit tests." OFF)
 IF (WITH_TESTS)
 	SUBDIRS(tests)
 ELSE (WITH_TESTS)
