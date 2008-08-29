@@ -155,11 +155,11 @@ void IpfixReceiverSctpIpV4::run() {
 						sourceID->protocol = IPFIX_protocolIdentifier_SCTP;
 						sourceID->receiverPort = receiverPort;
 						sourceID->fileDescriptor = rfd;
-						pthread_mutex_lock(&mutex);
+						mutex.lock();
 						for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 
 							(*i)->processPacket(data, ret, sourceID);
 						}
-						pthread_mutex_unlock(&mutex);
+						mutex.unlock();
 					}
 					else{
 						msg(MSG_DEBUG, "packet from unauthorized host %s discarded", inet_ntoa(clientAddress.sin_addr));

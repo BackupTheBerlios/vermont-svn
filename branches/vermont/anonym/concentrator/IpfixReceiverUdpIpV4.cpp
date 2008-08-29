@@ -142,11 +142,11 @@ void IpfixReceiverUdpIpV4::run() {
 			sourceID->protocol = IPFIX_protocolIdentifier_UDP;
 			sourceID->receiverPort = receiverPort;
 			sourceID->fileDescriptor = listen_socket;
-			pthread_mutex_lock(&mutex);
+			mutex.lock();
 			for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 
 				(*i)->processPacket(data, n, sourceID);
 			}
-			pthread_mutex_unlock(&mutex);
+			mutex.unlock();
 		} else {
 			msg(MSG_FATAL, "packet from unauthorized host %s discarded", inet_ntoa(clientAddress.sin_addr));
 		}
