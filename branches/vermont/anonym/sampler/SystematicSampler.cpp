@@ -11,7 +11,7 @@
 
 #include "SystematicSampler.h"
 
-bool SystematicSampler::processPacket(const Packet *p)
+bool SystematicSampler::processPacket(Packet *p)
 {
 	struct timeval elapsed;
 	unsigned long msecs;

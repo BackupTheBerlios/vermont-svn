@@ -7,6 +7,7 @@
 #include <sampler/StateConnectionFilter.h>
 #include <sampler/ConnectionFilter.h>
 #include <sampler/AnonFilter.h>
+#include <sampler/PayloadFilter.h>
 #include "common/msg.h"
 
 
@@ -49,6 +50,9 @@ PacketFilterCfg::PacketFilterCfg(XMLElement* elem)
 		} else if (e->matches("anonFilter")) {
 			msg(MSG_INFO, "Filter: Creating anonymization filter");
 			c = new PacketAnonFilterCfg(e);
+		} else if (e->matches("payloadFilter")) {
+			msg(MSG_INFO, "Filter: Creating payload filter");
+			c = new PacketPayloadFilterCfg(e);
 		} else if (e->matches("next")) { // ignore next
 			continue;
 		} else {
@@ -349,5 +353,20 @@ bool PacketAnonFilterCfg::deriveFrom(PacketAnonFilterCfg* old)
 	}
 	*/
 	return false;
+}
+
+// ----------------------------------------------------------------------------
+
+Module* PacketPayloadFilterCfg::getInstance()
+{
+	if (!instance) {
+		instance = new PayloadFilter();
+	}
+	return (Module*)instance;
+}
+
+bool PacketPayloadFilterCfg::deriveFrom(PacketPayloadFilterCfg* old)
+{
+	return true;
 }
 

@@ -13,6 +13,7 @@ class SystematicSampler;
 class StateConnectionFilter;
 class ConnectionFilter;
 class AnonFilter;
+class PayloadFilter;
 
 class PacketFilterCfg
 	: public CfgHelper<FilterModule, PacketFilterCfg>
@@ -280,6 +281,38 @@ private:
 	ConnectionFilter* instance;
 };
 #endif
+
+class PacketPayloadFilterCfg
+	: public PacketFilterHelperCfg
+{
+public:
+	friend class PacketFilterCfg;
+
+	virtual PacketPayloadFilterCfg* create(XMLElement* e) {return NULL; };
+
+	virtual ~PacketPayloadFilterCfg() { };
+
+	virtual std::string getName() { return "anonFilter"; }
+
+	virtual Module* getInstance();
+
+	virtual bool deriveFrom(Cfg* old)
+	{
+		PacketPayloadFilterCfg* cfg = dynamic_cast<PacketPayloadFilterCfg*>(old);
+		if (cfg)
+			return deriveFrom(cfg);
+
+		THROWEXCEPTION("Can't derive from PacketPayloadFilter");
+		return false;
+	}
+
+	virtual bool deriveFrom(PacketPayloadFilterCfg* old);
+protected:
+	PacketPayloadFilterCfg(XMLElement *e): PacketFilterHelperCfg(e), instance(NULL) { };
+private:
+	PayloadFilter* instance;
+};
+
 
 class PacketAnonFilterCfg
 	: public PacketFilterHelperCfg

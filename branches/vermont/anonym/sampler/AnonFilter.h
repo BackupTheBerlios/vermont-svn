@@ -60,7 +60,7 @@ public:
 
 	void addAnonymization(uint16_t id, AnonMethod::Method m, const std::string& parameter = "");
 
-	virtual bool processPacket(const Packet* p);
+	virtual bool processPacket(Packet* p);
 protected:
 	typedef std::map<uint16_t, AnonPrimitive*> MethodMap;
 	MethodMap  methods;

@@ -71,7 +71,7 @@ void AnonFilter::addAnonymization(uint16_t f, AnonMethod::Method  m, const std::
 	methods[f] = a;
 }
 
-bool AnonFilter::processPacket(const Packet* p)
+bool AnonFilter::processPacket(Packet* p)
 {
 	static uint16_t offset;
 	static unsigned short header;

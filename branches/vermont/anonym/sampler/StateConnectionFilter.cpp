@@ -8,12 +8,12 @@ StateConnectionFilter::StateConnectionFilter(unsigned timeout, unsigned bytes)
 	this->exportBytes = bytes;
 }
 
-bool StateConnectionFilter::processPacket(const Packet* p)
+bool StateConnectionFilter::processPacket(Packet* p)
 {
 	return processPacket(p, true);
 }
 
-bool StateConnectionFilter::processPacket(const Packet* p, bool connFilterResult)
+bool StateConnectionFilter::processPacket(Packet* p, bool connFilterResult)
 {
 	unsigned flagsOffset = p->transportHeaderOffset + 13;
 	static const uint8_t SYN = 0x02;

@@ -30,5 +30,6 @@ ADD_LIBRARY(sampler
 	ConnectionFilter.cpp
 	StateConnectionFilter.cpp
 	AnonFilter.cpp
+	PayloadFilter.cpp
 )
 

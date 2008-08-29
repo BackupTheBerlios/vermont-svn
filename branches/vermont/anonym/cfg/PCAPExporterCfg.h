@@ -27,7 +27,6 @@ private:
 	std::string fileName;
 	int link_type;
 	int snaplen;
-	bool drop_payload;
 };
 
 

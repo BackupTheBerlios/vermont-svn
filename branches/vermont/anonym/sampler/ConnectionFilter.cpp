@@ -14,7 +14,7 @@ ConnectionFilter::ConnectionFilter(unsigned Timeout, unsigned bytes, unsigned ha
 {
 }
 
-bool ConnectionFilter::processPacket(const Packet* p)
+bool ConnectionFilter::processPacket(Packet* p)
 {
 	unsigned flagsOffset = p->transportHeaderOffset + 13;
 	static const uint8_t SYN = 0x02;
