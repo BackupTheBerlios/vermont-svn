@@ -8,7 +8,7 @@
 
 #include <anon/AnonPrimitive.h>
 
-#include <map>
+#include <list>
 
 class AnonMethod 
 {
@@ -46,7 +46,7 @@ public:
                         return Shuffle;
                 }else if (m == "Whitenoise") {
                         return Whitenoise;
-                }else if (m == "CrytpoPan") {
+                }else if (m == "CryptoPan") {
 			return CryptoPan;
 		}
 		THROWEXCEPTION("Unknown anonymization method");
@@ -56,17 +56,23 @@ public:
 	}
 };
 
+struct AnonIE {
+	uint16_t id;
+	int len;
+	AnonPrimitive* method;
+};
+
 class AnonFilter : public PacketProcessor {
 public:
 	AnonFilter();
 	~AnonFilter();
 
-	void addAnonymization(uint16_t id, AnonMethod::Method m, const std::string& parameter = "");
+	void addAnonymization(uint16_t id, int len, AnonMethod::Method m, const std::string& parameter = "");
 
 	virtual bool processPacket(Packet* p);
 protected:
-	typedef std::map<uint16_t, AnonPrimitive*> MethodMap;
-	MethodMap  methods;
+	typedef std::vector<AnonIE> MethodMap;
+	MethodMap methods;
 
 private:
 	AnonPrimitive* createPrimitive(AnonMethod::Method m, const std::string& paramter);

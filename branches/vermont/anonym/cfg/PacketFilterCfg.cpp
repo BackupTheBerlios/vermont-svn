@@ -328,7 +328,7 @@ Module* PacketAnonFilterCfg::getInstance()
 				msg(MSG_FATAL, "Missing anonymization method in anonField");
 				THROWEXCEPTION("Missing anonymization method in anonField");
 			}
-			instance->addAnonymization(cfg->getIeId(), AnonMethod::stringToMethod(method), method_parameter);
+			instance->addAnonymization(cfg->getIeId(), cfg->getIeLength(), AnonMethod::stringToMethod(method), method_parameter);
 			delete cfg;
 				
 		} else {

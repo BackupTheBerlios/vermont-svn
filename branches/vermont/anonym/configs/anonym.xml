@@ -17,13 +17,15 @@
 				<anonIE>
 					<ieName>sourceIPv4Address</ieName>
 				</anonIE>
-				<anonMethod>BytewiseHashSha1</anonMethod>
+				<anonMethod>CryptoPan</anonMethod>
+				<anonParam>insert key here</anonParam>
 			</anonField>
 			<anonField>
 				<anonIE>
 					<ieName>destinationIPv4Address</ieName>
+					<ieLength>4</ieLength>
 				</anonIE>
-				<anonMethod>HashHmacSha1</anonMethod>
+				<anonMethod>CryptoPan</anonMethod>
 				<anonParam>insert key here</anonParam>
 			</anonField>
 		</anonFilter>

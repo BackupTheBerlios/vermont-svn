@@ -21,7 +21,7 @@ AnonFilter::AnonFilter()
 AnonFilter::~AnonFilter()
 {
 	for (MethodMap::iterator i = methods.begin(); i != methods.end(); ++i) {
-		delete i->second;
+		delete i->method;
 	}
 }
 
@@ -70,10 +70,14 @@ AnonPrimitive* AnonFilter::createPrimitive(AnonMethod::Method m, const std::stri
 	return ret;
 }
 
-void AnonFilter::addAnonymization(uint16_t f, AnonMethod::Method  m, const std::string& parameter)
+void AnonFilter::addAnonymization(uint16_t id, int len,  AnonMethod::Method  methodName, const std::string& parameter)
 {
-	AnonPrimitive* a = createPrimitive(m, parameter);
-	methods[f] = a;
+	AnonPrimitive* a = createPrimitive(methodName, parameter);
+	AnonIE ie;
+	ie.id = id;
+	ie.len = len;
+	ie.method = a;
+	methods.push_back(ie);
 }
 
 bool AnonFilter::processPacket(Packet* p)
@@ -84,21 +88,27 @@ bool AnonFilter::processPacket(Packet* p)
 	static const struct ipfix_identifier* ident;
 
 	for (MethodMap::iterator i = methods.begin(); i != methods.end(); ++i) {
-		if (!Template::getFieldOffsetAndHeader(i->first, &offset, &header, &packetClass)) {
-			msg(MSG_ERROR, "Unkown or unsupported type id %i detected.", i->first);
-			continue;
-		}
-		if (!(ident = ipfix_id_lookup(i->first))) {
-			msg(MSG_ERROR, "Unknown or unsupported id %i detected.", i->first);
+		if (!Template::getFieldOffsetAndHeader(i->id, &offset, &header, &packetClass)) {
+			msg(MSG_ERROR, "Unkown or unsupported type id %i detected.", i->id);
 			continue;
 		}
 
+		int len = 0;
+		if (i->len == -1) {
+			if (!(ident = ipfix_id_lookup(i->id))) {
+				msg(MSG_ERROR, "Unknown or unsupported id %i detected.", i->id);
+				continue;
+			}
+			len = ident->length;
+		} else 
+			len = i->len;
+
 		switch (header) {
 		case HEAD_NETWORK:
-			i->second->anonimizeBuffer(p->netHeader + offset, ident->length);
+			i->method->anonimizeBuffer(p->netHeader + offset, len);
 			break;
 		case HEAD_TRANSPORT:
-			i->second->anonimizeBuffer(p->transportHeader + offset, ident->length);
+			i->method->anonimizeBuffer(p->transportHeader + offset, len);
 			break;
 		default:
 			msg(MSG_ERROR, "Cannot deal with header type %i", header);
