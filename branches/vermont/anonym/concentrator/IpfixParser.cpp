@@ -796,7 +796,7 @@ int IpfixParser::processIpfixPacket(boost::shared_array<uint8_t> message, uint16
     sourceId->observationDomainId = ntohl(header->observationDomainId);
 
 	if (ntohs(header->length) != length) {
-		msg(MSG_ERROR, "IpfixParser: Bad message length - expected %#06x, got %#06x\n", length, ntohs(header->length));
+		msg(MSG_ERROR, "IpfixParser: Bad message length - packet length is  %#06x, header length field is %#06x\n", length, ntohs(header->length));
 		return -1;
 	}
 

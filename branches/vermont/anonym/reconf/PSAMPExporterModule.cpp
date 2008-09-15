@@ -152,6 +152,11 @@ error2:
 
 // send out the IPFIX packet stream and reset
 void PSAMPExporterModule::flushPacketStream() {
+	// do nothing if no records can be sent
+	if (numPacketsToRelease == 0) {
+		return;
+	}
+
 	// end the packet stream and send the IPFIX packet out through the wire
 	ipfix_end_data_set(exporter, numPacketsToRelease);
 	ipfix_send(exporter);
