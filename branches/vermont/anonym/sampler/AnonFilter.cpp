@@ -10,6 +10,7 @@
 #include <anon/AnonHashHmacSha1.h>
 #include <anon/AnonRandomize.h>
 #include <anon/AnonShuffle.h>
+#include <anon/AnonCryptoPan.h>
 
 #include <ipfixlolib/ipfix_names.h>
 
@@ -57,6 +58,10 @@ AnonPrimitive* AnonFilter::createPrimitive(AnonMethod::Method m, const std::stri
 			THROWEXCEPTION("AnonConstOverwrite only uses one character as key");
 		}
 		ret = new AnonConstOverwrite(parameter.c_str()[0]);
+		break;
+	case AnonMethod::CryptoPan:
+		ret = new AnonCryptoPan(parameter);
+		break;
 	default:
 		msg(MSG_FATAL, "AnonPrimitive number %i is unknown", m);
 		THROWEXCEPTION("AnonPrimitive number %i is unknown", m);

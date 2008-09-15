@@ -22,7 +22,8 @@ public:
 		HashSha1,
 		Randomize,
 		Shuffle,
-		Whitenoise
+		Whitenoise,
+		CryptoPan
 	} Method;
 
 	static Method stringToMethod(const std::string& m)
@@ -45,7 +46,9 @@ public:
                         return Shuffle;
                 }else if (m == "Whitenoise") {
                         return Whitenoise;
-                }
+                }else if (m == "CrytpoPan") {
+			return CryptoPan;
+		}
 		THROWEXCEPTION("Unknown anonymization method");
 
 		// make compile happy
