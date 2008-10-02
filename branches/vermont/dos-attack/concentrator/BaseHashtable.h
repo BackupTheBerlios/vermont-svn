@@ -31,7 +31,8 @@
 #include "common/Sensor.h"
 
 #include "common/atomic_lock.h"
-
+#include "BucketList.h"
+#include "Bucket.h"
 
 class BaseHashtable : public Sensor
 {
@@ -45,17 +46,19 @@ public:
 	 * Single Bucket containing one buffered flow's variable data.
 	 * Is either a direct entry in @c Hashtable::bucket or a member of another Hashtable::Bucket's spillchain
 	 */
-	class Bucket
+/*	class Bucket
 	{
-	public:
-		uint32_t expireTime; /**< timestamp when this bucket will expire if no new flows are added */
-		uint32_t forceExpireTime; /**< timestamp when this bucket is forced to expire */
-		boost::shared_array<IpfixRecord::Data> data; /**< contains variable fields of aggregated flow; format defined in Hashtable::dataInfo::fieldInfo */
-		Bucket* next; /**< next bucket in spill chain */
-		uint32_t observationDomainID;
-	};
+	public:*/
+		//uint32_t expireTime; /**< timestamp when this bucket will expire if no new flows are added */
+		//uint32_t forceExpireTime; /**< timestamp when this bucket is forced to expire */
+		//boost::shared_array<IpfixRecord::Data> data; /**< contains variable fields of aggregated flow; format defined in Hashtable::dataInfo::fieldInfo */
+		//Bucket* prev;
+		//Bucket* next; /**< next bucket in spill chain */
+		//uint32_t observationDomainID;
+		//char* listNode;
+//	};
 			
-			
+	BucketList* list;			
 	BaseHashtable(Source<IpfixRecord*>* recordsource, Rule* rule, uint16_t minBufferTime, 
 			uint16_t maxBufferTime);
 	virtual ~BaseHashtable();

@@ -5,6 +5,8 @@
 #include "Rule.hpp"
 #include "sampler/Packet.h"
 #include "BaseHashtable.h"
+#include <iostream>
+#include <fstream>
 
 #include <boost/smart_ptr.hpp>
 
@@ -79,6 +81,7 @@ private:
 	ExpHelperTable expHelperTable;
 	bool written;
 	int starttime;	
+//	ofstream test;
 
 	void writeHashtable();
 	void buildExpHelperTable();

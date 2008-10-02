@@ -6,11 +6,13 @@
 
 #include "ipfix.hpp"
 #include "common/Misc.h"
-
+#include "BucketList.h"
+#include "Element.h"
 
 PacketHashtable::PacketHashtable(Source<IpfixRecord*>* recordsource, Rule* rule, uint16_t minBufferTime, uint16_t maxBufferTime)
 	: BaseHashtable(recordsource, rule, minBufferTime, maxBufferTime)
 {
+//	test("/home/sistmika/vermont/dos-attack/hashfunc.txt");
 	starttime = time(0);
 	written = false; 
 	if (rule->biflowAggregation) 
@@ -437,10 +439,16 @@ void PacketHashtable::buildExpHelperTable()
 uint32_t PacketHashtable::expCalculateHash(const IpfixRecord::Data* data)
 {
 	uint32_t hash = 0xAAAAAAAA;
+//	ofstream test("/home/sistmika/vermont/dos-attack/hashfunc.txt", ios_base::app);
 	for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
 		ExpFieldData* efd = &expHelperTable.expFieldData[i];
+//		const uint32_t* buf = reinterpret_cast<const uint32_t*>(reinterpret_cast<const char*>(data)+efd->srcIndex);
+//		if(test) test << *buf << "\t";
 		hash = crc32(hash, efd->srcLength, reinterpret_cast<const char*>(data)+efd->srcIndex);
+//		if(test) test << hash << "\t";
 	}
+//	uint32_t t = hash & (HTABLE_SIZE-1);
+//	if (test) test << t << "\n";
 	//return (hash>>(32-HTABLE_BITS)) & (HTABLE_SIZE-1);
 	return hash & (HTABLE_SIZE-1);
 }
@@ -666,11 +674,22 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 
 	// search bucket inside hashtable
 	Bucket* bucket = buckets[hash];
-
+//	cerr << "aggregatePackets\n";
+	if(!list) { cerr << "list not initialized\n"; 
+		list = new BucketList();
+		list->isEmpty = 1;}
 	if (bucket == 0) {
 		// slot is free, place bucket there
 		DPRINTF("creating new bucket");
 		buckets[hash] = createBucket(buildBucketData(p), p->observationDomainID);
+		//uint32_t exptime = buckets[hash]->expireTime;
+		buckets[hash]->hash = hash;
+		buckets[hash]->prev = 0;
+		buckets[hash]->next = 0;
+		Element<Bucket>* node = new Element<Bucket>(buckets[hash]);
+		//node->bucket = bucket;
+		buckets[hash]->listNode = reinterpret_cast<char*>(node);
+		list->push(node);
 		atomic_release(&aggInProgress);
 		statTotalEntries++;
 		return;
@@ -685,7 +704,13 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 			// TODO: tobi_optimize
 			// replace call of time() with access to a static variable which is updated regularly (such as every 100ms)
 			bucket->expireTime = time(0) + minBufferTime;
-
+			bucket->hash = hash;
+			Element<Bucket>* node = new Element<Bucket>(bucket);
+			node->bucket = bucket;
+			list->remove(reinterpret_cast<Element<Bucket>*>(bucket->listNode));
+			list->push(node);
+			bucket->listNode = reinterpret_cast<char*>(node);
+			
 			break;
 		}
 
@@ -694,6 +719,13 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 			statTotalEntries++;
 			statMultiEntries++;
 			bucket->next = createBucket(buildBucketData(p), p->observationDomainID);
+			Bucket* buck = bucket->next;
+			buck->prev = bucket;
+			buck->next = 0;
+			buck->hash = hash;
+			Element<Bucket>* node = new Element<Bucket>(buck);
+			list->push(node);
+			buck->listNode = reinterpret_cast<char*>(node);
 			break;
 		}
 		bucket = (Bucket*)bucket->next;
@@ -706,6 +738,7 @@ void PacketHashtable::writeHashtable()
 
 	int count = 0;
 	ofstream fout("/home/sistmika/vermont/dos-attack/hashtable.txt");
+//	ofstream test("/home/sistmika/vermont/dos-attack/hashfunc.txt");
 	if (fout){
 
 		fout << "bucket\tnumber\n";
@@ -728,5 +761,33 @@ void PacketHashtable::writeHashtable()
 	else {
 	DPRINTF("unable to open file to write Hashtable\n")
 	}
+/*	if(test){	
+//		IpfixRecord::Data data;
+		Bucket* bucket = buckets[5];
+		if (bucket != 0){
+//			data = bucket->data;
+			while(bucket->next != 0){
+				test << bucket->data << "\n";
+				bucket = (Bucket*)bucket->next;
+//				data = bucket->data;
+			}
+			test << bucket->data << "\n";
+		}
+		test << "\n\n";
+		bucket = buckets[100];
+		if(bucket != 0){
+//			data = bucket->data;
+			while(bucket->next){
+				test << bucket->data << "\n";
+				bucket = (Bucket*)bucket->next;
+//				data = bucket->data;
+			}
+			test << bucket->data << "\n";
+		}
+
+	}
+	else{
+	DPRINTF("unable to open file to write hash\n");
+	}*/
 }
 

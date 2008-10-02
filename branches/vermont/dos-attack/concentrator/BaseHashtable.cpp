@@ -2,7 +2,9 @@
 
 #include <sstream>
 #include <stdint.h>
-
+#include <iostream>
+#include "Element.h"
+#include "Bucket.h"
 using namespace std;
 
 
@@ -165,7 +167,7 @@ BaseHashtable::~BaseHashtable()
 /**
  * Initializes memory for a new bucket in @c ht containing @c data
  */
-BaseHashtable::Bucket* BaseHashtable::createBucket(boost::shared_array<IpfixRecord::Data> data, uint32_t obsdomainid) 
+Bucket* BaseHashtable::createBucket(boost::shared_array<IpfixRecord::Data> data, uint32_t obsdomainid) 
 {
 	Bucket* bucket = new Bucket();
 	bucket->expireTime = time(0) + minBufferTime;
@@ -181,7 +183,7 @@ BaseHashtable::Bucket* BaseHashtable::createBucket(boost::shared_array<IpfixReco
 /**
  * Exports the given @c bucket
  */
-void BaseHashtable::exportBucket(BaseHashtable::Bucket* bucket) 
+void BaseHashtable::exportBucket(Bucket* bucket) 
 {
 	/* Pass Data Record to exporter interface */
 	IpfixDataDataRecord* ipfixRecord = dataDataRecordIM.getNewInstance();
@@ -200,8 +202,17 @@ void BaseHashtable::exportBucket(BaseHashtable::Bucket* bucket)
 /**
  * De-allocates memory used by the given @c bucket
  */
-void BaseHashtable::destroyBucket(BaseHashtable::Bucket* bucket) 
+void BaseHashtable::destroyBucket(Bucket* bucket) 
 {
+	//cerr << "destroy Bucket\n";
+	if(!bucket) cerr << "wtf?\n";
+/*	if(bucket->prev){
+		if(bucket->next){
+		bucket->prev->next = bucket->next;
+		bucket->next->prev = bucket->prev;
+		}
+		else bucket->prev->next = 0;
+	}else if(bucket->next) bucket->next->prev = 0;*/
 	delete bucket;
 }
 
@@ -218,28 +229,66 @@ void BaseHashtable::expireFlows(bool all)
 		req.tv_nsec = 50000000;
 		nanosleep(&req, &req);
 	}
-	
+	//cerr << "expireFlows\n";
+	if(!list){
+	DPRINTF("No List!!")
+	return;
+	}
 	uint32_t now = time(0);
 
 	uint32_t noEntries = 0;
 	uint32_t emptyBuckets = 0;
 	uint32_t exportedBuckets = 0;
 	uint32_t multiEntries = 0;
-
+	Bucket* bucket = 0;
+	Element<Bucket>* node = 0;
 	if (resendTemplate) {
 		sendDataTemplate();
 		resendTemplate = false;
 	}
-		
+	if(!list->isEmpty){
+		while(list->head){
+			node = list->head;
+			bucket = reinterpret_cast<Bucket*>(node->bucket);
+			if(!bucket) cerr << "Bucket ist n NULL_POINTER!!!\n";
+			if((bucket->expireTime < now) || (bucket->forceExpireTime < now) || all){
+				if(now > bucket->forceExpireTime) DPRINTF("expireFlows: forced expiry");
+				else if(now > bucket->expireTime) DPRINTF("expireFlows: normal expiry");
+				exportedBuckets++;
+				if(bucket->next || bucket->prev) multiEntries++;
+				if(!bucket->next && !bucket->prev) emptyBuckets++;
+				if(!bucket->prev){
+					if (bucket->next) {buckets[bucket->hash] = bucket->next;
+					bucket->next->prev = 0;
+					}
+					else {buckets[bucket->hash] = 0;
+					}
+				}
+				if(bucket->prev){
+					if(!bucket->next) bucket->prev->next = 0;
+					else{
+					//cerr << "prev & next \n";
+					bucket->prev->next = bucket->next;
+					bucket->next->prev = bucket->prev;
+					}
+				}
+				exportBucket(bucket);
+				list->remove(node);
+				destroyBucket(bucket);
+								
+			}//end if
+			else break;
+		}//end while
+	}
 	
 	/* check each hash bucket's spill chain */
-	for (uint32_t i = 0; i < HTABLE_SIZE; i++) {
+/*	for (uint32_t i = 0; i < HTABLE_SIZE; i++) {
 		if (buckets[i] != 0) {
 			Bucket* bucket = buckets[i];
 			Bucket* pred = 0;
-
+*/
 			/* iterate over spill chain */
-			bool firstentry = true;
+/*			bool firstentry = true;
 			while (bucket != 0) {
 				if (firstentry) firstentry = false;
 				else multiEntries++;
@@ -267,12 +316,16 @@ void BaseHashtable::expireFlows(bool all)
 			emptyBuckets++;
 		}
 	} 	
-
-	statTotalEntries = noEntries;
+*/
+/*	statTotalEntries = noEntries;
 	statEmptyBuckets = emptyBuckets;
 	statExportedBuckets += exportedBuckets;
 	statMultiEntries = multiEntries;
-	
+*/
+	statTotalEntries -= exportedBuckets;
+	statEmptyBuckets += emptyBuckets;
+	statExportedBuckets += exportedBuckets;
+	statMultiEntries -= multiEntries;	
 	atomic_release(&aggInProgress);
 }
 
