@@ -11,7 +11,7 @@ using namespace std;
 /**
  * Creates and initializes a new hashtable buffer for flows matching @c rule
  */
-BaseHashtable::BaseHashtable(Source<IpfixRecord*>* recordsource, Rule* rule, 
+BaseHashtable::BaseHashtable(Source<IpfixRecord*>* recordsource, Rule* rule,
 		uint16_t minBufferTime, uint16_t maxBufferTime)
 	: minBufferTime(minBufferTime),
 	  maxBufferTime(maxBufferTime),
@@ -28,14 +28,14 @@ BaseHashtable::BaseHashtable(Source<IpfixRecord*>* recordsource, Rule* rule,
 	  dataDataRecordIM("IpfixDataDataRecord", 0),
 	  dataTemplateRecordIM("IpfixDataTemplateRecord", 0),
 	  aggInProgress(false),
-	  resendTemplate(true)	  
+	  resendTemplate(true)
 {
 
 	memset(sourceID.get(), 0, sizeof(IpfixRecord::SourceID));
-	
+
 	for (uint32_t i = 0; i < HTABLE_SIZE; i++)
 		buckets[i] = NULL;
-	
+
 	createDataTemplate(rule);
 
 	msg(MSG_INFO, "Initializing hashtable with minBufferTime %d and maxBufferTime %d", minBufferTime, maxBufferTime);
@@ -51,18 +51,18 @@ uint32_t BaseHashtable::getPrivateDataLength(IpfixRecord::FieldInfo::Type type)
 		case IPFIX_ETYPEID_frontPayload:
 		case IPFIX_ETYPEID_revFrontPayload:
 			return 8; // four bytes TCP sequence ID, four bytes for byte-counter for aggregated data
-		
+
 		default:
 			return 0;
 	}
-	
+
 	return 0;
 }
 
 void BaseHashtable::createDataTemplate(Rule* rule)
 {
 	int dataLength = 0; /**< length in bytes of the @c data field */
-	
+
 	dataTemplate.reset(new IpfixRecord::DataTemplateInfo);
 	dataTemplate->templateId=rule->id;
 	dataTemplate->preceding=rule->preceding;
@@ -94,13 +94,13 @@ void BaseHashtable::createDataTemplate(Rule* rule)
 			memcpy(dataTemplate->data + fi->offset, rf->pattern, fi->type.length);
 		}
 		/* gerhard: If we have a pattern (and fixed value field), the variable value field is implicitely discarded.
-		 * Note: This is necessary because of the double meaning/usage of Rule::Field.type.length: 
-		 * If a pattern is present, this variable holds the length of the pattern (or fixed length field) 
+		 * Note: This is necessary because of the double meaning/usage of Rule::Field.type.length:
+		 * If a pattern is present, this variable holds the length of the pattern (or fixed length field)
 		 * and not the length of the normal field holding a single value. As a consequence, we cannot use
 		 * Rule.Field.type.length as length of the variable value field.
 		 * If someone really wants to enable the export of both, pattern and variable value field of the same
 		 * type, then he has to remove the double meaning/usage (or set the variable field length to the
-		 * default value for the specific type). 
+		 * default value for the specific type).
 		 */
 		else if (rf->modifier != Rule::Field::DISCARD) {
 			/* define new data field with Rule::Field's type */
@@ -115,7 +115,7 @@ void BaseHashtable::createDataTemplate(Rule* rule)
 			fieldModifier[dataTemplate->fieldCount - 1] = rf->modifier;
 		}
 	}
-	
+
 	// add private data offsets for fields
 	uint32_t fpLengthOffset = 0;
 	privDataLength = 0;
@@ -125,10 +125,10 @@ void BaseHashtable::createDataTemplate(Rule* rule)
 		if (len>0) {
 			fi->privDataOffset = fieldLength+privDataLength;
 			privDataLength += len;
-		}	
+		}
 		if (fi->type.id==IPFIX_ETYPEID_frontPayload) fpLengthOffset = fi->privDataOffset+4;
 	}
-	
+
 	// update private data offsets for fields which access private data from other fields
 	// example: front payload length accesses data from front payload
 	for (uint32_t i=0; i<dataTemplate->fieldCount; i++) {
@@ -167,7 +167,7 @@ BaseHashtable::~BaseHashtable()
 /**
  * Initializes memory for a new bucket in @c ht containing @c data
  */
-Bucket* BaseHashtable::createBucket(boost::shared_array<IpfixRecord::Data> data, uint32_t obsdomainid) 
+Bucket* BaseHashtable::createBucket(boost::shared_array<IpfixRecord::Data> data, uint32_t obsdomainid)
 {
 	Bucket* bucket = new Bucket();
 	bucket->expireTime = time(0) + minBufferTime;
@@ -183,7 +183,7 @@ Bucket* BaseHashtable::createBucket(boost::shared_array<IpfixRecord::Data> data,
 /**
  * Exports the given @c bucket
  */
-void BaseHashtable::exportBucket(Bucket* bucket) 
+void BaseHashtable::exportBucket(Bucket* bucket)
 {
 	/* Pass Data Record to exporter interface */
 	IpfixDataDataRecord* ipfixRecord = dataDataRecordIM.getNewInstance();
@@ -192,7 +192,7 @@ void BaseHashtable::exportBucket(Bucket* bucket)
 	ipfixRecord->dataLength = fieldLength;
 	ipfixRecord->message = bucket->data;
 	ipfixRecord->data = bucket->data.get();
-	
+
 	recordSource->send(ipfixRecord);
 
 	statRecordsSent++;
@@ -202,7 +202,7 @@ void BaseHashtable::exportBucket(Bucket* bucket)
 /**
  * De-allocates memory used by the given @c bucket
  */
-void BaseHashtable::destroyBucket(Bucket* bucket) 
+void BaseHashtable::destroyBucket(Bucket* bucket)
 {
 	//cerr << "destroy Bucket\n";
 	if(!bucket) cerr << "wtf?\n";
@@ -220,7 +220,7 @@ void BaseHashtable::destroyBucket(Bucket* bucket)
 /**
  * Exports all expired flows and removes them from the buffer
  */
-void BaseHashtable::expireFlows(bool all) 
+void BaseHashtable::expireFlows(bool all)
 {
 	// the following lock should almost never fail (only during reconfiguration)
 	while (atomic_lock(&aggInProgress)) {
@@ -231,17 +231,17 @@ void BaseHashtable::expireFlows(bool all)
 	}
 	//cerr << "expireFlows\n";
 	if(!list){
-	DPRINTF("No List!!")
+	DPRINTF("No List!!");
 	return;
 	}
 	uint32_t now = time(0);
 
-	uint32_t noEntries = 0;
+	//uint32_t noEntries = 0;
 	uint32_t emptyBuckets = 0;
 	uint32_t exportedBuckets = 0;
 	uint32_t multiEntries = 0;
 	Bucket* bucket = 0;
-	Element<Bucket>* node = 0;
+	Element<Bucket*>* node = 0;
 	if (resendTemplate) {
 		sendDataTemplate();
 		resendTemplate = false;
@@ -249,7 +249,7 @@ void BaseHashtable::expireFlows(bool all)
 	if(!list->isEmpty){
 		while(list->head){
 			node = list->head;
-			bucket = reinterpret_cast<Bucket*>(node->bucket);
+			bucket = node->bucket;
 			if(!bucket) cerr << "Bucket ist n NULL_POINTER!!!\n";
 			if((bucket->expireTime < now) || (bucket->forceExpireTime < now) || all){
 				if(now > bucket->forceExpireTime) DPRINTF("expireFlows: forced expiry");
@@ -275,12 +275,12 @@ void BaseHashtable::expireFlows(bool all)
 				exportBucket(bucket);
 				list->remove(node);
 				destroyBucket(bucket);
-								
+
 			}//end if
 			else break;
 		}//end while
 	}
-	
+
 	/* check each hash bucket's spill chain */
 /*	for (uint32_t i = 0; i < HTABLE_SIZE; i++) {
 		if (buckets[i] != 0) {
@@ -315,7 +315,7 @@ void BaseHashtable::expireFlows(bool all)
 		} else {
 			emptyBuckets++;
 		}
-	} 	
+	}
 */
 /*	statTotalEntries = noEntries;
 	statEmptyBuckets = emptyBuckets;
@@ -325,7 +325,7 @@ void BaseHashtable::expireFlows(bool all)
 	statTotalEntries -= exportedBuckets;
 	statEmptyBuckets += emptyBuckets;
 	statExportedBuckets += exportedBuckets;
-	statMultiEntries -= multiEntries;	
+	statMultiEntries -= multiEntries;
 	atomic_release(&aggInProgress);
 }
 

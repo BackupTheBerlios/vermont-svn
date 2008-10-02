@@ -2,6 +2,8 @@
 #define BUCKET_H_
 
 #include "IpfixRecord.hpp"
+#include "Element.h"
+
 
 class Bucket{
 public:
@@ -11,7 +13,7 @@ public:
 	Bucket* prev;
 	Bucket* next;
 	uint32_t observationDomainID;
-	char* listNode;
+	Element<Bucket*>* listNode;
 	uint32_t hash;
 };
 #endif

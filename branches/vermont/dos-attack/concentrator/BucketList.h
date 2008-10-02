@@ -17,27 +17,32 @@ public:
 		Element* prev;
 		K* bucket;
 		Element(K* buck, uint32_t exptime){bucket = buck; expireTime = exptime; next = NULL; prev = NULL;}
-		
+
 	};*/
-	Element<Bucket>* head;
-	Element<Bucket>* tail;
-	void push(Element<Bucket>* node){
+	Element<Bucket*>* head;
+	Element<Bucket*>* tail;
+
+
+
+	void push(Element<Bucket*>* node){
 //	cerr << "push Node\n";
 	if(isEmpty){
 	isEmpty = 0;
 	head = node;
 	tail = head;
 	}else{
-	Element<Bucket>* help = tail;
+	Element<Bucket*>* help = tail;
 	help->next = node;
 	tail = node;
 	tail->prev = help;
 	}
 	};
-	void remove(Element<Bucket>* node){
+
+
+	void remove(Element<Bucket*>* node){
 //	cerr << "remove Node\n";
 	if(isEmpty)THROWEXCEPTION("List is empty: can't remove Node");
-	
+
 	else{
 	if(!node->prev){
 		if(!node->next){

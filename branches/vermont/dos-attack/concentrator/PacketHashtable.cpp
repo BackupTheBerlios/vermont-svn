@@ -14,8 +14,8 @@ PacketHashtable::PacketHashtable(Source<IpfixRecord*>* recordsource, Rule* rule,
 {
 //	test("/home/sistmika/vermont/dos-attack/hashfunc.txt");
 	starttime = time(0);
-	written = false; 
-	if (rule->biflowAggregation) 
+	written = false;
+	if (rule->biflowAggregation)
 		THROWEXCEPTION("PacketAggregator can not perform biflow aggregation, but one of its rules is configured to do that");
 	buildExpHelperTable();
 }
@@ -28,7 +28,7 @@ PacketHashtable::~PacketHashtable()
 	delete[] expHelperTable.varSrcPtrFields;
 }
 
-/** 
+/**
  * copy functions which were extracted from ExpcopyData
  * those copy data from the original raw packet into the ipfix bucket in the hashtable
  * (always called, when a new bucket has to be created for a new flow)
@@ -61,7 +61,7 @@ void PacketHashtable::copyDataFrontPayload(IpfixRecord::Data* bucket, const Ipfi
 {
 	aggregateFrontPayload(bucket, reinterpret_cast<const Packet*>(src), efd, true);
 }
-// copies data from given private data offset for this flow (is usually set to the private data element for the 
+// copies data from given private data offset for this flow (is usually set to the private data element for the
 // position pointer from copyDataFrontPayload
 void PacketHashtable::copyDataFrontPayloadLen(IpfixRecord::Data* bucket, const IpfixRecord::Data* src, ExpFieldData* efd)
 {
@@ -71,7 +71,7 @@ void PacketHashtable::copyDataFrontPayloadLen(IpfixRecord::Data* bucket, const I
 
 /**
  * aggregates payload of packets to a certain maximum amount
- * only sequence number is regarded, succeeding packets with same sequence number 
+ * only sequence number is regarded, succeeding packets with same sequence number
  * will overwrite data
  * ATTENTION: no stream reassembly is performed!
  */
@@ -82,7 +82,7 @@ void PacketHashtable::aggregateFrontPayload(IpfixRecord::Data* bucket, const Pac
 	if (src->ipProtocolType==Packet::TCP)
 		seq = ntohl(*reinterpret_cast<const uint32_t*>(src->data+src->transportHeaderOffset+4));
 	DPRINTFL(MSG_VDEBUG, "seq:%u, len:%u, udp:%u", seq, *reinterpret_cast<uint32_t*>(bucket+efd->privDataOffset+4), src->ipProtocolType==Packet::UDP);
-	
+
 	if (firstpacket) {
 		if (src->ipProtocolType==Packet::TCP && src->data[src->transportHeaderOffset+13] & 0x02) {
 			// SYN packet, so sequence number will be increased without any payload
@@ -93,14 +93,14 @@ void PacketHashtable::aggregateFrontPayload(IpfixRecord::Data* bucket, const Pac
 		*reinterpret_cast<uint32_t*>(bucket+efd->privDataOffset+4) = 0;
 		memset(dst, 0, efd->dstLength);
 	}
-	
+
 	// ignore packets that do either contain no payload or were not interpreted correctly
 	if (src->payloadOffset==0 || src->payloadOffset==src->transportHeaderOffset) return;
-	
+
 	uint16_t plen = src->data_length-src->payloadOffset;
 	uint32_t fseq = *reinterpret_cast<const uint32_t*>(bucket+efd->privDataOffset);
 	uint32_t fpos = *reinterpret_cast<const uint32_t*>(bucket+efd->privDataOffset+4);
-	
+
 	DPRINTFL(MSG_VDEBUG, "plen:%u, fseq:%u, seq:%u, dstleng:%u", plen, fseq, seq, efd->dstLength);
 
 	if (seq-fseq<efd->dstLength) {
@@ -184,7 +184,7 @@ void (*PacketHashtable::getCopyDataFunction(const ExpFieldData* efd))(IpfixRecor
 		case IPFIX_TYPEID_packetDeltaCount:
 			if (efd->dstLength != 8) {
 				THROWEXCEPTION("unsupported length %d for type %d (\"%s\")", efd->dstLength, efd->typeId, typeid2string(efd->typeId));
-			}			
+			}
 			break;
 
 		case IPFIX_TYPEID_sourceIPv4Address:
@@ -206,7 +206,7 @@ void (*PacketHashtable::getCopyDataFunction(const ExpFieldData* efd))(IpfixRecor
 
 	// now decide on the correct copy function
 	if (efd->typeId == IPFIX_ETYPEID_frontPayload) {
-		return copyDataFrontPayload; 
+		return copyDataFrontPayload;
 	} else if (efd->typeId == IPFIX_ETYPEID_frontPayloadLen) {
 		return copyDataFrontPayloadLen;
 	} else if (efd->dstLength == efd->srcLength) {
@@ -237,17 +237,17 @@ void (*PacketHashtable::getCopyDataFunction(const ExpFieldData* efd))(IpfixRecor
 /**
  * @returns field length in bytes of corresponding entry in raw packet
  **/
-uint8_t PacketHashtable::getRawPacketFieldLength(IpfixRecord::FieldInfo::Type type) 
+uint8_t PacketHashtable::getRawPacketFieldLength(IpfixRecord::FieldInfo::Type type)
 {
 
-	switch (type.id) {					
+	switch (type.id) {
 		case IPFIX_TYPEID_protocolIdentifier:
 		case IPFIX_TYPEID_tcpControlBits:
 		case IPFIX_ETYPEID_revTcpControlBits:
-		case IPFIX_TYPEID_packetDeltaCount:		
+		case IPFIX_TYPEID_packetDeltaCount:
 		case IPFIX_ETYPEID_revPacketDeltaCount:
 			return 1;
-			
+
 		case IPFIX_TYPEID_icmpTypeCode:
 		case IPFIX_TYPEID_sourceTransportPort:
 		case IPFIX_TYPEID_destinationTransportPort:
@@ -264,12 +264,12 @@ uint8_t PacketHashtable::getRawPacketFieldLength(IpfixRecord::FieldInfo::Type ty
 		case IPFIX_ETYPEID_frontPayloadLen:
 			return 4;
 
-		case IPFIX_TYPEID_flowStartMilliSeconds:					
-		case IPFIX_TYPEID_flowEndMilliSeconds:							
+		case IPFIX_TYPEID_flowStartMilliSeconds:
+		case IPFIX_TYPEID_flowEndMilliSeconds:
 		case IPFIX_ETYPEID_revFlowStartMilliSeconds:
 		case IPFIX_ETYPEID_revFlowEndMilliSeconds:
 			return 8;
-			
+
 		case IPFIX_ETYPEID_frontPayload:
 			return type.length;				// length is variable and is set in configuration
 
@@ -287,7 +287,7 @@ uint8_t PacketHashtable::getRawPacketFieldLength(IpfixRecord::FieldInfo::Type ty
 /**
  * @returns if given field type is in varying positions inside a raw packet and inside the Packet structure
  */
-bool PacketHashtable::isRawPacketPtrVariable(const IpfixRecord::FieldInfo::Type& type) 
+bool PacketHashtable::isRawPacketPtrVariable(const IpfixRecord::FieldInfo::Type& type)
 {
 	switch (type.id) {
 		case IPFIX_TYPEID_packetDeltaCount:
@@ -342,7 +342,7 @@ void PacketHashtable::fillExpFieldData(ExpFieldData* efd, IpfixRecord::FieldInfo
 		// ok, our dst/src ip has to be masked, so this is a variable pointer
 		efd->varSrcIdx = true;
 		// calculate inverse network mask using the modifier
-		efd->data[4] = 32 - (efd->modifier - (int)Rule::Field::MASK_START); 
+		efd->data[4] = 32 - (efd->modifier - (int)Rule::Field::MASK_START);
 		// save index of srcIndex, as this variable is overwritten by updatePointers for each packet
 		efd->origSrcIndex = efd->srcIndex;
 
@@ -358,7 +358,7 @@ void PacketHashtable::fillExpFieldData(ExpFieldData* efd, IpfixRecord::FieldInfo
 		// adjust srcLength, as our source length is 5 bytes including the appended mask!
 		efd->srcLength = 5;
 	}
-	
+
 	efd->copyDataFunc = getCopyDataFunction(efd);
 }
 
@@ -371,8 +371,8 @@ bool PacketHashtable::typeAvailable(IpfixRecord::FieldInfo::Type type)
 		case IPFIX_TYPEID_packetDeltaCount:
 		case IPFIX_TYPEID_flowStartSeconds:
 		case IPFIX_TYPEID_flowEndSeconds:
-		case IPFIX_TYPEID_flowStartMilliSeconds: 
-		case IPFIX_TYPEID_flowEndMilliSeconds:   
+		case IPFIX_TYPEID_flowStartMilliSeconds:
+		case IPFIX_TYPEID_flowEndMilliSeconds:
 		case IPFIX_TYPEID_octetDeltaCount:
 		case IPFIX_TYPEID_protocolIdentifier:
 		case IPFIX_TYPEID_sourceIPv4Address:
@@ -385,7 +385,7 @@ bool PacketHashtable::typeAvailable(IpfixRecord::FieldInfo::Type type)
 		case IPFIX_ETYPEID_frontPayload:
 			return true;
 	}
-	
+
 	return false;
 }
 
@@ -508,11 +508,11 @@ void PacketHashtable::expAggregateField(const ExpFieldData* efd, IpfixRecord::Da
 		case IPFIX_TYPEID_tcpControlBits:  // 1 byte src and dst, bitwise-or flows
 			*(uint8_t*)baseData |= *(uint8_t*)deltaData;
 			break;
-			
+
 		case IPFIX_ETYPEID_frontPayload:
 			aggregateFrontPayload(bucket, reinterpret_cast<const Packet*>(deltaData), efd);
 			break;
-			
+
 		case IPFIX_ETYPEID_frontPayloadLen:
 			*(uint32_t*)baseData = htonl(*reinterpret_cast<const uint32_t*>(bucket+efd->privDataOffset));
 			break;
@@ -633,8 +633,8 @@ void PacketHashtable::updatePointers(const Packet* p)
 			case IPFIX_TYPEID_sourceIPv4Address:
 				efd->srcIndex = reinterpret_cast<uint32_t>(&efd->data[0])-reinterpret_cast<uint32_t>(p->netHeader);
 				break;
-			
-			// aggregation and copy functions for frontPayload need to have source pointer 
+
+			// aggregation and copy functions for frontPayload need to have source pointer
 			// pointing to packet structure
 			case IPFIX_ETYPEID_frontPayload:
 				efd->srcIndex = reinterpret_cast<uint32_t>(p)-reinterpret_cast<uint32_t>(p->netHeader);
@@ -651,7 +651,7 @@ void PacketHashtable::updatePointers(const Packet* p)
 /**
  * Replacement for ExpAggregateTemplateData
  * inserts the given raw packet into the hashtable
- * ATTENTION: 
+ * ATTENTION:
  *  - this function expects not to be called in parallel, as it uses internal buffers which are
  *    *NOT* thread-safe
  *  - hashes are calculated based on raw packet (masks are already applied then)
@@ -665,7 +665,7 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 		req.tv_nsec = 50000000;
 		nanosleep(&req, &req);
 	}
-	
+
 	DPRINTF("PacketHashtable::aggregatePacket()");
 	updatePointers(p);
 	createMaskedFields(p);
@@ -675,7 +675,7 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	// search bucket inside hashtable
 	Bucket* bucket = buckets[hash];
 //	cerr << "aggregatePackets\n";
-	if(!list) { cerr << "list not initialized\n"; 
+	if(!list) { cerr << "list not initialized\n";
 		list = new BucketList();
 		list->isEmpty = 1;}
 	if (bucket == 0) {
@@ -686,9 +686,9 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 		buckets[hash]->hash = hash;
 		buckets[hash]->prev = 0;
 		buckets[hash]->next = 0;
-		Element<Bucket>* node = new Element<Bucket>(buckets[hash]);
+		Element<Bucket*>* node = new Element<Bucket*>(buckets[hash]);
 		//node->bucket = bucket;
-		buckets[hash]->listNode = reinterpret_cast<char*>(node);
+		buckets[hash]->listNode = node;
 		list->push(node);
 		atomic_release(&aggInProgress);
 		statTotalEntries++;
@@ -705,12 +705,12 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 			// replace call of time() with access to a static variable which is updated regularly (such as every 100ms)
 			bucket->expireTime = time(0) + minBufferTime;
 			bucket->hash = hash;
-			Element<Bucket>* node = new Element<Bucket>(bucket);
+			Element<Bucket*>* node = new Element<Bucket*>(bucket);
 			node->bucket = bucket;
-			list->remove(reinterpret_cast<Element<Bucket>*>(bucket->listNode));
+			list->remove(bucket->listNode);
 			list->push(node);
-			bucket->listNode = reinterpret_cast<char*>(node);
-			
+			bucket->listNode = node;
+
 			break;
 		}
 
@@ -723,9 +723,9 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 			buck->prev = bucket;
 			buck->next = 0;
 			buck->hash = hash;
-			Element<Bucket>* node = new Element<Bucket>(buck);
+			Element<Bucket*>* node = new Element<Bucket*>(buck);
 			list->push(node);
-			buck->listNode = reinterpret_cast<char*>(node);
+			buck->listNode = node;
 			break;
 		}
 		bucket = (Bucket*)bucket->next;
@@ -759,9 +759,9 @@ void PacketHashtable::writeHashtable()
 		written = true;
 	}
 	else {
-	DPRINTF("unable to open file to write Hashtable\n")
+	DPRINTF("unable to open file to write Hashtable\n");
 	}
-/*	if(test){	
+/*	if(test){
 //		IpfixRecord::Data data;
 		Bucket* bucket = buckets[5];
 		if (bucket != 0){
