@@ -1,3 +1,0 @@
--make sure API is_strictly_ host byte order;
-automatically convert for internal use where necessary
-
