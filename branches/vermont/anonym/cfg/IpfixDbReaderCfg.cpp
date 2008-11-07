@@ -54,7 +54,7 @@ IpfixDbReaderCfg::~IpfixDbReaderCfg()
 
 IpfixDbReader* IpfixDbReaderCfg::createInstance()
 {
-    instance = new IpfixDbReader(hostname.c_str(), dbname.c_str(), user.c_str(), password.c_str(), port, 0);
+    instance = new IpfixDbReader(hostname, dbname, user, password, port, 0);
     return instance;
 }
 

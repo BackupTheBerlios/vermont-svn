@@ -65,28 +65,28 @@ const uint16_t MAX_COL_LENGTH = 22;
 const uint16_t ID_FIRSTSWITCHED_IDX = 8;
 const uint16_t ID_LASTSWITCHED_IDX = 9;
 struct Column identify [] = {
-	{	"dstIP", IPFIX_TYPEID_destinationIPv4Address, "INTEGER(10) UNSIGNED",0},
-	{	"srcIP", IPFIX_TYPEID_sourceIPv4Address, "INTEGER(10) UNSIGNED", 0},
-	{	"srcPort", IPFIX_TYPEID_sourceTransportPort, "SMALLINT(5) UNSIGNED", 0},
-	{	"dstPort", IPFIX_TYPEID_destinationTransportPort, "SMALLINT(5) UNSIGNED",0},
-	{	"proto",IPFIX_TYPEID_protocolIdentifier , "TINYINT(3) UNSIGNED", 0},
-	{	"dstTos", IPFIX_TYPEID_classOfServiceIPv4, "TINYINT(3) UNSIGNED", 0},
-	{	"bytes", IPFIX_TYPEID_octetDeltaCount, "BIGINT(20) UNSIGNED", 0},
-	{	"pkts", IPFIX_TYPEID_packetDeltaCount, "BIGINT(20) UNSIGNED", 0},
-	{	"firstSwitched", IPFIX_TYPEID_flowStartSeconds, "INTEGER(10) UNSIGNED", 0}, // default value is invalid/not used for this entry
-	{	"lastSwitched", IPFIX_TYPEID_flowEndSeconds, "INTEGER(10) UNSIGNED", 0}, // default value is invalid/not used for this entry
-	{	"firstSwitchedMillis", IPFIX_TYPEID_flowStartMilliSeconds, "SMALLINT(5) UNSIGNED", 0},
-	{	"lastSwitchedMillis", IPFIX_TYPEID_flowEndMilliSeconds, "SMALLINT(5) UNSIGNED", 0},
-	{	"tcpControlBits", IPFIX_TYPEID_tcpControlBits,  "SMALLINT(5) UNSIGNED", 0},
-	{	"revbytes", IPFIX_ETYPEID_revOctetDeltaCount, "BIGINT(20) UNSIGNED", 0},
-	{	"revpkts", IPFIX_ETYPEID_revPacketDeltaCount, "BIGINT(20) UNSIGNED", 0},
-	{	"revFirstSwitched", IPFIX_ETYPEID_revFlowStartSeconds, "INTEGER(10) UNSIGNED", 0}, // default value is invalid/not used for this entry
-	{	"revLastSwitched", IPFIX_ETYPEID_revFlowEndSeconds, "INTEGER(10) UNSIGNED", 0}, // default value is invalid/not used for this entry
-	{	"revFirstSwitchedMillis", IPFIX_ETYPEID_revFlowStartMilliSeconds, "SMALLINT(5) UNSIGNED", 0},
-	{	"revLastSwitchedMillis", IPFIX_ETYPEID_revFlowEndMilliSeconds, "SMALLINT(5) UNSIGNED", 0},
-	{	"revTcpControlBits", IPFIX_ETYPEID_revTcpControlBits,  "SMALLINT(5) UNSIGNED", 0},
-	{	"maxPacketGap", IPFIX_ETYPEID_maxPacketGap,  "BIGINT(20) UNSIGNED", 0},
-	{	"exporterID",EXPORTERID, "SMALLINT(5) UNSIGNED", 0},
+	{	CN_dstIP, IPFIX_TYPEID_destinationIPv4Address, "INTEGER(10) UNSIGNED",0},
+	{	CN_srcIP, IPFIX_TYPEID_sourceIPv4Address, "INTEGER(10) UNSIGNED", 0},
+	{	CN_srcPort, IPFIX_TYPEID_sourceTransportPort, "SMALLINT(5) UNSIGNED", 0},
+	{	CN_dstPort, IPFIX_TYPEID_destinationTransportPort, "SMALLINT(5) UNSIGNED",0},
+	{	CN_proto,IPFIX_TYPEID_protocolIdentifier , "TINYINT(3) UNSIGNED", 0},
+	{	CN_dstTos, IPFIX_TYPEID_classOfServiceIPv4, "TINYINT(3) UNSIGNED", 0},
+	{	CN_bytes, IPFIX_TYPEID_octetDeltaCount, "BIGINT(20) UNSIGNED", 0},
+	{	CN_pkts, IPFIX_TYPEID_packetDeltaCount, "BIGINT(20) UNSIGNED", 0},
+	{	CN_firstSwitched, IPFIX_TYPEID_flowStartSeconds, "INTEGER(10) UNSIGNED", 0}, // default value is invalid/not used for this entry
+	{	CN_lastSwitched, IPFIX_TYPEID_flowEndSeconds, "INTEGER(10) UNSIGNED", 0}, // default value is invalid/not used for this entry
+	{	CN_firstSwitchedMillis, IPFIX_TYPEID_flowStartMilliSeconds, "SMALLINT(5) UNSIGNED", 0},
+	{	CN_lastSwitchedMillis, IPFIX_TYPEID_flowEndMilliSeconds, "SMALLINT(5) UNSIGNED", 0},
+	{	CN_tcpControlBits, IPFIX_TYPEID_tcpControlBits,  "SMALLINT(5) UNSIGNED", 0},
+	{	CN_revbytes, IPFIX_ETYPEID_revOctetDeltaCount, "BIGINT(20) UNSIGNED", 0},
+	{	CN_revpkts, IPFIX_ETYPEID_revPacketDeltaCount, "BIGINT(20) UNSIGNED", 0},
+	{	CN_revFirstSwitched, IPFIX_ETYPEID_revFlowStartSeconds, "INTEGER(10) UNSIGNED", 0}, // default value is invalid/not used for this entry
+	{	CN_revLastSwitched, IPFIX_ETYPEID_revFlowEndSeconds, "INTEGER(10) UNSIGNED", 0}, // default value is invalid/not used for this entry
+	{	CN_revFirstSwitchedMillis, IPFIX_ETYPEID_revFlowStartMilliSeconds, "SMALLINT(5) UNSIGNED", 0},
+	{	CN_revLastSwitchedMillis, IPFIX_ETYPEID_revFlowEndMilliSeconds, "SMALLINT(5) UNSIGNED", 0},
+	{	CN_revTcpControlBits, IPFIX_ETYPEID_revTcpControlBits,  "SMALLINT(5) UNSIGNED", 0},
+	{	CN_maxPacketGap, IPFIX_ETYPEID_maxPacketGap,  "BIGINT(20) UNSIGNED", 0},
+	{	CN_exporterID, EXPORTERID, "SMALLINT(5) UNSIGNED", 0},
 	{	0} // last entry must be 0
 };
 
