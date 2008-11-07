@@ -11,6 +11,7 @@
 #include <anon/AnonShuffle.h>
 #include <anon/AnonCryptoPan.h>
 
+#include <ipfixlolib/ipfix_names.h>
 
 AnonModule::~AnonModule()
 {
@@ -68,11 +69,19 @@ AnonPrimitive* AnonModule::createPrimitive(AnonMethod::Method m, const std::stri
 
 void AnonModule::addAnonymization(uint16_t id, int len,  AnonMethod::Method  methodName, const std::string& parameter)
 {
+	static const struct ipfix_identifier* ident;
 	AnonPrimitive* a = createPrimitive(methodName, parameter);
 	if (methods.find(id) != methods.end()) {
 		methods[id].method.push_back(a);
 	} else {
 		AnonIE ie;
+		if (len == -1) {
+			if (!(ident = ipfix_id_lookup(id))) {
+				msg(MSG_ERROR, "Unknown or unsupported id %i detected.", id);
+				return;
+			}
+			len = ident->length;
+		}
 		ie.len = len;
 		ie.method.push_back(a);
 		methods[id] = ie;
@@ -89,7 +98,4 @@ void AnonModule::anonField(uint16_t id, void* data)
 		(*i)->anonimizeBuffer(data, len);
 	}
 }
-
-
-
 
