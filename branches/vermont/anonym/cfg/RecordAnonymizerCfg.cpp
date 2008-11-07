@@ -63,7 +63,8 @@ RecordAnonymizer* RecordAnonymizerCfg::createInstance()
 			}
 			instance->addAnonymization(cfg->getIeId(), cfg->getIeLength(), AnonMethod::stringToMethod(method), method_parameter);
 			delete cfg;
-				
+		} else if (e->matches("next")) {
+			// ignore next
 		} else {
 			msg(MSG_FATAL, "Unkown anonymization field %s\n", e->getName().c_str());
 			continue;
