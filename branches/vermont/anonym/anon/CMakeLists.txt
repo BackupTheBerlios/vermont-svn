@@ -1,4 +1,5 @@
 ADD_LIBRARY(anon
+	AnonModule.cpp
 	RandomNumberGenerator.cpp
 	AnonBroadcastHandler.cpp
 	AnonBytewise.cpp
