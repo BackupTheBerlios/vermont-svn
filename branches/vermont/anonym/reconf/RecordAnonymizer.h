@@ -5,7 +5,7 @@
 #include <concentrator/IpfixRecordDestination.h>
 #include <anon/AnonModule.h>
 
-class RecordAnonymizer : public Source<IpfixRecord*>, public IpfixRecordDestination, public AnonModule {
+class RecordAnonymizer : public Source<IpfixRecord*>, public IpfixRecordDestination, public AnonModule, public Module  {
 public:
 	virtual ~RecordAnonymizer() {}
 
