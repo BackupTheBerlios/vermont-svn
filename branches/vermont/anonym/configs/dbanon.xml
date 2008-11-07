@@ -1,0 +1,37 @@
+<ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
+	<ipfixDbReader id="1">
+		<host>10.159.5.10</host>
+		<port>3306</port>
+		<dbname>test</dbname>
+		<username>netadmin</username>
+		<password>nastyAdm1n</password>
+		<next>2</next>
+	</ipfixDbReader>
+
+	<ipfixQueue id="2">
+		<maxSize>1000</maxSize>
+		<next>3</next>
+	</ipfixQueue>
+
+	<anonRecord id="3">
+		<anonField>
+			<anonIE>
+				<ieName>sourceIPv4Address</ieName>
+			</anonIE>
+			<anonMethod>CryptoPan</anonMethod>
+			<anonParam>insert key here</anonParam>
+		</anonField>
+		<anonField>
+			<anonIE>
+				<ieName>destinationIPv4Address</ieName>
+				<ieLength>4</ieLength>
+			</anonIE>
+			<anonMethod>CryptoPan</anonMethod>
+			<anonParam>insert key here</anonParam>
+		</anonField>
+		<next>6</next>
+	</anonRecord>
+	
+	<ipfixPrinter id="6">
+	</ipfixPrinter>	
+</ipfixConfig>
