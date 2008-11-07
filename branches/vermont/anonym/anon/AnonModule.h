@@ -61,7 +61,7 @@ class AnonModule {
 public:
 	~AnonModule();
 	void addAnonymization(uint16_t id, int len, AnonMethod::Method m, const std::string& parameter = "");
-	void anonField(uint16_t id, void* data);
+	void anonField(uint16_t id, void* data, int len = -1);
 protected:
 	typedef std::map<uint16_t, AnonIE> MethodMap;
 	MethodMap methods;

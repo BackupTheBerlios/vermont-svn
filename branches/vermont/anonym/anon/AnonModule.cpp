@@ -88,14 +88,14 @@ void AnonModule::addAnonymization(uint16_t id, int len,  AnonMethod::Method  met
 	}
 }
 
-void AnonModule::anonField(uint16_t id, void* data)
+void AnonModule::anonField(uint16_t id, void* data, int len)
 {
 	if (methods.find(id) == methods.end()) {
 		return;
 	}
-	int len = methods[id].len;
+	int l = len==-1?methods[id].len:len;
 	for (std::vector<AnonPrimitive*>::iterator i = methods[id].method.begin(); i != methods[id].method.end(); ++i) {
-		(*i)->anonimizeBuffer(data, len);
+		(*i)->anonimizeBuffer(data, l);
 	}
 }
 
