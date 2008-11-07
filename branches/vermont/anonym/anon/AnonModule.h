@@ -3,6 +3,7 @@
 
 #include "AnonPrimitive.h"
 #include <common/msg.h>
+#include <map>
 #include <vector>
 
 class AnonMethod 
@@ -52,9 +53,8 @@ public:
 };
 
 struct AnonIE {
-	uint16_t id;
 	int len;
-	AnonPrimitive* method;
+	std::vector<AnonPrimitive*> method;
 };
 
 class AnonModule {
@@ -63,7 +63,7 @@ public:
 	void addAnonymization(uint16_t id, int len, AnonMethod::Method m, const std::string& parameter = "");
 	void anonField(uint16_t id, void* data);
 protected:
-	typedef std::vector<AnonIE> MethodMap;
+	typedef std::map<uint16_t, AnonIE> MethodMap;
 	MethodMap methods;
 private:
 	AnonPrimitive* createPrimitive(AnonMethod::Method m, const std::string& paramter);

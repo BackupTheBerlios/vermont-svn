@@ -15,7 +15,9 @@
 AnonModule::~AnonModule()
 {
 	for (MethodMap::iterator i = methods.begin(); i != methods.end(); ++i) {
-		delete i->method;
+		for (std::vector<AnonPrimitive*>::iterator j = i->second.method.begin(); j != i->second.method.end(); ++j) {
+			delete *j;
+		}
 	}
 }
 
@@ -67,14 +69,27 @@ AnonPrimitive* AnonModule::createPrimitive(AnonMethod::Method m, const std::stri
 void AnonModule::addAnonymization(uint16_t id, int len,  AnonMethod::Method  methodName, const std::string& parameter)
 {
 	AnonPrimitive* a = createPrimitive(methodName, parameter);
-	AnonIE ie;
-	ie.id = id;
-	ie.len = len;
-	ie.method = a;
-	methods.push_back(ie);
+	if (methods.find(id) != methods.end()) {
+		methods[id].method.push_back(a);
+	} else {
+		AnonIE ie;
+		ie.len = len;
+		ie.method.push_back(a);
+		methods[id] = ie;
+	}
 }
 
 void AnonModule::anonField(uint16_t id, void* data)
 {
-
+	if (methods.find(id) == methods.end()) {
+		return;
+	}
+	int len = methods[id].len;
+	for (std::vector<AnonPrimitive*>::iterator i = methods[id].method.begin(); i != methods[id].method.end(); ++i) {
+		(*i)->anonimizeBuffer(data, len);
+	}
 }
+
+
+
+
