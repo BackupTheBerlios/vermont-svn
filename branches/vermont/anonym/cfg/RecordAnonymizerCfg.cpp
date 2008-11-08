@@ -24,7 +24,18 @@ RecordAnonymizer* RecordAnonymizerCfg::createInstance()
 		instance = new RecordAnonymizer();
 	}
 
-	XMLNode::XMLSet<XMLElement*> set = _elem->getElementChildren();
+	initInstance(this, instance, _elem->getElementChildren());
+
+	return instance;
+}
+
+bool RecordAnonymizerCfg::deriveFrom(RecordAnonymizerCfg* old)
+{
+	return true;
+}
+
+void RecordAnonymizerCfg::initInstance(CfgBase* c, AnonModule* module, XMLNode::XMLSet<XMLElement*> set)
+{
 	for (XMLNode::XMLSet<XMLElement*>::iterator it = set.begin();
 	     it != set.end();
 	     it++) {
@@ -45,9 +56,9 @@ RecordAnonymizer* RecordAnonymizerCfg::createInstance()
 					}
 					cfg = new InfoElementCfg(*jt);
 				} else if (e->matches("anonMethod")) {
-					method = get("anonMethod", e);
+					method = c->get("anonMethod", e);
 				} else if (e->matches("anonParam")) {
-					method_parameter = get("anonParam", e);
+					method_parameter = c->get("anonParam", e);
 				} else {
 					msg(MSG_ERROR, "Unknown field in anonField");
 					continue;
@@ -61,7 +72,7 @@ RecordAnonymizer* RecordAnonymizerCfg::createInstance()
 				msg(MSG_FATAL, "Missing anonymization method in anonField");
 				THROWEXCEPTION("Missing anonymization method in anonField");
 			}
-			instance->addAnonymization(cfg->getIeId(), cfg->getIeLength(), AnonMethod::stringToMethod(method), method_parameter);
+			module->addAnonymization(cfg->getIeId(), cfg->getIeLength(), AnonMethod::stringToMethod(method), method_parameter);
 			delete cfg;
 		} else if (e->matches("next")) {
 			// ignore next
@@ -71,10 +82,6 @@ RecordAnonymizer* RecordAnonymizerCfg::createInstance()
 		}
 	}
 
-	return instance;
+
 }
 
-bool RecordAnonymizerCfg::deriveFrom(RecordAnonymizerCfg* old)
-{
-	return true;
-}

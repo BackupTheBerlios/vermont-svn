@@ -18,6 +18,8 @@ public:
 	virtual RecordAnonymizer* createInstance();
 
 	virtual bool deriveFrom(RecordAnonymizerCfg* old);
+
+	static void initInstance(CfgBase* c, AnonModule* module, XMLNode::XMLSet<XMLElement*> set);
 	
 protected:
 	RecordAnonymizerCfg(XMLElement*);
