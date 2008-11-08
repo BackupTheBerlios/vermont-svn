@@ -1,6 +1,8 @@
 #include "RecordAnonymizerCfg.h"
 #include "InfoElementCfg.h"
 
+#include <ipfixlolib/ipfix_names.h>
+
 RecordAnonymizerCfg* RecordAnonymizerCfg::create(XMLElement* e)
 {
 	assert(e);
@@ -73,6 +75,8 @@ void RecordAnonymizerCfg::initInstance(CfgBase* c, AnonModule* module, XMLNode::
 				THROWEXCEPTION("Missing anonymization method in anonField");
 			}
 			module->addAnonymization(cfg->getIeId(), cfg->getIeLength(), AnonMethod::stringToMethod(method), method_parameter);
+			const ipfix_identifier* id = ipfix_id_lookup(cfg->getIeId());
+			msg(MSG_INFO, "Added anonymization %s for field %i (%s)", method.c_str(), cfg->getIeId(), id->name);
 			delete cfg;
 		} else if (e->matches("next")) {
 			// ignore next
