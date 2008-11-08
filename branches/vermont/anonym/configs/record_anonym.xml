@@ -10,7 +10,7 @@
 
 	<ipfixQueue id="2">
 		<maxSize>1000</maxSize>
-		<next>6</next>
+		<next>3</next>
 	</ipfixQueue>
 
 	<anonRecord id="3">
