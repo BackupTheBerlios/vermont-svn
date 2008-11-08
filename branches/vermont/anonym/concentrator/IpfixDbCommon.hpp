@@ -38,8 +38,8 @@
 #define EXPORTER_WIDTH   80
 
 // column names
-#define CN_srcIP 	"srcIp"
-#define CN_dstIP 	"dstIp"
+#define CN_srcIP 	"srcIP"
+#define CN_dstIP 	"dstIP"
 #define CN_srcPort 	"srcPort"
 #define CN_dstPort 	"dstPort"
 #define CN_proto	"proto"
