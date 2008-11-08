@@ -1,9 +1,5 @@
 #include "RecordAnonymizer.h"
 
-void RecordAnonymizer::anonRecord(IpfixRecord* record)
-{
-}
-
 void RecordAnonymizer::onTemplate(IpfixTemplateRecord* record)
 {
 	send(record);
@@ -39,6 +35,10 @@ void RecordAnonymizer::onDataDataRecord(IpfixDataDataRecord* record)
 {
 	for (int i = 0; i != record->dataTemplateInfo->dataCount; ++i) {
 		IpfixRecord::FieldInfo* field = record->dataTemplateInfo->dataInfo + i;
+		anonField(field->type.id, record->data + field->offset, field->type.length);
+	}
+	for (int i = 0; i != record->dataTemplateInfo->fieldCount; ++i) {
+		IpfixRecord::FieldInfo* field = record->dataTemplateInfo->fieldInfo + i;
 		anonField(field->type.id, record->data + field->offset, field->type.length);
 	}
 	send(record);

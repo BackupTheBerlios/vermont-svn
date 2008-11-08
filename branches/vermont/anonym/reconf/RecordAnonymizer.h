@@ -19,8 +19,6 @@ protected:
 	virtual void onTemplateDestruction(IpfixTemplateDestructionRecord* record);
 	virtual void onOptionsTemplateDestruction(IpfixOptionsTemplateDestructionRecord* record);
 	virtual void onDataTemplateDestruction(IpfixDataTemplateDestructionRecord* record);
-private:
-	void anonRecord(IpfixRecord* record);
 };
 
 #endif
