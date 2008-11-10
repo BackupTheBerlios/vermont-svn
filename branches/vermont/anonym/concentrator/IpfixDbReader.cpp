@@ -76,7 +76,8 @@ void* IpfixDbReader::readFromDB(void* ipfixDbReader_)
  */
 int IpfixDbReader::dbReaderSendNewTemplate(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const std::string& tableName)
 {
-	int fieldLength  = 0;
+	// reset record length 
+	recordLength  = 0;
 
 	dataTemplateInfo->templateId =0;
 	dataTemplateInfo->preceding= 0;	
@@ -101,8 +102,8 @@ int IpfixDbReader::dbReaderSendNewTemplate(boost::shared_ptr<IpfixRecord::DataTe
 		fi->type.id = i->ipfixId;
 		fi->type.length = i->length;
 		fi->type.eid = 0;
-		fi->offset = fieldLength;
-		fieldLength = fieldLength + fi->type.length; 
+		fi->offset = recordLength;
+		recordLength = recordLength + fi->type.length; 
 	}
 
 	/* Pass Data Template to flowSinks */
@@ -146,16 +147,22 @@ int IpfixDbReader::dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplate
 {
 	MYSQL_RES* dbResult = NULL;
 	MYSQL_ROW dbRow = NULL;
-	boost::shared_array<IpfixRecord::Data> data(new IpfixRecord::Data[MAX_MSG_LEN]);
-	int dataLength = 0;
-	unsigned delta = 0;
-	unsigned flowTime = 0;
-	unsigned lastFlowTime = 0;
-	long long tmp;
+	unsigned offset = 0;
+	uint64_t delta = 0;		// 64 bit to avoid castings in the case of flowStartMilliseconds
+	uint32_t flowTime = 0;		// in seconds, so 32 bit are sufficient
+	uint32_t lastFlowTime = 0;
+	uint64_t tmp;
 	bool first = true; 
 	unsigned j = 0;
 	
-	std::string query = "SELECT " + columnNames + " FROM " + tableName + orderBy;
+	std::string query = "SELECT " + columnNames + " FROM " + tableName;
+	
+	// at full speed, we do not make time shifts or reorder
+	if(fullspeed)
+		timeshift = false; // timeshift disabled in fullspeed mode
+	else
+		query = query + orderBy;
+
 	msg(MSG_VDEBUG, "IpfixDbReader: SQL query: %s", query.c_str());
 	if(mysql_query(conn, query.c_str()) != 0) {
 		msg(MSG_ERROR,"IpfixDbReader: Select on table failed. Error: %s",
@@ -188,29 +195,38 @@ int IpfixDbReader::dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplate
 				mysql_free_result(dbResult);
 				return 1;
 			}
-			else
+			if (timeshift)
 				msg(MSG_DEBUG, "IpfixDbReader: time shift is %d seconds", delta);
 		}
+		// build new record
+		boost::shared_array<IpfixRecord::Data> data(new IpfixRecord::Data[recordLength]);
+		offset = 0;
 		j = 0;
 		for(std::vector<columnDB>::iterator i = columns.begin(); i != columns.end(); ++i) {
 			switch(i->ipfixId) {
 			case IPFIX_TYPEID_flowEndSeconds:
 			        flowTime = atoll(dbRow[j]) + delta;
 			case IPFIX_TYPEID_flowStartSeconds:
-				tmp = atoll(dbRow[j]) + delta;
+				tmp = atoll(dbRow[j]);
+				// do time shift if required
+				if(timeshift)
+					tmp += delta;
 				copyUintNetByteOrder(data.get() + dataTemplateInfo->fieldInfo[j].offset,
 						     (char*)&tmp,
 						     dataTemplateInfo->fieldInfo[j].type);
-				dataLength += dataTemplateInfo->fieldInfo[j].type.length;
+				offset += dataTemplateInfo->fieldInfo[j].type.length;
 				break;
 			case IPFIX_TYPEID_flowEndMilliSeconds:
 			        flowTime = atoll(dbRow[j])/1000 + delta;
 			case IPFIX_TYPEID_flowStartMilliSeconds:
-				tmp = atoll(dbRow[j]) + delta;
+				tmp = atoll(dbRow[j]);
+				// do time shift if required
+				if(timeshift)
+					tmp += 1000*delta;
 				copyUintNetByteOrder(data.get() + dataTemplateInfo->fieldInfo[j].offset,
 						     (char*)&tmp,
 						     dataTemplateInfo->fieldInfo[j].type);
-				dataLength += dataTemplateInfo->fieldInfo[j].type.length;
+				offset += dataTemplateInfo->fieldInfo[j].type.length;
 				break;
 			case IPFIX_TYPEID_octetDeltaCount:
 			case IPFIX_TYPEID_packetDeltaCount:
@@ -224,14 +240,14 @@ int IpfixDbReader::dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplate
 				copyUintNetByteOrder(data.get() + dataTemplateInfo->fieldInfo[j].offset,
 						     (char*)&tmp,
 						     dataTemplateInfo->fieldInfo[j].type);
-				dataLength += dataTemplateInfo->fieldInfo[j].type.length;
+				offset += dataTemplateInfo->fieldInfo[j].type.length;
 				break;
 			}
 			j++;
 		}
 	
 		/** according to flowstarttime wait for sending the record*/
-		if(flowTime != lastFlowTime) {
+		if(!fullspeed && (flowTime != lastFlowTime)) {
 			time_t t = time(NULL);
 			if (t > (int)flowTime) {
 				msg(MSG_ERROR, "IpfixDbReader: Sending flows too slowly");
@@ -246,7 +262,7 @@ int IpfixDbReader::dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplate
 		IpfixDataDataRecord* ipfixRecord = dataDataRecordIM.getNewInstance();
 		ipfixRecord->sourceID = srcId;
 		ipfixRecord->dataTemplateInfo = dataTemplateInfo;
-		ipfixRecord->dataLength = dataLength;
+		ipfixRecord->dataLength = offset; // = recordLength
 		ipfixRecord->message = data;
 		ipfixRecord->data = data.get();
 		send(ipfixRecord);
@@ -485,8 +501,9 @@ IpfixDbReader::~IpfixDbReader() {
  */
 IpfixDbReader::IpfixDbReader(const std::string& hostname, const std::string& dbname,
 				const std::string& username, const std::string& password,
-				unsigned port, uint16_t observationDomainId)
-	: thread(readFromDB)
+				unsigned port, uint16_t observationDomainId, 
+				bool timeshift, bool fullspeed)
+	: thread(readFromDB), timeshift(timeshift), fullspeed(fullspeed)
 {
 	srcId.reset(new IpfixRecord::SourceID);
 	srcId->observationDomainId = observationDomainId;
@@ -513,6 +530,9 @@ IpfixDbReader::IpfixDbReader(const std::string& hostname, const std::string& dbn
 		msg(MSG_ERROR,"IpfixDbReader: Error in function getTables");
 		THROWEXCEPTION("IpfixDbReader creation failed");
 	}
+
+	if(fullspeed && timeshift) 
+		msg(MSG_DIALOG, "IpfixDbReader: timeshift configured, but disabled in fullspeed mode");
 }
 
 #endif

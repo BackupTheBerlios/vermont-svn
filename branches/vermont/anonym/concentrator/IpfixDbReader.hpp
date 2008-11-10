@@ -46,7 +46,8 @@ class IpfixDbReader : public Module, public Source<IpfixRecord*>, public Destina
 	public:
 		IpfixDbReader(const std::string& hostname, const std::string& dbname,
 				const std::string& username, const std::string& password,
-				unsigned port, uint16_t observationDomainId);
+				unsigned port, uint16_t observationDomainId, 
+				bool timeshift, bool fullspeed);
 		~IpfixDbReader();
 
 		virtual void performStart();
@@ -64,6 +65,8 @@ class IpfixDbReader : public Module, public Source<IpfixRecord*>, public Destina
 		std::vector<columnDB> columns;
 		std::string columnNames; 
 		std::string orderBy; 
+		unsigned recordLength;
+		bool timeshift, fullspeed;
 
 		MYSQL* conn;             /** pointer to connection handle */    
 		Thread thread;

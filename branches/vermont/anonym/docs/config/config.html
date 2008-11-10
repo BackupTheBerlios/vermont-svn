@@ -999,6 +999,8 @@
     <span class="kwa">&lt;dbname&gt;</span>flows<span class="kwa">&lt;/dbname&gt;</span>
     <span class="kwa">&lt;username&gt;</span>vermont<span class="kwa">&lt;/username&gt;</span>
     <span class="kwa">&lt;password&gt;</span>v_password<span class="kwa">&lt;/password&gt;</span>
+    <span class="kwa">&lt;timeshift&gt;</span>true<span class="kwa">&lt;/timeshift&gt;</span>
+    <span class="kwa">&lt;password&gt;</span>v_password<span class="kwa">&lt;/password&gt;</span>
     <span class="kwa">&lt;next&gt;</span>12<span class="kwa">&lt;/next&gt;</span>
 <span class="kwa">&lt;/ipfixDbReader&gt;</span>
 		</pre>
@@ -1034,6 +1036,17 @@
 					<td>password</td>
 					<td>none</td>
 					<td>Password for database access.</td>
+				</tr>
+				<tr>
+					<td>timeshift</td>
+					<td>false</td>
+					<td>Shift time stamps to current time.</td>
+				</tr>
+				<tr>
+					<td>fullspeed</td>
+					<td>false</td>
+					<td>If true, tables are read at full speed. Timeshifts are disabled. 
+					Otherwise, records are read from table approximately at the same speed as they were originally exported.</td>
 				</tr>
 			</tbody>
 		</table>

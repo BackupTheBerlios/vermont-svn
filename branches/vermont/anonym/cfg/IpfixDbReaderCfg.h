@@ -32,7 +32,8 @@ protected:
 	string dbname; /**< database name */
 	string user;	/**< user name for login to database */
 	string password;	/**< password for login to database */
-
+	bool timeshift; /**< shift time stamps */
+	bool fullspeed;  /**< reading in full speed */
 	
 	IpfixDbReaderCfg(XMLElement*);
 };

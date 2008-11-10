@@ -205,7 +205,7 @@ int IpfixDbWriter::createExporterTable()
 				mysql_error(conn));
 		return 1;
 	} else {
-		msg(MSG_DEBUG,"Exporter table created");
+		msg(MSG_INFO,"IpfixDbWriter: Exporter table created");
 	}
 	return 0;
 }
@@ -303,12 +303,12 @@ void IpfixDbWriter::processDataDataRecord(IpfixRecord::SourceID* sourceID,
 			DPRINTF("Insert statement: %s\n", statements.statemBuffer[statements.statemReceived]);
 			// statemBuffer is filled ->  insert in table
 			if(statements.statemReceived == statements.maxStatements-1) {
-				msg(MSG_INFO, "Writing buffered records to database");
+				msg(MSG_DEBUG, "Writing buffered records to database");
 				writeToDb();
 			}
 			else {
 				statements.statemReceived++;
-				msg(MSG_DEBUG, "Buffering record. Need %i more records before writing to database.", statements.maxStatements - statements.statemReceived);
+				msg(MSG_VDEBUG, "Buffering record. Need %i more records before writing to database.", statements.maxStatements - statements.statemReceived);
 			}
 		} else {
 			msg(MSG_ERROR, "Could not generate SQL-statement from record");
