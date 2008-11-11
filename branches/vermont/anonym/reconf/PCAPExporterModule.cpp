@@ -52,5 +52,6 @@ void PCAPExporterModule::receive(Packet* packet)
 	packetHeader.caplen = packet->data_length;
 	packetHeader.len = packet->pcapPacketLength;
 	pcap_dump((unsigned char*)dumper, &packetHeader, packet->data);
+	packet->removeReference();
 }
 
