@@ -5,9 +5,9 @@
 template<typename T>
 class Element{
 public:
-	//uint32_t hash;
-	Element* next;
-	Element* prev;
+
+	Element* next; //next Element in list
+	Element* prev; //previous Element in list
 	T bucket;
 	Element(T buck){bucket = buck; prev = 0; next = 0;}
 };

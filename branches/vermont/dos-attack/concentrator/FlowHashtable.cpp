@@ -417,6 +417,10 @@ void FlowHashtable::bufferDataBlock(boost::shared_array<IpfixRecord::Data> data)
 	if (bucket != NULL) {
 		aggregateFlow(bucket->data.get(), data.get(), false);
 		bucket->expireTime = time(0) + minBufferTime;
+		Element<Bucket*>* node = new Element<Bucket*>(bucket);
+		list->remove(bucket->listNode);
+		list->push(node);
+		bucket->listNode = node;
 	} else {
 		if (biflowAggregation) {
 			// try reverse flow
@@ -425,12 +429,19 @@ void FlowHashtable::bufferDataBlock(boost::shared_array<IpfixRecord::Data> data)
 			if (bucket != NULL) {
 				aggregateFlow(bucket->data.get(), data.get(), true);
 				bucket->expireTime = time(0) + minBufferTime;
+				Element<Bucket*>* node = new Element<Bucket*>(bucket);
+				list->remove(bucket->listNode);
+				list->push(node);
+				bucket->listNode = node;
 			}
 		}
 		if (bucket == NULL) {
 			Bucket* n = buckets[nhash];
 			buckets[nhash] = createBucket(data, 0); // FIXME: insert observationDomainID!
-			buckets[nhash]->next = n;
+			buckets[nhash]->initBucket(nhash, 0, n);
+			Element<Bucket*>* node = new Element<Bucket*>(buckets[nhash]);
+			buckets[nhash]->listNode = node;
+			list->push(node);
 		}
 	}
 }

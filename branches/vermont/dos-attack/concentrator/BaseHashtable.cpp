@@ -37,6 +37,8 @@ BaseHashtable::BaseHashtable(Source<IpfixRecord*>* recordsource, Rule* rule,
 		buckets[i] = NULL;
 
 	createDataTemplate(rule);
+	list = new BucketList();
+	list->isEmpty = 1;
 
 	msg(MSG_INFO, "Initializing hashtable with minBufferTime %d and maxBufferTime %d", minBufferTime, maxBufferTime);
 }
@@ -204,15 +206,6 @@ void BaseHashtable::exportBucket(Bucket* bucket)
  */
 void BaseHashtable::destroyBucket(Bucket* bucket)
 {
-	//cerr << "destroy Bucket\n";
-	if(!bucket) cerr << "wtf?\n";
-/*	if(bucket->prev){
-		if(bucket->next){
-		bucket->prev->next = bucket->next;
-		bucket->next->prev = bucket->prev;
-		}
-		else bucket->prev->next = 0;
-	}else if(bucket->next) bucket->next->prev = 0;*/
 	delete bucket;
 }
 
@@ -229,14 +222,11 @@ void BaseHashtable::expireFlows(bool all)
 		req.tv_nsec = 50000000;
 		nanosleep(&req, &req);
 	}
-	//cerr << "expireFlows\n";
 	if(!list){
 	DPRINTF("No List!!");
 	return;
 	}
 	uint32_t now = time(0);
-
-	//uint32_t noEntries = 0;
 	uint32_t emptyBuckets = 0;
 	uint32_t exportedBuckets = 0;
 	uint32_t multiEntries = 0;
@@ -247,7 +237,7 @@ void BaseHashtable::expireFlows(bool all)
 		resendTemplate = false;
 	}
 	if(!list->isEmpty){
-		while(list->head){
+		while(list->head){ //check the first entry in the BucketList
 			node = list->head;
 			bucket = node->bucket;
 			if(!bucket) cerr << "Bucket ist n NULL_POINTER!!!\n";
@@ -267,7 +257,6 @@ void BaseHashtable::expireFlows(bool all)
 				if(bucket->prev){
 					if(!bucket->next) bucket->prev->next = 0;
 					else{
-					//cerr << "prev & next \n";
 					bucket->prev->next = bucket->next;
 					bucket->next->prev = bucket->prev;
 					}
@@ -281,47 +270,6 @@ void BaseHashtable::expireFlows(bool all)
 		}//end while
 	}
 
-	/* check each hash bucket's spill chain */
-/*	for (uint32_t i = 0; i < HTABLE_SIZE; i++) {
-		if (buckets[i] != 0) {
-			Bucket* bucket = buckets[i];
-			Bucket* pred = 0;
-*/
-			/* iterate over spill chain */
-/*			bool firstentry = true;
-			while (bucket != 0) {
-				if (firstentry) firstentry = false;
-				else multiEntries++;
-				noEntries++;
-				Bucket* nextBucket = (Bucket*)bucket->next;
-				if ((now > bucket->expireTime) || (now > bucket->forceExpireTime) || all) {
-					if(now > bucket->forceExpireTime)  DPRINTF("expireFlows: forced expiry");
-					else if(now > bucket->expireTime)  DPRINTF("expireFlows: normal expiry");
-
-					exportedBuckets++;
-					exportBucket(bucket);
-					destroyBucket(bucket);
-					if (pred) {
-						pred->next = nextBucket;
-					} else {
-						buckets[i] = nextBucket;
-					}
-				} else {
-					pred = bucket;
-				}
-
-				bucket = nextBucket;
-			}
-		} else {
-			emptyBuckets++;
-		}
-	}
-*/
-/*	statTotalEntries = noEntries;
-	statEmptyBuckets = emptyBuckets;
-	statExportedBuckets += exportedBuckets;
-	statMultiEntries = multiEntries;
-*/
 	statTotalEntries -= exportedBuckets;
 	statEmptyBuckets += emptyBuckets;
 	statExportedBuckets += exportedBuckets;

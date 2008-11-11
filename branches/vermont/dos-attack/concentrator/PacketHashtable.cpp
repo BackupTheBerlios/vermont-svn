@@ -439,16 +439,10 @@ void PacketHashtable::buildExpHelperTable()
 uint32_t PacketHashtable::expCalculateHash(const IpfixRecord::Data* data)
 {
 	uint32_t hash = 0xAAAAAAAA;
-//	ofstream test("/home/sistmika/vermont/dos-attack/hashfunc.txt", ios_base::app);
 	for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
 		ExpFieldData* efd = &expHelperTable.expFieldData[i];
-//		const uint32_t* buf = reinterpret_cast<const uint32_t*>(reinterpret_cast<const char*>(data)+efd->srcIndex);
-//		if(test) test << *buf << "\t";
 		hash = crc32(hash, efd->srcLength, reinterpret_cast<const char*>(data)+efd->srcIndex);
-//		if(test) test << hash << "\t";
 	}
-//	uint32_t t = hash & (HTABLE_SIZE-1);
-//	if (test) test << t << "\n";
 	//return (hash>>(32-HTABLE_BITS)) & (HTABLE_SIZE-1);
 	return hash & (HTABLE_SIZE-1);
 }
@@ -674,20 +668,12 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 
 	// search bucket inside hashtable
 	Bucket* bucket = buckets[hash];
-//	cerr << "aggregatePackets\n";
-	if(!list) { cerr << "list not initialized\n";
-		list = new BucketList();
-		list->isEmpty = 1;}
 	if (bucket == 0) {
 		// slot is free, place bucket there
 		DPRINTF("creating new bucket");
 		buckets[hash] = createBucket(buildBucketData(p), p->observationDomainID);
-		//uint32_t exptime = buckets[hash]->expireTime;
-		buckets[hash]->hash = hash;
-		buckets[hash]->prev = 0;
-		buckets[hash]->next = 0;
+		buckets[hash]->initBucket(hash, 0, 0);
 		Element<Bucket*>* node = new Element<Bucket*>(buckets[hash]);
-		//node->bucket = bucket;
 		buckets[hash]->listNode = node;
 		list->push(node);
 		atomic_release(&aggInProgress);
@@ -706,7 +692,6 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 			bucket->expireTime = time(0) + minBufferTime;
 			bucket->hash = hash;
 			Element<Bucket*>* node = new Element<Bucket*>(bucket);
-			node->bucket = bucket;
 			list->remove(bucket->listNode);
 			list->push(node);
 			bucket->listNode = node;
@@ -720,9 +705,7 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 			statMultiEntries++;
 			bucket->next = createBucket(buildBucketData(p), p->observationDomainID);
 			Bucket* buck = bucket->next;
-			buck->prev = bucket;
-			buck->next = 0;
-			buck->hash = hash;
+			buck->initBucket(hash, bucket, 0);
 			Element<Bucket*>* node = new Element<Bucket*>(buck);
 			list->push(node);
 			buck->listNode = node;
