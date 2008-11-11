@@ -29,7 +29,7 @@ IpfixPayloadWriterCfg::IpfixPayloadWriterCfg(XMLElement* elem)
 		} else if (e->matches("connNumber")) {
 			noConnections = getInt("connNumber");
 		} else if (e->matches("ignoreEmptyPayload")) {
-			ignoreEmptyPayload = getInt("ignoreEmptyPayload");
+			ignoreEmptyPayload = getBool("ignoreEmptyPayload");
 		} else if (e->matches("next")) { // ignore next
 		} else {
 			msg(MSG_FATAL, "Unknown IpfixPayloadWriter config statement %s\n", e->getName().c_str());
