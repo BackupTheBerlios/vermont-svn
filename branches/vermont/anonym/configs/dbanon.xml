@@ -1,4 +1,4 @@
-<ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
+<ipfixConfig>
 	<ipfixDbReader id="1">
 		<host>10.159.5.10</host>
 		<port>3306</port>

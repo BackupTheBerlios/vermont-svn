@@ -1,4 +1,4 @@
-<ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
+<ipfixConfig>
 	<ipfixCollector id="1">
 		<listener>
 			<ipAddress>0.0.0.0</ipAddress>

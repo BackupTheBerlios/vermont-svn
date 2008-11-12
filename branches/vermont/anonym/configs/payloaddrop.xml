@@ -1,4 +1,4 @@
-<ipfixConfig xmlns="urn:ietf:params:xml:ns:ipfix-config">
+<ipfixConfig>
 	<observer id="1">
 		<interface>nfe0</interface>
 		<pcap_filter>ip</pcap_filter>
