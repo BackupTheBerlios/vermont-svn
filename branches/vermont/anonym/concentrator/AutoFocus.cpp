@@ -26,22 +26,20 @@
 #include <math.h>
 #include <iostream>
 #include "autofocus_iprecord.h"
+#include <fstream>
 
-
-InstanceManager<IDMEFMessage> AutoFocus::idmefManager("IDMEFMessage");
-
-/**
- * attention: parameter idmefexporter must be free'd by the creating instance, TRWPortWormDetector
- * does not dare to delete it, in case it's used
+/*
+ * Constructor, initiate data for module
+ *
  */
-	AutoFocus::AutoFocus(uint32_t hashbits, uint32_t ttreeint, uint32_t nummaxr, uint32_t numtrees, uint32_t subbits,string analyzerid, string idmeftemplate)
+	AutoFocus::AutoFocus(uint32_t hashbits, uint32_t ttreeint, uint32_t nummaxr, uint32_t numtrees, uint32_t subbits,string analyzerid, string reportfile)
 : hashBits(hashbits),
 	timeTreeInterval(ttreeint),
 	numMaxResults(nummaxr),
 	numTrees(numtrees),
 	m_minSubbits(subbits),
 	analyzerId(analyzerid),
-	idmefTemplate(idmeftemplate),
+	reportfile(reportfile),
 	m_treeRecords(numtrees,NULL)	
 
 {
@@ -59,6 +57,11 @@ InstanceManager<IDMEFMessage> AutoFocus::idmefManager("IDMEFMessage");
 	msg(MSG_INFO,"AutoFocus started");
 }
 
+
+/*
+ * destructor, free all ressources
+ *
+ */
 AutoFocus::~AutoFocus()
 {
 	for (uint32_t i=0; i<hashSize; i++) {
@@ -96,6 +99,7 @@ void AutoFocus::onDataDataRecord(IpfixDataDataRecord* record)
 	Connection conn(record);
 
 
+	//hardcoded for uni network
 	uint32_t subnet = ntohl(2210136064UL);
 	uint32_t mask = ntohl(4294901760UL);
 
@@ -114,14 +118,16 @@ void AutoFocus::onDataDataRecord(IpfixDataDataRecord* record)
 }
 
 
+/*
+ * addConnection is executed for every flow
+ */
 void AutoFocus::addConnection(Connection* conn)
 {
 	IPRecord* te = getEntry(conn);
 
-
-
 	std::map<report_enum,af_attribute*>::iterator iter = te->m_attributes.begin();
 
+	//iterate through all attributes and hand over the flow for data collecting
 	while (iter != te->m_attributes.end())
 	{
 		(iter->second)->aggregate(te,conn);
@@ -142,13 +148,9 @@ IPRecord* AutoFocus::getEntry(Connection* conn)
 
 	if (lastTreeBuilt+timeTreeInterval < (uint32_t) curtime) 
 	{
-
-		msg(MSG_FATAL,"%d %d %d",lastTreeBuilt,timeTreeInterval,(time_t) curtime);
 		lastTreeBuilt = curtime;
 		buildTree();
-
 	}
-
 
 	list<IPRecord*>::iterator iter = listIPRecords[hash].begin();
 	while (iter != listIPRecords[hash].end()) {
@@ -167,7 +169,7 @@ IPRecord* AutoFocus::getEntry(Connection* conn)
 }
 
 /**
- * creates a new iprecord and sets status to pending
+ * recursively delete the tree 
  */
 
 void AutoFocus::deleteTree(treeNode* root) 
@@ -190,6 +192,10 @@ void AutoFocus::deleteTree(treeNode* root)
 	return;
 }
 
+/* 
+ * create a new iprecord 
+ */
+
 IPRecord* AutoFocus::createEntry(Connection* conn)
 
 {
@@ -199,6 +205,7 @@ IPRecord* AutoFocus::createEntry(Connection* conn)
 
 	std::list<report*>::iterator iter  = m_treeRecords[m_treeCount % numTrees]->reports.begin();
 
+	//iterate through all the reports. each report creates the corresponding attribute which is saved in the iprecord
 	while (iter != m_treeRecords[m_treeCount % numTrees]->reports.end())
 	{
 		te->m_attributes[(*iter)->getID()] = (*iter)->createaf_attribute();
@@ -209,9 +216,12 @@ IPRecord* AutoFocus::createEntry(Connection* conn)
 }
 
 
+/* 
+ *
+ * delete whole tree and free memory
+ */
 void AutoFocus::deleteRecord(int index)
 {
-	msg(MSG_FATAL,"Deleting Index %d",index);
 
 	if (m_treeRecords[index]->root != NULL)
 		deleteTree(m_treeRecords[index]->root);	
@@ -227,16 +237,15 @@ void AutoFocus::deleteRecord(int index)
 }
 
 
-
+/*
+ * evaluate all reports; each report puts the reported subnets in a datastructure within their object
+ *
+ */
 void AutoFocus::evaluate()
 {
-
 	uint32_t index = (m_treeCount-1) % numTrees;
 
-
-	//msg(MSG_FATAL,"evaluating index %d",index);
 	treeRecord* currentTree = m_treeRecords[index];
-
 
 	std::list<report*>::iterator iter = currentTree->reports.begin();
 
@@ -248,13 +257,17 @@ void AutoFocus::evaluate()
 	metalist();
 
 }
+/*
+ * create metalist from single lists of each report and calculate priority, also print the result to a file
+ *
+ */
 
 void AutoFocus::metalist() 
 {
-
+	// First tree, we need at least two trees to compare data
 	if (m_treeCount-1 < 1) 
 	{
-		msg(MSG_FATAL,"meta list skipped, waiting for valuable data");
+		msg(MSG_INFO,"meta list skipped, waiting for valuable data");
 		return;
 
 	}
@@ -263,6 +276,8 @@ void AutoFocus::metalist()
 	std::list<treeNode*> meta; 
 	std::list<report*>::iterator iter = m_treeRecords[index]->reports.begin();
 
+
+	//iterate through the list of each report and add nodes to a meta list if not already there
 	while (iter != m_treeRecords[index]->reports.end())
 	{
 		std::list<treeNode*>::iterator specit = (*iter)->specNodes.begin();
@@ -280,22 +295,30 @@ void AutoFocus::metalist()
 		iter++;
 	}
 
+	//sort meta list highes priority first
 	meta.sort(AutoFocus::metasort);
-	std::cerr << "meta size " << meta.size() << endl;
 
 	std::list<treeNode*>::iterator metait = meta.begin();
 
 	char num[50];
+	ofstream myfile;
+	myfile.open(reportfile.c_str());
 
+
+	//print out the result
 	while (metait != meta.end())
 	{
 
 		std::list<report*>::iterator iter = m_treeRecords[index]->reports.begin();
-
-
-		msg(MSG_FATAL,"----");
-		msg(MSG_FATAL,"SUBNET %s/%d\t\tPriority Value %d",IPToString((*metait)->data.subnetIP).c_str(),(*metait)->data.subnetBits,(*metait)->prio);
-
+		
+		myfile << "Time" << time(0) << std::endl;
+		myfile << "----\n";
+		myfile << "SUBNET ";
+		myfile << IPToString((*metait)->data.subnetIP).c_str();
+		myfile << "/";
+		myfile << (*metait)->data.subnetBits;
+		myfile << "\t\tPriority Value ";
+		myfile << (*metait)->prio;
 		std::string output;
 		uint64_t data;
 		double percentage;
@@ -304,7 +327,7 @@ void AutoFocus::metalist()
 
 		while (iter != m_treeRecords[index]->reports.end())
 		{
-		change_global = (double) ((*iter)->numTotal * 100) / (double) m_treeRecords[(index - 1 + m_treeRecords.capacity()) % m_treeRecords.capacity()]->root->data.m_attributes[(*iter)->getID()]->numCount - 100.0;	
+			change_global = (double) ((*iter)->numTotal * 100) / (double) m_treeRecords[(index - 1 + m_treeRecords.capacity()) % m_treeRecords.capacity()]->root->data.m_attributes[(*iter)->getID()]->numCount - 100.0;	
 			data = (*metait)->data.m_attributes[(*iter)->getID()]->numCount;
 			std::string locl;
 			locl.append("\n");
@@ -318,7 +341,7 @@ void AutoFocus::metalist()
 			sprintf(num,"%7.2f%%",percentage);
 			locl.append(" ");
 			locl.append(num);
-			
+
 			treeNode* before = (*iter)->getComparismValue(*metait,m_treeRecords,index);
 			change = (double) (data*100) / (double) before->data.m_attributes[(*iter)->getID()]->numCount - 100.0;
 
@@ -327,23 +350,28 @@ void AutoFocus::metalist()
 			locl.append(num);
 			locl.append("\tRelative: ");
 			sprintf(num,"%7.2f",change_global - change);
-		
+
 			locl.append(num);
-	
+
 			if (find((*iter)->specNodes.begin(),(*iter)->specNodes.end(),*metait) != (*iter)->specNodes.end()) 
 			{
-			locl.append("\t<-------");
+				locl.append("\t<-------");
 			}
 			output.append(locl);
 			iter++;
 		}
-		msg(MSG_FATAL,"%s",output.c_str());
+		myfile << output;
 		metait++;
 
 	}
 
+	myfile.close();
 }
 
+/*
+ * cleanup all data
+ *
+ */
 void AutoFocus::cleanUp()
 {
 
@@ -361,17 +389,24 @@ void AutoFocus::cleanUp()
 	statEntriesAdded = 0;	
 
 }
-
+/* 
+ *	distance function for tree building
+ */
 uint32_t AutoFocus::distance(treeNode* a,treeNode* b) 
 {
 	return ntohl(a->data.subnetIP) ^ ntohl(b->data.subnetIP);
 }
 
+
+/*
+ * Create a new treerecord with reports
+ *
+ */
 void AutoFocus::initiateRecord(int index) 
 {
 	if (m_treeRecords[index % numTrees ] != NULL)
 		deleteRecord(index % numTrees);
-
+	//a report of each observed attribute is created and saved in a tree record
 	m_treeRecords[index % numTrees] = new treeRecord;
 	m_treeRecords[index % numTrees]->root = NULL;
 	m_treeRecords[index % numTrees]->reports.push_back(new rep_payload_tcp(m_minSubbits));
@@ -385,9 +420,13 @@ void AutoFocus::initiateRecord(int index)
 
 
 }
+
+/*
+ *	Create the subnet tree, see paper for algorithm
+ *
+ */
 void AutoFocus::buildTree () 
 {
-	msg(MSG_FATAL,"STARTING TREE BUILDING");
 	list<treeNode*> tree;
 
 	treeRecord* curTreeRecord = m_treeRecords[m_treeCount % numTrees];
@@ -416,26 +455,13 @@ void AutoFocus::buildTree ()
 				(iter2->second)->delta = (iter2->second)->numCount;
 				iter2++;
 			}
-			/*
-			   std::map<report_enum,af_attribute*>::iterator iter2 = (*iter)->m_attributes.begin();
-
-			   while (iter2 != (*iter)->m_attributes.end())
-			   {
-
-			   entry->data.m_attributes[iter2->first] = (iter2->second)->getCopy();
-			   iter2++;
-			   }
-			   */
 			tree.push_back(entry);
 			iter++;	
 		}
 	}
-
-	msg(MSG_FATAL,"converted iprecords to treenodes");
-
+	//sort tree, use ip as key 
 	tree.sort(AutoFocus::comp_entries);
 
-	msg(MSG_FATAL,"everything is sorted %d",tree.size());
 	//* BUILD TREE *//
 
 	list<treeNode*>::iterator iter = tree.begin();
@@ -443,7 +469,6 @@ void AutoFocus::buildTree ()
 
 	while (iter != tree.end())
 	{
-
 
 		check_node(curTreeRecord,*iter);
 
@@ -481,7 +506,7 @@ void AutoFocus::buildTree ()
 
 			check_node(curTreeRecord,*iter);
 
-			
+
 			aggregate_newnode(newnode);
 
 
@@ -516,6 +541,10 @@ void AutoFocus::buildTree ()
 
 }
 
+/*
+ * this function is used when a new subnet is created to calculate the values for the attributes
+ *
+ */
 void AutoFocus::aggregate_newnode(treeNode* newnode)
 {
 

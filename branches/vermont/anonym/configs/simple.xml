@@ -3,12 +3,8 @@
 		<checkinterval>2</checkinterval>
 	</sensorManager>
 	<observer id="1">
-		<!--<interface>lo</interface>-->
-		<filename>test.dump</filename>
+		<interface>eth0</interface>
 		<pcap_filter>ip</pcap_filter>
-		<offlineAutoExit>1</offlineAutoExit>
-		<offlineSpeed>0</offlineSpeed>
-		<captureLength>166</captureLength>
 		<next>2</next>
 	</observer>
 	
@@ -50,10 +46,6 @@
 			<nonFlowKey>
 				<ieName>tcpControlBits</ieName>
 			</nonFlowKey>
-			<nonFlowKey>
-				<ieName>frontPayload</ieName>
-				<ieLength>100</ieLength>
-			</nonFlowKey>
 		</rule>
 		<expiration>
 			<inactiveTimeout unit="sec">1</inactiveTimeout>
@@ -62,7 +54,7 @@
 		<pollInterval unit="msec">1000</pollInterval>
 		<next>4</next>
 	</packetAggregator>
-
+	
 	<ipfixAggregator id="4">
 		<rule>
 			<templateId>999</templateId>
@@ -112,27 +104,26 @@
 			<nonFlowKey>
 				<ieName>revtcpControlBits</ieName>
 			</nonFlowKey>
-			<nonFlowKey>
-				<ieName>frontPayload</ieName>
-				<ieLength>100</ieLength>
-			</nonFlowKey>
-			<nonFlowKey>
-				<ieName>revFrontPayload</ieName>
-				<ieLength>100</ieLength>
-			</nonFlowKey>
 		</rule>
 		<expiration>
-			<inactiveTimeout unit="sec">2</inactiveTimeout>
-			<activeTimeout unit="sec">2</activeTimeout>
+			<inactiveTimeout unit="sec">5</inactiveTimeout>
+			<activeTimeout unit="sec">10</activeTimeout>
 		</expiration>
 		<pollInterval unit="msec">1000</pollInterval>
-		<next>5</next>
+		<next>7</next>
 	</ipfixAggregator>
-	
-	<ipfixPayloadWriter id="5">
-		<destPath>payload_work</destPath>
-		<filenamePrefix>test</filenamePrefix>
-		<connNumber>50</connNumber>
-	</ipfixPayloadWriter>
 
+	<ipfixQueue id="7">
+		<entries>1000</entries>
+		<next>8</next>
+	</ipfixQueue>
+	
+	<ipfixExporter id="8">
+		<collector>
+			<ipAddressType>4</ipAddressType>
+			<ipAddress>127.0.0.1</ipAddress>
+			<transportProtocol>17</transportProtocol>
+			<port>1500</port>
+		</collector>
+	</ipfixExporter>
 </ipfixConfig>

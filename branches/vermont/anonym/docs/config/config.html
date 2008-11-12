@@ -437,6 +437,11 @@
 					<td>0</td>
 					<td>Length of interval when flows should be exported to next module.</td>
 				</tr>
+				<tr>
+					<td>hashtableBits</td>
+					<td>17</td>
+					<td>Length of hashtable used for aggregation in bits. The resulting hashtable will have a size of 2^hashtableBits.<td>
+				</tr>
 			</tbody>
 		</table>
 		
@@ -894,6 +899,11 @@
 					<td>0</td>
 					<td>Length of interval when flows should be exported to next module.</td>
 				</tr>
+				<tr>
+					<td>hashtableBits</td>
+					<td>17</td>
+					<td>Length of hashtable used for aggregation in bits. The resulting hashtable will have a size of 2^hashtableBits.<td>
+				</tr>
 			</tbody>
 		</table>
 		
@@ -1232,6 +1242,11 @@
 					<td>ignoreEmptyPayload</td>
 					<td>false</td>
 					<td>Set to true if all connections/biflows with empty payload shoud be ignored.</td>
+				</tr>
+				<tr>
+					<td>ignoreIncompleteTCP</td>
+					<td>false</td>
+					<td>Set to true if all TCP biflows without SYN flags in both directions should be ignored.</td>
 				</tr>
 				<tr>
 					<td>password</td>
