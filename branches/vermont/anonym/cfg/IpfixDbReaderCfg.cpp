@@ -13,7 +13,7 @@ IpfixDbReaderCfg* IpfixDbReaderCfg::create(XMLElement* e)
 
 IpfixDbReaderCfg::IpfixDbReaderCfg(XMLElement* elem)
     : CfgHelper<IpfixDbReader, IpfixDbReaderCfg>(elem, "ipfixDbReader"),
-      port(0), timeshift(false), fullspeed(false)
+      port(0), timeshift(false), fullspeed(false), observationDomainId(0)
 {
     if (!elem) return;
 
@@ -37,6 +37,8 @@ IpfixDbReaderCfg::IpfixDbReaderCfg(XMLElement* elem)
 			timeshift = getBool("timeshift", timeshift);
 		} else if (e->matches("fullspeed")) {
 			fullspeed = getBool("fullspeed", fullspeed);
+		} else if (e->matches("observationDomainId")) {
+			observationDomainId = getInt("observationDomainId");
 		} else if (e->matches("next")) { // ignore next
 		} else {
 			msg(MSG_FATAL, "Unknown IpfixDbReader config statement %s\n", e->getName().c_str());
@@ -58,7 +60,7 @@ IpfixDbReaderCfg::~IpfixDbReaderCfg()
 
 IpfixDbReader* IpfixDbReaderCfg::createInstance()
 {
-    instance = new IpfixDbReader(hostname, dbname, user, password, port, 0, timeshift, fullspeed);
+    instance = new IpfixDbReader(hostname, dbname, user, password, port, observationDomainId, timeshift, fullspeed);
     return instance;
 }
 

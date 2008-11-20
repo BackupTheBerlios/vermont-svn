@@ -44,8 +44,8 @@
 class IpfixDbReader : public Module, public Source<IpfixRecord*>, public Destination<NullEmitable*> 
 {
 	public:
-		IpfixDbReader(const std::string& hostname, const std::string& dbname,
-				const std::string& username, const std::string& password,
+		IpfixDbReader(const string& hostname, const string& dbname,
+				const string& username, const string& password,
 				unsigned port, uint16_t observationDomainId, 
 				bool timeshift, bool fullspeed);
 		~IpfixDbReader();
@@ -61,10 +61,10 @@ class IpfixDbReader : public Module, public Source<IpfixRecord*>, public Destina
 			uint8_t length;    /**IPFIX length*/
 		} columnDB;
 
-		std::vector<std::string> tables;
-		std::vector<columnDB> columns;
-		std::string columnNames; 
-		std::string orderBy; 
+		vector<string> tables;
+		vector<columnDB> columns;
+		string columnNames; 
+		string orderBy; 
 		unsigned recordLength;
 		bool timeshift, fullspeed;
 
@@ -80,12 +80,12 @@ class IpfixDbReader : public Module, public Source<IpfixRecord*>, public Destina
 		static InstanceManager<IpfixDataTemplateDestructionRecord> dataTemplateDestructionRecordIM;
 
 		int getTables();
-		int getColumns(const std::string& tableName);
+		int getColumns(const string& tableName);
 		static void* readFromDB(void* ipfixDbReader_);
-		int dbReaderSendNewTemplate(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const std::string& tableName);
-		int dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const std::string& tableName);
+		int dbReaderSendNewTemplate(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const string& tableName);
+		int dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const string& tableName);
 		int dbReaderDestroyTemplate(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo);
-		int connectToDb( const std::string& hostName, const std::string& dbName, const std::string& userName, const std::string& password, unsigned int port);
+		int connectToDb( const string& hostName, const string& dbName, const string& userName, const string& password, unsigned int port);
 };
 
         

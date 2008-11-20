@@ -34,6 +34,7 @@ protected:
 	string password;	/**< password for login to database */
 	bool timeshift; /**< shift time stamps */
 	bool fullspeed;  /**< reading in full speed */
+	uint32_t observationDomainId;	/**< observation domain id */
 	
 	IpfixDbReaderCfg(XMLElement*);
 };

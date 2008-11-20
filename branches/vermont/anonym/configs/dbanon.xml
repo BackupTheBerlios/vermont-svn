@@ -6,7 +6,7 @@
 		<username>netadmin</username>
 		<password>nastyAdm1n</password>
 		<fullspeed>true</fullspeed>
-		<timeshift>true</timeshift>
+		<timeshift>false</timeshift>
 		<next>2</next>
 	</ipfixDbReader>
 
@@ -43,5 +43,20 @@
 		<dbname>test2</dbname>
 		<username>netadmin</username>
 		<password>nastyAdm1n</password>
+		<columns>
+			<name>dstIP</name>
+			<name>srcIP</name>
+			<name>srcPort</name>
+			<name>dstPort</name>
+			<name>proto</name>
+			<name>dstTos</name>
+			<name>bytes</name>
+			<name>pkts</name>
+			<name>firstSwitched</name>
+			<name>lastSwitched</name>
+			<name>firstSwitchedMillis</name>
+			<name>lastSwitchedMillis</name>
+			<name>exporterID</name>
+		</columns>
 	</ipfixDbWriter>
 </ipfixConfig>

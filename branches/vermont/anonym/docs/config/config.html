@@ -1057,6 +1057,11 @@
 					<td>If true, tables are read at full speed. Timeshifts are disabled. 
 					Otherwise, records are read from table approximately at the same speed as they were originally exported.</td>
 				</tr>
+				<tr>
+					<td>observationDomainId</td>
+					<td>0</td>
+					<td>Observation Domain Id assigned to the records.</td>
+				</tr>
 			</tbody>
 		</table>
 
@@ -1083,6 +1088,10 @@
     <span class="kwa">&lt;username&gt;</span>vermont<span class="kwa">&lt;/username&gt;</span>
     <span class="kwa">&lt;password&gt;</span>v_password<span class="kwa">&lt;/password&gt;</span>
     <span class="kwa">&lt;bufferrecords&gt;</span>30<span class="kwa">&lt;/bufferrecords&gt;</span>
+    <span class="kwa">&lt;columns&gt;</span>
+        <span class="kwa">&lt;name&gt;</span>firstSwitched<span class="kwa">&lt;/name&gt;</span>
+        <span class="kwa">&lt;name&gt;</span>bytes<span class="kwa">&lt;/name&gt;</span>
+    <span class="kwa">&lt;/columns&gt;</span>
 <span class="kwa">&lt;/ipfixDbWriter&gt;</span>
 		</pre>
 		<p>Parameters:</p>
@@ -1122,6 +1131,39 @@
 					<td>bufferrecords</td>
 					<td>30</td>
 					<td>Amount of flow records to buffer until they are written to the database.</td>
+				</tr>
+				<tr>
+					<td>observationDomainId</td>
+					<td>none</td>
+					<td>Observation Domain Id overriding the value to the records.</td>
+				</tr>
+				<tr>
+					<td>name</td>
+					<td>none</td>
+					<td>Column name (see IpfixDbCommon.hpp, currently one of
+"srcIP",
+"dstIP",
+"srcPort",
+"dstPort",
+"proto",
+"dstTos",
+"bytes",
+"pkts",
+"firstSwitched",
+"lastSwitched",
+"firstSwitchedMillis",
+"lastSwitchedMillis",
+"exporterID",
+"tcpControlBits",
+"revbytes",
+"revpkts",
+"revFirstSwitched",
+"revLastSwitched",
+"revFirstSwitchedMillis",
+"revLastSwitchedMillis",
+"revTcpControlBits",
+"maxPacketGap")
+					</td>
 				</tr>
 			</tbody>
 		</table>

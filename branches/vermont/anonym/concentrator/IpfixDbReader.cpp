@@ -53,7 +53,7 @@ void* IpfixDbReader::readFromDB(void* ipfixDbReader_)
 	ipfixDbReader->registerCurrentThread();
 
 	msg(MSG_DIALOG, "IpfixDbReader: Start sending tables");
-	for(std::vector<std::string>::iterator i = ipfixDbReader->tables.begin(); i != ipfixDbReader->tables.end() && !ipfixDbReader->exitFlag; i++) {
+	for(vector<string>::iterator i = ipfixDbReader->tables.begin(); i != ipfixDbReader->tables.end() && !ipfixDbReader->exitFlag; i++) {
 		boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo(new IpfixRecord::DataTemplateInfo);
 		if(ipfixDbReader->dbReaderSendNewTemplate(dataTemplateInfo, *i) != 0)
 		{
@@ -74,7 +74,7 @@ void* IpfixDbReader::readFromDB(void* ipfixDbReader_)
  * Constructs a template from the table data and sends it to all connected
  * modules.
  */
-int IpfixDbReader::dbReaderSendNewTemplate(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const std::string& tableName)
+int IpfixDbReader::dbReaderSendNewTemplate(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const string& tableName)
 {
 	// reset record length 
 	recordLength  = 0;
@@ -94,7 +94,7 @@ int IpfixDbReader::dbReaderSendNewTemplate(boost::shared_ptr<IpfixRecord::DataTe
 		return 1;
 	}
 
-	for(std::vector<columnDB>::iterator i = columns.begin(); i != columns.end(); i++) {			
+	for(vector<columnDB>::iterator i = columns.begin(); i != columns.end(); i++) {			
 		dataTemplateInfo->fieldCount++;
 		dataTemplateInfo->fieldInfo = (IpfixRecord::FieldInfo*)realloc(dataTemplateInfo->fieldInfo,
 						      sizeof(IpfixRecord::FieldInfo)*dataTemplateInfo->fieldCount);
@@ -143,7 +143,7 @@ void copyUintNetByteOrder(IpfixRecord::Data* dest, char* src, IpfixRecord::Field
  * strings, therefore they must change into IPFIX format 
 */
 
-int IpfixDbReader::dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const std::string& tableName)
+int IpfixDbReader::dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const string& tableName)
 {
 	MYSQL_RES* dbResult = NULL;
 	MYSQL_ROW dbRow = NULL;
@@ -155,7 +155,7 @@ int IpfixDbReader::dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplate
 	bool first = true; 
 	unsigned j = 0;
 	
-	std::string query = "SELECT " + columnNames + " FROM " + tableName;
+	string query = "SELECT " + columnNames + " FROM " + tableName;
 	
 	// at full speed, we do not make time shifts or reorder
 	if(fullspeed)
@@ -176,7 +176,7 @@ int IpfixDbReader::dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplate
 	while((dbRow = mysql_fetch_row(dbResult)) && !exitFlag) {
 		if (first) {
 			j = 0;
-			for(std::vector<columnDB>::iterator i = columns.begin(); i != columns.end(); ++i) {
+			for(vector<columnDB>::iterator i = columns.begin(); i != columns.end(); ++i) {
 				if(i->ipfixId == IPFIX_TYPEID_flowEndSeconds) {
 					delta = time(NULL) - atoll(dbRow[j]);
 					lastFlowTime = atoll(dbRow[j]) + delta;
@@ -202,7 +202,7 @@ int IpfixDbReader::dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplate
 		boost::shared_array<IpfixRecord::Data> data(new IpfixRecord::Data[recordLength]);
 		offset = 0;
 		j = 0;
-		for(std::vector<columnDB>::iterator i = columns.begin(); i != columns.end(); ++i) {
+		for(vector<columnDB>::iterator i = columns.begin(); i != columns.end(); ++i) {
 			switch(i->ipfixId) {
 			case IPFIX_TYPEID_flowEndSeconds:
 			        flowTime = atoll(dbRow[j]) + delta;
@@ -304,8 +304,8 @@ int IpfixDbReader::getTables()
 	if(dbResult == 0) {
 		msg(MSG_FATAL,"IpfixDbReader: There are no flow tables in database");	
 	} else {
-		while(dbRow = mysql_fetch_row(dbResult)) {
-			tables.push_back(std::string(dbRow[0]));
+		while((dbRow = mysql_fetch_row(dbResult))) {
+			tables.push_back(string(dbRow[0]));
 			msg(MSG_VDEBUG, "IpfixDbReader: table %s", tables.back().c_str());
 		}
 	}
@@ -319,12 +319,12 @@ int IpfixDbReader::getTables()
 /**
  * Get the names of columns
  */
-int IpfixDbReader::getColumns(const std::string& tableName)
+int IpfixDbReader::getColumns(const string& tableName)
 {
 	MYSQL_RES* dbResult = NULL;
 	MYSQL_ROW dbRow = NULL;
 	
-	std::string query = "SHOW COLUMNS FROM " + tableName;
+	string query = "SHOW COLUMNS FROM " + tableName;
 	msg(MSG_VDEBUG, "IpfixDbReader: SQL query: %s", query.c_str());
 	if(mysql_query(conn, query.c_str()) != 0) {	
 		msg(MSG_ERROR,"IpfixDbReader: Show columns on table %s failed. Error: %s",
@@ -406,7 +406,7 @@ int IpfixDbReader::getColumns(const std::string& tableName)
 	if(haveFirstMillis && (pos = columnNames.find(CN_firstSwitched, 0)) != string::npos) {
 		columnNames.insert(pos, "+1000*");
 		columnNames.insert(pos, CN_firstSwitchedMillis);
-		for(std::vector<columnDB>::iterator i = columns.begin(); i != columns.end(); i++) {
+		for(vector<columnDB>::iterator i = columns.begin(); i != columns.end(); i++) {
 			if(i->ipfixId == IPFIX_TYPEID_flowStartSeconds) {
 				i->ipfixId = IPFIX_TYPEID_flowStartMilliSeconds;
 				i->length = IPFIX_LENGTH_flowStartMilliSeconds;
@@ -421,7 +421,7 @@ int IpfixDbReader::getColumns(const std::string& tableName)
 		orderBy.append(CN_lastSwitchedMillis);
 		orderBy.append("+1000*");
 		orderBy.append(CN_lastSwitched);
-		for(std::vector<columnDB>::iterator i = columns.begin(); i != columns.end(); i++) {
+		for(vector<columnDB>::iterator i = columns.begin(); i != columns.end(); i++) {
 			if(i->ipfixId == IPFIX_TYPEID_flowEndSeconds) {
 				i->ipfixId = IPFIX_TYPEID_flowEndMilliSeconds;
 				i->length = IPFIX_LENGTH_flowEndMilliSeconds;
@@ -441,10 +441,9 @@ int IpfixDbReader::getColumns(const std::string& tableName)
 
 
 int IpfixDbReader::connectToDb(
-		const std::string& hostName, const std::string& dbName, 
-		const std::string& userName, const std::string& password,
+		const string& hostName, const string& dbName, 
+		const string& userName, const string& password,
 		unsigned int port)
-
 {
 	/** get the mysl init handle*/
 	conn = mysql_init(0); 
@@ -453,7 +452,7 @@ int IpfixDbReader::connectToDb(
 		    mysql_error(conn));
 		return 1;
 	} else {
-		msg(MSG_DEBUG,"IpfixDbReader: mysql init successfull");
+		msg(MSG_DEBUG,"IpfixDbReader: mysql init successful");
 	}
 
 	/**Connect to Database*/
@@ -462,6 +461,16 @@ int IpfixDbReader::connectToDb(
 		msg(MSG_FATAL,"IpfixDbReader: Connection to database failed. Error: %s",
 		    mysql_error(conn));
 		return 1;
+	} else {
+		msg(MSG_DEBUG,"IpfixDbReader: successfully connected to database");
+	}
+
+	/** use database with dbName **/	
+	if(mysql_select_db(conn, dbName.c_str()) !=0) {
+		msg(MSG_FATAL,"IpfixDbReader: Database %s not selectable", dbName.c_str());	
+		return 1;
+	} else {
+		msg(MSG_DEBUG,"IpfixDbReader: Database %s selected", dbName.c_str());
 	}
 
 	return 0;
@@ -499,11 +508,11 @@ IpfixDbReader::~IpfixDbReader() {
  * Creates a new ipfixDbReader. Do not forget to call @c startipfixDbReader() to begin reading from Database
  * @return handle to use when calling @c destroyipfixDbRreader()
  */
-IpfixDbReader::IpfixDbReader(const std::string& hostname, const std::string& dbname,
-				const std::string& username, const std::string& password,
+IpfixDbReader::IpfixDbReader(const string& hostname, const string& dbname,
+				const string& username, const string& password,
 				unsigned port, uint16_t observationDomainId, 
 				bool timeshift, bool fullspeed)
-	: thread(readFromDB), timeshift(timeshift), fullspeed(fullspeed)
+	: timeshift(timeshift), fullspeed(fullspeed), thread(readFromDB) 
 {
 	srcId.reset(new IpfixRecord::SourceID);
 	srcId->observationDomainId = observationDomainId;
@@ -516,15 +525,7 @@ IpfixDbReader::IpfixDbReader(const std::string& hostname, const std::string& dbn
 	if (connectToDb(hostname, dbname, username, password, port)) {
 		THROWEXCEPTION("IpfixDbReader creation failed");
 	}
-	msg(MSG_DEBUG,"IpfixDbReader: Connected to database");
 	
-	/** use database  with db_name**/	
-	if(mysql_select_db(conn, dbname.c_str()) !=0) {
-		msg(MSG_FATAL,"IpfixDbReader: Database %s not selectable", dbname.c_str());	
-		THROWEXCEPTION("IpfixDbReader creation failed");
-	} else {
-		msg(MSG_DEBUG,"IpfixDbReader: Database %s selected", dbname.c_str());
-	}
 	/** get tables of the database*/
 	if(getTables() != 0) {
 		msg(MSG_ERROR,"IpfixDbReader: Error in function getTables");

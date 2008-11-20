@@ -457,7 +457,7 @@ class IpfixRecord
 			uint8_t protocol;
 			int fileDescriptor;
 
-			bool operator==(const struct SourceID & x) {
+			bool operator==(const struct SourceID & x) const {
 				if(protocol == 132) /* compare file descriptors instead of IP addresses because of possible multihoming */
 					return (observationDomainId == x.observationDomainId) &&
 // 					(exporterPort == x.exporterPort) &&
