@@ -62,6 +62,18 @@ IpfixDbWriter::Column identify [] = {
 };
 
 
+
+/**
+ * Compare two source IDs and check if exporter is the same (i.e., same IP address and observationDomainId
+ */
+bool IpfixDbWriter::equalExporter(const IpfixRecord::SourceID& a, const IpfixRecord::SourceID& b) {
+	return (a.observationDomainId == b.observationDomainId) &&
+		(a.exporterAddress.len == b.exporterAddress.len) &&
+		(memcmp(a.exporterAddress.ip, b.exporterAddress.ip, a.exporterAddress.len) == 0 );
+
+}
+
+
 /**
  * (re)connect to database
  */
@@ -102,7 +114,7 @@ int IpfixDbWriter::connectToDB()
 				dbName.c_str(), mysql_error(conn));
 		return 1;
 	}
-	msg(MSG_INFO,"Database %s created", dbName.c_str());
+	msg(MSG_INFO,"IpfixDbWriter: Database %s created", dbName.c_str());
 
 	/** use database with dbName**/
 	if(mysql_select_db(conn, dbName.c_str()) !=0) {
@@ -110,7 +122,7 @@ int IpfixDbWriter::connectToDB()
 				dbName.c_str(), mysql_error(conn));
 		return 1;
 	}
-	msg(MSG_DEBUG,"Database %s selected", dbName.c_str());
+	msg(MSG_DEBUG,"IpfixDbWriter: Database %s selected", dbName.c_str());
 
 	/**create table exporter*/
 	statement.str("");
@@ -212,7 +224,7 @@ string& IpfixDbWriter::getInsertString(string& row, time_t& flowstartsec, const 
 	for(vector<Column>::iterator col = tableColumns.begin(); col != tableColumns.end(); col++) {
 		if (col->ipfixId == EXPORTERID) {
 			// if this is the same source ID as last time, we get the exporter id from currentExporter
-			if ((currentExporter != NULL) && (sourceID == currentExporter->sourceID)) {
+			if ((currentExporter != NULL) && equalExporter(sourceID, currentExporter->sourceID)) {
 				DPRINTF("Exporter is same as last time (ODID=%d, id=%d)", sourceID.observationDomainId, currentExporter->id);
 				intdata = (uint64_t)currentExporter->id;
 			} else {
@@ -440,13 +452,16 @@ int IpfixDbWriter::getExporterID(const IpfixRecord::SourceID& sourceID)
 	
 	iter = exporterCache.begin();
 	while(iter != exporterCache.end()) {
-		if (iter->sourceID == sourceID) {
+		if (equalExporter(iter->sourceID, sourceID)) {
 			// found exporter in exporterCache
-			DPRINTF("Exporter (ODID=%d, id=%d) found in exporter buffer", sourceID.observationDomainId, iter->id);
+			DPRINTF("Exporter (ODID=%d, id=%d) found in exporter cache", sourceID.observationDomainId, iter->id);
 			exporterCache.push_front(*iter);
 			exporterCache.erase(iter);
+			// update current exporter
+			currentExporter = &exporterCache.front();
 			return exporterCache.front().id;
 		}
+		iter++;
 	}
 
 	// convert IP address

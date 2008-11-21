@@ -24,8 +24,8 @@
 
 using namespace std;
 
-PSAMPExporterModule::PSAMPExporterModule(Template *tmpl, int sID) // FIXME: observationDomainId = sID
-		: sourceID(sID), templ(tmpl),
+PSAMPExporterModule::PSAMPExporterModule(Template *tmpl, uint32_t observationDomainId)
+		: sourceID(observationDomainId), templ(tmpl),
 		  exporter(NULL),
 		  numPacketsToRelease(0), numMetaFieldsToRelease(0),
 		  ipfix_maxrecords(MAX_RECORDS_PER_PACKET),

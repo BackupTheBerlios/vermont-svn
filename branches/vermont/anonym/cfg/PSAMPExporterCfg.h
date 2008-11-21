@@ -40,6 +40,8 @@ private:
 	
 	int recordsPerPacket;
 	int recordLength;
+
+	uint32_t observationDomainId;
 	
 	PacketReportingCfg* reporting;
 };

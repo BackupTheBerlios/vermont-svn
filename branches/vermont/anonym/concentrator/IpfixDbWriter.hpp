@@ -120,6 +120,7 @@ class IpfixDbWriter
 
 
 		uint64_t getData(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data);
+		bool equalExporter(const IpfixRecord::SourceID& a, const IpfixRecord::SourceID& b);
 };
 
 

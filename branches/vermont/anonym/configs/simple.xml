@@ -119,11 +119,10 @@
 	</ipfixQueue>
 	
 	<ipfixExporter id="8">
+		<observationDomainId>999999</observationDomainId>
 		<collector>
-			<ipAddressType>4</ipAddressType>
 			<ipAddress>127.0.0.1</ipAddress>
-			<transportProtocol>17</transportProtocol>
-			<port>1500</port>
+			<transportProtocol>132</transportProtocol>
 		</collector>
 	</ipfixExporter>
 </ipfixConfig>

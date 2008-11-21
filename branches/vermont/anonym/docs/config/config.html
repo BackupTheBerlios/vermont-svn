@@ -512,7 +512,8 @@
 		</table>
 		<p>Example:</p>
 		<pre class="hl">	
-<span class="kwa">&lt;psampExporter&gt;</span>
+<span class="kwa">&lt;psampExporter id=</span><span class="str">&quot;1&quot;</span><span class="kwa">&gt;</span>
+	<span class="kwa">&lt;observationDomainId&gt;</span><span class="num">123</span><span class="kwa">&lt;/observationDomainId&gt;</span>
 	<span class="kwa">&lt;ipfixPacketRestrictions&gt;</span>
 		<span class="kwa">&lt;maxPacketSize&gt;</span><span class="num">200</span><span class="kwa">&lt;/maxPacketSize&gt;</span>
 		<span class="kwa">&lt;maxExportDelay unit=</span><span class="str">&quot;msec&quot;</span><span class="kwa">&gt;</span><span class="num">500</span><span class="kwa">&lt;/maxExportDelay&gt;</span>
@@ -545,6 +546,7 @@
 					<th>Default value</th>
 					<th>Description</th>
 				</tr>
+				<tr><td>observationDomainId</td><td>0</td><td>Observation Domain ID of the exporter.</td></tr>
 				<tr>
 					<td>ipfixPacketRestrictions</td>
 					<td>none</td>
@@ -701,7 +703,7 @@
 				<tr>
 					<td>ipAddress</td>
 					<td>none</td>
-					<td>Not used at the moment.</td>
+					<td>IP address of interface on which collector receives IPFIX packets. If not given, collector receives at all interfaces.</td>
 				</tr>
 				<tr>
 					<td>transportProtocol</td>
@@ -942,6 +944,7 @@
 					<th>Default value</th>
 					<th>Description</th>
 				</tr>				
+				<tr><td>observationDomainId</td><td>0</td><td>Observation Domain ID of the exporter.</td></tr>
 				<tr><td>templateRefreshInteval</td><td>20s</td><td>Interval for periodic sending of templates.</td></tr>
 				<tr><td>templateRefreshRate</td><td>10000</td><td>Interval for periodic sending of templates in records.</td></tr>
 				<tr><td>ipAddressType</td><td>4</td><td>Currently, only IPv4 is supported.</td></tr>

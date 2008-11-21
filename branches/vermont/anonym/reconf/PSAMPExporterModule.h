@@ -35,7 +35,7 @@ class PSAMPExporterModule
 	: public Module, public Source<Packet*>, public Destination<Packet*>, public Notifiable
 {
 public:
-        PSAMPExporterModule(Template *tmpl, int sID);
+        PSAMPExporterModule(Template *tmpl, uint32_t observationDomainId);
 
 	~PSAMPExporterModule();
 
@@ -88,7 +88,7 @@ private:
         // send out the IPFIX packet stream and reset
         void flushPacketStream();
 
-	int sourceID;
+	uint32_t sourceID;
         Template *templ;
 
         ipfix_exporter *exporter;

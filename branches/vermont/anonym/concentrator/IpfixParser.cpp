@@ -840,7 +840,7 @@ int IpfixParser::processIpfixPacket(boost::shared_array<uint8_t> message, uint16
 	}
 	
 	//FIXME: check for out-of-order messages and lost records
-	msg(MSG_VDEBUG, "Message contained %u records, sequence number was %u", numberOfDataRecords, ntohl(header->sequenceNo));
+	msg(MSG_VDEBUG, "Message contained %u bytes, sequence number was %u", numberOfDataRecords, ntohl(header->sequenceNo));
 
 	return 0;
 }
