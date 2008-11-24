@@ -196,6 +196,8 @@ void IpfixSender::onDataTemplate(IpfixDataTemplateRecord* record)
  	}
 
 	/* get or assign template ID */
+	// FIXME: Move the dynamic template ID assignement to the Aggregator!
+	// As it is now, the dynamic template ID assignement does not work with copy mode Record Anonymization.
 	if(dataTemplateInfo->templateId)
 	    my_template_id = dataTemplateInfo->templateId;
 	else
