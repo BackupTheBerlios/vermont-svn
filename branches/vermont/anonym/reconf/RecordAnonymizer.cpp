@@ -1,5 +1,13 @@
 #include "RecordAnonymizer.h"
 
+InstanceManager<IpfixDataRecord> RecordAnonymizer::dataRecordIM("IpfixDataRecord");
+InstanceManager<IpfixDataDataRecord> RecordAnonymizer::dataDataRecordIM("IpfixDataDataRecord");
+
+void RecordAnonymizer::setCopyMode(bool mode)
+{
+	copyMode = mode;
+}
+
 void RecordAnonymizer::onTemplate(IpfixTemplateRecord* record)
 {
 	send(record);
@@ -18,11 +26,26 @@ void RecordAnonymizer::onDataTemplate(IpfixDataTemplateRecord* record)
 
 void RecordAnonymizer::onDataRecord(IpfixDataRecord* record)
 {
-	for (int i = 0; i != record->templateInfo->fieldCount; ++i) {
-		IpfixRecord::FieldInfo* field = record->templateInfo->fieldInfo + i;
-		anonField(field->type.id, record->data + field->offset, field->type.length);
+	IpfixDataRecord* myRecord;
+	if(copyMode) {
+		// generate copy of the current record
+		myRecord = dataRecordIM.getNewInstance();
+		myRecord->sourceID = record->sourceID;
+		myRecord->templateInfo = record->templateInfo;
+		myRecord->dataLength = record->dataLength; // = recordLength
+		myRecord->message = boost::shared_array<IpfixRecord::Data>(new IpfixRecord::Data[record->dataLength]);
+		memcpy(myRecord->message.get(), record->data, record->dataLength);
+		myRecord->data = myRecord->message.get();
+		// release record
+		record->removeReference();
+	} else
+		myRecord = record;
+
+	for (int i = 0; i != myRecord->templateInfo->fieldCount; ++i) {
+		IpfixRecord::FieldInfo* field = myRecord->templateInfo->fieldInfo + i;
+		anonField(field->type.id, myRecord->data + field->offset, field->type.length);
 	}
-	send(record);
+	send(myRecord);
 }
 
 
@@ -33,15 +56,37 @@ void RecordAnonymizer::onOptionsRecord(IpfixOptionsRecord* record)
 
 void RecordAnonymizer::onDataDataRecord(IpfixDataDataRecord* record)
 {
-	for (int i = 0; i != record->dataTemplateInfo->dataCount; ++i) {
-		IpfixRecord::FieldInfo* field = record->dataTemplateInfo->dataInfo + i;
-		anonField(field->type.id, record->data + field->offset, field->type.length);
+	IpfixDataDataRecord* myRecord;
+	if(copyMode) {
+		// generate copy of the current record
+		myRecord = dataDataRecordIM.getNewInstance();
+		myRecord->sourceID = record->sourceID;
+		// we also need to copy the Data Template Info
+		myRecord->dataTemplateInfo = boost::shared_ptr<IpfixRecord::DataTemplateInfo>(new IpfixRecord::DataTemplateInfo(*record->dataTemplateInfo.get()));
+		//myRecord->dataTemplateInfo = record->dataTemplateInfo;
+		myRecord->dataLength = record->dataLength; // = recordLength
+		myRecord->message = boost::shared_array<IpfixRecord::Data>(new IpfixRecord::Data[record->dataLength]);
+		memcpy(myRecord->message.get(), record->data, record->dataLength);
+		myRecord->data = myRecord->message.get();
+		// release record
+		record->removeReference();
+	} else
+		myRecord = record;
+
+	// anonymize data template fixed value fields if necessary
+	if(!myRecord->dataTemplateInfo->anonymized) {
+		for (int i = 0; i != myRecord->dataTemplateInfo->dataCount; ++i) {
+			IpfixRecord::FieldInfo* field = myRecord->dataTemplateInfo->dataInfo + i;
+			anonField(field->type.id, myRecord->dataTemplateInfo->data + field->offset, field->type.length);
+		}
+		myRecord->dataTemplateInfo->anonymized = true; 
 	}
-	for (int i = 0; i != record->dataTemplateInfo->fieldCount; ++i) {
-		IpfixRecord::FieldInfo* field = record->dataTemplateInfo->fieldInfo + i;
-		anonField(field->type.id, record->data + field->offset, field->type.length);
+	// anonymize variable value fields
+	for (int i = 0; i != myRecord->dataTemplateInfo->fieldCount; ++i) {
+		IpfixRecord::FieldInfo* field = myRecord->dataTemplateInfo->fieldInfo + i;
+		anonField(field->type.id, myRecord->data + field->offset, field->type.length);
 	}
-	send(record);
+	send(myRecord);
 }
 
 void RecordAnonymizer::onTemplateDestruction(IpfixTemplateDestructionRecord* record)

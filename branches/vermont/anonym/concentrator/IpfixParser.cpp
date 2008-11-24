@@ -421,8 +421,9 @@ void IpfixParser::processDataTemplateSet(boost::shared_ptr<IpfixRecord::SourceID
 		}
 
 		/* Copy fixed data block */
-		ti->data = (uint8_t*)malloc(dataLength);
-		memcpy(ti->data, record, dataLength);
+		ti->data = (IpfixRecord::Data*)malloc(dataLength*sizeof(IpfixRecord::Data));
+		ti->dataLength = dataLength;
+		memcpy(ti->data, record, dataLength*sizeof(IpfixRecord::Data));
 		 
 		/* Advance record to end of fixed data block, i.e. start of next template record */
 		record += dataLength;

@@ -72,19 +72,15 @@ class IpfixDbReader : public Module, public Source<IpfixRecord*>, public Destina
 		Thread thread;
 		
 		static InstanceManager<IpfixTemplateRecord> templateRecordIM;
-		static InstanceManager<IpfixOptionsTemplateRecord> optionsTemplateRecordIM;
-		static InstanceManager<IpfixDataTemplateRecord> dataTemplateRecordIM;
 		static InstanceManager<IpfixDataRecord> dataRecordIM;
-		static InstanceManager<IpfixOptionsRecord> optionsRecordIM;
-		static InstanceManager<IpfixDataDataRecord> dataDataRecordIM;
-		static InstanceManager<IpfixDataTemplateDestructionRecord> dataTemplateDestructionRecordIM;
+		static InstanceManager<IpfixTemplateDestructionRecord> templateDestructionRecordIM;
 
 		int getTables();
 		int getColumns(const string& tableName);
 		static void* readFromDB(void* ipfixDbReader_);
-		int dbReaderSendNewTemplate(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const string& tableName);
-		int dbReaderSendTable(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo, const string& tableName);
-		int dbReaderDestroyTemplate(boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemplateInfo);
+		int dbReaderSendNewTemplate(boost::shared_ptr<IpfixRecord::TemplateInfo> templateInfo, const string& tableName);
+		int dbReaderSendTable(boost::shared_ptr<IpfixRecord::TemplateInfo> templateInfo, const string& tableName);
+		int dbReaderDestroyTemplate(boost::shared_ptr<IpfixRecord::TemplateInfo> templateInfo);
 		int connectToDb( const string& hostName, const string& dbName, const string& userName, const string& password, unsigned int port);
 };
 

@@ -77,6 +77,7 @@ void BaseHashtable::createDataTemplate(Rule* rule)
 	dataTemplate->dataCount = 0;
 	dataTemplate->dataInfo = NULL;
 	dataTemplate->data = NULL;
+	dataTemplate->dataLength = 0;
 	dataTemplate->userData = NULL;
 
 	fieldModifier
@@ -95,6 +96,7 @@ void BaseHashtable::createDataTemplate(Rule* rule)
 			fi->offset = dataLength;
 			fi->privDataOffset = 0;
 			dataLength += fi->type.length;
+			dataTemplate->dataLength = dataLength;
 			dataTemplate->data = (IpfixRecord::Data*)realloc(dataTemplate->data, dataLength);
 			memcpy(dataTemplate->data + fi->offset, rf->pattern, fi->type.length);
 		}

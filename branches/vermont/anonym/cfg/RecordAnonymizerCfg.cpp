@@ -27,6 +27,7 @@ RecordAnonymizer* RecordAnonymizerCfg::createInstance()
 	}
 
 	initInstance(this, instance, _elem->getElementChildren());
+	instance->setCopyMode(getBool("copyMode", false));
 
 	return instance;
 }

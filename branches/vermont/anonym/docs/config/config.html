@@ -1515,6 +1515,7 @@
 		<span class="kwa">&lt;anonMethod&gt;</span>CryptoPan<span class="kwa">&lt;/anonMethod&gt;</span>
 			<span class="kwa">&lt;anonParam&gt;</span>insert key here<span class="kwa">&lt;/anonParam&gt;</span>
 		<span class="kwa">&lt;/anonField&gt;</span>
+		<span class="kwa">&lt;copyMode&gt;</span><span class="num">false</span><span class="kwa">&lt;/copyMode&gt;</span>
 		<span class="kwa">&lt;next&gt;</span><span class="num">6</span><span class="kwa">&lt;/next&gt;</span>
 	<span class="kwa">&lt;/anonRecord&gt;</span>
 
@@ -1552,6 +1553,12 @@
 					<td>anonParam</td>
 					<td>none</td>
 					<td>Specifies an optional parameter to the anonymization method. Different methods need different params. ByteWiseHashHmacSha1, HashHmacSha1 need an variable sized key. ConstOverwrite needs one character as parameter. CryptoPan needs an 32 bytes long parameter (16 bytes key, 16 bytes pad)</td>
+				</tr>
+				<tr>
+					<td>copyMode</td>
+					<td>false</td>
+					<td>If true, the Record Anonymizer creates a copy of the incoming record and leaves the original record unchanged. Copy mode should be turned on if the original records are processed by other moduls as well.</td>
+				</tr>
 			</tbody>
 		</table>					
 	</body>
