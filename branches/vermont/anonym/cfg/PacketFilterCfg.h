@@ -5,6 +5,7 @@
 #include "reconf/FilterModule.h"
 
 #include <vector>
+#include <algorithm>
 
 // forward declaration of instances
 class RegExFilter;
@@ -20,12 +21,12 @@ class PacketFilterCfg
 {
 public:
 	friend class ConfigManager;
-	
+
 	virtual PacketFilterCfg* create(XMLElement* e);
 	virtual ~PacketFilterCfg();
 
 	virtual FilterModule* createInstance();
-	
+
 	virtual bool deriveFrom(PacketFilterCfg* old);
 
 protected:
@@ -62,18 +63,18 @@ class PacketCountFilterCfg
 {
 public:
 	friend class PacketFilterCfg;
-	
+
 	virtual PacketFilterCfg* create(XMLElement* e) {return NULL; };
-	
+
 	virtual ~PacketCountFilterCfg();
 
 	virtual std::string getName() { return "countBased"; }
-	
+
 	int getInterval() { return getInt("interval", 0); }
 	int getSpacing()  { return getInt("spacing", 0); }
 
 	virtual Module* getInstance();
-	
+
 	virtual bool deriveFrom(Cfg* old)
 	{
 		PacketCountFilterCfg* cfg = dynamic_cast<PacketCountFilterCfg*>(old);
@@ -107,18 +108,18 @@ class PacketTimeFilterCfg
 {
 public:
 	friend class PacketFilterCfg;
-	
+
 	virtual PacketFilterCfg* create(XMLElement* e) {return NULL; };
-	
+
 	virtual ~PacketTimeFilterCfg();
 
 	virtual std::string getName() { return "timeBased"; }
-	
+
 	int getInterval() { return getInt("interval", 0); }
 	int getSpacing()  { return getInt("spacing", 0); }
 
 	virtual Module* getInstance();
-	
+
 	virtual bool deriveFrom(Cfg* old)
 	{
 		PacketTimeFilterCfg* cfg = dynamic_cast<PacketTimeFilterCfg*>(old);

@@ -51,7 +51,7 @@ const uint16_t MAX_COL_LENGTH = 22;
  *      Attention: order of entries is important!
  */
 const IpfixDbWriterPg::Column IpfixDbWriterPg::identify [] = {
-	{	"srcIP", IPFIX_TYPEID_sourceIPv4Address, "inet",0},
+	{	"srcIP", IPFIX_TYPEID_sourceIPv4Address, "inet", 0},
 	{	"dstIP", IPFIX_TYPEID_destinationIPv4Address, "inet", 0},
 	{	"srcPort", IPFIX_TYPEID_sourceTransportPort, "integer", 0},
 	{	"dstPort", IPFIX_TYPEID_destinationTransportPort, "integer",0},
@@ -224,7 +224,7 @@ bool IpfixDbWriterPg::createDBTable(const char* partitionname, uint64_t starttim
 
 		cpsql << "CREATE TABLE " << partitionname << " (CHECK (firstswitched>='";
 		cpsql << getTimeAsString(starttime, "%Y-%m-%d %H:%M:%S", true);
-		cpsql << "' AND firstswitched<='" << getTimeAsString(endtime, "%Y-%m-%d %H:%M:%S", true);
+		cpsql << "' AND firstswitched<'" << getTimeAsString(endtime, "%Y-%m-%d %H:%M:%S", true);
 		cpsql << "')) INHERITS (" << tablePrefix << ")";
 
 		PGresult* res = PQexec(conn, cpsql.str().c_str());
@@ -337,7 +337,7 @@ void IpfixDbWriterPg::onDataRecord(IpfixDataRecord* record)
 
 bool IpfixDbWriterPg::checkCurrentTable(uint64_t flowStart)
 {
-	return curTable.timeStart!=0 && (curTable.timeStart<=flowStart && curTable.timeEnd>=flowStart);
+	return curTable.timeStart!=0 && (curTable.timeStart<=flowStart && curTable.timeEnd>flowStart);
 }
 
 string IpfixDbWriterPg::getTimeAsString(uint64_t milliseconds, const char* formatstring, bool addfraction, uint32_t microseconds)
@@ -362,7 +362,7 @@ bool IpfixDbWriterPg::setCurrentTable(uint64_t flowStart)
 	string tablename = tablePrefix;
 
 	uint64_t starttime = (flowStart/TABLE_INTERVAL)*TABLE_INTERVAL; // round down to start of interval
-	uint64_t endtime = starttime+TABLE_INTERVAL-1;
+	uint64_t endtime = starttime+TABLE_INTERVAL;
 
 	tablename += getTimeAsString(starttime, "_%y%m%d_%H%M%S", false);
 

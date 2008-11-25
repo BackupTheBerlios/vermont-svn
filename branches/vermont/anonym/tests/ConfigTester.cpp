@@ -30,7 +30,7 @@ ConfigTester::~ConfigTester()
 Test::TestResult ConfigTester::execTest()
 {
 	for (unsigned i = 0; i != configFiles.size(); ++i) {
-		testConfig(configFiles[i]);		
+		testConfig(configFiles[i]);
 	}
 	return PASSED;
 }

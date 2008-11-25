@@ -6,8 +6,6 @@
 #include <arpa/inet.h>
 #include <cstring>
 
-
-
 string IDMEFMessage::hostname;
 string IDMEFMessage::domainname;
 string IDMEFMessage::ipAddress;
@@ -25,7 +23,7 @@ const char* IDMEFMessage::PAR_NTP_TIME = "NTP_TIME";
 
 
 
-	IDMEFMessage::IDMEFMessage(InstanceManager<IDMEFMessage>* im)
+IDMEFMessage::IDMEFMessage(InstanceManager<IDMEFMessage>* im)
 : ManagedInstance<IDMEFMessage>(im)
 {
 
@@ -115,7 +113,7 @@ void IDMEFMessage::setVariable(const string key, const uint16_t value)
 	snprintf(valtext, 15, "%u", value);
 	parameterValues[key] = valtext;
 }
-void IDMEFMessage::setVariable(const string key,const double value) 
+void IDMEFMessage::setVariable(const string key,const double value)
 {
 	char valtext[15];
 	snprintf(valtext,15, "%f",value);
@@ -129,7 +127,7 @@ string IDMEFMessage::getNtpStamp(time_t t)
 	char timestr[100];
 
 	// 2208988800 is the amount of seconds between 1900-01-01 and 1970-01-01
-	snprintf(timestr, sizeof(timestr), "0x%lX.0x0", t+2208988800UL); 
+	snprintf(timestr, sizeof(timestr), "0x%lX.0x0", t+2208988800UL);
 
 	return timestr;
 }

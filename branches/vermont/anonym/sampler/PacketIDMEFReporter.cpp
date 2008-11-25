@@ -14,7 +14,7 @@ const char* PacketIDMEFReporter::PAR_SNAPSHOT = "PacketSnapshot";
 
 InstanceManager<IDMEFMessage> PacketIDMEFReporter::idmefManager("IDMEFMessage");
 
-	
+
 
 PacketIDMEFReporter::PacketIDMEFReporter(string idmeftemplate, string analyzerid, uint16_t snapshotoff, uint16_t snapshotlen)
 	: analyzerId(analyzerid), idmefTemplate(idmeftemplate),
