@@ -1,2 +1,0 @@
-Required Ubuntu/Debian packages for compilation:
-cmake libboost-dev libxml2-dev libpcap-dev
