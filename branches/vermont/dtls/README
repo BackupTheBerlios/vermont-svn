@@ -33,6 +33,10 @@ CMake options can be set either by running cmake with one or more
 parameters "-D OPTION=VALUE" or interactively by running "ccmake ." or 
 one of its graphical equivalents.
 
+If you have some libraries installed within a custom directory, you can
+-DCMAKE_PREFIX_PATH=/custom/directory1:/custom/directory2 to make cmake look
+into these directories.
+
 Although not strictly necessary, VERMONT binaries and data files can be 
 copied out of the source tree and to a user-defined location by running:
 
