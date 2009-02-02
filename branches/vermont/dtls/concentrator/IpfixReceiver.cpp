@@ -45,6 +45,14 @@ IpfixReceiver::IpfixReceiver()
 {
 }
 
+IpfixReceiver::IpfixReceiver(int port)
+	: exitFlag(true),
+	  thread(threadWrapper),
+	  receiverPort(port)
+	  
+{
+}
+
 /**
  * Frees memory used by an IpfixReceiver.
  */

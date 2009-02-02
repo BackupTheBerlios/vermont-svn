@@ -1,6 +1,10 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html>
 <head>
 <title>IPFIXLOLIB API Description</title>
+<style type="text/css">
+  .fixme { color: red; background-color: yellow; }
+</style>
 </head>
 <body>
 
@@ -28,6 +32,7 @@ The usage of IPFIXLOLIB is straight forward:
 </ul>
 
 <p>For a detailed and commented example, see <a href="example_code.c">example_code.c</a> in the doc/ directory.</p>
+<em class="fixme">FIXME: Point out which features are standard and which are proprietary.</em>
 <hr width="94%" noshade="noshade" align="left" size="1">
 
 <h3>Synopsis</h3>
@@ -163,9 +168,12 @@ coll_port: port number of receiving collector
 
 <a name=ipfix_start_template_set><code>int ipfix_start_template_set(ipfix_exporter* exporter, uint16_t template_id, uint16_t field_count)</code></a><p>
 Start defining a new template.<br>
+<em class="fixme">FIXME: ipfixlolib supports only one template record per template set.
+So this function basically means 'start template set and one template record'.</em>
 <br>
 exporter: pointer to exporter struct<br>
-template_id: ID for this template <br>
+template_id: ID for this template <em class="fixme">FIXME: template ID must be &gt; 255.
+Also ipfixlolib doesn't check if template ID is &gt; 255.</em><br>
 field_count: number of fields to add <br>
 <br>
 NOTE: It is not possible to start and define multiple templates in parallel.<br>
@@ -175,6 +183,7 @@ ipfix_end_template_set() has to be called first before a new template can be def
 
 <a name=ipfix_start_optionstemplate_set><code>int ipfix_start_optionstemplate_set(ipfix_exporter* exporter, uint16_t template_id, uint16_t scope_length, uint16_t option_length)</code></a><p>
 Start defining a new option template.<br>
+<em class="fixme">FIXME: Not yet implemented.</em>
 <br>
 exporter: pointer to exporter struct<br>
 template_id: ID for this template <br>
@@ -188,6 +197,7 @@ ipfix_end_template_set() has to be called first before a new template can be def
 
 <a name=ipfix_start_datatemplate_set><code>int ipfix_start_datatemplate_set(ipfix_exporter* exporter, uint16_t template_id, uint16_t field_count)</code></a><p>
 Start defining a new data template.<br>
+<em class="fixme">FIXME: Point out that this is a proprietary feature and does not comply with RFC 5101</em>
 <br>
 exporter: pointer to exporter struct<br>
 template_id: an ID for this template <br>
@@ -201,6 +211,8 @@ ipfix_end_template_set() has to be called first before a new template can be def
 
 <a name=ipfix_put_template_field><code>int ipfix_put_template_field(ipfix_exporter* exporter, uint16_t template_id, uint16_t length, uint16_t type, uint32_t enterprise)</code></a><p>
 Add a field to the previously started template, options template, or data template.<br>
+<em class="fixme">FIXME: It will not be checked if the number of fields added exceeds the number which was passed
+to <code>ipfix_start_template_set()</code> via <code>field_count</code></em>
 <br>
 exporter: pointer to exporter struct<br>
 template_id: ID of the template <br>

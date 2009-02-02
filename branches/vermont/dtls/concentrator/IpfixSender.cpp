@@ -119,6 +119,11 @@ void IpfixSender::addCollector(const char *ip, uint16_t port, ipfix_transport_pr
 	    	msg(MSG_INFO, "IpfixSender: adding RAWDIR://%s to exporter", ip);
 	    	break;
 #endif
+#ifdef SUPPORT_OPENSSL
+	    case DTLS_OVER_UDP:
+	    	msg(MSG_INFO, "IpfixSender: adding DTLS over UDP://%s:%d to exporter", ip, port);
+	    	break;
+#endif
 	    case TCP:
 	        msg(MSG_INFO, "IpfixSender: adding TCP://%s:%d to exporter", ip, port);
 	    default:

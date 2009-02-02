@@ -1,3 +1,4 @@
+/* vim: set sts=4 sw=4 cindent nowrap: This modeline was added by Daniel Mentz */
 
 #ifndef IPFIXLOLIB_H
 #define IPFIXLOLIB_H
@@ -39,6 +40,11 @@
 #include <string.h>
 #ifdef SUPPORT_SCTP 
 #include <netinet/sctp.h>
+#endif
+#ifdef SUPPORT_OPENSSL
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/bio.h>
 #endif
 
 #include "encoding.h"
@@ -106,6 +112,11 @@ extern "C" {
  * TODO: This value is delibaretely chosen, adapt it if you need it or make it dynamic.
  */
 #define IPFIX_MAX_SENDBUFSIZE 1024
+
+/*
+ * maximum size of an IPFIX packet
+ */
+#define IPFIX_MAX_PACKETSIZE (1<<16)
 
 /*
  * This macro appends data to the sendbuffer. If the sendbuffer is too small,
@@ -217,13 +228,13 @@ enum ipfix_transport_protocol {
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
 	RAWDIR, 
 #endif 
-	SCTP, UDP, TCP
+	SCTP, UDP, TCP, DTLS_OVER_UDP
 	};
 
 /*
  * These indicate, if a field is commited (i.e. can be used)
  * unused or unclean (i.e. data is not complete yet)
- * T_SENT (Template was sent) and T_WiTHDRAWN (Template destroyed) 
+ * T_SENT (Template was sent) and T_WITHDRAWN (Template destroyed) 
  * are used with SCTP, since Templates are sent only once
  * T_TOBEDELETED templates will be deleted the next time when the buffer is updated
  */
@@ -236,6 +247,25 @@ enum template_state {T_UNUSED, T_UNCLEAN, T_COMMITED, T_SENT, T_WITHDRAWN, T_TOB
  * sets the state to C_CONNECTED. If connection is lost and the socket closed
  * state changes to C_DISCONNECTED and reconnection attempts can take place
 */
+/* The lifecycles of the connections to a collector of type DTLS over UDP
+ * and plain UDP are as follows:
+ *
+ * DTLS over UDP:
+ *  - state == C_UNUSED
+ *  - Successful calls to socket() and connect()
+ *  - state <= C_NEW
+ *  - DTLS handshake is taking place
+ *  - DTLS handshake succeeded.
+ *  - Templates are sent
+ *  - state <= C_CONNECTED
+ *
+ * UDP:
+ *  - state == C_UNUSED
+ *  - Successful calls to socket() and connect()
+ *  - state <= C_NEW
+ *  - Templates are sent
+ *  - state <= C_CONNECTED
+ */
 enum collector_state {C_UNUSED, C_NEW, C_DISCONNECTED, C_CONNECTED};
 
 
@@ -280,7 +310,17 @@ typedef struct {
 	ipfix_set_manager set_manager;
 } ipfix_sendbuffer;
 
-
+#ifdef SUPPORT_OPENSSL
+typedef struct {
+	SSL *ssl;
+	int want_read;
+	/* receive buffer. Size is more or less arbitrary.
+	 * Our peer does not send any payload so we do not expect
+	 * large UDP packets from him. Only DTLS protocol data will be
+	 * received. */
+	char recvbuf[2048];
+} ipfix_dtls_connection;
+#endif
 /*
  * A collector receiving messages from this exporter
  */
@@ -295,6 +335,9 @@ typedef struct {
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
 	int packets_written; /**< if protcol==RAWDIR: number of packets written to packet_directory_path. Ignored otherwise. */
+#endif
+#ifdef SUPPORT_OPENSSL
+	ipfix_dtls_connection dtls;
 #endif
 } ipfix_receiving_collector;
 
@@ -342,7 +385,10 @@ typedef struct {
 	int ipfix_lo_template_maxsize;
 	int ipfix_lo_template_current_count;
 	ipfix_lo_template *template_arr;
-
+#ifdef SUPPORT_OPENSSL
+	SSL_CTX *ssl_ctx;
+	char buf[IPFIX_MAX_PACKETSIZE]; /* general purpose buffer */
+#endif
 } ipfix_exporter;
 
 

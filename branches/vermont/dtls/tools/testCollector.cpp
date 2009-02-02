@@ -28,6 +28,7 @@
 #include "concentrator/IpfixParser.hpp"
 #include "concentrator/IpfixPacketProcessor.hpp"
 #include "concentrator/IpfixReceiverUdpIpV4.hpp"
+#include "concentrator/IpfixReceiverDtlsUdpIpV4.hpp"
 #include "concentrator/IpfixReceiverSctpIpV4.hpp"
 #include "concentrator/IpfixPrinter.hpp"
 #include "reconf/ConnectionQueue.h"
@@ -72,7 +73,7 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 	
-	if (argc == 2)
+	if (argc >= 2)
 		proto = argv[1];
 	if (argc == 3)
 		lport = atoi(argv[2]);
@@ -81,6 +82,14 @@ int main(int argc, char *argv[]) {
 	if (proto == "udp") {
 		msg(MSG_INFO, "Creating UDP listener on port %i", lport);
 		ipfixReceiver = new IpfixReceiverUdpIpV4(lport);
+	} else if (proto == "dtls_over_udp") {
+#ifdef SUPPORT_OPENSSL
+		msg(MSG_INFO, "Creating DTLS over UDP listener on port %i", lport);
+		ipfixReceiver = new IpfixReceiverDtlsUdpIpV4(lport);
+#else
+		msg(MSG_FATAL, "testcollector has been compiled without dtls/openssl support");
+		return -1;
+#endif
 	} else if (proto == "sctp") {
 #ifdef SUPPORT_SCTP
 		ipfixReceiver = new IpfixReceiverSctpIpV4(lport, "127.0.0.1");
