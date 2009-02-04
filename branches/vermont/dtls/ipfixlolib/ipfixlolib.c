@@ -1384,6 +1384,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 	time_t time_now = time(NULL);
 
         // has the timer expired? (for UDP)
+	// Remember: This is a global timer for all collectors associated with a given exporter
         expired = ( (time_now - exporter->last_template_transmission_time) >  exporter->template_transmission_timer);
                 
         // update the sendbuffers

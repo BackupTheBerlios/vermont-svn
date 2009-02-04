@@ -305,7 +305,8 @@ typedef struct {
 	unsigned committed; /* last commited entry in entries, i.e. when end_data_set was called for the last time */
 	unsigned marker; /* marker that allows to delete recently added entries */
 	unsigned committed_data_length; /* length of the contained data (in bytes) */
-	ipfix_header packet_header;
+	ipfix_header packet_header; /* A misnomer in my opinion. Should be message_header since it's the header
+				    of an IPFIX Message. */
 	//  int uncommited_data_length; /* length of data not yet commited */
 	ipfix_set_manager set_manager;
 } ipfix_sendbuffer;
@@ -330,7 +331,7 @@ typedef struct {
 	enum ipfix_transport_protocol protocol;
 	int data_socket; // socket data and templates are sent to
 	struct sockaddr_in addr;
-	uint32_t last_reconnect_attempt_time; 
+	uint32_t last_reconnect_attempt_time; // applies only to SCTP at the moment
 	enum collector_state state;
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
@@ -370,6 +371,9 @@ typedef struct {
 
 	// we also need some timer / counter to indicate,
 	// if we should send the templates too.
+	// This applies only to UDP and DTLS over UDP.
+	// It contains the return value from time(NULL) which is the time since
+	// the  Epoch (00:00:00 UTC, January 1, 1970), measured in seconds.
 	uint32_t last_template_transmission_time;
 	
 	// force template send next time packets are sent (to include new template ids)

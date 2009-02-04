@@ -41,45 +41,57 @@
 #endif
 
 class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
-	public:
-		IpfixReceiverDtlsUdpIpV4(int port, std::string ipAddr = "");
-		virtual ~IpfixReceiverDtlsUdpIpV4();
+    public:
+	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",
+	    const std::string &certificateChainFile = "", const std::string &privateKeyFile = "",
+	    const std::string &caFile = "", const std::string &caPath = "");
+	virtual ~IpfixReceiverDtlsUdpIpV4();
 
-		virtual void run();
-		virtual std::string getStatisticsXML(double interval);
+	virtual void run();
+	virtual std::string getStatisticsXML(double interval);
 		
-	private:
-		int listen_socket;
-		uint32_t statReceivedPackets;  /**< number of received packets */ 
-		SSL_CTX *ssl_ctx;
-		static DH *get_dh2048();
+    private:
+	int listen_socket;
+	uint32_t statReceivedPackets;  /**< number of received packets */ 
+	SSL_CTX *ssl_ctx;
+	static DH *get_dh2048();
 
-		struct DtlsConnection {
-			SSL* ssl;
-		};
-		typedef bool (*CompareSourceID)(const IpfixRecord::SourceID&, const IpfixRecord::SourceID&);
-		// compare based on source address and source port
-		static bool my_CompareSourceID(const IpfixRecord::SourceID& lhs, const IpfixRecord::SourceID& rhs) {
-		    int result;
-		    if (lhs.exporterAddress.len < rhs.exporterAddress.len) return true;
-		    if (lhs.exporterAddress.len > rhs.exporterAddress.len) return false;
-		    result = memcmp(lhs.exporterAddress.ip, rhs.exporterAddress.ip, lhs.exporterAddress.len);
-		    if (result < 0) return true;
-		    if (result > 0) return false;
-		    if (lhs.exporterPort < rhs.exporterPort) return true;
-		    return false;
-		}
-		typedef std::map<IpfixRecord::SourceID,DtlsConnection,CompareSourceID> connections_map;
-		connections_map connections;
+	/* Several conditions have to be met before I can authenticate my peer
+	 * (exporter):
+	 *  - CAFile has to be set since I have to send a Certificate
+	 *    Request to my peer and I need to know the names of the CAs to
+	 *    include in this request. (have_client_CA_list)
+	 *  - I need to have a valid certificate including the matching
+	 *    private key. (have_cert)
+	 */
+	bool have_client_CA_list;
+	bool have_cert;
+	struct DtlsConnection {
+	    SSL* ssl;
+	};
+	typedef bool (*CompareSourceID)(const IpfixRecord::SourceID&, const IpfixRecord::SourceID&);
+	// compare based on source address and source port
+	static bool my_CompareSourceID(const IpfixRecord::SourceID& lhs, const IpfixRecord::SourceID& rhs) {
+	    int result;
+	    if (lhs.exporterAddress.len < rhs.exporterAddress.len) return true;
+	    if (lhs.exporterAddress.len > rhs.exporterAddress.len) return false;
+	    result = memcmp(lhs.exporterAddress.ip, rhs.exporterAddress.ip, lhs.exporterAddress.len);
+	    if (result < 0) return true;
+	    if (result > 0) return false;
+	    if (lhs.exporterPort < rhs.exporterPort) return true;
+	    return false;
+	}
+	typedef std::map<IpfixRecord::SourceID,DtlsConnection,CompareSourceID> connections_map;
+	connections_map connections;
 
-		DtlsConnection createNewConnection(struct sockaddr_in *);
+	DtlsConnection createNewConnection(struct sockaddr_in *);
+	void print_errors(void);
 #ifdef DEBUG
-		void dumpConnections(void);
+	void dumpConnections(void);
 #else
-		inline void dumpConnections(void) {}
+	inline void dumpConnections(void) {}
 #endif
 
-		
 };
 
 #endif /* SUPPORT_OPENSSL */

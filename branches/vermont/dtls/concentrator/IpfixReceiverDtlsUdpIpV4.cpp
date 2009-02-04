@@ -88,8 +88,11 @@ DH *IpfixReceiverDtlsUdpIpV4::get_dh2048() {
  * @param port Port to listen on
  * @param ipAddr IP address to bind to our socket, if equals "", no specific IP address will be bound.
  */
-IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, std::string ipAddr)
-    : IpfixReceiver(port),statReceivedPackets(0), connections(my_CompareSourceID) {
+IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr,
+	const std::string &certificateChainFile, const std::string &privateKeyFile,
+	const std::string &caFile, const std::string &caPath)
+    : IpfixReceiver(port),statReceivedPackets(0), have_client_CA_list(false),
+	have_cert(false), connections(my_CompareSourceID) {
     struct sockaddr_in serverAddress;
 
     listen_socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -133,8 +136,63 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, std::string ipAddr)
     DH_free(dh);
     // generate a new DH key for each handshake
     SSL_CTX_set_options(ssl_ctx,SSL_OP_SINGLE_DH_USE);
-    // Use the anonymous cipher
-    SSL_CTX_set_cipher_list(ssl_ctx,"ADH-AES256-SHA");
+    // set default locations for trusted CA certificates
+    const char *CAfile = NULL;
+    const char *CApath = NULL;
+    if (!caFile.empty()) CAfile = caFile.c_str();
+    if (!caPath.empty()) CApath = caPath.c_str();
+    SSL_CTX_load_verify_locations(ssl_ctx,CAfile,CApath);
+    // Load our own certificate
+    if (!certificateChainFile.empty()) {
+	const char *certificate_file = certificateChainFile.c_str();
+	const char *PrivateKey_file = certificate_file;
+	have_cert = false;
+	if (!privateKeyFile.empty())
+	    PrivateKey_file = privateKeyFile.c_str();
+	if (!SSL_CTX_use_certificate_chain_file(ssl_ctx, certificate_file))
+	    msg(MSG_ERROR,"Could not load certificate chain file");
+	else if (!SSL_CTX_use_PrivateKey_file(ssl_ctx, PrivateKey_file, SSL_FILETYPE_PEM))
+	    msg(MSG_ERROR,"Could not load private key file");
+	else if (!SSL_CTX_check_private_key(ssl_ctx))
+	    msg(MSG_ERROR,"Private key and certificate do not match.");
+	else {
+	    have_cert = true;
+	}
+	if ( ! have_cert) print_errors();
+    } else if (!privateKeyFile.empty())
+	    msg(MSG_ERROR,"It makes no sense specifying a private key file without "
+		    "specifying a file with the corresponding certificate.");
+    if (have_cert)
+	DPRINTF("We successfully loaded our certificate.");
+    else
+	DPRINTF("We do NOT have a certificate. This means that we can only use "
+		"the anonymous modes of DTLS. This also implies that we can not "
+		"authenticate the client (exporter).");
+    // Load the list of CAs with which the client can authenticate itself.
+    // Remember that we can only use client authentication if we (server) have
+    // a certificate as well.
+    if (CAfile) {
+	if (have_cert) {
+	    STACK_OF(X509_NAME) *cert_names;
+	    cert_names = SSL_load_client_CA_file(CAfile);
+	    if (cert_names != NULL) {
+		SSL_CTX_set_client_CA_list(ssl_ctx, cert_names);
+		have_client_CA_list = true;
+		DPRINTF("We have a list of CAs which we can "
+			"use to verify client certificates.");
+	    } else
+		print_errors();
+	} else {
+	    msg(MSG_ERROR,"Ignoring the file containing trusted "
+		    "certificates. We do NOT have a certificate to "
+		    "authenticate ourselves that is why we can only use "
+		    "anonymous ciphers. Client authentication is not "
+		    "possible with anonymous ciphers.");
+	}
+    }
+    // set list of ciphers to ALL (including anonymous ciphers) excluding
+    // ciphers with no encryption (eNULL)
+    SSL_CTX_set_cipher_list(ssl_ctx,"ALL:!eNULL");
     SSL_CTX_set_read_ahead(ssl_ctx, 1);
     /* TODO: Find out what this is? */
     SensorManager::getInstance().addSensor(this, "IpfixReceiverDtlsUdpIpV4", 0);
@@ -174,11 +232,24 @@ IpfixReceiverDtlsUdpIpV4::DtlsConnection IpfixReceiverDtlsUdpIpV4::createNewConn
 
     BIO_ctrl(conn.ssl->wbio,BIO_CTRL_DGRAM_SET_PEER,0,clientAddress);
 
-    DPRINTF("Cipher 0: %s",SSL_get_cipher_list(conn.ssl,0));
-
-
     return conn;
 
+}
+
+/* Get errors from OpenSSL error queue and output them using msg() */
+void IpfixReceiverDtlsUdpIpV4::print_errors(void) {
+    char errbuf[512];
+    char buf[4096];
+    unsigned long e;
+    const char *file, *data;
+    int line, flags;
+
+    while ((e = ERR_get_error_line_data(&file,&line,&data,&flags))) {
+	ERR_error_string_n(e,errbuf,sizeof errbuf);
+	snprintf(buf, sizeof buf, "%s:%s:%d:%s\n", errbuf,
+                        file, line, (flags & ERR_TXT_STRING) ? data : "");
+	msg(MSG_ERROR, "OpenSSL: %s",buf);
+    }
 }
 
 #ifdef DEBUG
@@ -278,13 +349,26 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	BIO_set_mem_eof_return(conn.ssl->rbio,-1);
 	int error;
 	ret = SSL_read(conn.ssl,data.get(),MAX_MSG_LEN);
-	error = SSL_get_error(conn.ssl,ret);
-	DPRINTF("SSL_read() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
-	ERR_print_errors_fp(stdout);
+	bool shutdown = false;
+	if (ret<0) {
+	    DPRINTF("SSL_read() failed.");
+	    print_errors();
+	    shutdown = true;
+	} else if (ret==0) {
+	    shutdown = true;
+	    error = SSL_get_error(conn.ssl,ret);
+	    DPRINTF("SSL_read() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
 
-	if (error == SSL_ERROR_ZERO_RETURN) {
-	    // remote side closed connection
-	    DPRINTF("remote side closed connection.");
+	    if (error == SSL_ERROR_ZERO_RETURN) {
+		// remote side closed connection
+		DPRINTF("remote side closed connection.");
+	    } else {
+		print_errors();
+	    }
+	} else {
+	    DPRINTF("SSL_read() returned %d bytes.",ret);
+	}
+	if (shutdown) {
 	    ret = SSL_shutdown(conn.ssl);
 	    error = SSL_get_error(conn.ssl,ret);
 	    DPRINTF("SSL_shutdown() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
@@ -292,8 +376,6 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	    connections.erase(it);
 	    continue;
 	}
-
-	if (ret<=0) continue;
 
 	statReceivedPackets++;
 	memcpy(sourceID->exporterAddress.ip, &clientAddress.sin_addr.s_addr, 4);
