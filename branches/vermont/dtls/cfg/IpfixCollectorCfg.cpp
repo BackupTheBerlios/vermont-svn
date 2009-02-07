@@ -1,12 +1,11 @@
 #include "IpfixCollectorCfg.h"
 #include <concentrator/IpfixReceiverUdpIpV4.hpp>
+#include <concentrator/IpfixReceiverDtlsUdpIpV4.hpp>
 #include <concentrator/IpfixReceiverSctpIpV4.hpp>
 
 IpfixCollectorCfg::IpfixCollectorCfg(XMLElement* elem)
 	: CfgHelper<IpfixCollector, IpfixCollectorCfg>(elem, "ipfixCollector"),
-	listener(NULL),
-	ipfixCollector(NULL),
-        observationDomainId(0)
+	listener(NULL)
 {
 
 	if (!elem)
@@ -30,11 +29,13 @@ IpfixCollectorCfg::IpfixCollectorCfg(XMLElement* elem)
 		}
 	}
 
-	observationDomainId = getInt("observationDomainId", 0);
+	// observationDomainId = getInt("observationDomainId", 0);
 	
 	if (listener == NULL)
 		THROWEXCEPTION("collectingProcess has to listen on one address!");
-	if (listener->getProtocolType() != UDP && listener->getProtocolType() != SCTP)
+	if (listener->getProtocolType() != UDP &&
+			listener->getProtocolType() != SCTP &&
+			listener->getProtocolType() != DTLS_OVER_UDP)
 		THROWEXCEPTION("collectingProcess can handle only UDP or SCTP!");
 	
 	msg(MSG_INFO, "CollectorConfiguration: Successfully parsed collectingProcess section");
@@ -56,6 +57,8 @@ IpfixCollector* IpfixCollectorCfg::createInstance()
 	IpfixReceiver* ipfixReceiver;
 	if (listener->getProtocolType() == SCTP)
 		ipfixReceiver = new IpfixReceiverSctpIpV4(listener->getPort(), listener->getIpAddress());	
+	else if (listener->getProtocolType() == DTLS_OVER_UDP)
+		ipfixReceiver = new IpfixReceiverDtlsUdpIpV4(listener->getPort(), listener->getIpAddress());
 	else 
 		ipfixReceiver = new IpfixReceiverUdpIpV4(listener->getPort(), listener->getIpAddress());	
 

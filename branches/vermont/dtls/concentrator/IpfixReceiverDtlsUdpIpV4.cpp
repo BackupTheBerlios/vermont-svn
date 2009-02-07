@@ -26,6 +26,7 @@
 #include "IpfixParser.hpp"
 #include "ipfix.hpp"
 #include "common/msg.h"
+#include "common/OpenSSLInit.h"
 
 #include <stdexcept>
 #include <stdlib.h>
@@ -121,9 +122,7 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
 	THROWEXCEPTION("Cannot create IpfixReceiverDtlsUdpIpV4 %s:%d",ipAddr.c_str(), port );
     }
 
-    /* FIXME: We should initialize OpenSSL only once for the whole application. (vermont) */
-    SSL_load_error_strings(); /* readable error messages */
-    SSL_library_init(); /* initialize library */
+    ensure_openssl_init();
 
     ssl_ctx = SSL_CTX_new(DTLSv1_server_method());
     if( ! ssl_ctx) {
@@ -192,7 +191,8 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
     }
     // set list of ciphers to ALL (including anonymous ciphers) excluding
     // ciphers with no encryption (eNULL)
-    SSL_CTX_set_cipher_list(ssl_ctx,"ALL:!eNULL");
+    // SSL_CTX_set_cipher_list(ssl_ctx,"ALL:!eNULL");
+    SSL_CTX_set_cipher_list(ssl_ctx,"eNULL:ALL");
     SSL_CTX_set_read_ahead(ssl_ctx, 1);
     /* TODO: Find out what this is? */
     SensorManager::getInstance().addSensor(this, "IpfixReceiverDtlsUdpIpV4", 0);
@@ -257,6 +257,10 @@ void IpfixReceiverDtlsUdpIpV4::dumpConnections() {
     struct in_addr addr;
     char ipaddr[INET_ADDRSTRLEN];
     DPRINTF("Dumping DTLS connections:");
+    if (connections.empty()) {
+	DPRINTF("  (none)");
+	return;
+    }
     connections_map::const_iterator it = connections.begin();
     for(;it!=connections.end();it++) {
 	const IpfixRecord::SourceID &sourceID = it->first;
@@ -337,32 +341,34 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	    DPRINTF("New connection");
 	    conn = createNewConnection(&clientAddress);
 	    it = connections.insert(make_pair(*sourceID,conn)).first;
-	    dumpConnections();
 	} else {
 	    /* Use existing connection */
 	    DPRINTF("Found existing connection.");
-	    dumpConnections();
 	    conn = it->second;
 	}
+	dumpConnections();
 	BIO_free(conn.ssl->rbio);
 	conn.ssl->rbio = BIO_new_mem_buf(secured_data.get(),ret);
 	BIO_set_mem_eof_return(conn.ssl->rbio,-1);
 	int error;
 	ret = SSL_read(conn.ssl,data.get(),MAX_MSG_LEN);
+	error = SSL_get_error(conn.ssl,ret);
+	DPRINTF("SSL_read() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
 	bool shutdown = false;
 	if (ret<0) {
-	    DPRINTF("SSL_read() failed.");
+	    if (error == SSL_ERROR_WANT_READ)
+		continue;
+	    msg(MSG_ERROR,"SSL_read() failed. SSL_get_error() returned: %d",error);
 	    print_errors();
 	    shutdown = true;
 	} else if (ret==0) {
 	    shutdown = true;
-	    error = SSL_get_error(conn.ssl,ret);
-	    DPRINTF("SSL_read() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
 
 	    if (error == SSL_ERROR_ZERO_RETURN) {
 		// remote side closed connection
 		DPRINTF("remote side closed connection.");
 	    } else {
+		msg(MSG_ERROR,"SSL_read() returned 0 and SSL_get_error() returned: %d",error);
 		print_errors();
 	    }
 	} else {
@@ -373,7 +379,9 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	    error = SSL_get_error(conn.ssl,ret);
 	    DPRINTF("SSL_shutdown() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
 	    SSL_free(conn.ssl);
+	    DPRINTF("Removing connection");
 	    connections.erase(it);
+	    dumpConnections();
 	    continue;
 	}
 

@@ -22,8 +22,6 @@
 #ifndef _IPFIX_RECEIVER_DTLSUDPIPV4_H_
 #define _IPFIX_RECEIVER_DTLSUDPIPV4_H_
 
-#ifdef SUPPORT_OPENSSL
-
 #include <pthread.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -35,12 +33,17 @@
 #include "IpfixReceiver.hpp"
 #include "IpfixPacketProcessor.hpp"
 
+#ifdef SUPPORT_OPENSSL
+
 #include <openssl/ssl.h>
 #ifndef HEADER_DH_H
 #include <openssl/dh.h>
 #endif
 
+#endif /* SUPPORT_OPENSSL */
+
 class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
+#ifdef SUPPORT_OPENSSL
     public:
 	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",
 	    const std::string &certificateChainFile = "", const std::string &privateKeyFile = "",
@@ -92,8 +95,21 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	inline void dumpConnections(void) {}
 #endif
 
-};
+#else
+
+    public:
+	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",
+	    const std::string &certificateChainFile = "", const std::string &privateKeyFile = "",
+	    const std::string &caFile = "", const std::string &caPath = "") {
+	    THROWEXCEPTION("DTLS over UDP not supported!");
+	}
+
+	virtual ~IpfixReceiverDtlsUdpIpV4() {}
+
+	virtual void run() {}
+	virtual std::string getStatisticsXML(double interval) { return ""; }
 
 #endif /* SUPPORT_OPENSSL */
+};
 
 #endif

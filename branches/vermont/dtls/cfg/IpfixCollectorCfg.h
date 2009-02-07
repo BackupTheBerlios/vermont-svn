@@ -21,9 +21,7 @@ public:
 private:
 	CollectorCfg* listener;
 	
-        IpfixCollector* ipfixCollector;
-
-        uint16_t observationDomainId;
+        // uint16_t observationDomainId;
 };
 
 #endif /*IPFIXCOLLECTORCFG_H_*/

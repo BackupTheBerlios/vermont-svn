@@ -8,7 +8,8 @@
 #include <string>
 
 /**
- * This class holds the <collector> ... </collector> information of the config
+ * This class holds the <collector> ... </collector> and the <listener> ...
+ * </listener> information of the config
  */
 class CollectorCfg
 	: public CfgBase
@@ -31,6 +32,13 @@ public:
 			else 
 				THROWEXCEPTION("Invalid configuration parameter for transportProtocol (%s)", prot.c_str());
 			port = (uint16_t)getInt("port", 4739);			
+			XMLNode::XMLNodeSet childs = _elem->findChildren("peerFqdn");
+			for (XMLNode::XMLNodeSet::iterator it = childs.begin();
+			     it != childs.end();
+			     it++) {
+				XMLNode* e = *it;
+				peerFqdn.push_back(e->getFirstText());
+			}
 			
 		} catch(IllegalEntry ie) {
 			THROWEXCEPTION("Illegal Collector entry in config file, transport protocol required");
@@ -57,6 +65,7 @@ private:
 	//unsigned ipAddressType;
 	ipfix_transport_protocol protocolType;
 	uint16_t port;
+	std::vector<string> peerFqdn;
 };
 
 #endif /*COLLECTORCFG_H_*/

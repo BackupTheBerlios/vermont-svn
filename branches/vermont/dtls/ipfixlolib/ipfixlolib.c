@@ -50,7 +50,6 @@ extern "C" {
 #define bit_set(data, bits) ((data & bits) == bits)
 
 #ifdef SUPPORT_OPENSSL
-static void ensure_openssl_init(void);
 static void ensure_exporter_set_up_for_dtls(ipfix_exporter *exporter);
 static void deinit_openssl_ctx(ipfix_exporter *exporter);
 static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col);
@@ -144,16 +143,6 @@ static int init_rcv_udp_socket(int lport)
 #endif
 
 #ifdef SUPPORT_OPENSSL
-static void ensure_openssl_init(void) {
-	/* FIXME: SSL_library_init() is not reentrant */
-	static int initialized_openssl = 0; /* Determines wether OpenSSL is initialized already */
-	if (initialized_openssl) return; /* skip this if we already initialized OpenSSL */
-	initialized_openssl = TRUE;
-	SSL_load_error_strings(); /* readable error messages */
-	SSL_library_init(); /* initialize library */
-}
-
-
 /* A separate SSL_CTX object is created for every ipfix_exporter. */
 static void ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
     ensure_openssl_init();
@@ -2248,6 +2237,8 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
         // reallocate the memory , i.e. free superfluous memory, as we allocated enough memory to hold
         // all possible vendor specific IDs.
         ipfix_lo_template *templ=(&exporter->template_arr[found_index]);
+	/* FIXME: Remove instance of strong profanity from comment below or
+	 * apply the Parental Advisory sticker to source code */
         /* sometime I'll fuck C++ with a serious chainsaw - casting malloc() et al is DUMB */
         templ->template_fields=(char *)realloc(templ->template_fields, templ->fields_length);
 	// FIXME: Shouldn't max_fields_length be reset at this place?
