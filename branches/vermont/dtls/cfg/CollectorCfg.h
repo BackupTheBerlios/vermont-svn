@@ -37,7 +37,7 @@ public:
 			     it != childs.end();
 			     it++) {
 				XMLNode* e = *it;
-				peerFqdn.push_back(e->getFirstText());
+				peerFqdns.push_back(e->getFirstText());
 			}
 			
 		} catch(IllegalEntry ie) {
@@ -48,6 +48,7 @@ public:
 	std::string getIpAddress() { return ipAddress; }
 	//unsigned getIpAddressType() { return ipAddressType; }
 	ipfix_transport_protocol getProtocolType() { return protocolType; }
+	std::vector<std::string> getPeerFqdns() { return peerFqdns; }
 	uint16_t getPort() { return port; }
 	
 	bool equalTo(CollectorCfg* other)
@@ -65,7 +66,7 @@ private:
 	//unsigned ipAddressType;
 	ipfix_transport_protocol protocolType;
 	uint16_t port;
-	std::vector<string> peerFqdn;
+	std::vector<std::string> peerFqdns;
 };
 
 #endif /*COLLECTORCFG_H_*/

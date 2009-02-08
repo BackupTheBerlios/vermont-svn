@@ -29,6 +29,11 @@ IpfixCollectorCfg::IpfixCollectorCfg(XMLElement* elem)
 		}
 	}
 
+	// Config for DTLS
+	certificateChainFile = getOptional("cert");
+	privateKeyFile = getOptional("key");
+	caFile = getOptional("CAfile");
+	caPath = getOptional("CApath");
 	// observationDomainId = getInt("observationDomainId", 0);
 	
 	if (listener == NULL)
@@ -43,6 +48,7 @@ IpfixCollectorCfg::IpfixCollectorCfg(XMLElement* elem)
 
 IpfixCollectorCfg::~IpfixCollectorCfg()
 {
+	// FIXME: Shouldn't we delete listener here?
 }
 
 IpfixCollectorCfg* IpfixCollectorCfg::create(XMLElement* elem)
@@ -58,7 +64,9 @@ IpfixCollector* IpfixCollectorCfg::createInstance()
 	if (listener->getProtocolType() == SCTP)
 		ipfixReceiver = new IpfixReceiverSctpIpV4(listener->getPort(), listener->getIpAddress());	
 	else if (listener->getProtocolType() == DTLS_OVER_UDP)
-		ipfixReceiver = new IpfixReceiverDtlsUdpIpV4(listener->getPort(), listener->getIpAddress());
+		ipfixReceiver = new IpfixReceiverDtlsUdpIpV4(listener->getPort(),
+			listener->getIpAddress(), certificateChainFile,
+			privateKeyFile, caFile, caPath, listener->getPeerFqdns());
 	else 
 		ipfixReceiver = new IpfixReceiverUdpIpV4(listener->getPort(), listener->getIpAddress());	
 

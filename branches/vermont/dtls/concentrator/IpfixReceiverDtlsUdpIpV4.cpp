@@ -91,7 +91,8 @@ DH *IpfixReceiverDtlsUdpIpV4::get_dh2048() {
  */
 IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr,
 	const std::string &certificateChainFile, const std::string &privateKeyFile,
-	const std::string &caFile, const std::string &caPath)
+	const std::string &caFile, const std::string &caPath,
+	const std::vector<string> &peerFqdns)
     : IpfixReceiver(port),statReceivedPackets(0), have_client_CA_list(false),
 	have_cert(false), connections(my_CompareSourceID) {
     struct sockaddr_in serverAddress;

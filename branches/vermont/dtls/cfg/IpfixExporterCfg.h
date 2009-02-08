@@ -44,6 +44,12 @@ private:
 	
 	int recordsPerPacket;
 	int recordLength;
+
+	/** DTLS parameters */
+	std::string certificateChainFile;
+	std::string privateKeyFile;
+	std::string caFile;
+	std::string caPath;
 };
 
 #endif /*IPFIXEXPORTERCFG_H_*/

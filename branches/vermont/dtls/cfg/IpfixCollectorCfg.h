@@ -20,6 +20,13 @@ public:
 	
 private:
 	CollectorCfg* listener;
+
+	/** DTLS parameters */
+	std::string certificateChainFile;
+	std::string privateKeyFile;
+	std::string caFile;
+	std::string caPath;
+
 	
         // uint16_t observationDomainId;
 };

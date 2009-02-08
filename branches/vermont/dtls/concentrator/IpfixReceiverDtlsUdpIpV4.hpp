@@ -47,7 +47,8 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
     public:
 	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",
 	    const std::string &certificateChainFile = "", const std::string &privateKeyFile = "",
-	    const std::string &caFile = "", const std::string &caPath = "");
+	    const std::string &caFile = "", const std::string &caPath = "",
+	    const std::vector<string> &peerFqdns = std::vector<string>() );
 	virtual ~IpfixReceiverDtlsUdpIpV4();
 
 	virtual void run();
@@ -100,7 +101,8 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
     public:
 	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",
 	    const std::string &certificateChainFile = "", const std::string &privateKeyFile = "",
-	    const std::string &caFile = "", const std::string &caPath = "") {
+	    const std::string &caFile = "", const std::string &caPath = "",
+	    const std::vector<string> &peerFqdns = std::vector<string>() ) {
 	    THROWEXCEPTION("DTLS over UDP not supported!");
 	}
 

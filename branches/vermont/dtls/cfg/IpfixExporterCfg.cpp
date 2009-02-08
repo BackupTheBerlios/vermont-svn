@@ -19,6 +19,11 @@ IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 	sctpReconnectInterval = getTimeInUnit("sctpReconnectInterval", SEC, IS_DEFAULT_SCTP_RECONNECTINTERVAL);
 	templateRefreshRate = getInt("templateRefreshRate", IS_DEFAULT_TEMPLATE_RECORDINTERVAL);
 	templateRefreshTime = getTimeInUnit("templateRefreshInterval", SEC, IS_DEFAULT_TEMPLATE_TIMEINTERVAL);
+	// Config for DTLS
+	certificateChainFile = getOptional("cert");
+	privateKeyFile = getOptional("key");
+	caFile = getOptional("CAfile");
+	caPath = getOptional("CApath");
 	
 
 	XMLNode::XMLSet<XMLElement*> set = elem->getElementChildren();
@@ -51,10 +56,23 @@ IpfixSender* IpfixExporterCfg::createInstance()
 			sctpReconnectInterval, templateRefreshTime, templateRefreshRate);
 
 	for (unsigned i = 0; i != collectors.size(); ++i) {
+#ifdef DEBUG
+		const char *protocol;
+		switch (collectors[i]->getProtocolType()) {
+			case SCTP:
+				protocol = "SCTP"; break;
+			case DTLS_OVER_UDP:
+				protocol = "DTLS_OVER_UDP"; break;
+			case UDP:
+				protocol = "UDP"; break;
+			default:
+				protocol = "unknown protocol"; break;
+		}
 		msg(MSG_DEBUG, "IpfixExporter: adding collector %s://%s:%d",
-				collectors[i]->getProtocolType()==SCTP?"SCTP":"UDP",
+				protocol,
 				collectors[i]->getIpAddress().c_str(),
 				collectors[i]->getPort());
+#endif
 		instance->addCollector(collectors[i]->getIpAddress().c_str(), collectors[i]->getPort(), collectors[i]->getProtocolType());
 	}
 
