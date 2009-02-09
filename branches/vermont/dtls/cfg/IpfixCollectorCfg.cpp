@@ -12,6 +12,14 @@ IpfixCollectorCfg::IpfixCollectorCfg(XMLElement* elem)
 		return;
 	
 	msg(MSG_INFO, "CollectorConfiguration: Start reading packetReporting section");
+
+	// Config for DTLS
+	certificateChainFile = getOptional("cert");
+	privateKeyFile = getOptional("key");
+	caFile = getOptional("CAfile");
+	caPath = getOptional("CApath");
+	// observationDomainId = getInt("observationDomainId", 0);
+	
 	XMLNode::XMLSet<XMLElement*> set = elem->getElementChildren();
 	for (XMLNode::XMLSet<XMLElement*>::iterator it = set.begin();
 	     it != set.end();
@@ -23,19 +31,15 @@ IpfixCollectorCfg::IpfixCollectorCfg(XMLElement* elem)
 		} else if (e->matches("udpTemplateLifetime")) {
 			msg(MSG_DEBUG, "Don't know how to handle udpTemplateLifetime! Ignored.");
 		} else if (e->matches("next")) { // ignore next
+		} else if (e->matches("cert") || e->matches("key") ||
+				e->matches("CAfile") || e->matches("CApath")) {
+			// already done!
 		} else {
 			msg(MSG_FATAL, "Unkown observer config statement %s\n", e->getName().c_str());
 			continue;
 		}
 	}
 
-	// Config for DTLS
-	certificateChainFile = getOptional("cert");
-	privateKeyFile = getOptional("key");
-	caFile = getOptional("CAfile");
-	caPath = getOptional("CApath");
-	// observationDomainId = getInt("observationDomainId", 0);
-	
 	if (listener == NULL)
 		THROWEXCEPTION("collectingProcess has to listen on one address!");
 	if (listener->getProtocolType() != UDP &&

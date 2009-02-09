@@ -41,6 +41,7 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/x509v3.h>
 #ifndef HEADER_DH_H
 #include <openssl/dh.h>
 #endif
@@ -94,7 +95,7 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
 	const std::string &caFile, const std::string &caPath,
 	const std::vector<string> &peerFqdns)
     : IpfixReceiver(port),statReceivedPackets(0), have_client_CA_list(false),
-	have_cert(false), connections(my_CompareSourceID) {
+	have_CAs(false), have_cert(false), connections(my_CompareSourceID) {
     struct sockaddr_in serverAddress;
 
     listen_socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -141,7 +142,12 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
     const char *CApath = NULL;
     if (!caFile.empty()) CAfile = caFile.c_str();
     if (!caPath.empty()) CApath = caPath.c_str();
-    SSL_CTX_load_verify_locations(ssl_ctx,CAfile,CApath);
+    if ( SSL_CTX_load_verify_locations(ssl_ctx,CAfile,CApath) ) {
+	have_CAs = true;
+    } else {
+	msg(MSG_ERROR,"SSL_CTX_load_verify_locations() failed.");
+	print_errors();
+    }
     // Load our own certificate
     if (!certificateChainFile.empty()) {
 	const char *certificate_file = certificateChainFile.c_str();
@@ -195,6 +201,19 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
     // SSL_CTX_set_cipher_list(ssl_ctx,"ALL:!eNULL");
     SSL_CTX_set_cipher_list(ssl_ctx,"eNULL:ALL");
     SSL_CTX_set_read_ahead(ssl_ctx, 1);
+    if ( ! peerFqdns.empty()) {
+	if ( ! (have_client_CA_list && have_CAs && have_cert) ) {
+	    msg(MSG_ERROR,"Can't verify peers because prerequesites not met. "
+		    "Prerequesites are: 1. CApath or CAfile set, "
+		    "2. We have a certificate including the private key");
+	} else {
+	    verify_peers = true;
+	    SSL_CTX_set_verify(ssl_ctx,SSL_VERIFY_PEER |
+		    SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
+	    DPRINTF("We are going to verify the certificates of our peers b/c "
+		    "the peerFqdn option is set");
+	}
+    }
     /* TODO: Find out what this is? */
     SensorManager::getInstance().addSensor(this, "IpfixReceiverDtlsUdpIpV4", 0);
 
@@ -355,6 +374,48 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	ret = SSL_read(conn.ssl,data.get(),MAX_MSG_LEN);
 	error = SSL_get_error(conn.ssl,ret);
 	DPRINTF("SSL_read() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
+	DPRINTF("SSL_get_verify_result() returned: %s",X509_verify_cert_error_string(SSL_get_verify_result(conn.ssl)));
+	// X509_verify_cert_error_string(verify_error);
+	{
+	    // verify_error=SSL_get_verify_result(con);
+	    X509 *peercert = SSL_get_peer_certificate(conn.ssl);
+	    char buf[512];
+	    if (SSL_get_shared_ciphers(conn.ssl,buf,sizeof buf) != NULL)
+		    DPRINTF("Shared ciphers:%s",buf);
+	    const char *str=SSL_CIPHER_get_name(SSL_get_current_cipher(conn.ssl));
+	    DPRINTF("CIPHER is %s",(str != NULL)?str:"(NONE)");
+	    if (peercert) {
+		X509_NAME_oneline(X509_get_subject_name(peercert),buf,sizeof buf);
+		DPRINTF("peer certificate subject=%s",buf);
+		STACK_OF(GENERAL_NAME) * gens;
+		const GENERAL_NAME *gn;
+		int num;
+		size_t len;
+		char *dnsname;
+
+		gens = (STACK_OF(GENERAL_NAME) *) X509_get_ext_d2i(peercert, NID_subject_alt_name, 0, 0);
+		num = sk_GENERAL_NAME_num(gens);
+
+		for (int i = 0; i < num; ++i) {
+		    gn = sk_GENERAL_NAME_value(gens, i);
+		    if (gn->type != GEN_DNS)
+			DPRINTF("/* fatal error */");
+		    if (ASN1_STRING_type(gn->d.ia5) != V_ASN1_IA5STRING)
+			DPRINTF("/* malformed cert */");
+
+		    dnsname = (char *) ASN1_STRING_data(gn->d.ia5);
+		    len = ASN1_STRING_length(gn->d.ia5);
+
+#define TRIM0(s, l) do { while ((l) > 0 && (s)[(l)-1] == 0) --(l); } while (0)
+		    TRIM0(dnsname, len);
+
+		    if (len != strlen(dnsname))
+			DPRINTF("/* malformed cert */");
+		    DPRINTF("dnsname: %s",dnsname);
+		}
+		X509_free(peercert);
+	    }
+	}
 	bool shutdown = false;
 	if (ret<0) {
 	    if (error == SSL_ERROR_WANT_READ)

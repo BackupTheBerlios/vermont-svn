@@ -62,14 +62,20 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 
 	/* Several conditions have to be met before I can authenticate my peer
 	 * (exporter):
-	 *  - CAFile has to be set since I have to send a Certificate
+	 *  - CAfile has to be set since I have to send a Certificate
 	 *    Request to my peer and I need to know the names of the CAs to
 	 *    include in this request. (have_client_CA_list)
+	 *  - At least one of CAfile and CApath have to be set in order
+	 *    to be able to verify my peer's certificate. This is somehow
+	 *    related to the previous one. (have_CAs)
 	 *  - I need to have a valid certificate including the matching
 	 *    private key. (have_cert)
 	 */
 	bool have_client_CA_list;
+	bool have_CAs;
 	bool have_cert;
+	bool verify_peers; /* Do we authenticate our peer by verifying its
+			      certificate? */
 	struct DtlsConnection {
 	    SSL* ssl;
 	};
