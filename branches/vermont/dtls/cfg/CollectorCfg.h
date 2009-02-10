@@ -6,6 +6,7 @@
 #include "ipfixlolib/ipfixlolib.h"
 
 #include <string>
+#include <set>
 
 /**
  * This class holds the <collector> ... </collector> and the <listener> ...
@@ -37,7 +38,10 @@ public:
 			     it != childs.end();
 			     it++) {
 				XMLNode* e = *it;
-				peerFqdns.push_back(e->getFirstText());
+				string strdnsname(e->getFirstText());
+				transform(strdnsname.begin(),strdnsname.end(),strdnsname.begin(),
+						::tolower);
+				peerFqdns.insert(strdnsname);
 			}
 			
 		} catch(IllegalEntry ie) {
@@ -48,7 +52,7 @@ public:
 	std::string getIpAddress() { return ipAddress; }
 	//unsigned getIpAddressType() { return ipAddressType; }
 	ipfix_transport_protocol getProtocolType() { return protocolType; }
-	std::vector<std::string> getPeerFqdns() { return peerFqdns; }
+	std::set<std::string> getPeerFqdns() { return peerFqdns; }
 	uint16_t getPort() { return port; }
 	
 	bool equalTo(CollectorCfg* other)
@@ -66,7 +70,7 @@ private:
 	//unsigned ipAddressType;
 	ipfix_transport_protocol protocolType;
 	uint16_t port;
-	std::vector<std::string> peerFqdns;
+	std::set<std::string> peerFqdns;
 };
 
 #endif /*COLLECTORCFG_H_*/

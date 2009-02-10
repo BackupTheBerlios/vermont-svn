@@ -5,8 +5,6 @@
 
 #ifdef SUPPORT_OPENSSL
 
-#include <openssl/ssl.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif

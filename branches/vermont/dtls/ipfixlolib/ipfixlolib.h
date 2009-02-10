@@ -45,7 +45,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/bio.h>
-#include "common/OpenSSLInit.h"
+#include "common/OpenSSL.h"
 #endif
 
 #include "encoding.h"

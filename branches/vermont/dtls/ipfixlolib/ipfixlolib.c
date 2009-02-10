@@ -151,7 +151,8 @@ static void ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
 	/* This SSL_CTX object will be freed in deinit_openssl_ctx() */
 	e->ssl_ctx=SSL_CTX_new(DTLSv1_client_method());
 	SSL_CTX_set_read_ahead(e->ssl_ctx,1);
-	SSL_CTX_set_cipher_list(e->ssl_ctx,"ADH-AES256-SHA");
+	// SSL_CTX_set_cipher_list(e->ssl_ctx,"ADH-AES256-SHA");
+	SSL_CTX_set_cipher_list(e->ssl_ctx,"ALL");
     }
 }
 
@@ -251,7 +252,8 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
 	    col->dtls.want_read = 1;
 	    /* Proceed with next iteration of the endless loop. */
 	} else {
-	    msg(MSG_FATAL, "IPFIX: SSL_connect failed.");
+	    msg(MSG_FATAL, "IPFIX: SSL_connect failed. Errors:");
+	    ERR_print_errors_fp(stdout);
 	    /* FIXME: Error handling */
 	    /* Should we set col->state here? */
 	    /* If clean up is needed remember to free SSL object and close socket */

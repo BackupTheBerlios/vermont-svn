@@ -8,6 +8,7 @@
 			<transportProtocol>DTLS_OVER_UDP</transportProtocol>
 			<port>4433</port>
 			<peerFqdn>exporter.example.com</peerFqdn>
+			<peerFqdn>foobar.example.com</peerFqdn>
 		</listener>
 		<next>2</next>
 	</ipfixCollector>

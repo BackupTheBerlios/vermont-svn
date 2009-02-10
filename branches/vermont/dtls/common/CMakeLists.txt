@@ -27,6 +27,6 @@ ADD_LIBRARY(common
 	AgeBloomFilter.cpp
 	CountBloomFilter.cpp
 	Misc.cpp
-	OpenSSLInit.cpp
+	OpenSSL.cpp
 )
 

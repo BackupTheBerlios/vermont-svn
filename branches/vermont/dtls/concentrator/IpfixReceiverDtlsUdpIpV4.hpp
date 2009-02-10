@@ -29,6 +29,7 @@
 #include <arpa/inet.h>
 #include <list>
 #include <map>
+#include <set>
 
 #include "IpfixReceiver.hpp"
 #include "IpfixPacketProcessor.hpp"
@@ -48,7 +49,7 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",
 	    const std::string &certificateChainFile = "", const std::string &privateKeyFile = "",
 	    const std::string &caFile = "", const std::string &caPath = "",
-	    const std::vector<string> &peerFqdns = std::vector<string>() );
+	    const std::set<string> &peerFqdns = std::set<string>() );
 	virtual ~IpfixReceiverDtlsUdpIpV4();
 
 	virtual void run();
@@ -56,28 +57,37 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 		
     private:
 	int listen_socket;
+	const std::set<string> peerFqdns;
 	uint32_t statReceivedPackets;  /**< number of received packets */ 
 	SSL_CTX *ssl_ctx;
 	static DH *get_dh2048();
 
 	/* Several conditions have to be met before I can authenticate my peer
 	 * (exporter):
-	 *  - CAfile has to be set since I have to send a Certificate
+	 *  - [ CAfile has to be set since I have to send a Certificate
 	 *    Request to my peer and I need to know the names of the CAs to
-	 *    include in this request. (have_client_CA_list)
+	 *    include in this request. (have_client_CA_list) ] This turned
+	 *    out to be wrong. I can leave the list of
+	 *    certificate_authorities empty. See RFC 4346 section 7.4.4
 	 *  - At least one of CAfile and CApath have to be set in order
 	 *    to be able to verify my peer's certificate. This is somehow
 	 *    related to the previous one. (have_CAs)
 	 *  - I need to have a valid certificate including the matching
-	 *    private key. (have_cert)
+	 *    private key. According to RFC 4346 section 7.4.4 only a
+	 *    non-anonymous server can request a certificate from the client.
+	 *    (have_cert)
 	 */
-	bool have_client_CA_list;
+	/* bool have_client_CA_list; */
 	bool have_CAs;
 	bool have_cert;
 	bool verify_peers; /* Do we authenticate our peer by verifying its
 			      certificate? */
 	struct DtlsConnection {
+	    /*
+	    DtlsConnection(SSL *ssl) : ssl(ssl), connected(false) {}
+	    */
 	    SSL* ssl;
+	    bool connected;
 	};
 	typedef bool (*CompareSourceID)(const IpfixRecord::SourceID&, const IpfixRecord::SourceID&);
 	// compare based on source address and source port
@@ -101,6 +111,8 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 #else
 	inline void dumpConnections(void) {}
 #endif
+	int verify_peer(DtlsConnection &conn);
+	int check_x509_cert(X509 *peer);
 
 #else
 
@@ -108,7 +120,7 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",
 	    const std::string &certificateChainFile = "", const std::string &privateKeyFile = "",
 	    const std::string &caFile = "", const std::string &caPath = "",
-	    const std::vector<string> &peerFqdns = std::vector<string>() ) {
+	    const std::set<string> &peerFqdns = std::set<string>() ) {
 	    THROWEXCEPTION("DTLS over UDP not supported!");
 	}
 
