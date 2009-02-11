@@ -244,31 +244,6 @@ IpfixReceiverDtlsUdpIpV4::~IpfixReceiverDtlsUdpIpV4() {
     if (ssl_ctx) SSL_CTX_free(ssl_ctx);
 }
 
-IpfixReceiverDtlsUdpIpV4::DtlsConnection IpfixReceiverDtlsUdpIpV4::createNewConnection(struct sockaddr_in *clientAddress) {
-    DtlsConnection conn;
-
-    conn.ssl = SSL_new(ssl_ctx);
-    if( ! conn.ssl) {
-	THROWEXCEPTION("Cannot create SSL object");
-    }
-
-    BIO *sbio, *rbio;
-    /* create output abstraction for SSL object */
-    sbio = BIO_new_dgram(listen_socket,BIO_NOCLOSE);
-
-    /* create a dummy BIO that always returns EOF */
-    rbio = BIO_new(BIO_s_mem());
-    /* -1 means EOF */
-    BIO_set_mem_eof_return(rbio,-1);
-    SSL_set_bio(conn.ssl,rbio,sbio);
-    SSL_set_accept_state(conn.ssl);
-
-    BIO_ctrl(conn.ssl->wbio,BIO_CTRL_DGRAM_SET_PEER,0,clientAddress);
-
-    return conn;
-
-}
-
 /* Get errors from OpenSSL error queue and output them using msg() */
 void IpfixReceiverDtlsUdpIpV4::print_errors(void) {
     char errbuf[512];
@@ -279,7 +254,7 @@ void IpfixReceiverDtlsUdpIpV4::print_errors(void) {
 
     while ((e = ERR_get_error_line_data(&file,&line,&data,&flags))) {
 	ERR_error_string_n(e,errbuf,sizeof errbuf);
-	snprintf(buf, sizeof buf, "%s:%s:%d:%s\n", errbuf,
+	snprintf(buf, sizeof buf, "%s:%s:%d:%s", errbuf,
                         file, line, (flags & ERR_TXT_STRING) ? data : "");
 	msg(MSG_ERROR, "OpenSSL: %s",buf);
     }
@@ -305,17 +280,17 @@ void IpfixReceiverDtlsUdpIpV4::dumpConnections() {
 #endif
 
 
-int IpfixReceiverDtlsUdpIpV4::verify_peer(DtlsConnection &conn) {
+int IpfixReceiverDtlsUdpIpV4::DtlsConnection::verify_peer() {
     long verify_result;
 
-    verify_result = SSL_get_verify_result(conn.ssl);
+    verify_result = SSL_get_verify_result(ssl);
     DPRINTF("SSL_get_verify_result() returned: %s",X509_verify_cert_error_string(verify_result));
-    if(SSL_get_verify_result(conn.ssl)!=X509_V_OK) {
+    if(SSL_get_verify_result(ssl)!=X509_V_OK) {
 	msg(MSG_ERROR,"Certificate doesn't verify: %s", X509_verify_cert_error_string(verify_result));
 	return 0;
     }
 
-    X509 *peer = SSL_get_peer_certificate(conn.ssl);
+    X509 *peer = SSL_get_peer_certificate(ssl);
     if (! peer) {
 	msg(MSG_ERROR,"No peer certificate");
 	return 0;
@@ -325,7 +300,7 @@ int IpfixReceiverDtlsUdpIpV4::verify_peer(DtlsConnection &conn) {
     return ret;
 }
 
-int IpfixReceiverDtlsUdpIpV4::check_x509_cert(X509 *peer) {
+int IpfixReceiverDtlsUdpIpV4::DtlsConnection::check_x509_cert(X509 *peer) {
     char buf[512];
 #if DEBUG
     X509_NAME_oneline(X509_get_subject_name(peer),buf,sizeof buf);
@@ -362,7 +337,7 @@ int IpfixReceiverDtlsUdpIpV4::check_x509_cert(X509 *peer) {
 	string strdnsname(dnsname);
 	transform(strdnsname.begin(),strdnsname.end(),strdnsname.begin(),
 		::tolower);
-	if (peerFqdns.find(dnsname)!=peerFqdns.end()) {
+	if (parent.peerFqdns.find(dnsname)!=parent.peerFqdns.end()) {
 	    DPRINTF("Subject Alternative Name matched one of the "
 		    "permitted FQDNs");
 	    return 1;
@@ -378,7 +353,7 @@ int IpfixReceiverDtlsUdpIpV4::check_x509_cert(X509 *peer) {
 	string strdnsname(dnsname);
 	transform(strdnsname.begin(),strdnsname.end(),strdnsname.begin(),
 		::tolower);
-	if (peerFqdns.find(dnsname)!=peerFqdns.end()) {
+	if (parent.peerFqdns.find(dnsname)!=parent.peerFqdns.end()) {
 	    DPRINTF("Common Name (CN) matched one of the "
 		    "permitted FQDNs");
 	    return 1;
@@ -454,11 +429,11 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	sourceID->fileDescriptor = listen_socket;
 	/* Search for an existing connection with same source IP and port */
 	connections_map::iterator it = connections.find(*sourceID);
-	DtlsConnection conn;
+	DtlsConnectionPtr conn;
 	if (it == connections.end()) {
 	    /* create a new connection if we did not find any. */
 	    DPRINTF("New connection");
-	    conn = createNewConnection(&clientAddress);
+	    conn = DtlsConnectionPtr( new DtlsConnection(*this,&clientAddress));
 	    it = connections.insert(make_pair(*sourceID,conn)).first;
 	} else {
 	    /* Use existing connection */
@@ -466,69 +441,11 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	    conn = it->second;
 	}
 	dumpConnections();
-	BIO_free(conn.ssl->rbio);
-	conn.ssl->rbio = BIO_new_mem_buf(secured_data.get(),ret);
-	BIO_set_mem_eof_return(conn.ssl->rbio,-1);
-	int error;
-	ret = SSL_read(conn.ssl,data.get(),MAX_MSG_LEN);
-	error = SSL_get_error(conn.ssl,ret);
-	DPRINTF("SSL_read() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
-	char buf[512];
-	if (SSL_get_shared_ciphers(conn.ssl,buf,sizeof buf) != NULL)
-	    DPRINTF("Shared ciphers:%s",buf);
-	const char *str=SSL_CIPHER_get_name(SSL_get_current_cipher(conn.ssl));
-	DPRINTF("CIPHER is %s",(str != NULL)?str:"(NONE)");
-	bool shutdown = false;
-	if (ret<0) {
-	    if (error == SSL_ERROR_WANT_READ)
-		continue;
-	    msg(MSG_ERROR,"SSL_read() failed. SSL_get_error() returned: %d",error);
-	    print_errors();
-	    shutdown = true;
-	} else if (ret==0) {
-	    shutdown = true;
-
-	    if (error == SSL_ERROR_ZERO_RETURN) {
-		// remote side closed connection
-		DPRINTF("remote side closed connection.");
-	    } else {
-		msg(MSG_ERROR,"SSL_read() returned 0 and SSL_get_error() returned: %d",error);
-		print_errors();
-	    }
-	} else {
-	    DPRINTF("SSL_read() returned %d bytes.",ret);
-	}
-	if (verify_peers) {
-	    if (verify_peer(conn)) {
-		DPRINTF("Peer authentication successful.");
-	    } else {
-		msg(MSG_ERROR,"Peer authentication failed. Shutting down connection.");
-		shutdown = true;
-	    }
-	}
-	if (shutdown) {
-	    ret = SSL_shutdown(conn.ssl);
-	    error = SSL_get_error(conn.ssl,ret);
-	    DPRINTF("SSL_shutdown() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
-	    SSL_free(conn.ssl);
-	    DPRINTF("Removing connection");
+	if (conn->consumeDatagram(sourceID, secured_data,ret) == 0) {
+	    DPRINTF("Removing connection.");
 	    connections.erase(it);
 	    dumpConnections();
-	    continue;
 	}
-
-	statReceivedPackets++;
-	memcpy(sourceID->exporterAddress.ip, &clientAddress.sin_addr.s_addr, 4);
-	sourceID->exporterAddress.len = 4;
-	sourceID->exporterPort = ntohs(clientAddress.sin_port);
-	sourceID->protocol = IPFIX_protocolIdentifier_UDP;
-	sourceID->receiverPort = receiverPort;
-	sourceID->fileDescriptor = listen_socket;
-	mutex.lock();
-	for (std::list<IpfixPacketProcessor*>::iterator i = packetProcessors.begin(); i != packetProcessors.end(); ++i) { 
-	    (*i)->processPacket(data, ret, sourceID);
-	}
-	mutex.unlock();
 	    
     }
     msg(MSG_DEBUG, "IpfixReceiverDtlsUdpIpV4: Exiting");
@@ -544,6 +461,144 @@ std::string IpfixReceiverDtlsUdpIpV4::getStatisticsXML(double interval)
 	oss << "<receivedPackets>" << statReceivedPackets << "</receivedPackets>" << endl;	
 
 	return oss.str();
+}
+
+IpfixReceiverDtlsUdpIpV4::DtlsConnection::DtlsConnection(IpfixReceiverDtlsUdpIpV4 &_parent,struct sockaddr_in *clientAddress) :
+    parent(_parent), connected(false) {
+
+    ssl = SSL_new(parent.ssl_ctx);
+    if( ! ssl) {
+	THROWEXCEPTION("Cannot create SSL object");
+    }
+
+    BIO *sbio, *rbio;
+    /* create output abstraction for SSL object */
+    sbio = BIO_new_dgram(parent.listen_socket,BIO_NOCLOSE);
+
+    /* create a dummy BIO that always returns EOF */
+    rbio = BIO_new(BIO_s_mem());
+    /* -1 means EOF */
+    BIO_set_mem_eof_return(rbio,-1);
+    SSL_set_bio(ssl,rbio,sbio);
+    SSL_set_accept_state(ssl);
+
+    BIO_ctrl(ssl->wbio,BIO_CTRL_DGRAM_SET_PEER,0,clientAddress);
+}
+
+IpfixReceiverDtlsUdpIpV4::DtlsConnection::~DtlsConnection() {
+    if (ssl) SSL_free(ssl);
+}
+
+/* Accepts a DTLS connection
+ * Returns values:
+ * 1 Successfully connected (don't call accept() again)
+ * 0 Not yet connected (call accept() again as soon as new data is available
+ * -1 Failure. Remove this connection
+ */
+int IpfixReceiverDtlsUdpIpV4::DtlsConnection::accept() {
+    int ret, error;
+    char buf[512];
+    ret = SSL_accept(ssl);
+    if (SSL_get_shared_ciphers(ssl,buf,sizeof buf) != NULL)
+	DPRINTF("Shared ciphers:%s",buf);
+    if (ret==1) {
+	connected = true;
+	DPRINTF("SSL_accept() succeeded.");
+	const char *str=SSL_CIPHER_get_name(SSL_get_current_cipher(ssl));
+	DPRINTF("CIPHER is %s",(str != NULL)?str:"(NONE)");
+	if (parent.verify_peers) {
+	    if (verify_peer()) {
+		DPRINTF("Peer authentication successful.");
+	    } else {
+		msg(MSG_ERROR,"Peer authentication failed. Shutting down connection.");
+		shutdown();
+		return -1;
+	    }
+	}
+	return 1;
+    }
+    error = SSL_get_error(ssl,ret);
+    DPRINTF("SSL_accept() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
+    if (ret==-1 && error == SSL_ERROR_WANT_READ) {
+	DPRINTF("SSL_accept() returned SSL_ERROR_WANT_READ");
+	return 0;
+    }
+    msg(MSG_ERROR,"SSL_accept() failed.");
+    print_errors();
+    return -1;
+}
+
+void IpfixReceiverDtlsUdpIpV4::DtlsConnection::shutdown() {
+    int ret, error;
+    ret = SSL_shutdown(ssl);
+    if (ret == 0) {
+	DPRINTF("Calling SSL_shutdown a second time.");
+	ret = SSL_shutdown(ssl);
+    }
+    error = SSL_get_error(ssl,ret);
+    DPRINTF("SSL_shutdown() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
+}
+
+/* Return values:
+ * 1 Success
+ * 0 Failure. Remove this connection
+ */
+
+int IpfixReceiverDtlsUdpIpV4::DtlsConnection::consumeDatagram(
+	boost::shared_ptr<IpfixRecord::SourceID> &sourceID,
+	boost::shared_array<uint8_t> secured_data, size_t len) {
+
+    int ret, error;
+#ifdef DEBUG
+    if ( ! BIO_eof(ssl->rbio)) {
+	msg(MSG_ERROR,"EOF *not* reached on BIO. This should not happen.");
+    }
+#endif
+    BIO_free(ssl->rbio);
+    ssl->rbio = BIO_new_mem_buf(secured_data.get(),len);
+    BIO_set_mem_eof_return(ssl->rbio,-1);
+    if (!connected) {
+	ret = accept();
+	if (ret == 0) return 1;
+	if (ret == -1) return 0;
+#ifdef DEBUG
+	if ( ! BIO_eof(ssl->rbio)) {
+	    msg(MSG_ERROR,"EOF *not* reached on BIO. This should not happen.");
+	}
+#endif
+	if (BIO_eof(ssl->rbio)) return 1; /* This should always be the case */
+    }
+    boost::shared_array<uint8_t> data(new uint8_t[MAX_MSG_LEN]);
+    ret = SSL_read(ssl,data.get(),MAX_MSG_LEN);
+    error = SSL_get_error(ssl,ret);
+    DPRINTF("SSL_read() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
+    if (ret<0) {
+	if (error == SSL_ERROR_WANT_READ)
+	    return 1;
+	msg(MSG_ERROR,"SSL_read() failed. SSL_get_error() returned: %d",error);
+	print_errors();
+	shutdown();
+	return 0;
+    } else if (ret==0) {
+	if (error == SSL_ERROR_ZERO_RETURN) {
+	    // remote side closed connection
+	    DPRINTF("remote side closed connection.");
+	} else {
+	    msg(MSG_ERROR,"SSL_read() returned 0. SSL_get_error() returned: %d",error);
+	    print_errors();
+	}
+	shutdown();
+	return 0;
+    } else {
+	DPRINTF("SSL_read() returned %d bytes.",ret);
+    }
+    parent.statReceivedPackets++;
+    parent.mutex.lock();
+    for (std::list<IpfixPacketProcessor*>::iterator i = parent.packetProcessors.begin(); i != parent.packetProcessors.end(); ++i) { 
+	(*i)->processPacket(data, ret, sourceID);
+    }
+    parent.mutex.unlock();
+    return 1;
 }
 #endif /*SUPPORT_OPENSSL*/
 

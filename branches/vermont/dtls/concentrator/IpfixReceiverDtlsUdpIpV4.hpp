@@ -82,13 +82,23 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	bool have_cert;
 	bool verify_peers; /* Do we authenticate our peer by verifying its
 			      certificate? */
-	struct DtlsConnection {
-	    /*
-	    DtlsConnection(SSL *ssl) : ssl(ssl), connected(false) {}
-	    */
-	    SSL* ssl;
-	    bool connected;
+	class DtlsConnection {
+	    public:
+		DtlsConnection(IpfixReceiverDtlsUdpIpV4 &parent,struct sockaddr_in *clientAddress);
+		~DtlsConnection();
+		int consumeDatagram(boost::shared_ptr<IpfixRecord::SourceID> &sourceID, boost::shared_array<uint8_t> secured_data, size_t len);
+
+	    private:
+		IpfixReceiverDtlsUdpIpV4 &parent;
+		SSL* ssl;
+		bool connected;
+		int accept();
+		void shutdown();
+		int verify_peer();
+		int check_x509_cert(X509 *peer);
 	};
+	typedef boost::shared_ptr<DtlsConnection> DtlsConnectionPtr;
+
 	typedef bool (*CompareSourceID)(const IpfixRecord::SourceID&, const IpfixRecord::SourceID&);
 	// compare based on source address and source port
 	static bool my_CompareSourceID(const IpfixRecord::SourceID& lhs, const IpfixRecord::SourceID& rhs) {
@@ -101,20 +111,17 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	    if (lhs.exporterPort < rhs.exporterPort) return true;
 	    return false;
 	}
-	typedef std::map<IpfixRecord::SourceID,DtlsConnection,CompareSourceID> connections_map;
+	typedef std::map<IpfixRecord::SourceID,DtlsConnectionPtr,CompareSourceID> connections_map;
 	connections_map connections;
+	static void print_errors(void);
 
-	DtlsConnection createNewConnection(struct sockaddr_in *);
-	void print_errors(void);
 #ifdef DEBUG
 	void dumpConnections(void);
 #else
 	inline void dumpConnections(void) {}
 #endif
-	int verify_peer(DtlsConnection &conn);
-	int check_x509_cert(X509 *peer);
 
-#else
+#else /* SUPPORT_OPENSSL */
 
     public:
 	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",
