@@ -87,11 +87,15 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 		DtlsConnection(IpfixReceiverDtlsUdpIpV4 &parent,struct sockaddr_in *clientAddress);
 		~DtlsConnection();
 		int consumeDatagram(boost::shared_ptr<IpfixRecord::SourceID> &sourceID, boost::shared_array<uint8_t> secured_data, size_t len);
+		std::string inspect();
 
 	    private:
+		struct sockaddr_in clientAddress;
 		IpfixReceiverDtlsUdpIpV4 &parent;
 		SSL* ssl;
-		bool connected;
+		enum state_t { ACCEPTING, CONNECTED, SHUTDOWN };
+		static const char *states[];
+		state_t state;
 		int accept();
 		void shutdown();
 		int verify_peer();

@@ -1,14 +1,14 @@
 <ipfixConfig>
 	<ipfixCollector id="1">
-		<cert>exporter_cert.pem</cert>
-		<key>exporter_key.pem</key>
+		<cert>collector_cert.pem</cert>
+		<key>collector_key.pem</key>
 		<CAfile>vermontCA.pem</CAfile>
 		<CApath>/etc/ssl/certs</CApath>
 		<listener>
 			<transportProtocol>DTLS_OVER_UDP</transportProtocol>
 			<port>4433</port>
-			<peerFqdn>_exporter.example.com</peerFqdn>
-			<peerFqdn>foobar.example.com</peerFqdn>
+			<peerFqdn>exporter.example.com</peerFqdn>
+			<peerFqdn>ex352.example.com</peerFqdn>
 		</listener>
 		<next>2</next>
 	</ipfixCollector>

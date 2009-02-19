@@ -6,6 +6,7 @@
 #include "msg.h"
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
+#include <openssl/err.h>
 
 namespace { /* unnamed namespace */
     Mutex m;
@@ -22,6 +23,23 @@ void ensure_openssl_init(void) {
     DPRINTF("Initialized OpenSSL");
     m.unlock();
 }
+
+/* Get errors from OpenSSL error queue and output them using msg() */
+void msg_openssl_errors(void) {
+    char errbuf[512];
+    char buf[4096];
+    unsigned long e;
+    const char *file, *data;
+    int line, flags;
+
+    while ((e = ERR_get_error_line_data(&file,&line,&data,&flags))) {
+	ERR_error_string_n(e,errbuf,sizeof errbuf);
+	snprintf(buf, sizeof buf, "%s:%s:%d:%s", errbuf,
+                        file, line, (flags & ERR_TXT_STRING) ? data : "");
+	msg(MSG_ERROR, "OpenSSL: %s",buf);
+    }
+}
+
 
 #if 0
 int check_x509_cert(SSL *ssl,const char *host) {

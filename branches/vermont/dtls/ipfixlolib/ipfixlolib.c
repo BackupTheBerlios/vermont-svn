@@ -9,8 +9,7 @@
    Added support for DTLS over UDP
    Note that this work is still ongoing
  TODO:
-   * Use ERR_print_errors() or some similar function to print OpenSSL's errors
-     to our logfile.
+  * Call SSL_read() from time to time to receive alerts from remote end
 
  Changes by Gerhard Muenz, 2008-03
    non-blocking SCTP socket
@@ -50,7 +49,7 @@ extern "C" {
 #define bit_set(data, bits) ((data & bits) == bits)
 
 #ifdef SUPPORT_OPENSSL
-static void ensure_exporter_set_up_for_dtls(ipfix_exporter *exporter);
+static int ensure_exporter_set_up_for_dtls(ipfix_exporter *exporter);
 static void deinit_openssl_ctx(ipfix_exporter *exporter);
 static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col);
 static int dtls_send(ipfix_exporter *exporter, ipfix_receiving_collector *col, const struct iovec *iov, int iovcnt);
@@ -143,17 +142,50 @@ static int init_rcv_udp_socket(int lport)
 #endif
 
 #ifdef SUPPORT_OPENSSL
-/* A separate SSL_CTX object is created for every ipfix_exporter. */
-static void ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
+/* A separate SSL_CTX object is created for every ipfix_exporter.
+ * Returns 0 on success, -1 on error
+ * */
+static int ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
     ensure_openssl_init();
 
-    if ( ! e->ssl_ctx) {
-	/* This SSL_CTX object will be freed in deinit_openssl_ctx() */
-	e->ssl_ctx=SSL_CTX_new(DTLSv1_client_method());
-	SSL_CTX_set_read_ahead(e->ssl_ctx,1);
-	// SSL_CTX_set_cipher_list(e->ssl_ctx,"ADH-AES256-SHA");
-	SSL_CTX_set_cipher_list(e->ssl_ctx,"ALL");
+    if (e->ssl_ctx) return 0;
+
+    /* This SSL_CTX object will be freed in deinit_openssl_ctx() */
+    if ( ! (e->ssl_ctx=SSL_CTX_new(DTLSv1_client_method())) ) {
+	msg(MSG_FATAL, "Failed to create SSL context");
+	return -1;
     }
+    SSL_CTX_set_read_ahead(e->ssl_ctx,1);
+
+    if ( (e->ca_file || e->ca_path) &&
+	! SSL_CTX_load_verify_locations(e->ssl_ctx,e->ca_file,e->ca_path) ) {
+	msg(MSG_FATAL,"SSL_CTX_load_verify_locations() failed.");
+	msg_openssl_errors();
+	return -1;
+    }
+    /* Load our own certificate */
+    if (e->certificate_chain_file) {
+	if (!SSL_CTX_use_certificate_chain_file(e->ssl_ctx, e->certificate_chain_file)) {
+	    msg(MSG_FATAL,"Unable to load certificate chain file %s",e->certificate_chain_file);
+	    return -1;
+	}
+	if (!SSL_CTX_use_PrivateKey_file(e->ssl_ctx, e->private_key_file, SSL_FILETYPE_PEM)) {
+	    msg(MSG_FATAL,"Unable to load private key file %s",e->private_key_file);
+	    return -1;
+	}
+	if (!SSL_CTX_check_private_key(e->ssl_ctx)) {
+	    msg(MSG_FATAL,"Private key and certificate do not match");
+	    return -1;
+	}
+	DPRINTF("We successfully loaded our certificate.");
+    } else {
+	DPRINTF("We do NOT have a certificate. This means that we can only use "
+		"the anonymous modes of DTLS. This also implies that we can not "
+		"authenticate the client (exporter).");
+    }
+    /* We leave the certificate_authorities list of the Certificate Request
+     * empty. See RFC 4346 7.4.4. Certificate request. */
+    return 0;
 }
 
 static void deinit_openssl_ctx(ipfix_exporter *e) {
@@ -253,7 +285,7 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
 	    /* Proceed with next iteration of the endless loop. */
 	} else {
 	    msg(MSG_FATAL, "IPFIX: SSL_connect failed. Errors:");
-	    ERR_print_errors_fp(stdout);
+	    msg_openssl_errors();
 	    /* FIXME: Error handling */
 	    /* Should we set col->state here? */
 	    /* If clean up is needed remember to free SSL object and close socket */
@@ -332,7 +364,37 @@ static int dtls_send(ipfix_exporter *exporter, ipfix_receiving_collector *col, c
 	}
     }
 }
-#endif
+
+/* returns 0 on success and -1 on failure */
+static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col) {
+    int flags;
+    BIO *rbio, *sbio;
+
+    /* set socket to non-blocking i/o */
+    flags = fcntl(col->data_socket,F_GETFL,0);
+    flags |= O_NONBLOCK;
+    if (fcntl(col->data_socket,F_SETFL,flags)<0) {
+	msg(MSG_FATAL, "IPFIX: Failed to set socket to non-blocking i/o");
+	return -1;
+    }
+    /* ensure a SSL_CTX object is set up */
+    ensure_exporter_set_up_for_dtls(exporter);
+    ipfix_dtls_connection *d = &col->dtls;
+    d->ssl = SSL_new(exporter->ssl_ctx);
+    /* create output abstraction for SSL object */
+    sbio = BIO_new_dgram(col->data_socket,BIO_NOCLOSE);
+
+    BIO_ctrl_set_connected(sbio,1,&col->addr); /* TODO: Explain, why are we doing this? */
+    /* create a dummy BIO that always returns EOF */
+    rbio = BIO_new(BIO_s_mem());
+    /* -1 means EOF */
+    BIO_set_mem_eof_return(rbio,-1);
+    SSL_set_bio(d->ssl,rbio,sbio);
+
+    return 0;
+}
+
+#endif /* SUPPORT_OPENSSL */
 
 /*
  * Initializes a UDP-socket to send data to.
@@ -361,37 +423,6 @@ static int init_send_udp_socket(struct sockaddr_in serv_addr){
 	return s;
 }
 
-#ifdef SUPPORT_OPENSSL
-/* returns 0 on success and -1 on failure */
-static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col) {
-    int flags;
-    BIO *rbio, *sbio;
-
-    /* set to non-blocking i/o */
-    flags = fcntl(col->data_socket,F_GETFL,0);
-    flags |= O_NONBLOCK;
-    if (fcntl(col->data_socket,F_SETFL,flags)<0) {
-	msg(MSG_FATAL, "IPFIX: Failed to set socket to non-blocking i/o");
-	return -1;
-    }
-    /* ensure a SSL_CTX object is set up */
-    ensure_exporter_set_up_for_dtls(exporter);
-    ipfix_dtls_connection *d = &col->dtls;
-    d->ssl = SSL_new(exporter->ssl_ctx);
-    /* create output abstraction for SSL object */
-    sbio = BIO_new_dgram(col->data_socket,BIO_NOCLOSE);
-
-    BIO_ctrl_set_connected(sbio,1,&col->addr); /* TODO: Explain, why are we doing this? */
-    /* create a dummy BIO that always returns EOF */
-    rbio = BIO_new(BIO_s_mem());
-    /* -1 means EOF */
-    BIO_set_mem_eof_return(rbio,-1);
-    SSL_set_bio(d->ssl,rbio,sbio);
-
-    return 0;
-}
-
-#endif
 
 #ifdef SUPPORT_SCTP
 /********************************************************************
@@ -507,6 +538,10 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
         tmp->collector_max_num = 0;
 #ifdef SUPPORT_OPENSSL
 	tmp->ssl_ctx = NULL;
+	tmp->certificate_chain_file = NULL;
+	tmp->private_key_file = NULL;
+	tmp->ca_file = NULL;
+	tmp->ca_path = NULL;
 #endif
 
         // initialize the sendbuffers
@@ -603,6 +638,10 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter)
 
 #ifdef SUPPORT_OPENSSL
 	deinit_openssl_ctx(exporter);
+	free( (void *) exporter->certificate_chain_file);
+	free( (void *) exporter->private_key_file);
+	free( (void *) exporter->ca_file);
+	free( (void *) exporter->ca_path);
 #endif
 
         // free own memory
@@ -622,7 +661,8 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter)
  *  proto: transport protocol to use
  * Returns: 0 on success or -1 on failure
  */
-int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int coll_port, enum ipfix_transport_protocol proto)
+int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
+	int coll_port, enum ipfix_transport_protocol proto, void *aux_config)
 {
         int i=0;
         int searching = TRUE;
@@ -676,7 +716,12 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int
 	                                return -1;
 	                        }
 #ifdef SUPPORT_OPENSSL
+				exporter->collector_arr[i].peer_fqdn = NULL;
 				if (proto ==  DTLS_OVER_UDP) {
+				    ipfix_aux_config_dtls *aux_config_dtls = (ipfix_aux_config_dtls *) aux_config;
+				    if (aux_config && aux_config_dtls->peer_fqdn)
+					exporter->collector_arr[i].peer_fqdn = strdup(aux_config_dtls->peer_fqdn);
+
 				    if (setup_dtls_connection(exporter,&exporter->collector_arr[i])) {
 					close(exporter->collector_arr[i].data_socket);
 					return -1;
@@ -724,6 +769,7 @@ static void remove_collector(ipfix_exporter *exporter, ipfix_receiving_collector
 	}
 	/* Note: SSL_free() also frees associated sending and receiving BIOs */
 	SSL_free(collector->dtls.ssl);
+	free( (void *) collector->peer_fqdn);
     }
 #endif
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
@@ -966,7 +1012,6 @@ static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf)
 
         // initialize an ipfix_set_manager
 	(tmp->set_manager).set_counter = 0;
-        (tmp->set_manager).header_iovec = NULL;
         memset(&(tmp->set_manager).set_header_store, 0, sizeof((tmp->set_manager).set_header_store));
         (tmp->set_manager).data_length = 0;
 
@@ -1001,7 +1046,6 @@ static int ipfix_reset_sendbuffer(ipfix_sendbuffer *sendbuf)
 
         // also reset the set_manager!
 	(sendbuf->set_manager).set_counter = 0;
-        (sendbuf->set_manager).header_iovec = NULL;
         memset(&(sendbuf->set_manager).set_header_store, 0, sizeof((sendbuf->set_manager).set_header_store));
         (sendbuf->set_manager).data_length = 0;
 
@@ -2243,7 +2287,7 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
 	 * apply the Parental Advisory sticker to source code */
         /* sometime I'll fuck C++ with a serious chainsaw - casting malloc() et al is DUMB */
         templ->template_fields=(char *)realloc(templ->template_fields, templ->fields_length);
-	// FIXME: Shouldn't max_fields_length be reset at this place?
+	// FIXME: Shouldn't max_fields_length be reset at this point?
 
         /*
          write the real length field:
@@ -2336,6 +2380,56 @@ int ipfix_set_sctp_reconnect_timer(ipfix_exporter *exporter, uint32_t timer){
 		exporter->sctp_reconnect_timer = timer;
 		return 0;
 	}
+}
+
+// Set the the names of the files in which the X.509 certificate and the
+// matching private key can be found. If private_key_file is NULL the
+// certificate chain file will be searched for the private key.
+// See OpenSSL man pages for more details
+int ipfix_set_dtls_certificate(ipfix_exporter *exporter,
+	const char *certificate_chain_file, const char *private_key_file) {
+#ifdef SUPPORT_OPENSSL
+    if (exporter->ssl_ctx) {
+	msg(MSG_ERROR, "Too late to set certificate. SSL context already created.");
+	return -1;
+    }
+    if (exporter->certificate_chain_file) {
+	msg(MSG_ERROR, "Certificate can not be reset.");
+	return -1;
+    }
+    if ( ! certificate_chain_file) {
+	msg(MSG_ERROR, "ipfix_set_dtls_certificate called with bad parameters.");
+	return -1;
+    }
+    exporter->certificate_chain_file = strdup(certificate_chain_file);
+    if (private_key_file) {
+	exporter->private_key_file = strdup(private_key_file);
+    }
+    return 0;
+#else /* SUPPORT_OPENSSL */
+    msg(MSG_FATAL, "IPFIX: Library compiled without OPENSSL support.");
+    return -1;
+#endif /* SUPPORT_OPENSSL */
+}
+
+// Set the locations of the CA certificates. See OpenSSL man pages for more details.
+int ipfix_set_ca_locations(ipfix_exporter *exporter, const char *ca_file, const char *ca_path) {
+#ifdef SUPPORT_OPENSSL
+    if (exporter->ssl_ctx) {
+	msg(MSG_ERROR, "Too late to set CA locations. SSL context already created.");
+	return -1;
+    }
+    if (exporter->ca_file || exporter->ca_path) {
+	msg(MSG_ERROR, "CA locations can not be reset.");
+	return -1;
+    }
+    if (ca_file) exporter->ca_file = strdup(ca_file);
+    if (ca_path) exporter->ca_path = strdup(ca_path);
+    return 0;
+#else /* SUPPORT_OPENSSL */
+    msg(MSG_FATAL, "IPFIX: Library compiled without OPENSSL support.");
+    return -1;
+#endif
 }
 
 /* check if the enterprise bit in an ID is set */

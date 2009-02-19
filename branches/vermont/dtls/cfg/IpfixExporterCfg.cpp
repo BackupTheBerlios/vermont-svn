@@ -34,8 +34,16 @@ IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 
 		if (e->matches("collector")) {
 			collectors.push_back(new CollectorCfg(e));
-		} else if (e->matches("maxRecordRate") || e->matches("sctpDataLifetime") || e->matches("sctpReconnectInterval")
-				|| e->matches("templateRefreshRate")|| e->matches("templateRefreshInterval") || e->matches("observationDomainId")) {		
+		} else if (	e->matches("maxRecordRate") ||
+				e->matches("sctpDataLifetime") ||
+				e->matches("sctpReconnectInterval") ||
+				e->matches("templateRefreshRate") ||
+				e->matches("templateRefreshInterval") ||
+				e->matches("observationDomainId") ||
+				e->matches("cert") ||
+				e->matches("key") ||
+				e->matches("CAfile") ||
+				e->matches("CApath") ) {
 			// already done!
 		} else {
 			THROWEXCEPTION("Illegal Exporter config entry \"%s\" found",
@@ -53,7 +61,8 @@ IpfixExporterCfg::~IpfixExporterCfg()
 IpfixSender* IpfixExporterCfg::createInstance()
 {
 	instance = new IpfixSender(observationDomainId, recordRateLimit, sctpDataLifetime, 
-			sctpReconnectInterval, templateRefreshTime, templateRefreshRate);
+			sctpReconnectInterval, templateRefreshTime, templateRefreshRate,
+			certificateChainFile, privateKeyFile, caFile, caPath);
 
 	for (unsigned i = 0; i != collectors.size(); ++i) {
 #ifdef DEBUG

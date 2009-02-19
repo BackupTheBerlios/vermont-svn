@@ -218,6 +218,10 @@ typedef struct {
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ 
  
 */
+/* Note that this ipfix_set_header struct is only used for data sets.
+ * The header of template sets is built up in a char array.
+ * (See ipfix_start_datatemplate_set)
+ */
 
 typedef struct {
     uint16_t set_id;
@@ -231,6 +235,12 @@ enum ipfix_transport_protocol {
 #endif 
 	SCTP, UDP, TCP, DTLS_OVER_UDP
 	};
+
+#ifdef SUPPORT_OPENSSL
+typedef struct {
+    const char *peer_fqdn;
+} ipfix_aux_config_dtls;
+#endif
 
 /*
  * These indicate, if a field is commited (i.e. can be used)
@@ -274,14 +284,12 @@ enum collector_state {C_UNUSED, C_NEW, C_DISCONNECTED, C_CONNECTED};
  * Manages a record set
  * stores the record set header
  *
+ * Please note that this struct is only used for data sets.
+ *
  */
 typedef struct{
 	/* number of the current set */
 	unsigned set_counter;
-
-	/* variable that stores the position of the current set header
-	   in ipfix_sendbuffer->entries */ 
-	struct iovec *header_iovec;
 
 	/* buffer to store set headers */
 	ipfix_set_header set_header_store[IPFIX_MAX_SETS_PER_PACKET];
@@ -340,6 +348,7 @@ typedef struct {
 #endif
 #ifdef SUPPORT_OPENSSL
 	ipfix_dtls_connection dtls;
+	const char *peer_fqdn;
 #endif
 } ipfix_receiving_collector;
 
@@ -352,7 +361,10 @@ typedef struct{
 	uint16_t field_count;
 	int fields_length;
 	int max_fields_length;
-	char *template_fields;
+	char *template_fields;	// This includes the Set Header and the
+				// Template Record Header as it goes out on the wire.
+				// Note that the type ipfix_set_header is *not* used
+				// to build Set Headers for template sets.
 } ipfix_lo_template;
 
 /*
@@ -392,6 +404,10 @@ typedef struct {
 	ipfix_lo_template *template_arr;
 #ifdef SUPPORT_OPENSSL
 	SSL_CTX *ssl_ctx;
+	const char *certificate_chain_file;
+	const char *private_key_file;
+	const char *ca_file;
+	const char *ca_path;
 	char buf[IPFIX_MAX_PACKETSIZE]; /* general purpose buffer */
 #endif
 } ipfix_exporter;
@@ -401,7 +417,7 @@ typedef struct {
 int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter);
 int ipfix_deinit_exporter(ipfix_exporter *exporter);
 
-int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int coll_port, enum ipfix_transport_protocol proto);
+int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int coll_port, enum ipfix_transport_protocol proto, void *aux_config);
 int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_port);
 
 int ipfix_start_template_set(ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count);
@@ -430,6 +446,9 @@ int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime);
 // Set up SCTP reconnect timer, time after that a reconnection attempt is made, 
 // if connection to the collector was lost.
 int ipfix_set_sctp_reconnect_timer(ipfix_exporter *exporter, uint32_t timer);
+
+int ipfix_set_dtls_certificate(ipfix_exporter *exporter, const char *certificate_chain_file, const char *private_key_file);
+int ipfix_set_ca_locations(ipfix_exporter *exporter, const char *ca_file, const char *ca_path);
 
 #ifdef __cplusplus
 }

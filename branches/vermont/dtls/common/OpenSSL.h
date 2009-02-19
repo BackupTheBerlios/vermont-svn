@@ -9,7 +9,8 @@
 extern "C" {
 #endif
 
-extern void ensure_openssl_init(void);
+void ensure_openssl_init(void);
+void msg_openssl_errors(void);
 
 #ifdef __cplusplus
 }

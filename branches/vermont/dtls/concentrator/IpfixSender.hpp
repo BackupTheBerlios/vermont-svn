@@ -39,6 +39,9 @@ class IpfixSender : public Module, public Source<NullEmitable*>, public IpfixRec
 {
 public:
 	IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, uint32_t sctpDataLifetime, uint32_t sctpReconnectInterval,
+		uint32_t templateRefreshInterval, uint32_t templateRefreshRate, const std::string &certificateChainFile,
+		const std::string &privateKeyFile, const std::string &caFile, const std::string &caPath);
+	IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, uint32_t sctpDataLifetime, uint32_t sctpReconnectInterval,
 			uint32_t templateRefreshInterval, uint32_t templateRefreshRate);
 	virtual ~IpfixSender();
 

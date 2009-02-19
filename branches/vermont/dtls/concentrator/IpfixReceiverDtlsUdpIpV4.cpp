@@ -41,7 +41,6 @@
 #include <sstream>
 
 #include <openssl/ssl.h>
-#include <openssl/err.h>
 #include <openssl/x509v3.h>
 #ifndef HEADER_DH_H
 #include <openssl/dh.h>
@@ -95,144 +94,159 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
 	const std::string &certificateChainFile, const std::string &privateKeyFile,
 	const std::string &caFile, const std::string &caPath,
 	const std::set<string> &peerFqdnsParam)
-    : IpfixReceiver(port),peerFqdns(peerFqdnsParam), statReceivedPackets(0),
+    : IpfixReceiver(port),listen_socket(-1),peerFqdns(peerFqdnsParam),
+	statReceivedPackets(0),ssl_ctx(NULL),
 	have_CAs(false), have_cert(false), connections(my_CompareSourceID) {
     struct sockaddr_in serverAddress;
 
-    listen_socket = socket(AF_INET, SOCK_DGRAM, 0);
-    if(listen_socket < 0) {
-	/* ASK: should I use strerror_r? */
-	msg(MSG_FATAL, "Could not create socket: %s", strerror(errno));
-	/* ASK: Why not throw? */
-	THROWEXCEPTION("Cannot create IpfixReceiverDtlsUdpIpV4, socket creation failed");
-    }
-    
-    // if ipAddr set: Bind a specific IP address to our socket.
-    // else: use wildcard address
-    if(ipAddr.empty())
-	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    else
-	if ( ! inet_pton(AF_INET,ipAddr.c_str(),&serverAddress.sin_addr) ) {
-	    THROWEXCEPTION("IP address invalid.");
+    try {
+	listen_socket = socket(AF_INET, SOCK_DGRAM, 0);
+	if(listen_socket < 0) {
+	    /* ASK: should I use strerror_r? */
+	    msg(MSG_FATAL, "Could not create socket: %s", strerror(errno));
+	    THROWEXCEPTION("Cannot create IpfixReceiverDtlsUdpIpV4, socket creation failed");
 	}
-    
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(port);
-    if(bind(listen_socket, (struct sockaddr*)&serverAddress, 
-	sizeof(struct sockaddr_in)) < 0) {
-	close(listen_socket);
-	msg(MSG_FATAL, "Could not bind socket: %s", strerror(errno));
-	THROWEXCEPTION("Cannot create IpfixReceiverDtlsUdpIpV4 %s:%d",ipAddr.c_str(), port );
-    }
+	
+	// if ipAddr set: Bind a specific IP address to our socket.
+	// else: use wildcard address
+	if(ipAddr.empty())
+	    serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+	else
+	    if ( ! inet_pton(AF_INET,ipAddr.c_str(),&serverAddress.sin_addr) ) {
+		THROWEXCEPTION("IP address invalid.");
+	    }
+	
+	serverAddress.sin_family = AF_INET;
+	serverAddress.sin_port = htons(port);
+	if(bind(listen_socket, (struct sockaddr*)&serverAddress, 
+	    sizeof(struct sockaddr_in)) < 0) {
+	    msg(MSG_FATAL, "Could not bind socket: %s", strerror(errno));
+	    THROWEXCEPTION("Cannot create IpfixReceiverDtlsUdpIpV4 %s:%d",ipAddr.c_str(), port );
+	}
 
-    ensure_openssl_init();
+	ensure_openssl_init();
 
-    ssl_ctx = SSL_CTX_new(DTLSv1_server_method());
-    if( ! ssl_ctx) {
-	close(listen_socket);
-	THROWEXCEPTION("Cannot create SSL_CTX");
-    }
-    // set DH parameters to be used
-    DH *dh = IpfixReceiverDtlsUdpIpV4::get_dh2048();
-    SSL_CTX_set_tmp_dh(ssl_ctx,dh);
-    DH_free(dh);
-    // generate a new DH key for each handshake
-    SSL_CTX_set_options(ssl_ctx,SSL_OP_SINGLE_DH_USE);
-    // set default locations for trusted CA certificates
-    const char *CAfile = NULL;
-    const char *CApath = NULL;
-    if (!caFile.empty()) CAfile = caFile.c_str();
-    if (!caPath.empty()) CApath = caPath.c_str();
-    if ( SSL_CTX_load_verify_locations(ssl_ctx,CAfile,CApath) ) {
-	have_CAs = true;
-    } else {
-	msg(MSG_ERROR,"SSL_CTX_load_verify_locations() failed.");
-	print_errors();
-    }
-    // Load our own certificate
-    if (!certificateChainFile.empty()) {
-	const char *certificate_file = certificateChainFile.c_str();
-	const char *PrivateKey_file = certificate_file;
-	have_cert = false;
-	if (!privateKeyFile.empty())
-	    PrivateKey_file = privateKeyFile.c_str();
-	if (!SSL_CTX_use_certificate_chain_file(ssl_ctx, certificate_file))
-	    msg(MSG_ERROR,"Could not load certificate chain file");
-	else if (!SSL_CTX_use_PrivateKey_file(ssl_ctx, PrivateKey_file, SSL_FILETYPE_PEM))
-	    msg(MSG_ERROR,"Could not load private key file");
-	else if (!SSL_CTX_check_private_key(ssl_ctx))
-	    msg(MSG_ERROR,"Private key and certificate do not match.");
-	else {
+	ssl_ctx = SSL_CTX_new(DTLSv1_server_method());
+	if( ! ssl_ctx) {
+	    THROWEXCEPTION("Cannot create SSL_CTX");
+	}
+	SSL_CTX_set_read_ahead(ssl_ctx, 1);
+	// set DH parameters to be used
+	DH *dh = IpfixReceiverDtlsUdpIpV4::get_dh2048();
+	SSL_CTX_set_tmp_dh(ssl_ctx,dh);
+	DH_free(dh);
+	// generate a new DH key for each handshake
+	SSL_CTX_set_options(ssl_ctx,SSL_OP_SINGLE_DH_USE);
+	// set default locations for trusted CA certificates
+	const char *CAfile = NULL;
+	const char *CApath = NULL;
+	if (!caFile.empty()) CAfile = caFile.c_str();
+	if (!caPath.empty()) CApath = caPath.c_str();
+	if (CAfile || CApath) {
+	    if ( SSL_CTX_load_verify_locations(ssl_ctx,CAfile,CApath) ) {
+		have_CAs = true;
+	    } else {
+		msg(MSG_ERROR,"SSL_CTX_load_verify_locations() failed.");
+		msg_openssl_errors();
+		THROWEXCEPTION("Failed to open CA file / CA directory.");
+	    }
+	}
+	// Load our own certificate
+	if (!certificateChainFile.empty()) {
+	    const char *certificate_chain_file = certificateChainFile.c_str();
+	    const char *private_key_file  = certificateChainFile.c_str();
+	    if (!privateKeyFile.empty())    // We expect the private key in the
+					    // certificate file if the no separate
+					    // file for the key was specified.
+		private_key_file = privateKeyFile.c_str();
+	    if (!SSL_CTX_use_certificate_chain_file(ssl_ctx, certificate_chain_file)) {
+		msg_openssl_errors();
+		THROWEXCEPTION("Unable to load certificate chain file %s",certificate_chain_file);
+	    }
+	    if (!SSL_CTX_use_PrivateKey_file(ssl_ctx, private_key_file, SSL_FILETYPE_PEM)) {
+		msg_openssl_errors();
+		THROWEXCEPTION("Unable to load private key file %s",private_key_file);
+	    }
+	    if (!SSL_CTX_check_private_key(ssl_ctx)) {
+		msg_openssl_errors();
+		THROWEXCEPTION("Private key and certificate do not match.");
+	    }
 	    have_cert = true;
-	}
-	if ( ! have_cert) print_errors();
-    } else if (!privateKeyFile.empty())
-	    msg(MSG_ERROR,"It makes no sense specifying a private key file without "
-		    "specifying a file with the corresponding certificate.");
-    if (have_cert)
-	DPRINTF("We successfully loaded our certificate.");
-    else
-	DPRINTF("We do NOT have a certificate. This means that we can only use "
-		"the anonymous modes of DTLS. This also implies that we can not "
-		"authenticate the client (exporter).");
-    /* We leave the certificate_authorities list of the Certificate Request
-     * empty. See RFC 4346 7.4.4. Certificate request. */
+	} else if (!privateKeyFile.empty())
+		THROWEXCEPTION("It makes no sense specifying a private key file without "
+			"specifying a file that contains the corresponding certificate.");
+	if (have_cert)
+	    DPRINTF("We successfully loaded our certificate.");
+	else
+	    DPRINTF("We do NOT have a certificate. This means that we can only use "
+		    "the anonymous modes of DTLS. This also implies that we can not "
+		    "authenticate the client (exporter).");
+	/* We leave the certificate_authorities list of the Certificate Request
+	 * empty. See RFC 4346 7.4.4. Certificate request. */
 #if 0
-    // Load the list of CAs with which the client can authenticate itself.
-    // Remember that we can only use client authentication if we (server) have
-    // a certificate as well.
-    if (CAfile) {
-	if (have_cert) {
-	    STACK_OF(X509_NAME) *cert_names;
-	    cert_names = SSL_load_client_CA_file(CAfile);
-	    if (cert_names != NULL) {
-		SSL_CTX_set_client_CA_list(ssl_ctx, cert_names);
-		have_client_CA_list = true;
-		DPRINTF("We have a list of CAs which we can "
-			"use to verify client certificates.");
-	    } else
-		print_errors();
-	} else {
-	    msg(MSG_ERROR,"Ignoring the file containing trusted "
-		    "certificates. We do NOT have a certificate to "
-		    "authenticate ourselves that is why we can only use "
-		    "anonymous ciphers. Client authentication is not "
-		    "possible with anonymous ciphers.");
+	// Load the list of CAs with which the client can authenticate itself.
+	// Remember that we can only use client authentication if we (server) have
+	// a certificate as well.
+	if (CAfile) {
+	    if (have_cert) {
+		STACK_OF(X509_NAME) *cert_names;
+		cert_names = SSL_load_client_CA_file(CAfile);
+		if (cert_names != NULL) {
+		    SSL_CTX_set_client_CA_list(ssl_ctx, cert_names);
+		    have_client_CA_list = true;
+		    DPRINTF("We have a list of CAs which we can "
+			    "use to verify client certificates.");
+		} else
+		    msg_openssl_errors();
+	    } else {
+		msg(MSG_ERROR,"Ignoring the file containing trusted "
+			"certificates. We do NOT have a certificate to "
+			"authenticate ourselves that is why we can only use "
+			"anonymous ciphers. Client authentication is not "
+			"possible with anonymous ciphers.");
+	    }
 	}
-    }
 #endif
-    SSL_CTX_set_read_ahead(ssl_ctx, 1);
-    if (peerFqdns.empty()) {
-	DPRINTF("We are NOT going to verify the certificates of our peers b/c "
-		"peerFqdn option is NOT set.");
-    } else {
-	if ( ! (have_CAs && have_cert) ) {
-	    msg(MSG_ERROR,"Can't verify peers because prerequesites not met. "
-		    "Prerequesites are: 1. CApath or CAfile set, "
-		    "2. We have a certificate including the private key");
+	if (peerFqdns.empty()) {
+	    DPRINTF("We are NOT going to verify the certificates of the exporters b/c "
+		    "the peerFqdn option is NOT set.");
+	} else {
+	    if ( ! (have_CAs && have_cert) ) {
+		msg(MSG_ERROR,"Can not verify certificates of exporters because prerequesites not met. "
+			"Prerequesites are: 1. CApath or CAfile or both set, "
+			"2. We have a certificate including the private key");
+		THROWEXCEPTION("Cannot verify DTLS peers.");
+	    } else {
+		verify_peers = true;
+		SSL_CTX_set_verify(ssl_ctx,SSL_VERIFY_PEER |
+			SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
+		DPRINTF("We are going to request certificates from the exporters "
+			"and we are going to verify those b/c "
+			"the peerFqdn option is set");
+	    }
+	}
+	if (verify_peers) {
+	    SSL_CTX_set_cipher_list(ssl_ctx,"DEFAULT");
+	} else {
+	    SSL_CTX_set_cipher_list(ssl_ctx,"ALL"); // This includes anonymous ciphers
+	}
+	/* TODO: Find out what this is? */
+	SensorManager::getInstance().addSensor(this, "IpfixReceiverDtlsUdpIpV4", 0);
+
+	msg(MSG_INFO, "DTLS Receiver listening on %s:%d, FD=%d", (ipAddr == "")?std::string("ALL").c_str() : ipAddr.c_str(), 
+								port, 
+								listen_socket);
+    } catch(...) {
+	if (listen_socket>=0) {
 	    close(listen_socket);
+	    listen_socket = -1;
+	}
+	if (ssl_ctx) {
 	    SSL_CTX_free(ssl_ctx);
 	    ssl_ctx = 0;
-	    THROWEXCEPTION("Cannot verify DTLS peers.");
-	} else {
-	    verify_peers = true;
-	    SSL_CTX_set_verify(ssl_ctx,SSL_VERIFY_PEER |
-		    SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
-	    DPRINTF("We are going to verify the certificates of our peers b/c "
-		    "the peerFqdn option is set");
 	}
+	throw;
     }
-    if (verify_peers) {
-	SSL_CTX_set_cipher_list(ssl_ctx,"DEFAULT");
-    } else {
-	SSL_CTX_set_cipher_list(ssl_ctx,"DEFAULT:aNULL");
-    }
-    /* TODO: Find out what this is? */
-    SensorManager::getInstance().addSensor(this, "IpfixReceiverDtlsUdpIpV4", 0);
-
-    msg(MSG_INFO, "DTLS Receiver listening on %s:%d, FD=%d", (ipAddr == "")?std::string("ALL").c_str() : ipAddr.c_str(), 
-							    port, 
-							    listen_socket);
 }
 
 
@@ -242,22 +256,6 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
 IpfixReceiverDtlsUdpIpV4::~IpfixReceiverDtlsUdpIpV4() {
     close(listen_socket);
     if (ssl_ctx) SSL_CTX_free(ssl_ctx);
-}
-
-/* Get errors from OpenSSL error queue and output them using msg() */
-void IpfixReceiverDtlsUdpIpV4::print_errors(void) {
-    char errbuf[512];
-    char buf[4096];
-    unsigned long e;
-    const char *file, *data;
-    int line, flags;
-
-    while ((e = ERR_get_error_line_data(&file,&line,&data,&flags))) {
-	ERR_error_string_n(e,errbuf,sizeof errbuf);
-	snprintf(buf, sizeof buf, "%s:%s:%d:%s", errbuf,
-                        file, line, (flags & ERR_TXT_STRING) ? data : "");
-	msg(MSG_ERROR, "OpenSSL: %s",buf);
-    }
 }
 
 #ifdef DEBUG
@@ -274,18 +272,22 @@ void IpfixReceiverDtlsUdpIpV4::dumpConnections() {
 	const IpfixRecord::SourceID &sourceID = it->first;
 	memcpy(&addr.s_addr,sourceID.exporterAddress.ip, sourceID.exporterAddress.len);
 	inet_ntop(AF_INET,&addr,ipaddr,sizeof(ipaddr));
-	DPRINTF("  %s:%d",ipaddr,sourceID.exporterPort);
+	DPRINTF("  %s",it->second->inspect().c_str());
     }
 }
 #endif
 
+
+const char *IpfixReceiverDtlsUdpIpV4::DtlsConnection::states[] = {
+    "ACCEPTING","CONNECTED","SHUTDOWN"
+};
 
 int IpfixReceiverDtlsUdpIpV4::DtlsConnection::verify_peer() {
     long verify_result;
 
     verify_result = SSL_get_verify_result(ssl);
     DPRINTF("SSL_get_verify_result() returned: %s",X509_verify_cert_error_string(verify_result));
-    if(SSL_get_verify_result(ssl)!=X509_V_OK) {
+    if(verify_result!=X509_V_OK) {
 	msg(MSG_ERROR,"Certificate doesn't verify: %s", X509_verify_cert_error_string(verify_result));
 	return 0;
     }
@@ -300,11 +302,12 @@ int IpfixReceiverDtlsUdpIpV4::DtlsConnection::verify_peer() {
     return ret;
 }
 
+/* returns 1 on success, 0 on error */
 int IpfixReceiverDtlsUdpIpV4::DtlsConnection::check_x509_cert(X509 *peer) {
     char buf[512];
 #if DEBUG
     X509_NAME_oneline(X509_get_subject_name(peer),buf,sizeof buf);
-    DPRINTF("peer certificate subject=%s",buf);
+    DPRINTF("peer certificate subject: %s",buf);
 #endif
     STACK_OF(GENERAL_NAME) * gens;
     const GENERAL_NAME *gn;
@@ -359,7 +362,7 @@ int IpfixReceiverDtlsUdpIpV4::DtlsConnection::check_x509_cert(X509 *peer) {
 	    return 1;
 	}
     }
-    DPRINTF("Neither the Subject Alternative Name nor the Common Name "
+    msg(MSG_ERROR,"Neither the Subject Alternative Name nor the Common Name "
 	    "matched one of the permitted FQDNs");
     return 0;
 }
@@ -440,12 +443,15 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	    DPRINTF("Found existing connection.");
 	    conn = it->second;
 	}
+	conn->consumeDatagram(sourceID, secured_data,ret);
 	dumpConnections();
+#if 0
 	if (conn->consumeDatagram(sourceID, secured_data,ret) == 0) {
 	    DPRINTF("Removing connection.");
 	    connections.erase(it);
 	    dumpConnections();
 	}
+#endif
 	    
     }
     msg(MSG_DEBUG, "IpfixReceiverDtlsUdpIpV4: Exiting");
@@ -463,13 +469,15 @@ std::string IpfixReceiverDtlsUdpIpV4::getStatisticsXML(double interval)
 	return oss.str();
 }
 
-IpfixReceiverDtlsUdpIpV4::DtlsConnection::DtlsConnection(IpfixReceiverDtlsUdpIpV4 &_parent,struct sockaddr_in *clientAddress) :
-    parent(_parent), connected(false) {
+IpfixReceiverDtlsUdpIpV4::DtlsConnection::DtlsConnection(IpfixReceiverDtlsUdpIpV4 &_parent,struct sockaddr_in *pclientAddress) :
+    parent(_parent), state(ACCEPTING) {
 
     ssl = SSL_new(parent.ssl_ctx);
     if( ! ssl) {
 	THROWEXCEPTION("Cannot create SSL object");
     }
+
+    memcpy(&clientAddress, pclientAddress, sizeof clientAddress);
 
     BIO *sbio, *rbio;
     /* create output abstraction for SSL object */
@@ -482,17 +490,28 @@ IpfixReceiverDtlsUdpIpV4::DtlsConnection::DtlsConnection(IpfixReceiverDtlsUdpIpV
     SSL_set_bio(ssl,rbio,sbio);
     SSL_set_accept_state(ssl);
 
-    BIO_ctrl(ssl->wbio,BIO_CTRL_DGRAM_SET_PEER,0,clientAddress);
+    BIO_ctrl(ssl->wbio,BIO_CTRL_DGRAM_SET_PEER,0,&clientAddress);
+
 }
 
 IpfixReceiverDtlsUdpIpV4::DtlsConnection::~DtlsConnection() {
+    DPRINTF("Destructor of DtlsConnection.");
     if (ssl) SSL_free(ssl);
+}
+
+std::string IpfixReceiverDtlsUdpIpV4::DtlsConnection::inspect() {
+    std::ostringstream o;
+    char ipaddr[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET,&clientAddress.sin_addr,ipaddr,sizeof(ipaddr));
+    o << ipaddr << ":" << ntohs(clientAddress.sin_port);
+    o << " state:" << states[state];
+    return o.str();
 }
 
 /* Accepts a DTLS connection
  * Returns values:
  * 1 Successfully connected (don't call accept() again)
- * 0 Not yet connected (call accept() again as soon as new data is available
+ * 0 Not yet connected (call accept() again as soon as new data is available)
  * -1 Failure. Remove this connection
  */
 int IpfixReceiverDtlsUdpIpV4::DtlsConnection::accept() {
@@ -502,7 +521,7 @@ int IpfixReceiverDtlsUdpIpV4::DtlsConnection::accept() {
     if (SSL_get_shared_ciphers(ssl,buf,sizeof buf) != NULL)
 	DPRINTF("Shared ciphers:%s",buf);
     if (ret==1) {
-	connected = true;
+	state = CONNECTED;
 	DPRINTF("SSL_accept() succeeded.");
 	const char *str=SSL_CIPHER_get_name(SSL_get_current_cipher(ssl));
 	DPRINTF("CIPHER is %s",(str != NULL)?str:"(NONE)");
@@ -524,7 +543,12 @@ int IpfixReceiverDtlsUdpIpV4::DtlsConnection::accept() {
 	return 0;
     }
     msg(MSG_ERROR,"SSL_accept() failed.");
-    print_errors();
+    long verify_result = SSL_get_verify_result(ssl);
+    if(SSL_get_verify_result(ssl)!=X509_V_OK) {
+	msg(MSG_ERROR,"Last verification error: %s", X509_verify_cert_error_string(verify_result));
+    }
+    state = SHUTDOWN;
+    msg_openssl_errors();
     return -1;
 }
 
@@ -537,6 +561,7 @@ void IpfixReceiverDtlsUdpIpV4::DtlsConnection::shutdown() {
     }
     error = SSL_get_error(ssl,ret);
     DPRINTF("SSL_shutdown() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
+    state = SHUTDOWN;
 }
 
 /* Return values:
@@ -549,6 +574,11 @@ int IpfixReceiverDtlsUdpIpV4::DtlsConnection::consumeDatagram(
 	boost::shared_array<uint8_t> secured_data, size_t len) {
 
     int ret, error;
+
+    if (state == SHUTDOWN) {
+	DPRINTF("state == SHUTDOWN. Ignoring datagram");
+	return 1;
+    }
 #ifdef DEBUG
     if ( ! BIO_eof(ssl->rbio)) {
 	msg(MSG_ERROR,"EOF *not* reached on BIO. This should not happen.");
@@ -557,7 +587,7 @@ int IpfixReceiverDtlsUdpIpV4::DtlsConnection::consumeDatagram(
     BIO_free(ssl->rbio);
     ssl->rbio = BIO_new_mem_buf(secured_data.get(),len);
     BIO_set_mem_eof_return(ssl->rbio,-1);
-    if (!connected) {
+    if (state == ACCEPTING) {
 	ret = accept();
 	if (ret == 0) return 1;
 	if (ret == -1) return 0;
@@ -576,7 +606,7 @@ int IpfixReceiverDtlsUdpIpV4::DtlsConnection::consumeDatagram(
 	if (error == SSL_ERROR_WANT_READ)
 	    return 1;
 	msg(MSG_ERROR,"SSL_read() failed. SSL_get_error() returned: %d",error);
-	print_errors();
+	msg_openssl_errors();
 	shutdown();
 	return 0;
     } else if (ret==0) {
@@ -585,7 +615,7 @@ int IpfixReceiverDtlsUdpIpV4::DtlsConnection::consumeDatagram(
 	    DPRINTF("remote side closed connection.");
 	} else {
 	    msg(MSG_ERROR,"SSL_read() returned 0. SSL_get_error() returned: %d",error);
-	    print_errors();
+	    msg_openssl_errors();
 	}
 	shutdown();
 	return 0;

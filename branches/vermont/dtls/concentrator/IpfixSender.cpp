@@ -47,7 +47,9 @@ using namespace std;
  * @return handle to use when calling @c destroyIpfixSender()
  */
 IpfixSender::IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, uint32_t sctpDataLifetime, uint32_t sctpReconnectInterval,
-		uint32_t templateRefreshInterval, uint32_t templateRefreshRate)
+		uint32_t templateRefreshInterval, uint32_t templateRefreshRate, const std::string &certificateChainFile,
+		const std::string &privateKeyFile, const std::string &caFile, const std::string &caPath)
+
 	: statSentPackets(0),
 	  noCachedRecords(0),
 	  recordCacheTimeout(IS_DEFAULT_RECORDCACHETIMEOUT),
@@ -55,6 +57,11 @@ IpfixSender::IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, u
 	  recordsAlreadySent(false),
 	  maxRecordRate(maxRecordRate)
 {
+	const char *certificate_chain_file = NULL;
+	const char *private_key_file = NULL;
+	const char *ca_file = NULL;
+	const char *ca_path = NULL;
+
 	ipfix_exporter** exporterP = &this->ipfixExporter;
 	statSentDataRecords = 0;
 	statPacketsInFlows = 0;
@@ -74,6 +81,16 @@ IpfixSender::IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, u
 	ipfix_set_sctp_lifetime(ipfixExporter, sctpDataLifetime);
 	ipfix_set_sctp_reconnect_timer(ipfixExporter, sctpReconnectInterval);
 	ipfix_set_template_transmission_timer(ipfixExporter, templateRefreshInterval);
+
+	if ( ! certificateChainFile.empty()) certificate_chain_file = certificateChainFile.c_str();
+	if ( ! privateKeyFile.empty()) private_key_file = privateKeyFile.c_str();
+	if (certificate_chain_file || private_key_file)
+		ipfix_set_dtls_certificate(ipfixExporter, certificate_chain_file, private_key_file);
+
+	if ( ! caFile.empty() ) ca_file = caFile.c_str();
+	if ( ! caPath.empty() ) ca_path = caPath.c_str();
+	if (ca_file || ca_path)
+		ipfix_set_ca_locations(ipfixExporter, ca_file, ca_path);
 
 
 	msg(MSG_DEBUG, "IpfixSender: running");
@@ -131,7 +148,7 @@ void IpfixSender::addCollector(const char *ip, uint16_t port, ipfix_transport_pr
 	    	break;
 	}
 
-	if(ipfix_add_collector(ex, ip, port, proto) != 0) {
+	if(ipfix_add_collector(ex, ip, port, proto, NULL) != 0) {
 		msg(MSG_FATAL, "IpfixSender: ipfix_add_collector of %s:%d failed", ip, port);
 		return;
 	}

@@ -180,7 +180,7 @@ void PSAMPExporterModule::flushPacketStream() {
 bool PSAMPExporterModule::addCollector(const char *address, unsigned short port, ipfix_transport_protocol protocol)
 {
 	DPRINTF("Adding %i://%s:%d", protocol, address, port);
-	return(ipfix_add_collector(exporter, address, port, protocol) == 0);
+	return(ipfix_add_collector(exporter, address, port, protocol, NULL) == 0);
 }
 
 void PSAMPExporterModule::receive(Packet* p)

@@ -2,11 +2,11 @@
 <html xmlns="http://www.w3.org/1999/xhtml"><head>
 
 
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"><title>VERMONT configuration</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>VERMONT configuration</title>
 
-<link rel="stylesheet" type="text/css" href="stylish.css">
-<link rel="stylesheet" type="text/css" href="highlight.css">
-<head><title>Vermont configuration</title></head>
+<link rel="stylesheet" type="text/css" href="stylish.css" />
+<link rel="stylesheet" type="text/css" href="highlight.css" />
+</head>
 	<body>
 		
 		<h1>VERMONT configuration</h1>
@@ -445,7 +445,7 @@
 				<tr>
 					<td>hashtableBits</td>
 					<td>17</td>
-					<td>Length of hashtable used for aggregation in bits. The resulting hashtable will have a size of 2^hashtableBits.<td>
+					<td>Length of hashtable used for aggregation in bits. The resulting hashtable will have a size of 2^hashtableBits.</td>
 				</tr>
 			</tbody>
 		</table>
@@ -641,7 +641,7 @@
 		<p>Example:</p>
 		<pre class="hl">	
 <span class="kwa">&lt;pcapExporter&gt;</span>
-	<span class="kwa">&lt;filename&gt;</span>output.pcap</span><span class="kwa">&lt;/filename&gt;</span>
+	<span class="kwa">&lt;filename&gt;</span>output.pcap<span class="kwa">&lt;/filename&gt;</span>
 <span class="kwa">&lt;/psampExporter&gt;</span>			
 		</pre>
 		<p>Parameters:</p>
@@ -685,12 +685,18 @@
 		<p>Example:</p>
 		<pre class="hl">
 <span class="kwa">&lt;ipfixCollector&gt;</span>
+	<span class="kwa">&lt;cert&gt;</span>exporter_cert.pem<span class="kwa">&lt;/cert&gt;</span>
+	<span class="kwa">&lt;key&gt;</span>exporter_key.pem<span class="kwa">&lt;/key&gt;</span>
+	<span class="kwa">&lt;CAfile&gt;</span>vermontCA.pem<span class="kwa">&lt;/CAfile&gt;</span>
+	<span class="kwa">&lt;CApath&gt;</span>/etc/ssl/certs<span class="kwa">&lt;/CApath&gt;</span>
 	<span class="kwa">&lt;listener&gt;</span>
 		<span class="kwa">&lt;ipAddress&gt;</span><span class="num">0.0.0.0</span><span class="kwa">&lt;/ipAddress&gt;</span>
 		<span class="kwa">&lt;transportProtocol&gt;</span>UDP<span class="kwa">&lt;/transportProtocol&gt;</span>
 		<span class="kwa">&lt;port&gt;</span><span class="num">4739</span><span class="kwa">&lt;/port&gt;</span>
+		<span class="kwa">&lt;peerFqdn&gt;</span>exporter44.example.com<span class="kwa">&lt;/peerFqdn&gt;</span>
+		<span class="kwa">&lt;peerFqdn&gt;</span>ex352.example.com<span class="kwa">&lt;/peerFqdn&gt;</span>
 	<span class="kwa">&lt;/listener&gt;</span>
-<span class="kwa">&lt;/ipfixCollector&gt;</span>				
+<span class="kwa">&lt;/ipfixCollector&gt;</span>
 		</pre>
 		<p>Parameters:</p>
 		<table>
@@ -699,6 +705,38 @@
 					<th>Parameter</th>
 					<th>Default value</th>
 					<th>Description</th>
+				</tr>
+				<tr>
+					<td>cert</td>
+					<td>none</td>
+					<td><em>(Applies to DTLS only)</em> The certificate chain file. This file has to be in PEM format. DER format is not supported.
+					A certificate is required if the remote exporter should be able to authenticate the collector. A certificate
+					is also required if the collector wants to authenticate its peers (exporters). This is due to an
+					asymmetry of the TLS/DTLS protocol. This file must contain the certificate for the collector. It can also
+					contain the certificates of intermediate CAs. All those certificates together form the so called certificate chain.
+					CAfile and CAdir will be searched for any missing certificates.</td>
+				</tr>
+				<tr>
+					<td>key</td>
+					<td>none</td>
+					<td><em>(Applies to DTLS only)</em> The private key to use which has to match the certificate.
+					The certificate file will be searched for a private key if this parameter is missing. Again only PEM format is supported.</td>
+				</tr>
+				<tr>
+					<td>CAfile</td>
+					<td>none</td>
+					<td><em>(Applies to DTLS only)</em> All certificates in the given file will be considered trusted when verifying the certificate of the exporter. The
+					certificates will also be used when trying to build the server certificate chain. Please note that those
+					certificates will <em>not</em> be used when creating a list of acceptable CAs for the Certificate Request which is sent to
+					the exporter. Instead an empty list of Certificate Authorities will be sent.</td>
+				</tr>
+				<tr>
+					<td>CApath</td>
+					<td>none</td>
+					<td><em>(Applies to DTLS only)</em> The directory in which certificates will be searched for. This is an alternative way to specify the location
+					of trusted certificates. This directory has to be in "hash" format. See the manpage of OpenSSL's verify command to
+					find out how to create such a directory. Certificates in this directory will also be used to build the server
+					certificate chain.</td>
 				</tr>
 				<tr>
 					<td>listener</td>
@@ -713,12 +751,22 @@
 				<tr>
 					<td>transportProtocol</td>
 					<td>none</td>
-					<td>Must be set to "UDP", as only UDP is supported at the moment.</td>
+					<td>Must be set to "UDP" or "DTLS_OVER_UDP", as only UDP and DTLS on top of UDP are supported at the moment.</td>
 				</tr>
 				<tr>
 					<td>port</td>
 					<td>4739</td>
 					<td>Port where Vermont listenes for incoming IPFIX flows.</td>
+				</tr>
+				<tr>
+					<td>peerFqdn</td>
+					<td>none</td>
+					<td><em>(Applies to DTLS only)</em> Acceptable Full Qualified Domain Name of the exporter. If at least one FQDN is
+					specified the exporter will be required to present a valid certificate for authentication. A FQDN will be extracted
+					from that certificate's Subject Alternative Name or the most specific common name (CN) if the former is not part of
+					the certificate. The FQDN has to match at least one of the configured FQDNs. Please not that more than one FQDN can
+					be set. Peer authentication does only work if the collector has a valid certificate as well (see cert option) and
+					at least one of CAfile and CAdir is set.</td>
 				</tr>
 			</tbody>
 		</table>
@@ -909,7 +957,7 @@
 				<tr>
 					<td>hashtableBits</td>
 					<td>17</td>
-					<td>Length of hashtable used for aggregation in bits. The resulting hashtable will have a size of 2^hashtableBits.<td>
+					<td>Length of hashtable used for aggregation in bits. The resulting hashtable will have a size of 2^hashtableBits.</td>
 				</tr>
 			</tbody>
 		</table>
@@ -1525,7 +1573,6 @@
 	<span class="kwa">&lt;/anonRecord&gt;</span>
 
 </pre>
-		</pre>
 		<p>Parameters:</p>
 		<table>
 			<tbody>
