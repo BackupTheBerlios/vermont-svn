@@ -129,8 +129,7 @@
 			<ipAddress>127.0.0.1</ipAddress>
 			<transportProtocol>DTLS_OVER_UDP</transportProtocol>
 			<port>4433</port>
-			<!-- transportProtocol>UDP</transportProtocol -->
-			<!-- port>1500</port -->
+			<peerFqdn>collector.example.com</peerFqdn>
 		</collector>
 	</ipfixExporter>
 </ipfixConfig>

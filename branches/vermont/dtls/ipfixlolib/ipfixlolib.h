@@ -378,9 +378,8 @@ typedef struct {
 	ipfix_sendbuffer *template_sendbuffer;
 	ipfix_sendbuffer *sctp_template_sendbuffer;
 	ipfix_sendbuffer *data_sendbuffer;
-	int collector_num; // number of currently listening collectors
 	int collector_max_num; // maximum available collector
-	ipfix_receiving_collector *collector_arr; // array of collectors
+	ipfix_receiving_collector *collector_arr; // array of (collector_max_num) collectors
 
 	// we also need some timer / counter to indicate,
 	// if we should send the templates too.

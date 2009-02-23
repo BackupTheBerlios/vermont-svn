@@ -33,7 +33,12 @@ IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 		XMLElement* e = *it;
 
 		if (e->matches("collector")) {
-			collectors.push_back(new CollectorCfg(e));
+			CollectorCfg *c = new CollectorCfg(e);
+			if (c->getPeerFqdns().size() > 1) {
+				delete c;
+				THROWEXCEPTION("You specified more than one peerFqdn for an exporter.");
+			}
+			collectors.push_back(c);
 		} else if (	e->matches("maxRecordRate") ||
 				e->matches("sctpDataLifetime") ||
 				e->matches("sctpReconnectInterval") ||

@@ -55,18 +55,19 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 static int dtls_send(ipfix_exporter *exporter, ipfix_receiving_collector *col, const struct iovec *iov, int iovcnt);
 static int dtls_receive_if_necessary(ipfix_receiving_collector *col);
 static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col);
+static void dtls_fail_connection(ipfix_receiving_collector *collector);
 #endif
 #ifdef SUPPORT_SCTP
 static int init_send_sctp_socket(struct sockaddr_in serv_addr);
 #endif
 static int init_send_udp_socket(struct sockaddr_in serv_addr);
 static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum template_state cleanness);
-static int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf);
+static void ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf);
 static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbufn);
 static int ipfix_reset_sendbuffer(ipfix_sendbuffer *sendbuf);
 static int ipfix_deinit_sendbuffer(ipfix_sendbuffer **sendbuf);
 static int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_capacity);
-static void remove_collector(ipfix_exporter *exporter, ipfix_receiving_collector *collector);
+static void remove_collector(ipfix_receiving_collector *collector);
 static int ipfix_deinit_collector_array(ipfix_receiving_collector **col);
 static int ipfix_init_send_socket(struct sockaddr_in serv_addr , enum ipfix_transport_protocol protocol);
 static int ipfix_init_template_array(ipfix_exporter *exporter, int template_capacity);
@@ -153,6 +154,7 @@ static int ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
     /* This SSL_CTX object will be freed in deinit_openssl_ctx() */
     if ( ! (e->ssl_ctx=SSL_CTX_new(DTLSv1_client_method())) ) {
 	msg(MSG_FATAL, "Failed to create SSL context");
+	msg_openssl_errors();
 	return -1;
     }
     SSL_CTX_set_read_ahead(e->ssl_ctx,1);
@@ -167,14 +169,17 @@ static int ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
     if (e->certificate_chain_file) {
 	if (!SSL_CTX_use_certificate_chain_file(e->ssl_ctx, e->certificate_chain_file)) {
 	    msg(MSG_FATAL,"Unable to load certificate chain file %s",e->certificate_chain_file);
+	    msg_openssl_errors();
 	    return -1;
 	}
 	if (!SSL_CTX_use_PrivateKey_file(e->ssl_ctx, e->private_key_file, SSL_FILETYPE_PEM)) {
 	    msg(MSG_FATAL,"Unable to load private key file %s",e->private_key_file);
+	    msg_openssl_errors();
 	    return -1;
 	}
 	if (!SSL_CTX_check_private_key(e->ssl_ctx)) {
 	    msg(MSG_FATAL,"Private key and certificate do not match");
+	    msg_openssl_errors();
 	    return -1;
 	}
 	DPRINTF("We successfully loaded our certificate.");
@@ -242,9 +247,26 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
 
     switch (col->state) {
 	case C_CONNECTED:
-	    /* There's no work to be done if we're already connected. */
+	    /* There's no work to do if we're already connected. */
 	    return 0;
 	case C_NEW:
+	    /* OK. We've got work to do */
+	    break;
+	case C_DISCONNECTED:
+	    DPRINTF("Creating new socket.");
+	    col->data_socket = ipfix_init_send_socket( col->addr, col->protocol);
+	    // error handling, in case we were unable to open the port:
+	    if(col->data_socket < 0 ) {
+		msg(MSG_ERROR, "IPFIX: add collector %s:%i, initializing socket failed",
+			col->ipv4address, col->port_number);
+		return -1;
+	    }
+	    if (setup_dtls_connection(exporter,col)) {
+		close(col->data_socket);
+		return -1;
+	    }
+	    col->state = C_NEW;
+	    /* TODO: Continue here */
 	    break;
 	default:
 	    return -1;
@@ -252,7 +274,9 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
     for (;;) {
 	ret = dtls_receive_if_necessary(col);
 	switch (ret) {
-	    case -1: return -1; /* failure */
+	    case -1: /* failure */
+		dtls_fail_connection(col);
+		return -1;
 	    case 0: return 0; /* A packet was expected but we did not
 				 receive any packet. Therefore it makes
 				 no sense to call OpenSSL because OpenSSL
@@ -269,12 +293,9 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
 	    DPRINTF("SSL_get_verify_result() returned: %d",SSL_get_verify_result(col->dtls.ssl));
 	    col->state = C_CONNECTED;
 	    /* Send templates */
-	    if(ipfix_prepend_header(exporter,
+	    ipfix_prepend_header(exporter,
 		exporter->template_sendbuffer->committed_data_length,
-		exporter->template_sendbuffer) != 0 ) {
-		msg(MSG_ERROR, "IPFIX: prepending header failed");
-		return -1;
-	    }
+		exporter->template_sendbuffer);
 	    DPRINTF("Sending templates.");
 	    ret = dtls_send(exporter,col,
 		exporter->template_sendbuffer->entries,
@@ -286,9 +307,7 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
 	} else {
 	    msg(MSG_FATAL, "IPFIX: SSL_connect failed. Errors:");
 	    msg_openssl_errors();
-	    /* FIXME: Error handling */
-	    /* Should we set col->state here? */
-	    /* If clean up is needed remember to free SSL object and close socket */
+	    dtls_fail_connection(col);
 	    return -1;
 	}
     }
@@ -313,7 +332,9 @@ static int dtls_send(ipfix_exporter *exporter, ipfix_receiving_collector *col, c
 
     ret = dtls_receive_if_necessary(col);
     switch (ret) {
-	case -1: return -1; /* failure */
+	case -1: /* failure */
+	    dtls_fail_connection(col);
+	    return -1;
 	case 0: return 0; /* A packet was expected but we did not
 			     receive any packet. Therefore it makes
 			     no sense to call OpenSSL because OpenSSL
@@ -346,14 +367,15 @@ static int dtls_send(ipfix_exporter *exporter, ipfix_receiving_collector *col, c
 	    case SSL_ERROR_WANT_READ:
 		col->dtls.want_read = 1;
 	    default:
-		/* FIXME: error handling
-		 * Should we reset the collector at this place? */
 		msg(MSG_FATAL, "IPFIX: SSL_write failed.");
+		dtls_fail_connection(col);
 		return -1;
 	}
 	ret = dtls_receive_if_necessary(col);
 	switch (ret) {
-	    case -1: return -1; /* failure */
+	    case -1: /* failure */
+		dtls_fail_connection(col);
+		return -1;
 	    case 0: return 0; /* A packet was expected but we did not
 				 receive any packet. Therefore it makes
 				 no sense to call OpenSSL because OpenSSL
@@ -378,20 +400,60 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 	return -1;
     }
     /* ensure a SSL_CTX object is set up */
-    ensure_exporter_set_up_for_dtls(exporter);
+    if (ensure_exporter_set_up_for_dtls(exporter)) return -1;
     ipfix_dtls_connection *d = &col->dtls;
-    d->ssl = SSL_new(exporter->ssl_ctx);
+    if ( ! (d->ssl = SSL_new(exporter->ssl_ctx))) {
+	msg(MSG_FATAL, "Failed to create SSL object.");
+	msg_openssl_errors();
+	return -1;
+    }
     /* create output abstraction for SSL object */
-    sbio = BIO_new_dgram(col->data_socket,BIO_NOCLOSE);
+    if ( ! (sbio = BIO_new_dgram(col->data_socket,BIO_NOCLOSE))) {
+	msg(MSG_FATAL,"Failed to create datagram BIO.");
+	msg_openssl_errors();
+	SSL_free(d->ssl);
+	d->ssl = NULL;
+	return -1;
+    }
 
     BIO_ctrl_set_connected(sbio,1,&col->addr); /* TODO: Explain, why are we doing this? */
     /* create a dummy BIO that always returns EOF */
-    rbio = BIO_new(BIO_s_mem());
+    if ( ! (rbio = BIO_new(BIO_s_mem()))) {
+	msg(MSG_FATAL,"Failed to create memory BIO");
+	msg_openssl_errors();
+	SSL_free(d->ssl);d->ssl = NULL;
+	BIO_free(sbio);
+	return -1;
+    }
     /* -1 means EOF */
     BIO_set_mem_eof_return(rbio,-1);
     SSL_set_bio(d->ssl,rbio,sbio);
+    DPRINTF("Set up SSL object.");
 
     return 0;
+}
+
+static void dtls_shutdown_and_cleanup(ipfix_receiving_collector *collector) {
+    int ret,error;
+    DPRINTF("Shutting down SSL connection.");
+    ret = SSL_shutdown(collector->dtls.ssl);
+    error = SSL_get_error(collector->dtls.ssl,ret);
+    DPRINTF("SSL_shutdown returned: ret: %d, SSL_get_error: %s\n",ret,get_ssl_error_string(error));
+    /* Note: SSL_free() also frees associated sending and receiving BIOs */
+    SSL_free(collector->dtls.ssl);
+    collector->dtls.ssl = NULL;
+}
+
+static void dtls_fail_connection(ipfix_receiving_collector *collector) {
+    DPRINTF("Failing DTLS connection.");
+    dtls_shutdown_and_cleanup(collector);
+    collector->state = C_DISCONNECTED;
+    /* Close socket */
+    if ( collector->data_socket != -1) {
+	DPRINTF("Closing socket");
+	close ( collector->data_socket );
+	collector->data_socket = -1;
+    }
 }
 
 #endif /* SUPPORT_OPENSSL */
@@ -534,7 +596,6 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
         tmp->source_id=source_id;
         tmp->sequence_number = 0;
         tmp->sn_increment = 0;
-        tmp->collector_num = 0; // valgrind kindly asked me to inititalize this value JanP
         tmp->collector_max_num = 0;
 #ifdef SUPPORT_OPENSSL
 	tmp->ssl_ctx = NULL;
@@ -607,8 +668,7 @@ out:
 /*
  * cleanup an exporter process
  */
-int ipfix_deinit_exporter(ipfix_exporter *exporter)
-{
+int ipfix_deinit_exporter(ipfix_exporter *exporter) {
         // cleanup processes
         int ret;
         // close sockets etc.
@@ -631,7 +691,7 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter)
         int i=0;
 	for(i=0;i<exporter->collector_max_num;i++) {
 	    if (exporter->collector_arr[i].state != C_UNUSED)
-		remove_collector(exporter,&exporter->collector_arr[i]);
+		remove_collector(&exporter->collector_arr[i]);
         }
         // deinitialize the collectors
         ret=ipfix_deinit_collector_array(&(exporter->collector_arr));
@@ -651,6 +711,17 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter)
         return 0;
 }
 
+static ipfix_receiving_collector *get_free_collector_slot(ipfix_exporter *exporter) {
+    ipfix_receiving_collector *collector;
+    int i;
+    for(i=0;i<exporter->collector_max_num;i++) {
+	collector = &exporter->collector_arr[i];
+	if(collector->state == C_UNUSED)
+	    return collector;
+    }
+    return NULL;
+}
+
 
 /*
  * Add a collector to the exporting process
@@ -664,112 +735,88 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter)
 int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
 	int coll_port, enum ipfix_transport_protocol proto, void *aux_config)
 {
-        int i=0;
-        int searching = TRUE;
+    // check, if exporter is valid
+    if(exporter == NULL) {
+	msg(MSG_FATAL, "IPFIX: add_collector, exporter is NULL");
+	return -1;
+    }
 
-        DPRINTFL(MSG_VDEBUG, "ipfix_add_collector start");
-
-        // check, if exporter is valid
-        if(exporter == NULL) {
-                msg(MSG_FATAL, "IPFIX: add_collector, exporter is NULL");
-                return -1;
-        }
-
-        // check if there is a free slot at all:
-        if(exporter->collector_num >= exporter->collector_max_num ) {
-                msg(MSG_FATAL, "IPFIX: no more free slots for new collectors available, limit %d reached",
-                    exporter->collector_max_num
-                   );
-                return -1;
-        }
-        DPRINTFL(MSG_VDEBUG, "ipfix_add_collector searching");
-        while (searching && ( i< exporter->collector_max_num) ) {
-
-                DPRINTFL(MSG_VDEBUG, "ipfix_add_collector searching %i, i %i ", searching, i);
-                if(exporter->collector_arr[i].state == C_UNUSED) {
-                        // we have found a free slot:
-                        /*
-                         FIXME: only a quick fix to make that work
-                         Must be copied, else pointered data must be around forever
-                         Better use binary/u_int32_t representation
-                         */
-                        strncpy(exporter->collector_arr[i].ipv4address, coll_ip4_addr, 16);
-                        exporter->collector_arr[i].port_number = coll_port;
-                        exporter->collector_arr[i].protocol = proto;
+    // get free slot
+    ipfix_receiving_collector *collector = get_free_collector_slot(exporter);
+    if( ! collector) {
+	msg(MSG_FATAL, "IPFIX: no more free slots for new collectors available, limit %d reached",
+		exporter->collector_max_num
+	   );
+	return -1;
+    }
+    /*
+    FIXME: only a quick fix to make that work
+    Must be copied, else pointered data must be around forever
+    Better use binary/u_int32_t representation
+    */
+    strncpy(collector->ipv4address, coll_ip4_addr, 16);
+    collector->port_number = coll_port;
+    collector->protocol = proto;
 
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
-			if (proto != RAWDIR) {
+    if (proto != RAWDIR) {
 #endif
-				
-				memset(&(exporter->collector_arr[i].addr), 0, sizeof(exporter->collector_arr[i].addr));
-				exporter->collector_arr[i].addr.sin_family = AF_INET;
-				exporter->collector_arr[i].addr.sin_port = htons (coll_port);
-				exporter->collector_arr[i].addr.sin_addr.s_addr = inet_addr(coll_ip4_addr);
 
-	                        // open the socket: call an own function.
-        	                exporter->collector_arr[i].data_socket = ipfix_init_send_socket( exporter->collector_arr[i].addr, proto);
-	                        // error handling, in case we were unable to open the port:
-	                        if(exporter->collector_arr[i].data_socket < 0 ) {
-	                                msg(MSG_ERROR, "IPFIX: add collector %s:%i, initializing socket failed",
-	                                    coll_ip4_addr, coll_port
-	                                   );
-	                                return -1;
-	                        }
+	memset(&(collector->addr), 0, sizeof(collector->addr));
+	collector->addr.sin_family = AF_INET;
+	collector->addr.sin_port = htons (coll_port);
+	collector->addr.sin_addr.s_addr = inet_addr(coll_ip4_addr);
+
+	// open the socket: call an own function.
+	collector->data_socket = ipfix_init_send_socket( collector->addr, collector->protocol);
+	// error handling, in case we were unable to open the port:
+	if(collector->data_socket < 0 ) {
+	    msg(MSG_ERROR, "IPFIX: add collector %s:%i, initializing socket failed",
+		    coll_ip4_addr, coll_port
+	       );
+	    return -1;
+	}
 #ifdef SUPPORT_OPENSSL
-				exporter->collector_arr[i].peer_fqdn = NULL;
-				if (proto ==  DTLS_OVER_UDP) {
-				    ipfix_aux_config_dtls *aux_config_dtls = (ipfix_aux_config_dtls *) aux_config;
-				    if (aux_config && aux_config_dtls->peer_fqdn)
-					exporter->collector_arr[i].peer_fqdn = strdup(aux_config_dtls->peer_fqdn);
+	collector->peer_fqdn = NULL;
+	if (proto ==  DTLS_OVER_UDP) {
+	    ipfix_aux_config_dtls *aux_config_dtls = (ipfix_aux_config_dtls *) aux_config;
+	    if (aux_config && aux_config_dtls->peer_fqdn)
+		collector->peer_fqdn = strdup(aux_config_dtls->peer_fqdn);
 
-				    if (setup_dtls_connection(exporter,&exporter->collector_arr[i])) {
-					close(exporter->collector_arr[i].data_socket);
-					return -1;
-				    }
-				}
+	    if (setup_dtls_connection(exporter,collector)) {
+		close(collector->data_socket);
+		return -1;
+	    }
+	}
 #endif
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
-			}
-			if (proto == RAWDIR) {
-				exporter->collector_arr[i].packet_directory_path = strdup(coll_ip4_addr);
-				exporter->collector_arr[i].packets_written = 0;
-			}
+    }
+    if (proto == RAWDIR) {
+	collector->packet_directory_path = strdup(coll_ip4_addr);
+	collector->packets_written = 0;
+    }
 #endif
 
-                        // now, we may set the collector to valid;
-                        exporter->collector_arr[i].state = C_NEW;
-			exporter->collector_arr[i].last_reconnect_attempt_time = time(NULL);
-			
-                        // increase total number of collectors.
-                        exporter->collector_num++;
-                        searching = FALSE;
+    // now, we may set the collector to valid;
+    collector->state = C_NEW;
+    collector->last_reconnect_attempt_time = time(NULL);
+
 #ifdef SUPPORT_OPENSSL
-			/* Initiate connection setup */
-			dtls_connect(exporter, &exporter->collector_arr[i]);
+    if (proto ==  DTLS_OVER_UDP) {
+	/* Initiate connection setup */
+	dtls_connect(exporter, collector);
+    }
 #endif
-                }
-                i++;
-        }
-
-        return 0;
+    return 0;
 }
 
-static void remove_collector(ipfix_exporter *exporter, ipfix_receiving_collector *collector) {
+static void remove_collector(ipfix_receiving_collector *collector) {
 #ifdef SUPPORT_OPENSSL
     /* Shutdown DTLS connection */
     if (collector->protocol == DTLS_OVER_UDP) {
-	int ret,error;
-	ret = SSL_shutdown(collector->dtls.ssl);
-	error = SSL_get_error(collector->dtls.ssl,ret);
-	DPRINTF("SSL_shutdown returned on 1st call: ret: %d, SSL_get_error: %s\n",ret,get_ssl_error_string(error));
-	if ( ret == 0 ) {
-	    ret = SSL_shutdown(collector->dtls.ssl);
-	    error = SSL_get_error(collector->dtls.ssl,ret);
-	    DPRINTF("SSL_shutdown returned on 2nd call: ret: %d, SSL_get_error: %s\n",ret,get_ssl_error_string(error));
-	}
-	/* Note: SSL_free() also frees associated sending and receiving BIOs */
-	SSL_free(collector->dtls.ssl);
+	dtls_shutdown_and_cleanup(collector);
 	free( (void *) collector->peer_fqdn);
+	collector->peer_fqdn = NULL;
     }
 #endif
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
@@ -786,7 +833,6 @@ static void remove_collector(ipfix_exporter *exporter, ipfix_receiving_collector
     }
 #endif
     collector->state = C_UNUSED;
-    exporter->collector_num--;
 }
 
 /*
@@ -794,26 +840,18 @@ static void remove_collector(ipfix_exporter *exporter, ipfix_receiving_collector
  * Parameters:
  * Returns: 0 on success, -1 on failure
  */
-int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_port)
-{
-        // find the collector in the exporter
-        int i=0;
-        int searching = TRUE;
-
-        while(searching && ( i < exporter->collector_max_num) ) {
-                if( ( strcmp( exporter->collector_arr[i].ipv4address, coll_ip4_addr) == 0 )
-                   && exporter->collector_arr[i].port_number == coll_port
-                  )  {
-		    remove_collector(exporter,&exporter->collector_arr[i]);
-		    searching = FALSE;
-                }
-                i++;
-        }
-        if (searching) {
-                msg(MSG_ERROR, "IPFIX: remove_collector, exporter %s not found", coll_ip4_addr);
-                return -1;
-        }
-        return 0;
+int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_port) {
+    int i;
+    for(i=0;i<exporter->collector_max_num;i++) {
+	ipfix_receiving_collector *collector = &exporter->collector_arr[i];
+	if( ( strcmp( collector->ipv4address, coll_ip4_addr) == 0 )
+		&& collector->port_number == coll_port) {
+	    remove_collector(collector);
+	    return 0;
+	}
+    }
+    msg(MSG_ERROR, "IPFIX: remove_collector, exporter %s not found", coll_ip4_addr);
+    return -1;
 }
 
 /************************************************************************************/
@@ -940,11 +978,10 @@ int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
  *
  * Note: the first HEADER_USED_IOVEC_COUNT  iovec struct are reserved for the header! These will be overwritten!
  */
-static int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf)
+static void ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf)
 {
 
         time_t export_time;
-        int ret = 0;
         uint16_t total_length = 0;
 
         // did the user set the data_length field?
@@ -981,8 +1018,6 @@ static int ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipf
         }
         //  global_last_export_time = (uint32_t) export_time;
         (sendbuf->packet_header).export_time = htonl((uint32_t)export_time);
-
-        return ret;
 }
 
 
@@ -1289,8 +1324,8 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 				break;
                 	case (T_WITHDRAWN): // put the SCTP withdrawal message and mark T_TOBEDELETED
                 		if (sctp_sendbuf->current >= IPFIX_MAX_SENDBUFSIZE-2 ) {
-                                msg(MSG_ERROR, "IPFIX: SCTP template sendbuffer too small to handle more than %i entries", sctp_sendbuf->current);
-                                return -1;
+					msg(MSG_ERROR, "IPFIX: SCTP template sendbuffer too small to handle more than %i entries", sctp_sendbuf->current);
+					return -1;
 				}
 				sctp_sendbuf->entries[ sctp_sendbuf->current ].iov_base = exporter->template_arr[i].template_fields;
 				sctp_sendbuf->entries[ sctp_sendbuf->current ].iov_len =  exporter->template_arr[i].fields_length;
@@ -1368,14 +1403,9 @@ int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 	msg(MSG_INFO, "ipfix_sctp_reconnect(): successfully (re)connected.");
 
 	//reconnected -> resend all active templates
-	if(ipfix_prepend_header(exporter,
+	ipfix_prepend_header(exporter,
 		exporter->template_sendbuffer->committed_data_length,
-		exporter->template_sendbuffer
-			) != 0) {
-		msg(MSG_ERROR, "IPFIX: prepending header failed");
-		exporter->collector_arr[i].state = C_NEW;
-		return -1;
-	}
+		exporter->template_sendbuffer);
 
 	if((bytes_sent = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
 		exporter->template_sendbuffer->entries,
@@ -1463,12 +1493,9 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 					//Timer only used for UDP and DTLS over UDP
 					exporter->last_template_transmission_time = time_now;
 					// update the sendbuffer header, as we must set the export time & sequence number!
-					if(ipfix_prepend_header(exporter,
+					ipfix_prepend_header(exporter,
 						exporter->template_sendbuffer->committed_data_length,
-						exporter->template_sendbuffer) != 0 ) {
-						msg(MSG_ERROR, "IPFIX: prepending header failed");
-						return -1;
-					}
+						exporter->template_sendbuffer);
 #ifdef SUPPORT_OPENSSL
 					if (exporter->collector_arr[i].protocol == DTLS_OVER_UDP) {
 						dtls_send(exporter,&exporter->collector_arr[i],
@@ -1506,7 +1533,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				case C_DISCONNECTED: //reconnect attempt if reconnection time reached
 					if(exporter->sctp_reconnect_timer == 0) { // 0 = no more reconnection attempts
 						msg(MSG_ERROR, "ipfix_send_templates(): reconnect failed, removing collector %s:%d (SCTP)", exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
-						ipfix_remove_collector(exporter, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
+						remove_collector(&exporter->collector_arr[i]);
 					} else if ((time_now - exporter->collector_arr[i].last_reconnect_attempt_time) >  exporter->sctp_reconnect_timer) {
 						ipfix_sctp_reconnect(exporter, i);
 					}
@@ -1514,12 +1541,9 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				case C_CONNECTED:
 					if (exporter->sctp_template_sendbuffer->committed_data_length > 0) {
 						// update the sendbuffer header, as we must set the export time & sequence number!
-						if(ipfix_prepend_header(exporter,
+						ipfix_prepend_header(exporter,
 							exporter->sctp_template_sendbuffer->committed_data_length,
-							exporter->sctp_template_sendbuffer) != 0) {
-							msg(MSG_ERROR, "IPFIX: prepending header failed");
-							return -1;
-						}
+							exporter->sctp_template_sendbuffer);
 						if((bytes_sent = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
 							exporter->sctp_template_sendbuffer->entries,
 							exporter->sctp_template_sendbuffer->current,
@@ -1554,12 +1578,9 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 			case RAWDIR:
-				if(ipfix_prepend_header(exporter,
+				ipfix_prepend_header(exporter,
 					    exporter->template_sendbuffer->committed_data_length,
-					    exporter->template_sendbuffer) != 0 ) {
-				    msg(MSG_ERROR, "IPFIX: prepending header failed");
-				    return -1;
-				}
+					    exporter->template_sendbuffer);
 				packet_directory_path = exporter->collector_arr[i].packet_directory_path;
 				char fnamebuf[1024];
 				sprintf(fnamebuf, "%s/%08d", packet_directory_path, exporter->collector_arr[i].packets_written++);
@@ -1611,10 +1632,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                 data_length = exporter->data_sendbuffer->committed_data_length;
 
                 // prepend a header to the sendbuffer
-                if(ipfix_prepend_header (exporter, data_length, exporter->data_sendbuffer) != 0) {
-                        msg(MSG_ERROR, "IPFIX: prepending header failed");
-                        return -1;
-                }
+                ipfix_prepend_header(exporter, data_length, exporter->data_sendbuffer);
 
                 // send the sendbuffer to all collectors
                 for (i = 0; i < exporter->collector_max_num; i++) {
@@ -1709,12 +1727,9 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 				case RAWDIR:
-					if(ipfix_prepend_header(exporter,
+					ipfix_prepend_header(exporter,
 						    exporter->template_sendbuffer->committed_data_length,
-						    exporter->template_sendbuffer) != 0 ) {
-					    msg(MSG_ERROR, "IPFIX: prepending header failed");
-					    return -1;
-					}
+						    exporter->template_sendbuffer);
 					packet_directory_path = exporter->collector_arr[i].packet_directory_path;
 					char fnamebuf[1024];
 					sprintf(fnamebuf, "%s/%08d", packet_directory_path, exporter->collector_arr[i].packets_written++);

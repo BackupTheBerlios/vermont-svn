@@ -16,11 +16,12 @@ namespace { /* unnamed namespace */
 
 void ensure_openssl_init(void) {
     m.lock();
-    if (initialized) return; /* skip this if we already initialized OpenSSL */
-    initialized = true;
-    SSL_load_error_strings(); /* readable error messages */
-    SSL_library_init(); /* initialize library */
-    DPRINTF("Initialized OpenSSL");
+    if ( ! initialized) { /* skip this if we already initialized OpenSSL */
+	initialized = true;
+	SSL_load_error_strings(); /* readable error messages */
+	SSL_library_init(); /* initialize library */
+	DPRINTF("Initialized OpenSSL");
+    }
     m.unlock();
 }
 
