@@ -340,7 +340,7 @@ typedef struct {
 	enum ipfix_transport_protocol protocol;
 	int data_socket; // socket data and templates are sent to
 	struct sockaddr_in addr;
-	uint32_t last_reconnect_attempt_time; // applies only to SCTP at the moment
+	uint32_t last_reconnect_attempt_time; // applies only to SCTP and DTLS at the moment
 	enum collector_state state;
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
@@ -407,6 +407,7 @@ typedef struct {
 	const char *private_key_file;
 	const char *ca_file;
 	const char *ca_path;
+	unsigned dtls_connect_timeout;
 	char buf[IPFIX_MAX_PACKETSIZE]; /* general purpose buffer */
 #endif
 } ipfix_exporter;

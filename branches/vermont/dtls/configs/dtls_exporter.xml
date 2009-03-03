@@ -120,9 +120,9 @@
 	</ipfixQueue>
 	
 	<ipfixExporter id="8">
-		<cert>exporter_cert.pem</cert>
-		<key>exporter_key.pem</key>
-		<CAfile>vermontCA.pem</CAfile>
+		<cert>configs/example_certs/exporter_cert.pem</cert>
+		<key>configs/example_certs/exporter_key.pem</key>
+		<CAfile>configs/example_certs/vermontCA.pem</CAfile>
 		<CApath>/etc/ssl/certs</CApath>
 		<collector>
 			<ipAddressType>4</ipAddressType>

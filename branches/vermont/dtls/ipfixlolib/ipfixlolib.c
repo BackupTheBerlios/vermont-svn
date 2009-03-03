@@ -250,9 +250,19 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
 	    /* There's no work to do if we're already connected. */
 	    return 0;
 	case C_NEW:
-	    /* OK. We've got work to do */
-	    break;
+	    if (exporter->dtls_connect_timeout && 
+		    (time(NULL) - col->last_reconnect_attempt_time > exporter->dtls_connect_timeout)) {
+		msg(MSG_ERROR,"DTLS connection setup taking too long.");
+		dtls_fail_connection(col);
+		/* Fall through */
+	    } else
+		break;
 	case C_DISCONNECTED:
+#ifdef DEBUG
+	    if (col->data_socket != -1) {
+		msg(MSG_FATAL,"data_socket != -1");
+	    }
+#endif
 	    DPRINTF("Creating new socket.");
 	    col->data_socket = ipfix_init_send_socket( col->addr, col->protocol);
 	    // error handling, in case we were unable to open the port:
@@ -261,11 +271,13 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
 			col->ipv4address, col->port_number);
 		return -1;
 	    }
+
 	    if (setup_dtls_connection(exporter,col)) {
 		close(col->data_socket);
 		return -1;
 	    }
 	    col->state = C_NEW;
+	    col->last_reconnect_attempt_time = time(NULL);
 	    /* TODO: Continue here */
 	    break;
 	default:
@@ -442,6 +454,7 @@ static void dtls_shutdown_and_cleanup(ipfix_receiving_collector *collector) {
     /* Note: SSL_free() also frees associated sending and receiving BIOs */
     SSL_free(collector->dtls.ssl);
     collector->dtls.ssl = NULL;
+    collector->dtls.want_read = 0;
 }
 
 static void dtls_fail_connection(ipfix_receiving_collector *collector) {
@@ -603,6 +616,7 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
 	tmp->private_key_file = NULL;
 	tmp->ca_file = NULL;
 	tmp->ca_path = NULL;
+	tmp->dtls_connect_timeout = 10;
 #endif
 
         // initialize the sendbuffers
