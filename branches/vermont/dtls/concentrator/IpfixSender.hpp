@@ -45,7 +45,7 @@ public:
 			uint32_t templateRefreshInterval, uint32_t templateRefreshRate);
 	virtual ~IpfixSender();
 
-	void addCollector(const char *ip, uint16_t port, ipfix_transport_protocol proto);
+	void addCollector(const char *ip, uint16_t port, ipfix_transport_protocol proto, void *aux_config);
 	void flushPacket();
 
 	// inherited from IpfixRecordDestination

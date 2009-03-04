@@ -120,7 +120,7 @@ IpfixSender::~IpfixSender()
  * @param port port number
  * FIXME: support for other than UDP
  */
-void IpfixSender::addCollector(const char *ip, uint16_t port, ipfix_transport_protocol proto)
+void IpfixSender::addCollector(const char *ip, uint16_t port, ipfix_transport_protocol proto, void *aux_config)
 {
 	ipfix_exporter *ex = (ipfix_exporter *)ipfixExporter;
 
@@ -148,7 +148,7 @@ void IpfixSender::addCollector(const char *ip, uint16_t port, ipfix_transport_pr
 	    	break;
 	}
 
-	if(ipfix_add_collector(ex, ip, port, proto, NULL) != 0) {
+	if(ipfix_add_collector(ex, ip, port, proto, aux_config) != 0) {
 		msg(MSG_FATAL, "IpfixSender: ipfix_add_collector of %s:%d failed", ip, port);
 		return;
 	}

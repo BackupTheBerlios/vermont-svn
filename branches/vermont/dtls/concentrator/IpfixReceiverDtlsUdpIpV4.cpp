@@ -282,91 +282,21 @@ const char *IpfixReceiverDtlsUdpIpV4::DtlsConnection::states[] = {
     "ACCEPTING","CONNECTED","SHUTDOWN"
 };
 
+int verify_peer_cb(void *context, const char *dnsname) {
+    IpfixReceiverDtlsUdpIpV4 *receiver =
+	static_cast<IpfixReceiverDtlsUdpIpV4 *>(context);
+    string strdnsname(dnsname);
+    transform(strdnsname.begin(),strdnsname.end(),strdnsname.begin(),
+	    ::tolower);
+    if (receiver->peerFqdns.find(strdnsname)!=receiver->peerFqdns.end())
+	return 1;
+    else
+	return 0;
+}
+
 int IpfixReceiverDtlsUdpIpV4::DtlsConnection::verify_peer() {
-    long verify_result;
-
-    verify_result = SSL_get_verify_result(ssl);
-    DPRINTF("SSL_get_verify_result() returned: %s",X509_verify_cert_error_string(verify_result));
-    if(verify_result!=X509_V_OK) {
-	msg(MSG_ERROR,"Certificate doesn't verify: %s", X509_verify_cert_error_string(verify_result));
-	return 0;
-    }
-
-    X509 *peer = SSL_get_peer_certificate(ssl);
-    if (! peer) {
-	msg(MSG_ERROR,"No peer certificate");
-	return 0;
-    }
-    int ret = check_x509_cert(peer);
-    X509_free(peer);
-    return ret;
+    return verify_ssl_peer(ssl,&verify_peer_cb,&parent);
 }
-
-/* returns 1 on success, 0 on error */
-int IpfixReceiverDtlsUdpIpV4::DtlsConnection::check_x509_cert(X509 *peer) {
-    char buf[512];
-#if DEBUG
-    X509_NAME_oneline(X509_get_subject_name(peer),buf,sizeof buf);
-    DPRINTF("peer certificate subject: %s",buf);
-#endif
-    STACK_OF(GENERAL_NAME) * gens;
-    const GENERAL_NAME *gn;
-    int num;
-    size_t len;
-    const char *dnsname;
-
-    gens = (STACK_OF(GENERAL_NAME) *) X509_get_ext_d2i(peer, NID_subject_alt_name, 0, 0);
-    num = sk_GENERAL_NAME_num(gens);
-
-    for (int i = 0; i < num; ++i) {
-	gn = sk_GENERAL_NAME_value(gens, i);
-	if (gn->type != GEN_DNS)
-	    continue;
-	if (ASN1_STRING_type(gn->d.ia5) != V_ASN1_IA5STRING) {
-	    msg(MSG_ERROR, "malformed X509 cert: Type of ASN.1 string not IA5");
-	    return 0;
-	}
-
-	dnsname = (char *) ASN1_STRING_data(gn->d.ia5);
-	len = ASN1_STRING_length(gn->d.ia5);
-
-	while(len>0 && dnsname[len-1] == 0) --len;
-
-	if (len != strlen(dnsname)) {
-	    msg(MSG_ERROR, "malformed X509 cert");
-	    return 0;
-	}
-	DPRINTF("Subject Alternative Name: DNS:%s",dnsname);
-	string strdnsname(dnsname);
-	transform(strdnsname.begin(),strdnsname.end(),strdnsname.begin(),
-		::tolower);
-	if (parent.peerFqdns.find(dnsname)!=parent.peerFqdns.end()) {
-	    DPRINTF("Subject Alternative Name matched one of the "
-		    "permitted FQDNs");
-	    return 1;
-	}
-
-    }
-    if (X509_NAME_get_text_by_NID
-	    (X509_get_subject_name(peer),/* NID_localityName */
-	     NID_commonName, buf, sizeof buf) <=0 ) {
-	DPRINTF("CN not part of certificate");
-    } else {
-	DPRINTF("most specific (1st) Common Name: %s",buf);
-	string strdnsname(dnsname);
-	transform(strdnsname.begin(),strdnsname.end(),strdnsname.begin(),
-		::tolower);
-	if (parent.peerFqdns.find(dnsname)!=parent.peerFqdns.end()) {
-	    DPRINTF("Common Name (CN) matched one of the "
-		    "permitted FQDNs");
-	    return 1;
-	}
-    }
-    msg(MSG_ERROR,"Neither the Subject Alternative Name nor the Common Name "
-	    "matched one of the permitted FQDNs");
-    return 0;
-}
-
 
 /**
  * UDP specific listener function. This function is called by @c listenerThread()

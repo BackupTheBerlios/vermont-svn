@@ -236,11 +236,9 @@ enum ipfix_transport_protocol {
 	SCTP, UDP, TCP, DTLS_OVER_UDP
 	};
 
-#ifdef SUPPORT_OPENSSL
 typedef struct {
     const char *peer_fqdn;
 } ipfix_aux_config_dtls;
-#endif
 
 /*
  * These indicate, if a field is commited (i.e. can be used)

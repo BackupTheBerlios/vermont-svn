@@ -58,6 +58,7 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
     private:
 	int listen_socket;
 	const std::set<string> peerFqdns;
+	friend int verify_peer_cb(void *context, const char *dnsname);
 	uint32_t statReceivedPackets;  /**< number of received packets */ 
 	SSL_CTX *ssl_ctx;
 	static DH *get_dh2048();
@@ -99,7 +100,6 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 		int accept();
 		void shutdown();
 		int verify_peer();
-		int check_x509_cert(X509 *peer);
 	};
 	typedef boost::shared_ptr<DtlsConnection> DtlsConnectionPtr;
 

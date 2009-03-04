@@ -69,10 +69,12 @@ IpfixSender* IpfixExporterCfg::createInstance()
 			sctpReconnectInterval, templateRefreshTime, templateRefreshRate,
 			certificateChainFile, privateKeyFile, caFile, caPath);
 
-	for (unsigned i = 0; i != collectors.size(); ++i) {
+	std::vector<CollectorCfg*>::const_iterator it;
+	for (it = collectors.begin(); it != collectors.end(); it++) {
+		CollectorCfg *p = *it;
 #ifdef DEBUG
 		const char *protocol;
-		switch (collectors[i]->getProtocolType()) {
+		switch (p->getProtocolType()) {
 			case SCTP:
 				protocol = "SCTP"; break;
 			case DTLS_OVER_UDP:
@@ -84,10 +86,23 @@ IpfixSender* IpfixExporterCfg::createInstance()
 		}
 		msg(MSG_DEBUG, "IpfixExporter: adding collector %s://%s:%d",
 				protocol,
-				collectors[i]->getIpAddress().c_str(),
-				collectors[i]->getPort());
+				p->getIpAddress().c_str(),
+				p->getPort());
 #endif
-		instance->addCollector(collectors[i]->getIpAddress().c_str(), collectors[i]->getPort(), collectors[i]->getProtocolType());
+		void *aux_config = NULL;
+		ipfix_aux_config_dtls aux_config_dtls;
+		if (p->getProtocolType() == DTLS_OVER_UDP) {
+			aux_config_dtls.peer_fqdn = NULL;
+			const std::set<std::string> peerFqdns = p->getPeerFqdns();
+			std::set<std::string>::const_iterator it = peerFqdns.begin();
+			if (it != peerFqdns.end())
+				aux_config_dtls.peer_fqdn = it->c_str();
+			aux_config = &aux_config_dtls;
+		}
+		instance->addCollector(
+			p->getIpAddress().c_str(),
+			p->getPort(), p->getProtocolType(),
+			aux_config);
 	}
 
 	return instance;

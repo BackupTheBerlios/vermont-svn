@@ -106,41 +106,8 @@ static const char *get_ssl_error_string(int ret) {
     snprintf(s, sizeof(s), unknown, ret);
     return s;
 }
-#endif
+#endif /* defined(SUPPORT_OPENSSL) && defined(DEBUG) */
 
-#if 0
-static int init_rcv_udp_socket(int lport);
-/* NOT USED */
-
-/*
- * Initializes a UDP-socket to listen to.
- * Parameters: lport the UDP-portnumber to listen to.
- * Returns: a socket to read from. -1 on failure.
- */
-static int init_rcv_udp_socket(int lport)
-{
-        int s;
-        struct sockaddr_in serv_addr;
-
-        memset(&serv_addr, 0, sizeof(serv_addr));
-        serv_addr.sin_family = AF_INET;
-        serv_addr.sin_port = htons(lport);
-        serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-        // create socket
-        if((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-                fprintf(stderr, "error opening socket\n");
-                return -1;
-        }
-
-        // bind to socket
-        if(bind(s, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-                perror ("bind failed");
-                return -1;
-        }
-        return s;
-}
-#endif
 
 #ifdef SUPPORT_OPENSSL
 /* A separate SSL_CTX object is created for every ipfix_exporter.
@@ -239,6 +206,12 @@ static int dtls_receive_if_necessary(ipfix_receiving_collector *col) {
     return 1;
 }
 
+static int dtls_verify_peer_cb(void *context, const char* dnsname) {
+    const ipfix_receiving_collector *col =
+	(const ipfix_receiving_collector *) context;
+    return strcasecmp(col->peer_fqdn,dnsname) ? 0 : 1;
+}
+
 /* FIXME: come up with a meaningful return value */
 /* returns 0 on success and -1 on error. */
 static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col) {
@@ -302,7 +275,15 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
 	DPRINTF("SSL_connect returned: ret: %d, SSL_get_error: %s\n",ret,get_ssl_error_string(error));
 	if (error == SSL_ERROR_NONE) {
 	    DPRINTF("DTLS handshake succeeded. We are now connected.");
-	    DPRINTF("SSL_get_verify_result() returned: %d",SSL_get_verify_result(col->dtls.ssl));
+	    if (col->peer_fqdn) { /* We need to verify the identity of our peer */
+		if (verify_ssl_peer(col->dtls.ssl,&dtls_verify_peer_cb,col)) {
+		    DPRINTF("Peer authentication successful.");
+		} else {
+		    msg(MSG_ERROR,"Peer authentication failed. Shutting down connection.");
+		    dtls_fail_connection(col);
+		    return -1;
+		}
+	    }
 	    col->state = C_CONNECTED;
 	    /* Send templates */
 	    ipfix_prepend_header(exporter,
@@ -418,6 +399,26 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 	msg(MSG_FATAL, "Failed to create SSL object.");
 	msg_openssl_errors();
 	return -1;
+    }
+    if (!col->peer_fqdn) {
+	SSL_set_cipher_list(d->ssl,"ALL"); // This includes anonymous ciphers
+	DPRINTF("We are NOT going to verify the certificates of the collectors b/c "
+		"the peerFqdn option is NOT set.");
+    } else {
+	if ( ! ((exporter->ca_file || exporter->ca_path) &&
+		    exporter->certificate_chain_file) ) {
+	    msg(MSG_ERROR,"Can not verify certificates of collectors because prerequesites not met. "
+		    "Prerequesites are: 1. CApath or CAfile or both set, "
+		    "2. We have a certificate including the private key");
+	    return -1;
+	} else {
+	    SSL_set_cipher_list(d->ssl,"DEFAULT");
+	    SSL_set_verify(d->ssl,SSL_VERIFY_PEER |
+		    SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
+	    DPRINTF("We are going to request certificates from the collectors "
+		    "and we are going to verify those b/c "
+		    "the peerFqdn option is set");
+	}
     }
     /* create output abstraction for SSL object */
     if ( ! (sbio = BIO_new_dgram(col->data_socket,BIO_NOCLOSE))) {
@@ -1849,9 +1850,6 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
         exporter->data_sendbuffer->entries[exporter->data_sendbuffer->current].iov_len = sizeof(ipfix_set_header);
 
         exporter->data_sendbuffer->current++;
-        DPRINTF("start_data_set: exporter->data_sendbuffer->current %i\n", exporter->data_sendbuffer->current);
-
-	// set marker to current in order to avoid deletion of set header with ipfix_cancel_data_fields_upto_marker()
 	exporter->data_sendbuffer->marker = exporter->data_sendbuffer->current;
 
         // initialize the counting of the record's data:
@@ -2013,7 +2011,6 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
         int found_index = -1;
 	int datatemplate=(fixedfield_count || preceding) ? 1 : 0;
 
-        DPRINTF("ipfix_start_template_set: start");
 	/* Make sure that template_id is > 255 */
 	if ( ! template_id > 255 ) {
 	    msg(MSG_ERROR, "IPFIX: start_datatemplate_set: Template id has to be > 255. Start of template cancelled.");
@@ -2023,7 +2020,6 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
 
         // have we found a template?
         if(found_index >= 0) {
-                DPRINTF("ipfix_start_template_set: template found at index %i , validity %d", found_index, exporter->template_arr[found_index].state);
                 // we must overwrite the old template.
                 // first, clean up the old template:
 		switch (exporter->template_arr[found_index].state){
@@ -2040,12 +2036,11 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
 				ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]));
 				break;
 			default:
-				DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_start_template_set(): template valid flag is T_UNUSED or wrong\n");	
+				DPRINTFL(MSG_VDEBUG, "template valid flag is T_UNUSED or wrong\n");	
 				break;
 		}
         } else {
                 /* allocate a new, free slot */
-                DPRINTF("ipfix_start_template_set(): making new template");
 
                 searching = TRUE;
 
@@ -2058,9 +2053,6 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
                         return -1;
                 }
 
-                DPRINTF("ipfix_start_template_set: found_index: %i,  searching: %i, maxsize: %i",
-                        found_index, searching, exporter->ipfix_lo_template_maxsize
-                       );
                 i = 0;
 
                 // search for a free slot:
@@ -2076,7 +2068,6 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
                                 exporter->template_arr[i].template_fields = NULL;
                                 // TODO: maybe check, if this field is not null. Might only happen, when
                                 // asynchronous threads change the template fields.
-                                DPRINTF("ipfix_start_template_set: free slot found at %i ", found_index);
                         }
                         i++;
                 }
@@ -2091,7 +2082,6 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
                 char *p_pos;
                 char *p_end;
 
-                DPRINTF("ipfix_start_template_set: initializing new slot");
                 // allocate memory for the template's fields:
                 // maximum length of the data: 8 bytes for each field, as one field contains:
                 // field type, field length (2*2bytes)
@@ -2136,8 +2126,6 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id
 
                 // does this work?
                 // (*exporter).template_arr[found_index].fields_length += 8;
-                DPRINTF("ipfix_start_template_set: max_fields_len %u ", exporter->template_arr[found_index].max_fields_length);
-                DPRINTF("ipfix_start_template_set: fieldss_len %u ", exporter->template_arr[found_index].fields_length);
         } else return -1;
 
         return 0;
@@ -2352,7 +2340,6 @@ int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template *templ
         // won't be initialized. So you'll get a lot of warning messages, which are just fine...
 
         if(templ == NULL) {
-                DPRINTF("ipfix_deinit_template_set: Cannot free template. Template is already NULL!");
                 return -1;
         }
 
@@ -2361,7 +2348,6 @@ int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template *templ
 
         // first test, if we can free this template
         if (templ->state == T_UNUSED) {
-		DPRINTF("ipfix_deinit_template_set: Cannot free template. Template is T_UNUSED");
                 return -1;
         } else {
         	DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_deinit_template_set: deleting Template ID: %d validity: %d", templ->template_id, templ->state);

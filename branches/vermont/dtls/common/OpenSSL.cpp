@@ -11,7 +11,7 @@
 namespace { /* unnamed namespace */
     Mutex m;
     bool initialized = false; /* Determines wether OpenSSL is initialized already */
-
+    int check_x509_cert(X509 *peer, int (*cb)(void *context, const char *dnsname), void *context);
 }
 
 void ensure_openssl_init(void) {
@@ -42,34 +42,41 @@ void msg_openssl_errors(void) {
 }
 
 
-#if 0
-int check_x509_cert(SSL *ssl,const char *host) {
+/* returns 1 on success, 0 on error */
+int verify_ssl_peer(SSL *ssl, int (*cb)(void *context, const char *dnsname), void *context) {
     long verify_result;
-    X509 *peer;
-    char peer_CN[512];
-    char buf[512];
 
-    verify_result = SSL_get_verify_result(conn.ssl);
+    verify_result = SSL_get_verify_result(ssl);
     DPRINTF("SSL_get_verify_result() returned: %s",X509_verify_cert_error_string(verify_result));
-    if(SSL_get_verify_result(ssl)!=X509_V_OK) {
+    if(verify_result!=X509_V_OK) {
 	msg(MSG_ERROR,"Certificate doesn't verify: %s", X509_verify_cert_error_string(verify_result));
 	return 0;
     }
 
-    peer = SSL_get_peer_certificate(conn.ssl);
+    X509 *peer = SSL_get_peer_certificate(ssl);
     if (! peer) {
 	msg(MSG_ERROR,"No peer certificate");
 	return 0;
     }
+    int ret = check_x509_cert(peer, cb, context);
+    X509_free(peer);
+    return ret;
+}
+
+namespace {
+
+/* returns 1 on success, 0 on error */
+int check_x509_cert(X509 *peer, int (*cb)(void *context, const char *dnsname), void *context) {
+    char buf[512];
 #if DEBUG
     X509_NAME_oneline(X509_get_subject_name(peer),buf,sizeof buf);
-    DPRINTF("peer certificate subject=%s",buf);
+    DPRINTF("peer certificate subject: %s",buf);
 #endif
     STACK_OF(GENERAL_NAME) * gens;
     const GENERAL_NAME *gn;
     int num;
     size_t len;
-    char *dnsname;
+    const char *dnsname;
 
     gens = (STACK_OF(GENERAL_NAME) *) X509_get_ext_d2i(peer, NID_subject_alt_name, 0, 0);
     num = sk_GENERAL_NAME_num(gens);
@@ -86,38 +93,38 @@ int check_x509_cert(SSL *ssl,const char *host) {
 	dnsname = (char *) ASN1_STRING_data(gn->d.ia5);
 	len = ASN1_STRING_length(gn->d.ia5);
 
-#define TRIM0(s, l) do { while ((l) > 0 && (s)[(l)-1] == 0) --(l); } while (0)
-	TRIM0(dnsname, len);
+	while(len>0 && dnsname[len-1] == 0) --len;
 
-	if (len != strlen(dnsname))
-	    DPRINTF("/* malformed cert */");
-	DPRINTF("dnsname: %s",dnsname);
+	if (len != strlen(dnsname)) {
+	    msg(MSG_ERROR, "malformed X509 cert");
+	    return 0;
+	}
+	DPRINTF("Subject Alternative Name: DNS:%s",dnsname);
+	if ( (*cb)(context, dnsname) ) {
+	    DPRINTF("Subject Alternative Name matched one of the "
+		    "permitted FQDNs");
+	    return 1;
+	}
+
     }
-    char peer_CN[512];
     if (X509_NAME_get_text_by_NID
-	    (X509_get_subject_name(peercert),/* NID_localityName */
-	     NID_commonName, peer_CN, sizeof peer_CN) <=0 ) {
+	    (X509_get_subject_name(peer),
+	     NID_commonName, buf, sizeof buf) <=0 ) {
 	DPRINTF("CN not part of certificate");
     } else {
-	DPRINTF("CN: %s",peer_CN);
+	DPRINTF("most specific (1st) Common Name: %s",buf);
+	if ( (*cb)(context, dnsname) ) {
+	    DPRINTF("Common Name (CN) matched one of the "
+		    "permitted FQDNs");
+	    return 1;
+	}
     }
-    // if(strcasecmp(peer_CN,host))
-    X509_free(peercert);
-    /*Check the cert chain. The chain length
-      is automatically checked by OpenSSL when
-      we set the verify depth in the ctx */
-
-    /*Check the common name*/
-    peer=SSL_get_peer_certificate(ssl);
-    X509_NAME_get_text_by_NID
-	(X509_get_subject_name(peer),
-	 NID_commonName, peer_CN, 256);
-    if(strcasecmp(peer_CN,host))
-	err_exit
-	    ("Common name doesn't match host name");
+    msg(MSG_ERROR,"Neither any of the Subject Alternative Names nor the Common Name "
+	    "matched one of the permitted FQDNs");
+    return 0;
 }
-#endif /* 0 */
 
+} /* unnamed namespace */
 
 #endif /* SUPPORT_OPENSSL */
 

@@ -764,8 +764,10 @@
 					<td><em>(Applies to DTLS only)</em> Acceptable Full Qualified Domain Name of the exporter. If at least one FQDN is
 					specified the exporter will be required to present a valid certificate for authentication. A FQDN will be extracted
 					from that certificate's Subject Alternative Name or the most specific common name (CN) if the former is not part of
-					the certificate. The FQDN has to match at least one of the configured FQDNs. Please not that more than one FQDN can
-					be set. Peer authentication does only work if the collector has a valid certificate as well (see cert option) and
+					the certificate. The FQDN included in the certificate has to match at least one of the configured FQDNs.
+					Please note that more than one FQDN can
+					be set. No DNS lookup will be performed on this FQDN. It is only used for (case insensitive) string comparisons.
+					Peer authentication does only work if the collector has a valid certificate as well (see cert option) and
 					at least one of CAfile and CAdir is set.</td>
 				</tr>
 			</tbody>
