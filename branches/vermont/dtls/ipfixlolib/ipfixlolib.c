@@ -178,7 +178,6 @@ static int dtls_receive_if_necessary(ipfix_receiving_collector *col) {
     len = read(col->data_socket,col->dtls.recvbuf,sizeof(col->dtls.recvbuf));
     if (len == 0) {
 	msg(MSG_FATAL, "IPFIX: EOF detected on UDP socket for DTLS.");
-	/* FIXME: Error handling. We should probably remove the collector in this situation. */
 	return -1;
     } else if (len<0) {
 	if (errno == EAGAIN) {
@@ -188,16 +187,14 @@ static int dtls_receive_if_necessary(ipfix_receiving_collector *col) {
 	}
 	else {
 	    msg(MSG_FATAL, "IPFIX: read failed on UDP socket: %s\n", strerror(errno));
-	    /* FIXME: Error handling. We should probably remove the collector in this situation. */
 	    return -1;
 	}
     }
     DPRINTF("read %d bytes of data which I now pass to OpenSSL.",len);
-    /* Free existing BIO */
-    /* TODO: Check whether EOF reached. */
     if (!BIO_eof(col->dtls.ssl->rbio)) {
 	DPRINTF("BIO did not reach EOF yet!");
     }
+    /* Free existing BIO */
     BIO_free(col->dtls.ssl->rbio);
     /* Create new BIO */
     col->dtls.ssl->rbio = BIO_new_mem_buf(col->dtls.recvbuf,len);
@@ -239,12 +236,7 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
 	    DPRINTF("Creating new socket.");
 	    col->data_socket = ipfix_init_send_socket( col->addr, col->protocol);
 	    // error handling, in case we were unable to open the port:
-	    if(col->data_socket < 0 ) {
-		msg(MSG_ERROR, "IPFIX: add collector %s:%i, initializing socket failed",
-			col->ipv4address, col->port_number);
-		return -1;
-	    }
-
+	    if(col->data_socket < 0 ) return -1;
 	    if (setup_dtls_connection(exporter,col)) {
 		close(col->data_socket);
 		return -1;
@@ -305,16 +297,12 @@ static int dtls_connect(ipfix_exporter *exporter, ipfix_receiving_collector *col
 	}
     }
 }
-
 /* Return values:
  * -1 error
  *  0 could not write because OpenSSL returned SSL_ERROR_WANT_READ
  *  n>0 number of bytes written
  */
 static int dtls_send(ipfix_exporter *exporter, ipfix_receiving_collector *col, const struct iovec *iov, int iovcnt) {
-    char *sendbuf = exporter->buf;
-    char *sendbufcur = sendbuf;
-    int maxsendbuflen = sizeof(exporter->buf);
     int len, error, i, ret;
 
     /* DTLS negotiation has to be finished before we can send data.
@@ -323,19 +311,51 @@ static int dtls_send(ipfix_exporter *exporter, ipfix_receiving_collector *col, c
 	return -1;
     }
 
-    ret = dtls_receive_if_necessary(col);
-    switch (ret) {
-	case -1: /* failure */
+    /* Try to receive a packet on the UDP socket. Receiving a packet in
+     * dtls_send may sound weird but that's the only way we can find out
+     * whether the remote end closed the connection. */
+    if (BIO_eof(col->dtls.ssl->rbio)) {
+	len = read(col->data_socket,col->dtls.recvbuf,sizeof(col->dtls.recvbuf));
+	if (len == 0) {
+	    msg(MSG_FATAL, "IPFIX: EOF detected on UDP socket for DTLS.");
 	    dtls_fail_connection(col);
 	    return -1;
-	case 0: return 0; /* A packet was expected but we did not
-			     receive any packet. Therefore it makes
-			     no sense to call OpenSSL because OpenSSL
-			     needs a packet to proceed with its
-			     handshake. */
-	case 1: break;  /* Alright we received a packet or we did
-			   not need one. Let's proceed. */
+	} else if (len<0 && errno != EAGAIN) {
+	    msg(MSG_FATAL, "IPFIX: read failed on UDP socket: %s\n", strerror(errno));
+	    dtls_fail_connection(col);
+	    return -1;
+	} else if (len>0) {
+	    DPRINTF("read %d bytes of data which I now pass to OpenSSL.",len);
+	    /* Free existing BIO */
+	    BIO_free(col->dtls.ssl->rbio);
+	    /* Create new BIO */
+	    col->dtls.ssl->rbio = BIO_new_mem_buf(col->dtls.recvbuf,len);
+	    BIO_set_mem_eof_return(col->dtls.ssl->rbio,-1);
+	}
     }
+    /* If there's a packet (UDP datagram) waiting in the memory BIO
+     * then read it */
+    if ( ! BIO_eof(col->dtls.ssl->rbio)) {
+	len = SSL_read(col->dtls.ssl, exporter->buf, sizeof(exporter->buf));
+	error = SSL_get_error(col->dtls.ssl,len);
+	if (len >  0) {
+	    msg(MSG_ERROR,"Received unexpected data on DTLS channel.");
+	} else if (len == -1 && error == SSL_ERROR_ZERO_RETURN) {
+	    msg(MSG_ERROR,"Remote end shut down connection.");
+	    dtls_fail_connection(col);
+	    return -1;
+	} else if (error == SSL_ERROR_WANT_READ) {
+	    /* do nothing */
+	} else {
+	    msg(MSG_ERROR,"SSL_read() failed: len: %d, SSL_get_error: %s\n",len,get_ssl_error_string(error));
+	    dtls_fail_connection(col);
+	    return -1;
+	}
+    }
+
+    char *sendbuf = exporter->buf;
+    char *sendbufcur = sendbuf;
+    int maxsendbuflen = sizeof(exporter->buf);
     /* Collect data form iovecs */
     for (i=0;i<iovcnt;i++) {
 	if (sendbufcur + iov[i].iov_len > sendbuf + maxsendbuflen) {
@@ -345,12 +365,12 @@ static int dtls_send(ipfix_exporter *exporter, ipfix_receiving_collector *col, c
 	memcpy(sendbufcur,iov[i].iov_base,iov[i].iov_len);
 	sendbufcur+=iov[i].iov_len;
     }
+
     for(;;) {
 	len = SSL_write(col->dtls.ssl, sendbuf, sendbufcur - sendbuf);
 	error = SSL_get_error(col->dtls.ssl,len);
 	DPRINTF("SSL_write() returned: len: %d, SSL_get_error: %s\n",len,get_ssl_error_string(error));
 	switch (error) {
-	    /* FIXME: error handling */
 	    case SSL_ERROR_NONE:
 		if (len!=sendbufcur - sendbuf) {
 		    msg(MSG_FATAL, "IPFIX: len!=sendbuflen when calling SSL_write()");
@@ -359,6 +379,7 @@ static int dtls_send(ipfix_exporter *exporter, ipfix_receiving_collector *col, c
 		return sendbufcur - sendbuf; /* SUCCESS */
 	    case SSL_ERROR_WANT_READ:
 		col->dtls.want_read = 1;
+		/* Continue in loop */
 	    default:
 		msg(MSG_FATAL, "IPFIX: SSL_write failed.");
 		dtls_fail_connection(col);
@@ -2372,29 +2393,15 @@ int ipfix_set_template_transmission_timer(ipfix_exporter *exporter, uint32_t tim
 }
 
 // Set up SCTP packet lifetime
-int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime){
-	
-	// FIXME: timer is unsigned so it can never be < 0
-	if(lifetime < 0){
-		msg(MSG_ERROR, "IPFIX: invalid SCTP packet lifetime %d ", lifetime);
-                return -1;
-        }else{
-		exporter->sctp_lifetime = lifetime;
-		return 0;
-	}
+int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime) {
+    exporter->sctp_lifetime = lifetime;
+    return 0;
 }
 // Set up SCTP reconnect timer, time after that a reconnection attempt is made, 
 // if connection to the collector was lost.
-int ipfix_set_sctp_reconnect_timer(ipfix_exporter *exporter, uint32_t timer){
-	
-	// FIXME: timer is unsigned so it can never be < 0
-	if(timer < 0){
-		msg(MSG_ERROR, "IPFIX: invalid SCTP reconnect timer %d ", timer);
-                return -1;
-        }else{
-		exporter->sctp_reconnect_timer = timer;
-		return 0;
-	}
+int ipfix_set_sctp_reconnect_timer(ipfix_exporter *exporter, uint32_t timer) {
+    exporter->sctp_reconnect_timer = timer;
+    return 0;
 }
 
 // Set the the names of the files in which the X.509 certificate and the

@@ -325,8 +325,15 @@ typedef struct {
 	/* receive buffer. Size is more or less arbitrary.
 	 * Our peer does not send any payload so we do not expect
 	 * large UDP packets from him. Only DTLS protocol data will be
-	 * received. */
-	char recvbuf[2048];
+	 * received.
+	 * Well, if the peer does send an X.509 certificate then
+	 * we might indeed receive large UDP datagrams.
+	 * Be sure not to mess with this buffer as OpenSSL reads
+	 * directly from this buffer. If there's a datagram in the
+	 * queue then it resides in this buffer.
+	 * BIO_new_mem_buf() does NOT copy this buffer when used as
+	 * the content of the memory BIO. */
+	char recvbuf[10240];
 } ipfix_dtls_connection;
 #endif
 /*
