@@ -49,6 +49,8 @@
 
 using namespace std;
 
+/* Parameters for Diffie-Hellman key agreement */
+
 DH *IpfixReceiverDtlsUdpIpV4::get_dh2048() {
     static unsigned char dh2048_p[]={
 	    0xF6,0x42,0x57,0xB7,0x08,0x7F,0x08,0x17,0x72,0xA2,0xBA,0xD6,
@@ -102,7 +104,7 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
     try {
 	listen_socket = socket(AF_INET, SOCK_DGRAM, 0);
 	if(listen_socket < 0) {
-	    /* ASK: should I use strerror_r? */
+	    /* FIXME: should we use strerror_r? */
 	    msg(MSG_FATAL, "Could not create socket: %s", strerror(errno));
 	    THROWEXCEPTION("Cannot create IpfixReceiverDtlsUdpIpV4, socket creation failed");
 	}
@@ -156,7 +158,7 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
 	    const char *certificate_chain_file = certificateChainFile.c_str();
 	    const char *private_key_file  = certificateChainFile.c_str();
 	    if (!privateKeyFile.empty())    // We expect the private key in the
-					    // certificate file if the no separate
+					    // certificate file if no separate
 					    // file for the key was specified.
 		private_key_file = privateKeyFile.c_str();
 	    if (!SSL_CTX_use_certificate_chain_file(ssl_ctx, certificate_chain_file)) {
@@ -233,7 +235,7 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
 	/* TODO: Find out what this is? */
 	SensorManager::getInstance().addSensor(this, "IpfixReceiverDtlsUdpIpV4", 0);
 
-	msg(MSG_INFO, "DTLS Receiver listening on %s:%d, FD=%d", (ipAddr == "")?std::string("ALL").c_str() : ipAddr.c_str(), 
+	msg(MSG_INFO, "DTLS over UDP Receiver listening on %s:%d, FD=%d", (ipAddr == "")?std::string("ALL").c_str() : ipAddr.c_str(), 
 								port, 
 								listen_socket);
     } catch(...) {
@@ -245,7 +247,7 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
 	    SSL_CTX_free(ssl_ctx);
 	    ssl_ctx = 0;
 	}
-	throw;
+	throw; // rethrow
     }
 }
 
@@ -311,6 +313,7 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 
     int ret;
     struct timespec timeOut;
+    int timeout_count = 0;
 
     FD_ZERO(&fd_array);
     FD_SET(listen_socket, &fd_array);
@@ -324,6 +327,10 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	ret = pselect(listen_socket + 1, &readfds, NULL, NULL, &timeOut, NULL);
 	if (ret == 0) {
 	    /* Timeout */
+	    if (++timeout_count == 10) {
+		idle_processing();
+		timeout_count = 0;
+	    }
 	    continue;
 	}
 	if ((ret == -1) && (errno == EINTR)) {
@@ -400,7 +407,7 @@ std::string IpfixReceiverDtlsUdpIpV4::getStatisticsXML(double interval)
 }
 
 IpfixReceiverDtlsUdpIpV4::DtlsConnection::DtlsConnection(IpfixReceiverDtlsUdpIpV4 &_parent,struct sockaddr_in *pclientAddress) :
-    parent(_parent), state(ACCEPTING) {
+    parent(_parent), state(ACCEPTING), last_used(time(NULL)) {
 
     ssl = SSL_new(parent.ssl_ctx);
     if( ! ssl) {
@@ -505,6 +512,8 @@ int IpfixReceiverDtlsUdpIpV4::DtlsConnection::consumeDatagram(
 
     int ret, error;
 
+    last_used = time(NULL);
+
     if (state == SHUTDOWN) {
 	DPRINTF("state == SHUTDOWN. Ignoring datagram");
 	return 1;
@@ -554,11 +563,58 @@ int IpfixReceiverDtlsUdpIpV4::DtlsConnection::consumeDatagram(
     }
     parent.statReceivedPackets++;
     parent.mutex.lock();
-    for (std::list<IpfixPacketProcessor*>::iterator i = parent.packetProcessors.begin(); i != parent.packetProcessors.end(); ++i) { 
+    for (std::list<IpfixPacketProcessor*>::iterator i = parent.packetProcessors.begin();
+	    i != parent.packetProcessors.end(); ++i) { 
 	(*i)->processPacket(data, ret, sourceID);
     }
     parent.mutex.unlock();
     return 1;
+}
+
+void IpfixReceiverDtlsUdpIpV4::idle_processing() {
+    /* Iterate over all connections and remove those that appear
+     * to be unused. */
+    connections_map::iterator tmp;
+    connections_map::iterator it = connections.begin();
+    bool changed = false;
+    while(it!=connections.end()) {
+	tmp = it++;
+	if (tmp->second->isInactive()) {
+	    DPRINTF("Removing connection %s",tmp->second->inspect().c_str());
+	    connections.erase(tmp);
+	    changed = true;
+	}
+    }
+    if (changed) {
+	dumpConnections();
+    }
+}
+
+bool IpfixReceiverDtlsUdpIpV4::DtlsConnection::isInactive() {
+    time_t diff = time(NULL) - last_used;
+    switch (state) {
+	case ACCEPTING:
+	    if (diff > DTLS_ACCEPT_TIMEOUT) {
+		DPRINTF("accept timed out on %s",inspect().c_str());
+		shutdown();
+		return true;
+	    }
+	    break;
+	case CONNECTED:
+	    if (diff > DTLS_IDLE_TIMEOUT) {
+		DPRINTF("idle timeout on %s",inspect().c_str());
+		shutdown();
+		return true;
+	    }
+	    break;
+	case SHUTDOWN:
+	    if (diff > DTLS_SHUTDOWN_TIMEOUT) {
+		DPRINTF("shutdown timeout on %s",inspect().c_str());
+		return true;
+	    }
+	    break;
+    }
+    return false;
 }
 #endif /*SUPPORT_OPENSSL*/
 

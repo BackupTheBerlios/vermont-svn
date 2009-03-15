@@ -41,6 +41,15 @@
 #include <openssl/dh.h>
 #endif
 
+/* Maximum amount of time in seconds a connection may remain in ACCEPT state. */
+#define DTLS_ACCEPT_TIMEOUT 30
+/* Idle timeout in seconds. If no datagrams have been received on a
+ * connection for that amount of time the connection will be removed. */
+#define DTLS_IDLE_TIMEOUT (12 * 60 * 60)
+/* Time in seconds a connection stays in state SHUTDOWN before it gets
+ * removed. */
+#define DTLS_SHUTDOWN_TIMEOUT 10
+
 #endif /* SUPPORT_OPENSSL */
 
 class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
@@ -72,11 +81,12 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	 *    certificate_authorities empty. See RFC 4346 section 7.4.4
 	 *  - At least one of CAfile and CApath have to be set in order
 	 *    to be able to verify my peer's certificate. This is somehow
-	 *    related to the previous one. (have_CAs)
+	 *    related to the previous one. The member have_CAs determines
+	 *    if this prerequisite is met.
 	 *  - I need to have a valid certificate including the matching
 	 *    private key. According to RFC 4346 section 7.4.4 only a
 	 *    non-anonymous server can request a certificate from the client.
-	 *    (have_cert)
+	 *    The member have_cert determines if this prerequisite is met.
 	 */
 	/* bool have_client_CA_list; */
 	bool have_CAs;
@@ -89,6 +99,7 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 		~DtlsConnection();
 		int consumeDatagram(boost::shared_ptr<IpfixRecord::SourceID> &sourceID, boost::shared_array<uint8_t> secured_data, size_t len);
 		std::string inspect();
+		bool isInactive();
 
 	    private:
 		struct sockaddr_in clientAddress;
@@ -97,6 +108,7 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 		enum state_t { ACCEPTING, CONNECTED, SHUTDOWN };
 		static const char *states[];
 		state_t state;
+		time_t last_used;
 		int accept();
 		void shutdown();
 		int verify_peer();
@@ -118,6 +130,7 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	typedef std::map<IpfixRecord::SourceID,DtlsConnectionPtr,CompareSourceID> connections_map;
 	connections_map connections;
 	static void print_errors(void);
+	void idle_processing();
 
 #ifdef DEBUG
 	void dumpConnections(void);
@@ -126,6 +139,8 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 #endif
 
 #else /* SUPPORT_OPENSSL */
+
+    /* This is the code that gets compiled if SUPPORT_OPENSSL is not set */
 
     public:
 	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",

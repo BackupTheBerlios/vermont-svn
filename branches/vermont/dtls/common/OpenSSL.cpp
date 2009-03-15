@@ -20,6 +20,12 @@ void ensure_openssl_init(void) {
 	initialized = true;
 	SSL_load_error_strings(); /* readable error messages */
 	SSL_library_init(); /* initialize library */
+#if 0
+	if (SSL_COMP_add_compression_method(0, COMP_zlib())) {
+	    msg(MSG_ERROR, "OpenSSL: SSL_COMP_add_compression_method() failed.");
+	    msg_openssl_errors();
+	};
+#endif
 	DPRINTF("Initialized OpenSSL");
     }
     m.unlock();
