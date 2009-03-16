@@ -3,7 +3,7 @@
                 <checkinterval>1</checkinterval>
 		<append>1</append>
         </sensorManager>
-
+ 
 <observer id="1">
 	<interface>eth1</interface>
 	<pcap_filter>ip</pcap_filter>
