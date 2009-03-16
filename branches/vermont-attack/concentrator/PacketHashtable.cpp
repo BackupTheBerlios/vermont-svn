@@ -13,7 +13,7 @@
 
 PacketHashtable::PacketHashtable(Source<IpfixRecord*>* recordsource, Rule* rule,
 		uint16_t minBufferTime, uint16_t maxBufferTime, uint8_t hashbits)
-	: BaseHashtable(recordsource, rule, minBufferTime, maxBufferTime, hashbits),
+: BaseHashtable(recordsource, rule, minBufferTime, maxBufferTime, hashbits),
 	snapshotWritten(false), startTime(time(0))
 {
 	if (rule->biflowAggregation)
@@ -458,6 +458,16 @@ void PacketHashtable::buildExpHelperTable()
 	}
 	expHelperTable.efdLength = efdIdx;
 
+	expHelperTable.varFieldWeights = new uint32_t[expHelperTable.efdLength-expHelperTable.noAggFields];
+
+	srand(time(0)); //initialize seed
+	for (int i =0;i<expHelperTable.efdLength-expHelperTable.noAggFields;i++)
+	{
+		expHelperTable.varFieldWeights[i] = rand();
+		printf("%x\n",expHelperTable.varFieldWeights[i]);
+	}
+
+
 	// fill structure which contains field with variable pointers
 	int noVarFields = 0;
 	for (int i=0; i<expHelperTable.efdLength; i++) {
@@ -472,13 +482,36 @@ void PacketHashtable::buildExpHelperTable()
  */
 uint32_t PacketHashtable::expCalculateHash(const IpfixRecord::Data* data)
 {
-	uint32_t hash = 0xAAAAAAAA;
+
+
+	/*
+	//OLD HASHING
+	uint32_t hash = 0xF381a132;
 	for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
-		ExpFieldData* efd = &expHelperTable.expFieldData[i];
-		hash = crc32(hash, efd->srcLength, reinterpret_cast<const char*>(data)+efd->srcIndex);
+	ExpFieldData* efd = &expHelperTable.expFieldData[i];
+	hash = crc32(hash, efd->srcLength, reinterpret_cast<const char*>(data)+efd->srcIndex);
 	}
 	//return (hash>>(32-HTABLE_BITS)) & (HTABLE_SIZE-1);
+	//
+
+*/
+		uint32_t hash = 0;
+		uint64_t value;
+
+		for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
+
+			ExpFieldData* efd = &expHelperTable.expFieldData[i];
+			value = 0;
+			for (int j = 0;j < efd->srcLength;j++)
+			{
+				value <<= 8;
+				value ^= *(uint8_t*) (data + efd->srcIndex + j);
+			}
+			hash += value * expHelperTable.varFieldWeights[i-expHelperTable.noAggFields];
+		}
 	return hash & (htableSize-1);
+
+
 }
 
 /**
@@ -699,8 +732,8 @@ void PacketHashtable::updatePointers(const Packet* p)
 				efd->srcIndex = reinterpret_cast<uint32_t>(&efd->data[0])-reinterpret_cast<uint32_t>(p->netHeader);
 				break;
 
-			// aggregation and copy functions for frontPayload need to have source pointer
-			// pointing to packet structure
+				// aggregation and copy functions for frontPayload need to have source pointer
+				// pointing to packet structure
 			case IPFIX_ETYPEID_frontPayload:
 				efd->srcIndex = reinterpret_cast<uint32_t>(p)-reinterpret_cast<uint32_t>(p->netHeader);
 				break;
@@ -734,6 +767,38 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	DPRINTF("PacketHashtable::aggregatePacket()");
 	updatePointers(p);
 	createMaskedFields(p);
+
+
+
+	//	/* HASH DISTRIBUTION TEST CODE
+
+	int dist_agg = 16;
+	int avg;
+
+	if (statTotalEntries == 1000000)
+	{
+		for (int i = 0;i < htableSize; i++)
+		{
+			HashtableBucket* bucket = buckets[i];
+			int length = 0;
+			while(bucket != 0)
+			{
+				bucket = bucket->next;
+				length++;
+			}
+			if (!(i% dist_agg)) {
+
+				printf("%d,",avg/dist_agg);
+				avg = 0;
+
+			}
+			else avg += length;
+
+			if (!(i%(256*dist_agg))) printf("\n");
+		}
+		std::cerr << "output for distribution is done\n";
+	}
+
 
 	uint32_t hash = expCalculateHash(p->netHeader);
 
@@ -805,7 +870,7 @@ void PacketHashtable::snapshotHashtable()
 				while(bucket->next != 0){
 					count++;
 					bucket = (HashtableBucket*)bucket->next;
-					}
+				}
 			}
 			fout << i+1 << "\t" << count  << "\n";
 			count =0;
@@ -814,7 +879,7 @@ void PacketHashtable::snapshotHashtable()
 		snapshotWritten = true;
 	}
 	else {
-	DPRINTF("unable to open file to write Hashtable\n");
+		DPRINTF("unable to open file to write Hashtable\n");
 	}
 }
 

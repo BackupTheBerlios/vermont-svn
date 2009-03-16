@@ -231,15 +231,16 @@ void BaseHashtable::destroyBucket(HashtableBucket* bucket)
  */
 void BaseHashtable::expireFlows(bool all)
 {
+
+	uint32_t now = time(0);
 	// the following lock should almost never fail (only during reconfiguration)
 	while (atomic_lock(&aggInProgress)) {
 		timespec req;
 		req.tv_sec = 0;
-		req.tv_nsec = 50000000;
+		req.tv_nsec = 5000000;
 		nanosleep(&req, &req);
 	}
 
-	uint32_t now = time(0);
 	uint32_t emptyBuckets = 0;
 	uint32_t exportedBuckets = 0;
 	uint32_t multiEntries = 0;
