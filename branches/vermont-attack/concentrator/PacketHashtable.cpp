@@ -772,10 +772,10 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 
 	//	/* HASH DISTRIBUTION TEST CODE
 
-	int dist_agg = 16;
+	int dist_agg = 1;
 	int avg;
 
-	if (statTotalEntries == 1000000)
+	if (statTotalEntries == 3000000)
 	{
 		for (int i = 0;i < htableSize; i++)
 		{
