@@ -49,6 +49,8 @@
 /* Time in seconds a connection stays in state SHUTDOWN before it gets
  * removed. */
 #define DTLS_SHUTDOWN_TIMEOUT 10
+/* Maximum number of concurrent connections */
+#define DTLS_MAX_CONCURRENT_CONNECTIONS 2
 
 #endif /* SUPPORT_OPENSSL */
 
@@ -98,7 +100,7 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 		DtlsConnection(IpfixReceiverDtlsUdpIpV4 &parent,struct sockaddr_in *clientAddress);
 		~DtlsConnection();
 		int consumeDatagram(boost::shared_ptr<IpfixRecord::SourceID> &sourceID, boost::shared_array<uint8_t> secured_data, size_t len);
-		std::string inspect();
+		std::string inspect(bool includeState = true);
 		bool isInactive();
 
 	    private:

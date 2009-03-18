@@ -373,6 +373,13 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	if (it == connections.end()) {
 	    /* create a new connection if we did not find any. */
 	    DPRINTF("New connection");
+	    if (connections.size() >= DTLS_MAX_CONCURRENT_CONNECTIONS) {
+		msg(MSG_ERROR,"Maximum number (%d) of concurrent "
+			"connections reached. Ignoring new connection "
+			"attempt.",DTLS_MAX_CONCURRENT_CONNECTIONS);
+		continue;
+
+	    }
 	    conn = DtlsConnectionPtr( new DtlsConnection(*this,&clientAddress));
 	    it = connections.insert(make_pair(*sourceID,conn)).first;
 	} else {
@@ -436,12 +443,13 @@ IpfixReceiverDtlsUdpIpV4::DtlsConnection::~DtlsConnection() {
     if (ssl) SSL_free(ssl);
 }
 
-std::string IpfixReceiverDtlsUdpIpV4::DtlsConnection::inspect() {
+std::string IpfixReceiverDtlsUdpIpV4::DtlsConnection::inspect(bool includeState) {
     std::ostringstream o;
     char ipaddr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET,&clientAddress.sin_addr,ipaddr,sizeof(ipaddr));
     o << ipaddr << ":" << ntohs(clientAddress.sin_port);
-    o << " state:" << states[state];
+    if (includeState)
+	o << " state:" << states[state];
     return o.str();
 }
 
@@ -580,7 +588,7 @@ void IpfixReceiverDtlsUdpIpV4::idle_processing() {
     while(it!=connections.end()) {
 	tmp = it++;
 	if (tmp->second->isInactive()) {
-	    DPRINTF("Removing connection %s",tmp->second->inspect().c_str());
+	    DPRINTF("Removing connection %s",tmp->second->inspect(false).c_str());
 	    connections.erase(tmp);
 	    changed = true;
 	}
@@ -590,26 +598,34 @@ void IpfixReceiverDtlsUdpIpV4::idle_processing() {
     }
 }
 
+/* Checks whether the connection timed out.
+ * Watch out: This method has side effects. If the connection did
+ * timeout it returns true and expects the caller to remove the connection
+ * from the connection map.
+ * Return values:
+ * false: Connection is still active. Keep it.
+ * true:  Connection is idle and has been shut down. Remove it! */
+
 bool IpfixReceiverDtlsUdpIpV4::DtlsConnection::isInactive() {
     time_t diff = time(NULL) - last_used;
     switch (state) {
 	case ACCEPTING:
 	    if (diff > DTLS_ACCEPT_TIMEOUT) {
-		DPRINTF("accept timed out on %s",inspect().c_str());
+		DPRINTF("accept timed out on %s",inspect(false).c_str());
 		shutdown();
 		return true;
 	    }
 	    break;
 	case CONNECTED:
 	    if (diff > DTLS_IDLE_TIMEOUT) {
-		DPRINTF("idle timeout on %s",inspect().c_str());
+		DPRINTF("idle timeout on %s",inspect(false).c_str());
 		shutdown();
 		return true;
 	    }
 	    break;
 	case SHUTDOWN:
 	    if (diff > DTLS_SHUTDOWN_TIMEOUT) {
-		DPRINTF("shutdown timeout on %s",inspect().c_str());
+		DPRINTF("shutdown timeout on %s",inspect(false).c_str());
 		return true;
 	    }
 	    break;
