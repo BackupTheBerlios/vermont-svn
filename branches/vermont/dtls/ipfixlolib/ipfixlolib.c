@@ -76,7 +76,7 @@ static int ipfix_update_template_sendbuffer(ipfix_exporter *exporter);
 static int ipfix_send_templates(ipfix_exporter* exporter);
 static int ipfix_send_data(ipfix_exporter* exporter);
 
-#if defined(SUPPORT_OPENSSL) && defined(DEBUG)
+#ifdef SUPPORT_OPENSSL
 
 #define SSL_ERR(c) {c,#c}
 
@@ -106,7 +106,7 @@ static const char *get_ssl_error_string(int ret) {
     snprintf(s, sizeof(s), unknown, ret);
     return s;
 }
-#endif /* defined(SUPPORT_OPENSSL) && defined(DEBUG) */
+#endif /* #ifdef SUPPORT_OPENSSL */
 
 
 #ifdef SUPPORT_OPENSSL

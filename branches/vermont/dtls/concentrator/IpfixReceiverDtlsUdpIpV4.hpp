@@ -71,30 +71,8 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	const std::set<string> peerFqdns;
 	friend int verify_peer_cb(void *context, const char *dnsname);
 	uint32_t statReceivedPackets;  /**< number of received packets */ 
-	SSL_CTX *ssl_ctx;
 	static DH *get_dh2048();
 
-	/* Several conditions have to be met before I can authenticate my peer
-	 * (exporter):
-	 *  - [ CAfile has to be set since I have to send a Certificate
-	 *    Request to my peer and I need to know the names of the CAs to
-	 *    include in this request. (have_client_CA_list) ] This turned
-	 *    out to be wrong. I can leave the list of
-	 *    certificate_authorities empty. See RFC 4346 section 7.4.4
-	 *  - At least one of CAfile and CApath have to be set in order
-	 *    to be able to verify my peer's certificate. This is somehow
-	 *    related to the previous one. The member have_CAs determines
-	 *    if this prerequisite is met.
-	 *  - I need to have a valid certificate including the matching
-	 *    private key. According to RFC 4346 section 7.4.4 only a
-	 *    non-anonymous server can request a certificate from the client.
-	 *    The member have_cert determines if this prerequisite is met.
-	 */
-	/* bool have_client_CA_list; */
-	bool have_CAs;
-	bool have_cert;
-	bool verify_peers; /* Do we authenticate our peer by verifying its
-			      certificate? */
 	class DtlsConnection {
 	    public:
 		DtlsConnection(IpfixReceiverDtlsUdpIpV4 &parent,struct sockaddr_in *clientAddress);
@@ -133,6 +111,35 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	connections_map connections;
 	static void print_errors(void);
 	void idle_processing();
+
+	class SSL_CTX_wrapper {
+	    public:
+		SSL_CTX_wrapper(
+		    const std::string &certificateChainFile,
+		    const std::string &privateKeyFile,
+		    const std::string &caFile,
+		    const std::string &caPath,
+		    bool requirePeerAuthentication
+			);
+		~SSL_CTX_wrapper();
+		SSL *SSL_new();
+		bool get_verify_peers();
+	    private:
+		SSL_CTX *ctx;
+		bool verify_peers; /* Do we authenticate our peer by verifying its
+				      certificate? */
+		void setDHParams();
+		bool loadVerifyLocations(
+		    const std::string &caFile,
+		    const std::string &caPath
+		);
+		bool loadCert(
+		    const std::string &certificateChainFile,
+		    const std::string &privateKeyFile
+		);
+		void setCipherList();
+	};
+	SSL_CTX_wrapper ssl_ctx;
 
 #ifdef DEBUG
 	void dumpConnections(void);
