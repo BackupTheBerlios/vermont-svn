@@ -122,59 +122,8 @@ int SynDosDetect::checkForAttack(const Packet* p)
 
 void SynDosDetect::observePacketIn(const Packet* p)
 {
-	if (HashIncoming == NULL)
-		HashIncoming = new DosHash();
-
-
-	uint32_t srcip = ntohl(*(p->netHeader+12));
-
-	uint32_t bucket = (srcip % 2048);
-
-	if (HashIncoming->table[bucket] == NULL)
-	{
-
-		std::list<ipentry*>* ipentrylist = new std::list<ipentry*>();
-
-		ipentry* newipentry = new ipentry;
-		newipentry->ip = srcip;
-		newipentry->count = 1;
-		newipentry->entries.push_back(createNewpEntry(p));
-
-		ipentrylist->push_front(newipentry);
-		HashIncoming->table[bucket] = ipentrylist;
-
-		return;
-
-	}
-	else
-	{
-		std::list<ipentry*>::iterator iter = HashIncoming->table[bucket]->begin();
-
-		while(iter != HashIncoming->table[bucket]->end())
-		{
-			if ((*iter)->ip == srcip)
-			{
-				(*iter)->count++;
-
-				std::list<pEntry>::iterator iter2 = (*iter)->entries.begin();
-				while (iter2 != (*iter)->entries.end())
-				{
-					if (compare_entry(*iter2,p))
-						return;
-					iter2++;
-				}
-				(*iter)->entries.push_back(createNewpEntry(p));
-				return;
-			}
-			iter++;
-		}
-
-		ipentry* newipentry = new ipentry;
-		newipentry->ip = srcip;
-		newipentry->count = 1;
-		newipentry->entries.push_back(createNewpEntry(p));
-		HashIncoming->table[bucket]->push_front(newipentry);
-	}
+	  uint32_t srcip = ntohl(*(p->netHeader+12));
+		observePacket(HashIncoming,p,srcip);
 }
 
 int compare_entry(pEntry e,const Packet* p)
@@ -198,10 +147,67 @@ int compare_entry(pEntry e,const Packet* p)
 
 void SynDosDetect::observePacketOut(const Packet* p)
 {
-
-
-
+  uint32_t dstip = ntohl(*(p->netHeader+16));
+		observePacket(HashIncoming,p,dstip);
 }
+
+void SynDosDetect::observePacket(DosHash* hash,const Packet* p,uint32_t ip)
+	{
+	if (hash == NULL)
+		hash = new DosHash();
+
+
+	uint32_t bucket = (ip % 2048);
+
+	if (hash->table[bucket] == NULL)
+	{
+
+		std::list<ipentry*>* ipentrylist = new std::list<ipentry*>();
+
+		ipentry* newipentry = new ipentry;
+		newipentry->ip = ip;
+		newipentry->count = 1;
+		newipentry->entries.push_back(createNewpEntry(p));
+
+		ipentrylist->push_front(newipentry);
+		hash->table[bucket] = ipentrylist;
+
+		return;
+
+	}
+	else
+	{
+		std::list<ipentry*>::iterator iter = hash->table[bucket]->begin();
+
+		while(iter != hash->table[bucket]->end())
+		{
+			if ((*iter)->ip == ip)
+			{
+				(*iter)->count++;
+
+				std::list<pEntry>::iterator iter2 = (*iter)->entries.begin();
+				while (iter2 != (*iter)->entries.end())
+				{
+					if (compare_entry(*iter2,p))
+						return;
+					iter2++;
+				}
+				(*iter)->entries.push_back(createNewpEntry(p));
+				return;
+			}
+			iter++;
+		}
+
+		ipentry* newipentry = new ipentry;
+		newipentry->ip = ip;
+		newipentry->count = 1;
+		newipentry->entries.push_back(createNewpEntry(p));
+		hash->table[bucket]->push_front(newipentry);
+	}
+		
+		
+	}
+		
 pEntry SynDosDetect::createNewpEntry(const Packet* p)
 {
 

@@ -13,6 +13,7 @@ class SynDosDetect :public BaseTCPDosDetect
 		bool active_out;
 		void observePacketIn(const Packet* p);
 		void observePacketOut(const Packet* p);
+		void observePacket(DosHash*,const Packet* p,uint32_t);
 		int compare_entry(pEntry e,const Packet* p);
 		pEntry createNewpEntry(const Packet* p);	
 		
