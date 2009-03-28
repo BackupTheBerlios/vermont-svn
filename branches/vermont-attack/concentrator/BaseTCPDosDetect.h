@@ -1,5 +1,6 @@
-#ifndef __class__BASETCPDOSDETECT__
-#define __class__BASETCPDOSDETECT__
+#ifndef BASETCPDOSDETECT_H
+#define BASETCPDOSDETECT_H
+
 #include "ipfix.hpp"
 #include <iostream>
 #include <list>
@@ -16,6 +17,7 @@ typedef struct ipentry {
 	std::list<pEntry> entries;
 	uint32_t count;
 }ipentry;
+
 class DosHash {
 	public:
 		std::list<ipentry*>** table;
@@ -25,6 +27,7 @@ class DosHash {
 		};
 		~DosHash() {};
 };
+
 class BaseTCPDosDetect {
 
 	struct DdosDefense {
@@ -36,7 +39,6 @@ class BaseTCPDosDetect {
 		uint32_t expectedValueOut;
 	};
 
-
 	protected:
 	uint32_t lastCheck;
 	DdosDefense Incoming;
@@ -46,11 +48,8 @@ class BaseTCPDosDetect {
 	DosHash* HashOutgoing;
 
 	public:
-	BaseTCPDosDetect() { };
-	virtual ~BaseTCPDosDetect() { 
-		HashIncoming = NULL;
-		HashOutgoing = NULL;
-	};
+	BaseTCPDosDetect(); 
+	virtual ~BaseTCPDosDetect();
 
 	virtual int checkForAttack(const Packet* p) = 0;
 
