@@ -22,6 +22,7 @@ ADD_LIBRARY(concentrator
 	PacketAggregator.cpp
 	BaseAggregator.cpp
 	BaseHashtable.cpp
+	BaseTCPDosDetect.cpp
 	Connection.cpp
 	PacketHashtable.cpp
 	FlowHashtable.cpp
@@ -45,6 +46,7 @@ ADD_LIBRARY(concentrator
 	IpfixRecordDestination.cpp
 	IpfixSampler.cpp
 	AutoFocus.cpp
+	SynDosDetect.cpp
 	autofocus_report.cpp
         autofocus_attribute.cpp
         autofocus_iprecord.h

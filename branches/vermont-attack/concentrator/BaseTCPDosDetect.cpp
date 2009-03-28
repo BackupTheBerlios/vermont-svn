@@ -2,13 +2,13 @@
 
 
 
-BaseTCPDosDetect::BaseTCPDosDetect 
+BaseTCPDosDetect::BaseTCPDosDetect()
 	{ 
 		HashIncoming = NULL;
 		HashOutgoing = NULL;
 	}
 	
-BaseTCPDosDetect::~BaseTCPDosDetect
+BaseTCPDosDetect::~BaseTCPDosDetect()
 	{
 
 	if (HashIncoming)

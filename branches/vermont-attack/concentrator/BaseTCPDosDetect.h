@@ -4,6 +4,7 @@
 #include "ipfix.hpp"
 #include <iostream>
 #include <list>
+#include "sampler/Packet.h"
 
 typedef struct pEntry {
 	uint32_t srcip;
