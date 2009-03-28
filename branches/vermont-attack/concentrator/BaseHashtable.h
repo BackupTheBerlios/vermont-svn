@@ -31,7 +31,8 @@
 #include "reconf/Module.h"
 #include "common/Sensor.h"
 #include "common/atomic_lock.h"
-
+#include "BaseTCPDosDetect.h"
+#include "SynDosDetect.h"
 
 class BaseHashtable : public Sensor
 {

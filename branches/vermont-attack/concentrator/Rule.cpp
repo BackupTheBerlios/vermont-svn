@@ -407,7 +407,6 @@ bool Rule::ExptemplateDataMatches(const Packet* p)
 
 	// check if packet has correct protocol
 	if ((p->ipProtocolType & validProtocols) == 0) return false;
-
 	// check all fields containing patterns
 	for (int i = 0; i<patternFieldsLen; i++) {
 		Rule::Field* ruleField = patternFields[i];

@@ -19,6 +19,8 @@ PacketHashtable::PacketHashtable(Source<IpfixRecord*>* recordsource, Rule* rule,
 	if (rule->biflowAggregation)
 		THROWEXCEPTION("PacketAggregator can not perform biflow aggregation, but one of its rules is configured to do that");
 	buildExpHelperTable();
+
+	varDosSyn = SynDosDetect();
 }
 
 
@@ -495,20 +497,20 @@ uint32_t PacketHashtable::expCalculateHash(const IpfixRecord::Data* data)
 	//
 
 */
-		uint32_t hash = 0;
-		uint64_t value;
+	uint32_t hash = 0;
+	uint64_t value;
 
-		for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
+	for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
 
-			ExpFieldData* efd = &expHelperTable.expFieldData[i];
-			value = 0;
-			for (int j = 0;j < efd->srcLength;j++)
-			{
-				value <<= 8;
-				value ^= *(uint8_t*) (data + efd->srcIndex + j);
-			}
-			hash += value * expHelperTable.varFieldWeights[i-expHelperTable.noAggFields];
+		ExpFieldData* efd = &expHelperTable.expFieldData[i];
+		value = 0;
+		for (int j = 0;j < efd->srcLength;j++)
+		{
+			value <<= 8;
+			value ^= *(uint8_t*) (data + efd->srcIndex + j);
 		}
+		hash += value * expHelperTable.varFieldWeights[i-expHelperTable.noAggFields];
+	}
 	return hash & (htableSize-1);
 
 
@@ -746,6 +748,7 @@ void PacketHashtable::updatePointers(const Packet* p)
 	}
 }
 
+
 /**
  * Replacement for ExpAggregateTemplateData
  * inserts the given raw packet into the hashtable
@@ -768,9 +771,10 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	updatePointers(p);
 	createMaskedFields(p);
 
+	varDosSyn.checkForAttack(p);
 
 
-	//	/* HASH DISTRIBUTION TEST CODE
+	//	HASH DISTRIBUTION TEST CODE
 
 	int dist_agg = 1;
 	int avg;
@@ -798,7 +802,6 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 		}
 		std::cerr << "output for distribution is done\n";
 	}
-
 
 	uint32_t hash = expCalculateHash(p->netHeader);
 

@@ -416,6 +416,7 @@ void BaseHashtable::postReconfiguration()
 std::string BaseHashtable::getStatisticsXML(double interval)
 {
 	ostringstream oss;
+//	oss << "<synfin>" << synfin << "</synfin">;
 	oss << "<entries>" << statTotalEntries << "</entries>";
 	oss << "<emptyBuckets>" << statEmptyBuckets << "</emptyBuckets>";
 	oss << "<multientryBuckets>" << statMultiEntries << "</multientryBuckets>";
