@@ -4,17 +4,17 @@
 
 BaseTCPDosDetect::BaseTCPDosDetect()
 	{ 
-		HashIncoming = NULL;
-		HashOutgoing = NULL;
+		HashAttack = NULL;
+		HashDefend = NULL;
 	}
 	
 BaseTCPDosDetect::~BaseTCPDosDetect()
 	{
 
-	if (HashIncoming)
-	delete HashIncoming;
+	if (HashAttack)
+	delete HashAttack;
 	
-	if (HashOutgoing)
-	delete HashOutgoing;
+	if (HashDefend)
+	delete HashDefend;
 
 	}

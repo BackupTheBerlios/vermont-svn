@@ -25,6 +25,10 @@ class DosHash {
 
 		DosHash() { 
 			table = new std::list<ipentry*>*[2048];
+			for (int i = 0;i<2048;i++)
+			{
+				table[i] = NULL;
+			}
 		};
 		~DosHash() {};
 };
@@ -45,8 +49,8 @@ class BaseTCPDosDetect {
 	DdosDefense Incoming;
 	DdosDefense Outgoing;
 
-	DosHash* HashIncoming;
-	DosHash* HashOutgoing;
+	DosHash* HashDefend;
+	DosHash* HashAttack;
 
 	public:
 	BaseTCPDosDetect(); 
