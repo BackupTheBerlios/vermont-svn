@@ -3,7 +3,7 @@
 
 #include "ipfix.hpp"
 #include <iostream>
-#include <list>
+#include <vector>
 #include "sampler/Packet.h"
 
 typedef struct pEntry {
@@ -15,16 +15,16 @@ typedef struct pEntry {
 
 typedef struct ipentry {
 	uint32_t ip;
-	std::list<pEntry> entries;
+	std::vector<pEntry> entries;
 	uint32_t count;
 }ipentry;
 
 class DosHash {
 	public:
-		std::list<ipentry*>** table;
+		std::vector<ipentry*>** table;
 
 		DosHash() { 
-			table = new std::list<ipentry*>*[2048];
+			table = new std::vector<ipentry*>*[2048];
 			for (int i = 0;i<2048;i++)
 			{
 				table[i] = NULL;
@@ -51,7 +51,7 @@ class BaseTCPDosDetect {
 
 	DosHash* HashDefend;
 	DosHash* HashAttack;
-
+	std::vector<pEntry> clusters;
 	public:
 	BaseTCPDosDetect(); 
 	virtual ~BaseTCPDosDetect();

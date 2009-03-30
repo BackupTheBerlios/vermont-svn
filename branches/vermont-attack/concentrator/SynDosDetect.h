@@ -13,12 +13,11 @@ class SynDosDetect :public BaseTCPDosDetect
 		bool setup;
 		uint16_t count;
 		bool active_out;
-		void observePacketAttack(const Packet* p);
-		void observePacketDefend(const Packet* p);
-		void evaluateClusters();
-		void observePacket(DosHash*&,const Packet* p,uint32_t);
-		int compare_entry(pEntry e,const Packet* p);
-		pEntry createNewpEntry(const Packet* p);	
+		void observePacketAttack(pEntry p);
+		void observePacketDefend(pEntry p);
+		void evaluateClusters(double);
+		void observePacket(DosHash*&,pEntry p,uint32_t);
+		int compare_entry(pEntry e,pEntry p);
 		
 	public:
 		int checkForAttack(const Packet* p);
@@ -26,5 +25,6 @@ class SynDosDetect :public BaseTCPDosDetect
 		SynDosDetect();
 		~SynDosDetect();
 };
+
 
 #endif

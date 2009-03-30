@@ -771,7 +771,10 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	updatePointers(p);
 	createMaskedFields(p);
 
-	varDosSyn.checkForAttack(p);
+	if (varDosSyn.checkForAttack(p)) {
+	atomic_release(&aggInProgress);
+	return;
+}
 
 
 	//	HASH DISTRIBUTION TEST CODE
