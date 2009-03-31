@@ -320,6 +320,7 @@ typedef struct {
 
 #ifdef SUPPORT_OPENSSL
 typedef struct {
+	int socket;
 	SSL *ssl;
 	int want_read;
 	/* receive buffer. Size is more or less arbitrary.
@@ -344,6 +345,7 @@ typedef struct {
 	int port_number;
 	enum ipfix_transport_protocol protocol;
 	int data_socket; // socket data and templates are sent to
+	/* data_socket is NOT used for DTLS connections */
 	struct sockaddr_in addr;
 	uint32_t last_reconnect_attempt_time; // applies only to SCTP and DTLS at the moment
 	enum collector_state state;
@@ -352,7 +354,8 @@ typedef struct {
 	int packets_written; /**< if protcol==RAWDIR: number of packets written to packet_directory_path. Ignored otherwise. */
 #endif
 #ifdef SUPPORT_OPENSSL
-	ipfix_dtls_connection dtls;
+	ipfix_dtls_connection dtls_main;
+	ipfix_dtls_connection dtls_rollover;
 	const char *peer_fqdn;
 #endif
 } ipfix_receiving_collector;
@@ -413,7 +416,6 @@ typedef struct {
 	const char *ca_file;
 	const char *ca_path;
 	unsigned dtls_connect_timeout;
-	char buf[IPFIX_MAX_PACKETSIZE]; /* general purpose buffer */
 #endif
 } ipfix_exporter;
 

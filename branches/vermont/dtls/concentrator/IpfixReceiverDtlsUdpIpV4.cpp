@@ -248,9 +248,11 @@ void IpfixReceiverDtlsUdpIpV4::run() {
 	    msg(MSG_FATAL, "packet from unauthorized host %s discarded", inet_ntoa(clientAddress.sin_addr));
 	    continue;
 	}
+#ifdef DEBUG
 	char ipaddr[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET,&clientAddress.sin_addr,ipaddr,sizeof(ipaddr));
 	DPRINTF("Received packet of size %d from %s:%d",ret,ipaddr,ntohs(clientAddress.sin_port));
+#endif
 	/* Set up sourceID */
 	memcpy(sourceID->exporterAddress.ip, &clientAddress.sin_addr.s_addr, 4);
 	sourceID->exporterAddress.len = 4;
