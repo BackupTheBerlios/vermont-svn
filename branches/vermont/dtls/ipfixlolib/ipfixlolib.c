@@ -55,6 +55,7 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 static int dtls_send(ipfix_exporter *exporter, ipfix_receiving_collector *col, const struct iovec *iov, int iovcnt);
 static int dtls_receive_if_necessary(ipfix_dtls_connection *con);
 static int dtls_connect(ipfix_receiving_collector *col, ipfix_dtls_connection *con);
+static void dtls_shutdown_and_cleanup(ipfix_dtls_connection *con);
 static void dtls_fail_connection(ipfix_dtls_connection *con);
 #endif
 #ifdef SUPPORT_SCTP
@@ -210,6 +211,49 @@ static int dtls_verify_peer_cb(void *context, const char* dnsname) {
     return strcasecmp(col->peer_fqdn,dnsname) ? 0 : 1;
 }
 
+static int dtls_get_replacement_connection_ready(
+	ipfix_exporter *exporter,
+	ipfix_receiving_collector *col) {
+    int ret;
+    if (!col->dtls_replacement.ssl) {
+	/* No SSL object has been created yet. Let's open a socket and
+	 * setup a new SSL object. */
+	DPRINTF("Setting up replacement connection.");
+	if (setup_dtls_connection(exporter,col,&col->dtls_replacement)) {
+	    return -1;
+	}
+    }
+    ret = dtls_connect(col,&col->dtls_replacement);
+    if (ret == 1) {
+	DPRINTF("Replacement connection setup successful.");
+	return 1; /* SUCCESS */
+    }
+    if (ret == 0) {
+	if (exporter->dtls_connect_timeout && 
+		(time(NULL) - col->dtls_replacement.last_reconnect_attempt_time > exporter->dtls_connect_timeout)) {
+	    msg(MSG_ERROR,"DTLS replacement connection setup taking too long.");
+	    dtls_fail_connection(&col->dtls_replacement);
+	} else {
+	    DPRINTF("Replacement connection setup still ongoing.");
+	    return 0;
+	}
+    }
+    return -1;
+}
+
+static int dtls_send_templates(
+	ipfix_exporter *exporter,
+	ipfix_receiving_collector *col) {
+
+    ipfix_prepend_header(exporter,
+	exporter->template_sendbuffer->committed_data_length,
+	exporter->template_sendbuffer);
+    DPRINTF("Sending templates.");
+    return dtls_send(exporter,col,
+	exporter->template_sendbuffer->entries,
+	exporter->template_sendbuffer->current);
+}
+
 /* returns 0 on success and -1 on error.
  * Note that success does not mean that we are connected. You still have
  * to check the state member of ipfix_receiving_collector to determine
@@ -217,46 +261,60 @@ static int dtls_verify_peer_cb(void *context, const char* dnsname) {
 static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col) {
     int ret;
 
-    switch (col->state) {
-	case C_CONNECTED:
-	    /* There's no work to do if we're already connected. */
-	    return 0;
-	case C_NEW: /* DTLS connection setup is still on going.
-		     * Let's push it forward. */
-		break;
-	case C_DISCONNECTED:
-	    if (setup_dtls_connection(exporter,col,&col->dtls_main)) {
-		return -1;
-	    }
-	    col->state = C_NEW;
-	    col->last_reconnect_attempt_time = time(NULL);
-	    break;
-	default:
+    if (col->state == C_CONNECTED) {
+	if( exporter->dtls_max_connection_age == 0 ||
+		time(NULL) - col->connect_time < exporter->dtls_max_connection_age) 
+	return 0;
+	/* Alright, the connection is already very old and needs to be
+	 * replaced. Let's get the replacement / backup connection ready. */
+	ret = dtls_get_replacement_connection_ready(exporter, col);
+	if (ret == 1) { /* Connection setup completed */
+	    DPRINTF("Shutting down old DTLS connection.");
+	    dtls_shutdown_and_cleanup(&col->dtls_main);
+	    DPRINTF("Swapping in new DTLS connection.");
+	    memcpy(&col->dtls_main,&col->dtls_replacement,sizeof(col->dtls_main));
+	    col->connect_time = time(NULL);
+	    ret = dtls_send_templates(exporter, col);
+	}
+	/* We ignore all other return values of dtls_get_replacement_connection_ready() */
+    }
+    if (col->state == C_NEW) {
+	/* Connection setup is still ongoing. Let's push it forward. */
+	ret = dtls_connect(col,&col->dtls_main);
+	if (ret == 1) {
+	    /* SUCCESS */
+	    col->state = C_CONNECTED;
+	    col->connect_time = time(NULL);
+	    ret = dtls_send_templates(exporter, col);
+	    /* dtls_send (inside dtls_send_templates) calls
+	     * dtls_fail_connection() and sets col->state
+	     * in case of failure. */
+	    if (ret >= 0) return 0; else return -1;
+	} else if (ret == -1) {
+	    /* Failure
+	     * dtls_connect() cleaned up SSL object already.
+	     * Remember that the socket is now part of the DTLS connection
+	     * abstraction. dtls_connect() closed the socket as well. */
+	    col->state = C_DISCONNECTED;
 	    return -1;
+	}
+	/* Ok. We get to this point if dtls_connect() returned 0.
+	 * In this case the connection setup is still ongoing.
+	 * But let's check if it's not ongoing for too long. */
+	if (exporter->dtls_connect_timeout && 
+		(time(NULL) - col->dtls_main.last_reconnect_attempt_time > exporter->dtls_connect_timeout)) {
+	    msg(MSG_ERROR,"DTLS connection setup taking too long.");
+	    dtls_fail_connection(&col->dtls_main);
+	    col->state = C_DISCONNECTED;
+	}
     }
-    ret = dtls_connect(col,&col->dtls_main);
-    if (ret == 1) {
-	col->state = C_CONNECTED;
-	/* Send templates */
-	ipfix_prepend_header(exporter,
-	    exporter->template_sendbuffer->committed_data_length,
-	    exporter->template_sendbuffer);
-	DPRINTF("Sending templates.");
-	ret = dtls_send(exporter,col,
-	    exporter->template_sendbuffer->entries,
-	    exporter->template_sendbuffer->current);
-	/* dtls_send calls dtls_fail_connection() and sets col->state
-	 * in case of failure. */
-	if (ret >= 0) return 0; else return -1;
-    } else if (ret == -1) {
-	col->state = C_DISCONNECTED;
-	return -1;
-    }
-    if (exporter->dtls_connect_timeout && 
-	    (time(NULL) - col->last_reconnect_attempt_time > exporter->dtls_connect_timeout)) {
-	msg(MSG_ERROR,"DTLS connection setup taking too long.");
-	dtls_fail_connection(&col->dtls_main);
-	col->state = C_DISCONNECTED;
+    if (col->state == C_DISCONNECTED) {
+	if (setup_dtls_connection(exporter,col,&col->dtls_main)) {
+	    /* col->state stays in C_DISCONNECTED in this case
+	     * setup_dtls_connection() does not alter it. */
+	    return -1;
+	}
+	col->state = C_NEW;
     }
     return 0;
 }
@@ -532,6 +590,7 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
     DPRINTF("Set up SSL object.");
 
     con->want_read = 0;
+    con->last_reconnect_attempt_time = time(NULL);
 
     return 0;
 }
@@ -557,7 +616,6 @@ static void dtls_shutdown_and_cleanup(ipfix_dtls_connection *con) {
     }
 }
 
-/* TODO: Continue here */
 static void dtls_fail_connection(ipfix_dtls_connection *con) {
     DPRINTF("Failing DTLS connection.");
     dtls_shutdown_and_cleanup(con);
@@ -711,6 +769,7 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
 	tmp->ca_file = NULL;
 	tmp->ca_path = NULL;
 	tmp->dtls_connect_timeout = 30;
+	tmp->dtls_max_connection_age = 120;
 #endif
 
         // initialize the sendbuffers
@@ -852,9 +911,9 @@ int add_collector_dtls(
 	ipfix_receiving_collector *col,
 	ipfix_aux_config_dtls *aux_config) {
 
-    col->dtls_rollover.socket = -1;
-    col->dtls_rollover.ssl = NULL;
-    col->dtls_rollover.want_read = 0;
+    col->dtls_replacement.socket = -1;
+    col->dtls_replacement.ssl = NULL;
+    col->dtls_replacement.want_read = 0;
 
     ipfix_aux_config_dtls *aux_config_dtls = (ipfix_aux_config_dtls *) aux_config;
     if (aux_config && aux_config_dtls->peer_fqdn)
@@ -867,7 +926,6 @@ int add_collector_dtls(
     }
     col->state = C_NEW; /* By setting the state to C_NEW we are
 				 basically allocation the slot. */
-    col->last_reconnect_attempt_time = time(NULL);
     /* Initiate connection setup */
     dtls_manage_connection(exporter, col);
     return 0;
@@ -954,7 +1012,7 @@ static void remove_collector(ipfix_receiving_collector *collector) {
     /* Shutdown DTLS connection */
     if (collector->protocol == DTLS_OVER_UDP) {
 	dtls_shutdown_and_cleanup(&collector->dtls_main);
-	dtls_shutdown_and_cleanup(&collector->dtls_rollover);
+	dtls_shutdown_and_cleanup(&collector->dtls_replacement);
 	free( (void *) collector->peer_fqdn);
     }
     collector->peer_fqdn = NULL;
@@ -1271,9 +1329,9 @@ static int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_c
 		c->packets_written = 0;
 #endif
 #ifdef SUPPORT_OPENSSL
-		c->dtls_main.socket = c->dtls_rollover.socket = -1;
-		c->dtls_main.ssl = c->dtls_rollover.ssl = NULL;
-		c->dtls_main.want_read = c->dtls_rollover.want_read = 0;
+		c->dtls_main.socket = c->dtls_replacement.socket = -1;
+		c->dtls_main.ssl = c->dtls_replacement.ssl = NULL;
+		c->dtls_main.want_read = c->dtls_replacement.want_read = 0;
 		c->peer_fqdn = NULL;
 #endif
 #

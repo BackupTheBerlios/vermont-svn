@@ -323,6 +323,7 @@ typedef struct {
 	int socket;
 	SSL *ssl;
 	int want_read;
+	time_t last_reconnect_attempt_time;
 	/* receive buffer. Size is more or less arbitrary.
 	 * Our peer does not send any payload so we do not expect
 	 * large UDP packets from him. Only DTLS protocol data will be
@@ -355,7 +356,12 @@ typedef struct {
 #endif
 #ifdef SUPPORT_OPENSSL
 	ipfix_dtls_connection dtls_main;
-	ipfix_dtls_connection dtls_rollover;
+	ipfix_dtls_connection dtls_replacement;
+	time_t connect_time; /* point in time when the connection setup
+				succeeded. We need this to calculate the
+				age of a connection. If DTLS is used
+				a connection rollover is performed when
+				a connection reaches a certain age.*/
 	const char *peer_fqdn;
 #endif
 } ipfix_receiving_collector;
@@ -416,6 +422,9 @@ typedef struct {
 	const char *ca_file;
 	const char *ca_path;
 	unsigned dtls_connect_timeout;
+	/* Time in seconds after which a DTLS connection
+	 * will be replaced by a new one. */
+	unsigned dtls_max_connection_age;
 #endif
 } ipfix_exporter;
 
