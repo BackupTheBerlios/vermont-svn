@@ -20,6 +20,7 @@ class PacketHashtable : public BaseHashtable
 		virtual ~PacketHashtable();
 
 		void aggregatePacket(const Packet* p);
+		void dosAggregatePacket(const Packet* p,uint32_t packetMask);
 
 
 	private:
@@ -76,7 +77,7 @@ class PacketHashtable : public BaseHashtable
 			uint16_t* varSrcPtrFields; /**< array with indizes to expFieldData elements, which have a srcIndex which varies from packet to packet */
 			uint16_t varSrcPtrFieldsLen; /**< length of varSrcPtrFields */
 
-			uint32_t* varFieldWeights; /** factors for aggfields to prevent targeted collision attack **/
+			char** varFieldWeights; /** factors for aggfields to prevent targeted collision attack **/
 
 		};
 
@@ -99,10 +100,13 @@ class PacketHashtable : public BaseHashtable
 		void (*getCopyDataFunction(const ExpFieldData* efd))(IpfixRecord::Data*, const IpfixRecord::Data*, ExpFieldData*);
 		void fillExpFieldData(ExpFieldData* efd, IpfixRecord::FieldInfo* hfi, Rule::Field::Modifier fieldModifier, uint16_t index);
 		uint32_t expCalculateHash(const IpfixRecord::Data* data);
+		uint32_t dosCalculateHash(const IpfixRecord::Data* data,uint32_t packetMask);
 		boost::shared_array<IpfixRecord::Data> buildBucketData(const Packet* p);
+		boost::shared_array<IpfixRecord::Data> dosBuildBucketData(const Packet* p,uint32_t packetMask);
 		void expAggregateField(const ExpFieldData* efd, IpfixRecord::Data* baseData, const IpfixRecord::Data* deltaData);
 		void expAggregateFlow(IpfixRecord::Data* bucket, const Packet* p);
 		bool expEqualFlow(IpfixRecord::Data* bucket, const Packet* p);
+		bool dosEqualFlow(IpfixRecord::Data* bucket, const Packet* p,uint32_t packetMask);
 		void createMaskedField(IpfixRecord::Data* address, uint8_t imask);
 		void createMaskedFields(const Packet* p);
 		void updatePointers(const Packet* p);

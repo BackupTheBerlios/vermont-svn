@@ -451,24 +451,23 @@ void PacketHashtable::buildExpHelperTable()
 	}
 	expHelperTable.noAggFields = efdIdx;
 
+	srand(time(0)); //initialize seed
 	// now the remaining fields
+	expHelperTable.varFieldWeights = new char*[dataTemplate->fieldCount];
+
 	for (int i=0; i<dataTemplate->fieldCount; i++) {
 		IpfixRecord::FieldInfo* hfi = &dataTemplate->fieldInfo[i];
 		if (isToBeAggregated(hfi->type)) continue;
 		ExpFieldData* efd = &expHelperTable.expFieldData[efdIdx++];
 		fillExpFieldData(efd, hfi, fieldModifier[i], efdIdx-1);
+		expHelperTable.varFieldWeights[i] = new char[efd->srcLength];
+		for (int j=0;j<efd->srcLength;j++)
+		{
+			expHelperTable.varFieldWeights[i][j] = rand()& 0xFF;
+		}
+
 	}
 	expHelperTable.efdLength = efdIdx;
-
-	expHelperTable.varFieldWeights = new uint32_t[expHelperTable.efdLength-expHelperTable.noAggFields];
-
-	srand(time(0)); //initialize seed
-	for (int i =0;i<expHelperTable.efdLength-expHelperTable.noAggFields;i++)
-	{
-		expHelperTable.varFieldWeights[i] = rand();
-		printf("%x\n",expHelperTable.varFieldWeights[i]);
-	}
-
 
 	// fill structure which contains field with variable pointers
 	int noVarFields = 0;
@@ -479,6 +478,22 @@ void PacketHashtable::buildExpHelperTable()
 }
 
 
+
+/**
+ * calculates hash for given raw packet data in express aggregator
+ */
+uint32_t PacketHashtable::dosCalculateHash(const IpfixRecord::Data* data,uint32_t packetMask)
+{
+	//OLD HASHING
+	uint32_t hash = 0xFFFFFFFF;
+	for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
+		ExpFieldData* efd = &expHelperTable.expFieldData[i];
+		if (BaseTCPDosDetect::idToMask(efd->typeId) & packetMask) continue;
+		hash = kcrc32(hash, efd->srcLength, reinterpret_cast<const char*>(data)+efd->srcIndex,expHelperTable.varFieldWeights[i-expHelperTable.noAggFields]);
+	}
+	return hash & (htableSize-1);
+}
+
 /**
  * calculates hash for given raw packet data in express aggregator
  */
@@ -486,36 +501,36 @@ uint32_t PacketHashtable::expCalculateHash(const IpfixRecord::Data* data)
 {
 
 
-	/*
-	//OLD HASHING
-	uint32_t hash = 0xF381a132;
+	uint32_t hash = 0xFFFFFFFF;
 	for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
-	ExpFieldData* efd = &expHelperTable.expFieldData[i];
-	hash = crc32(hash, efd->srcLength, reinterpret_cast<const char*>(data)+efd->srcIndex);
-	}
-	//return (hash>>(32-HTABLE_BITS)) & (HTABLE_SIZE-1);
-	//
-
-*/
-	uint32_t hash = 0;
-	uint64_t value;
-
-	for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
-
 		ExpFieldData* efd = &expHelperTable.expFieldData[i];
-		value = 0;
-		for (int j = 0;j < efd->srcLength;j++)
-		{
-			value <<= 8;
-			value ^= *(uint8_t*) (data + efd->srcIndex + j);
-		}
-		hash += value * expHelperTable.varFieldWeights[i-expHelperTable.noAggFields];
+		hash = kcrc32(hash,efd->srcLength, reinterpret_cast<const char*>(data)+efd->srcIndex,expHelperTable.varFieldWeights[i-expHelperTable.noAggFields]);
+//		hash = crc32(hash,efd->srcLength, reinterpret_cast<const char*>(data)+efd->srcIndex);
 	}
 	return hash & (htableSize-1);
-
-
 }
 
+/**
+ * copies data from raw packet to a bucket which will be inserted into the hashtable
+ * for aggregation (part of express aggregator)
+ */
+boost::shared_array<IpfixRecord::Data> PacketHashtable::dosBuildBucketData(const Packet* p,uint32_t packetMask)
+{
+	// new field for insertion into hashtable
+	boost::shared_array<IpfixRecord::Data> htdata(new IpfixRecord::Data[fieldLength+privDataLength]);
+	IpfixRecord::Data* data = htdata.get();
+	// copy all data ...
+	for (int i=0; i<expHelperTable.efdLength; i++) {
+		ExpFieldData* efd = &expHelperTable.expFieldData[i];
+		
+		if (BaseTCPDosDetect::idToMask(efd->typeId) & packetMask)
+		memset(data+efd->dstIndex,0,efd->srcLength);
+		else
+		efd->copyDataFunc(data, reinterpret_cast<const uint8_t*>(p->netHeader)+efd->srcIndex, efd);
+	}
+
+	return htdata;
+}
 /**
  * copies data from raw packet to a bucket which will be inserted into the hashtable
  * for aggregation (part of express aggregator)
@@ -525,7 +540,6 @@ boost::shared_array<IpfixRecord::Data> PacketHashtable::buildBucketData(const Pa
 	// new field for insertion into hashtable
 	boost::shared_array<IpfixRecord::Data> htdata(new IpfixRecord::Data[fieldLength+privDataLength]);
 	IpfixRecord::Data* data = htdata.get();
-
 	// copy all data ...
 	for (int i=0; i<expHelperTable.efdLength; i++) {
 		ExpFieldData* efd = &expHelperTable.expFieldData[i];
@@ -638,6 +652,26 @@ void PacketHashtable::expAggregateFlow(IpfixRecord::Data* bucket, const Packet* 
 	}
 }
 
+/**
+ * compares if given hashtable bucket data is equal with raw packet data
+ * (part of express aggregator)
+ * @returns true if equal, false if not equal
+ */
+bool PacketHashtable::dosEqualFlow(IpfixRecord::Data* bucket, const Packet* p,uint32_t packetMask)
+{
+	for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
+		ExpFieldData* efd = &expHelperTable.expFieldData[i];
+
+		if (BaseTCPDosDetect::idToMask(efd->typeId) & packetMask)
+			for (int i=efd->dstIndex;i < efd->dstIndex+efd->srcLength;i++)
+				if (bucket[i]) return false;
+		
+		// just compare srcLength bytes, as we still have our original packet data
+		else if (memcmp(bucket+efd->dstIndex, p->netHeader+efd->srcIndex, efd->srcLength)!=0)
+			return false;
+	}
+	return true;
+}
 /**
  * compares if given hashtable bucket data is equal with raw packet data
  * (part of express aggregator)
@@ -771,14 +805,15 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	updatePointers(p);
 	createMaskedFields(p);
 
-	if (varDosSyn.checkForAttack(p)) {
-	atomic_release(&aggInProgress);
-	return;
-}
+	uint32_t packetMask = varDosSyn.checkForAttack(p);
 
+	if (packetMask != 0) {
+		msg(MSG_FATAL,"dos packet");	//this is a ddos packet
+		dosAggregatePacket(p,packetMask);
+	}
 
 	//	HASH DISTRIBUTION TEST CODE
-
+	/*
 	int dist_agg = 1;
 	int avg;
 
@@ -805,7 +840,7 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 		}
 		std::cerr << "output for distribution is done\n";
 	}
-
+*/
 	uint32_t hash = expCalculateHash(p->netHeader);
 
 	// search bucket inside hashtable
@@ -858,6 +893,61 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	//if (!snapshotWritten && (time(0)- 300 > starttime)) writeHashtable();
 	// FIXME: enable snapshots again by configuration
 	atomic_release(&aggInProgress);
+}
+
+void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
+{
+	uint32_t hash = dosCalculateHash(p->netHeader,packetMask);
+
+	// search bucket inside hashtable
+	HashtableBucket* bucket = buckets[hash];
+
+	if (bucket == 0) {
+		// slot is free, place bucket there
+		DPRINTF("creating new dos bucket");
+		buckets[hash] = createBucket(dosBuildBucketData(p,packetMask), p->observationDomainID, 0, 0, hash);
+		BucketListElement* node = hbucketIM.getNewInstance();
+		node->reset();
+		node->bucket = buckets[hash];
+		buckets[hash]->listNode = node;
+		exportList.push(node);
+		statTotalEntries++;
+	} else {
+		// This slot is already used, search spill chain for equal flow
+		while(1) {
+			if (dosEqualFlow(bucket->data.get(), p,packetMask)) {
+				DPRINTF("appending to bucket\n");
+
+				expAggregateFlow(bucket->data.get(), p);
+
+				// TODO: tobi_optimize
+				// replace call of time() with access to a static variable which is updated regularly (such as every 100ms)
+				bucket->expireTime = time(0) + minBufferTime;
+
+				if (bucket->forceExpireTime>bucket->expireTime) {
+					exportList.remove(bucket->listNode);
+					exportList.push(bucket->listNode);
+				}
+				break;
+			}
+
+			if (bucket->next == 0) {
+				DPRINTF("creating bucket\n");
+				statTotalEntries++;
+				statMultiEntries++;
+				HashtableBucket* buck = createBucket(dosBuildBucketData(p,packetMask), p->observationDomainID, 0, bucket, hash);
+				bucket->next = buck;
+				BucketListElement* node = hbucketIM.getNewInstance();
+				node->reset();
+				exportList.push(node);
+				node->bucket = buck;
+				buck->listNode = node;
+				break;
+			}
+			bucket = (HashtableBucket*)bucket->next;
+		}
+	}
+
 }
 
 void PacketHashtable::snapshotHashtable()

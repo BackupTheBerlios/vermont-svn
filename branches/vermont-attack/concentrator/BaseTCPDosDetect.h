@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 #include "sampler/Packet.h"
+#include "common/Thread.h"
 
 typedef struct pEntry {
 	uint32_t srcip;
@@ -12,6 +13,12 @@ typedef struct pEntry {
 	uint16_t srcprt;
 	uint16_t dstprt;
 }pEntry;
+
+typedef struct DosCluster {
+	pEntry entry;
+	bool wasFiltered;
+	uint32_t mask;
+}DosCluster;
 
 typedef struct ipentry {
 	uint32_t ip;
@@ -48,14 +55,15 @@ class BaseTCPDosDetect {
 	uint32_t lastCheck;
 	DdosDefense Incoming;
 	DdosDefense Outgoing;
-
+	Thread* thread;
 	DosHash* HashDefend;
 	DosHash* HashAttack;
-	std::vector<pEntry> clusters;
+	std::vector<DosCluster> clusters;
 	public:
 	BaseTCPDosDetect(); 
 	virtual ~BaseTCPDosDetect();
 
+	static uint8_t idToMask(uint16_t field);
 	virtual int checkForAttack(const Packet* p) = 0;
 
 };

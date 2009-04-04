@@ -1,7 +1,7 @@
 #include "SynDosDetect.h"
 
 
-void SynDosDetect::evaluateClusters(double thresh)
+void SynDosDetect::evaluateClusters()
 {
 
 	ipentry* max = NULL;
@@ -38,7 +38,7 @@ void SynDosDetect::evaluateClusters(double thresh)
 					}
 				}
 				else msg(MSG_FATAL,"didnt find defense");
-				if (maxdifference < (current->count - defend_count) && ((current->count+1)/(defend_count+1)) > thresh*0.5) { max = current; maxdifference = current->count - defend_count;}
+				if (maxdifference < (current->count - defend_count) && ((current->count+1)/(defend_count+1)) > 3) { max = current; maxdifference = current->count - defend_count;}
 			}	
 
 		}
@@ -46,14 +46,29 @@ void SynDosDetect::evaluateClusters(double thresh)
 	if (max!=NULL)
 	{
 		msg(MSG_FATAL,"biggest victim was %x with %d unmatched syns",max->ip,maxdifference);
-		pEntry cluster;
+		DosCluster cluster;
 		if (active_out)
-			cluster.srcip = max->ip;
-		else cluster.srcip = 0;
-		if (active_in)	cluster.dstip = max->ip;
-		else	cluster.dstip = 0;
-		cluster.srcprt = 0;
-		cluster.dstprt = 0;
+		{
+			cluster.entry.srcip = max->ip;
+			cluster.entry.dstip = 0;
+			cluster.entry.srcprt= 0;
+			cluster.entry.dstprt= 0;
+			cluster.mask = 0;
+			//todo viele schoene defines fuer die mask
+			cluster.mask |= 14;
+			cluster.wasFiltered = false;
+		}
+		if (active_in)
+		{
+			cluster.entry.srcip = 0;
+			cluster.entry.dstip = max->ip;
+			cluster.entry.srcprt= 0;
+			cluster.entry.dstprt= 0;
+			cluster.mask = 0;
+			//todo viele schoene defines fuer die mask
+			cluster.mask |= 13;
+			cluster.wasFiltered = false;
+		}
 		clusters.push_back(cluster);
 	}
 }
@@ -62,10 +77,17 @@ void SynDosDetect::evaluateClusters(double thresh)
 int SynDosDetect::checkForAttack(const Packet* p)
 {
 
+	//we are currently seraching for clusters
+	if (busy) return 0;
+
+	uint32_t now = time(0);
+
 	//check if packet is TCP
 	if ((*(p->netHeader + 9) & 6) != 6) return 0;
 
-	//get pointer to TCP Flags
+	//check if tcp packet has syn rst or fin set; drop unless one second passed
+	unsigned char ddos_flags = *(p->transportHeader + 13);
+	if (((ddos_flags & 7) != 0) && (now == lastCheck)) return 0;
 
 	pEntry currentPacket;
 	currentPacket.srcip = ntohl(*(uint32_t*)(p->netHeader+12));
@@ -74,20 +96,21 @@ int SynDosDetect::checkForAttack(const Packet* p)
 	currentPacket.dstprt = ntohs(*(uint16_t*)(p->transportHeader+2));
 
 
+
+	//check if the received packet is in dos cluster
 	for (int i = 0;i < clusters.size();i++)
 	{
-		if (!clusters[i].srcip || clusters[i].srcip == currentPacket.srcip) {
-			if (!clusters[i].dstip || clusters[i].dstip == currentPacket.dstip) {
-				if (!clusters[i].srcprt || clusters[i].srcprt == currentPacket.srcprt) {
-					if (!clusters[i].dstprt || clusters[i].dstprt == currentPacket.dstprt) {
+		if (!clusters[i].entry.srcip || clusters[i].entry.srcip == currentPacket.srcip) {
+			if (!clusters[i].entry.dstip || clusters[i].entry.dstip == currentPacket.dstip) {
+				if (!clusters[i].entry.srcprt || clusters[i].entry.srcprt == currentPacket.srcprt) {
+					if (!clusters[i].entry.dstprt || clusters[i].entry.dstprt == currentPacket.dstprt) {
 						msg(MSG_FATAL,"bad packet");
-						return 1; } } } }		
+						return clusters[i].mask; } } } }		
 	}
-	//TODO: check if packet matches an active dos cluster then return 1; no checking needed
-
-	unsigned char ddos_flags = *(p->transportHeader + 13);
 
 
+
+	//check wheter packet is incoming or outgoing
 	uint16_t homenet = (currentPacket.srcip&0xFFFF0000)>>16;
 	uint16_t destnet = (currentPacket.dstip&0xFFFF0000)>>16;
 	if ((homenet == 0x8B3F) || (homenet == 0x6BEB) || (homenet == 0x83BC))
@@ -105,7 +128,7 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		}
 
 	}
-	if ((destnet == 0x8B3F) || (destnet == 0x6BEB) || (destnet == 0x83BC))
+	else if ((destnet == 0x8B3F) || (destnet == 0x6BEB) || (destnet == 0x83BC))
 	{
 		if (ddos_flags & 2)
 		{
@@ -119,12 +142,11 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		}
 	}
 
-	uint32_t now = time(0);
 
 	if (now != lastCheck)
 	{
+		//one second has passed, we have to adjust expected values and check for threshold
 		lastCheck = now;
-
 
 		count++;
 
@@ -141,11 +163,12 @@ int SynDosDetect::checkForAttack(const Packet* p)
 
 			Outgoing.expectedValueIn += Outgoing.InHistory[(count+i) % 5] / 5.0;
 			Outgoing.expectedValueOut += Outgoing.OutHistory[(count+i) % 5] / 5.0;
-			msg(MSG_FATAL,"%d %d %d %d",Incoming.expectedValueIn,Outgoing.expectedValueOut,Outgoing.expectedValueIn,Incoming.expectedValueOut);
+			//	msg(MSG_FATAL,"%d %d %d %d",Incoming.expectedValueIn,Outgoing.expectedValueOut,Outgoing.expectedValueIn,Incoming.expectedValueOut);
 		}
 
-		double exp_ratio_in =  ( (double) Incoming.expectedValueIn  + 1.0) / ((double) Outgoing.expectedValueOut  + 1.0);
-		double exp_ratio_out = ( (double) Outgoing.expectedValueIn  + 1.0) / ((double) Incoming.expectedValueOut  + 1.0);
+		//this was for testing if expectation values are ok
+		//double exp_ratio_in =  ( (double) Incoming.expectedValueIn  + 1.0) / ((double) Outgoing.expectedValueOut  + 1.0);
+		//double exp_ratio_out = ( (double) Outgoing.expectedValueIn  + 1.0) / ((double) Incoming.expectedValueOut  + 1.0);
 
 		double ratio_in  = ((double) Incoming.varCountIn + 1.0) / ((double) Outgoing.varCountOut + 1.0);
 		double ratio_out = ((double) Incoming.varCountIn + 1.0) / ((double) Outgoing.varCountOut + 1.0);
@@ -153,19 +176,18 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		double t_in = ((double) Incoming.expectedValueIn + 500) / ((double) Outgoing.expectedValueOut + 1.0);
 		double t_out = ((double) Outgoing.expectedValueIn + 500) / ((double) Incoming.expectedValueOut + 1.0);
 
-		msg(MSG_FATAL,"incoming ddos: %.2f > %.2f",ratio_out,t_out);
-		msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_in,t_in);
+		//		msg(MSG_FATAL,"incoming ddos: %.2f > %.2f",ratio_out,t_out);
+		//		msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_in,t_in);
 
 		if (active_in == true || active_out == true)
 		{
 			//identify clusters
-			//TODO unterscheiden zwischen t_in udn t_out
-			evaluateClusters(t_in);
+			thread = new Thread(SynDosDetect::threadWrapper);
+			thread->run(NULL);
 			active_in = false;
 			active_out = false;
 			delete HashAttack;
 			delete HashDefend;
-
 			Incoming.varCountIn = 0;
 			Incoming.varCountOut = 0;
 			Outgoing.varCountIn = 0;
@@ -183,19 +205,21 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		}
 		else if (ratio_out > t_out)
 		{
-				active_out = true;
+			active_out = true;
 			HashDefend = new DosHash();
 			HashAttack = new DosHash();
 			msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_out,t_out);
 			return 0;
 		}
+
+		//update history
 		Incoming.InHistory[count % 5] = Incoming.varCountIn;
 		Incoming.OutHistory[count % 5] = Incoming.varCountOut;
-
 		Outgoing.InHistory[count % 5] = Outgoing.varCountIn;
 		Outgoing.OutHistory[count % 5] = Outgoing.varCountOut;
-		msg(MSG_FATAL,"%d %d %d %d",Incoming.varCountIn,Incoming.varCountOut,Outgoing.varCountIn,Outgoing.varCountOut);
+		//msg(MSG_FATAL,"%d %d %d %d",Incoming.varCountIn,Incoming.varCountOut,Outgoing.varCountIn,Outgoing.varCountOut);
 
+		//reset counter
 		Incoming.varCountIn = 0;
 		Incoming.varCountOut = 0;
 		Outgoing.varCountIn = 0;
@@ -230,7 +254,7 @@ int SynDosDetect::compare_entry(pEntry e,pEntry p)
 }
 
 
-void SynDosDetect::observePacket(DosHash*& hash,pEntry p,uint32_t ip)
+void SynDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 {
 	uint32_t bucket = (ip % 2048);
 
@@ -291,6 +315,7 @@ void SynDosDetect::observePacket(DosHash*& hash,pEntry p,uint32_t ip)
 
 SynDosDetect::SynDosDetect() {
 	setup = true;
+	busy = false;
 	active_in  = false;
 	active_out = false;
 	count = 0;
@@ -300,14 +325,21 @@ SynDosDetect::SynDosDetect() {
 		Incoming.OutHistory[i] = 0;
 		Outgoing.InHistory[i] = 0;
 		Outgoing.OutHistory[i] = 0;
-
 	}
-
 	Incoming.varCountIn = 0;
 	Incoming.varCountOut = 0;
 	Outgoing.varCountIn = 0;
 	Outgoing.varCountOut = 0;
-	msg(MSG_FATAL,"created syndos object");
 }
+
+void* SynDosDetect::threadWrapper(void* instance)
+	{
+	msg(MSG_FATAL,"cluster finding thread started");
+	SynDosDetect* inst = (SynDosDetect*) instance;
+	inst->busy = true;
+	inst->evaluateClusters();
+	inst->busy = false;
+	msg(MSG_FATAL,"cluster finding thread ended");
+	}
 
 SynDosDetect::~SynDosDetect() { }
