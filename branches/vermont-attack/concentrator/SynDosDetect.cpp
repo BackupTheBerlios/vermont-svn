@@ -10,7 +10,7 @@ void SynDosDetect::evaluateClusters()
 	//FIND LEVEL1 Clusters
 	//
 	if (HashAttack == NULL) { msg(MSG_FATAL,"arsch"); };
-	for (int i = 0;i < 2048;i++)
+	for (int i = 0;i < DOSHASH_SIZE;i++)
 	{
 		if (HashAttack->table[i] != NULL)
 		{
@@ -20,7 +20,7 @@ void SynDosDetect::evaluateClusters()
 				//now find corresponding defense bucket
 				msg(MSG_FATAL,"searching correspondig defense entry");
 				ipentry* current = HashAttack->table[i]->at(j);
-				uint32_t bucket = current->ip % 2048;
+				uint32_t bucket = current->ip % DOSHASH_SIZE;
 
 				uint32_t defend_count = 0;
 
@@ -45,30 +45,115 @@ void SynDosDetect::evaluateClusters()
 	}
 	if (max!=NULL)
 	{
-		msg(MSG_FATAL,"biggest victim was %x with %d unmatched syns",max->ip,maxdifference);
+		msg(MSG_FATAL,"level1 cluster was %x with %d unmatched syns",max->ip,maxdifference);
+
+
+		//find L2 clusters
+		//test if attack was from/to specific ip
+		ipentry* def = NULL;
+		uint32_t index = max->ip % 2048;	
+		if (HashDefend->table[index] != NULL) 
+			{
+			for (int p = 0;p < HashDefend->table[index]->size();p++)
+				{
+				if (HashDefend->table[index]->at(p)->ip == max->ip)
+					{
+						def = HashDefend->table[index]->at(p);
+					}
+				}			
+			}
+
+		uint32_t difference = 0;
+		uint32_t max_cip = 0;
+		std::map<uint32_t,uint32_t>::iterator iter = max->sum_ip.begin();
+		while (iter != max->sum_ip.end())
+		{
+		
+			difference = iter->second;
+			if (def != NULL)
+			{
+				if (def->sum_ip.find(iter->first) != def->sum_ip.end())
+					difference  -= def->sum_ip[iter->first];
+
+			}
+
+			if (difference > maxdifference * 0.9)
+			{
+				max_cip = iter->first;
+				break;
+			}
+			iter++;				
+		}
+
+		uint32_t max_srcprt = 0;
+		std::map<uint16_t,uint32_t>::iterator iter2 = max->sum_srcprt.begin();
+		while (iter2 != max->sum_srcprt.end())
+		{
+			difference = iter2->second;
+			if (def != NULL)
+			{
+				if (def->sum_dstprt.find(iter2->first) != def->sum_dstprt.end())
+					difference  -= def->sum_dstprt[iter2->first];
+
+			}
+
+			if (difference > maxdifference * 0.9)
+			{
+				msg(MSG_FATAL,"srcprt: we got a winner, its port %d with %d entries",iter2->first,iter2->second);
+				max_srcprt = iter2->first;
+				break;
+			}
+			iter2++;				
+		}
+
+		uint32_t max_dstprt = 0;
+		std::map<uint16_t,uint32_t>::iterator iter3 = max->sum_dstprt.begin();
+		while (iter3 != max->sum_dstprt.end())
+		{
+			difference = iter3->second;
+			if (def != NULL)
+			{
+				if (def->sum_srcprt.find(iter3->first) != def->sum_srcprt.end())
+					difference  -= def->sum_srcprt[iter3->first];
+
+			}
+
+			if (difference > maxdifference * 0.9)
+			{
+				msg(MSG_FATAL,"dstprt: we got a winner, its port %d with %d entries",iter3->first,iter3->second);
+				max_dstprt = iter3->first;
+				break;
+			}
+			iter3++;				
+		}
+
 		DosCluster cluster;
 		if (active_out)
 		{
 			cluster.entry.srcip = max->ip;
-			cluster.entry.dstip = 0;
-			cluster.entry.srcprt= 0;
-			cluster.entry.dstprt= 0;
+			cluster.entry.dstip = max_cip;
 			cluster.mask = 0;
 			//todo viele schoene defines fuer die mask
-			cluster.mask |= 14;
+			if (max_cip == 0) cluster.mask |= 2;
 			cluster.wasFiltered = false;
 		}
 		if (active_in)
 		{
-			cluster.entry.srcip = 0;
+			cluster.entry.srcip = max_cip;
 			cluster.entry.dstip = max->ip;
-			cluster.entry.srcprt= 0;
-			cluster.entry.dstprt= 0;
+			cluster.entry.srcprt= max_srcprt;
+			cluster.entry.dstprt= max_dstprt;
 			cluster.mask = 0;
 			//todo viele schoene defines fuer die mask
-			cluster.mask |= 13;
+			if (max_cip == 0) cluster.mask |= 1;
 			cluster.wasFiltered = false;
 		}
+			cluster.entry.srcprt= max_srcprt;
+			cluster.entry.dstprt= max_dstprt;
+			if (max_srcprt == 0) cluster.mask |= 4;
+			if (max_dstprt == 0) cluster.mask |= 8;
+
+		msg(MSG_FATAL,"DOS CLUSTER IS: srcip %x dstip %x srcprt %d dstprt %d",cluster.entry.srcip,cluster.entry.dstip,cluster.entry.srcprt,cluster.entry.dstprt);
 		clusters.push_back(cluster);
 	}
 }
@@ -78,7 +163,12 @@ int SynDosDetect::checkForAttack(const Packet* p)
 {
 
 	//we are currently seraching for clusters
-	if (busy) return 0;
+	if (busy) {
+		msg(MSG_FATAL,"i'm busy");
+		return 0;
+	}
+
+
 
 	uint32_t now = time(0);
 
@@ -87,7 +177,7 @@ int SynDosDetect::checkForAttack(const Packet* p)
 
 	//check if tcp packet has syn rst or fin set; drop unless one second passed
 	unsigned char ddos_flags = *(p->transportHeader + 13);
-	if (((ddos_flags & 7) != 0) && (now == lastCheck)) return 0;
+	if (((ddos_flags & 7) == 0) && (now == lastCheck)) return 0;
 
 	pEntry currentPacket;
 	currentPacket.srcip = ntohl(*(uint32_t*)(p->netHeader+12));
@@ -171,23 +261,22 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		//double exp_ratio_out = ( (double) Outgoing.expectedValueIn  + 1.0) / ((double) Incoming.expectedValueOut  + 1.0);
 
 		double ratio_in  = ((double) Incoming.varCountIn + 1.0) / ((double) Outgoing.varCountOut + 1.0);
-		double ratio_out = ((double) Incoming.varCountIn + 1.0) / ((double) Outgoing.varCountOut + 1.0);
+		double ratio_out = ((double) Outgoing.varCountIn + 1.0) / ((double) Incoming.varCountOut + 1.0);
 
 		double t_in = ((double) Incoming.expectedValueIn + 500) / ((double) Outgoing.expectedValueOut + 1.0);
 		double t_out = ((double) Outgoing.expectedValueIn + 500) / ((double) Incoming.expectedValueOut + 1.0);
 
-		//		msg(MSG_FATAL,"incoming ddos: %.2f > %.2f",ratio_out,t_out);
-		//		msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_in,t_in);
+		msg(MSG_FATAL,"current ratio: %.2f > %.2f",ratio_out,t_out);
+		msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_in,t_in);
 
 		if (active_in == true || active_out == true)
 		{
 			//identify clusters
 			thread = new Thread(SynDosDetect::threadWrapper);
-			thread->run(NULL);
+			thread->run(this);
+			for (int i = 0;i<40;i++) msg(MSG_FATAL,"lol");
 			active_in = false;
 			active_out = false;
-			delete HashAttack;
-			delete HashDefend;
 			Incoming.varCountIn = 0;
 			Incoming.varCountOut = 0;
 			Outgoing.varCountIn = 0;
@@ -208,6 +297,7 @@ int SynDosDetect::checkForAttack(const Packet* p)
 			active_out = true;
 			HashDefend = new DosHash();
 			HashAttack = new DosHash();
+
 			msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_out,t_out);
 			return 0;
 		}
@@ -217,7 +307,7 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		Incoming.OutHistory[count % 5] = Incoming.varCountOut;
 		Outgoing.InHistory[count % 5] = Outgoing.varCountIn;
 		Outgoing.OutHistory[count % 5] = Outgoing.varCountOut;
-		//msg(MSG_FATAL,"%d %d %d %d",Incoming.varCountIn,Incoming.varCountOut,Outgoing.varCountIn,Outgoing.varCountOut);
+		msg(MSG_FATAL,"%d %d %d %d",Incoming.varCountIn,Incoming.varCountOut,Outgoing.varCountIn,Outgoing.varCountOut);
 
 		//reset counter
 		Incoming.varCountIn = 0;
@@ -253,10 +343,44 @@ int SynDosDetect::compare_entry(pEntry e,pEntry p)
 
 }
 
+void SynDosDetect::updateMaps(ipentry* ip,pEntry p,uint32_t cip)
+{
+	//ip list
+	if (cip == p.dstip) cip = p.srcip;
+	else cip = p.dstip;
+
+	if (ip->sum_ip.find(cip) != ip->sum_ip.end())
+	{
+		ip->sum_ip[cip]++;
+	}
+	else {
+		ip->sum_ip[cip] = 1;
+	}
+
+	if (ip->sum_srcprt.find(p.srcprt) != ip->sum_srcprt.end())
+	{
+		ip->sum_srcprt[p.srcprt]++;
+	}
+	else {
+		ip->sum_srcprt[p.srcprt] = 1;
+	}
+
+	if (ip->sum_dstprt.find(p.dstprt) != ip->sum_dstprt.end())
+	{
+		ip->sum_dstprt[p.dstprt]++;
+		msg(MSG_FATAL,"new dstprt value for %x on %d is %d",ip->ip,p.dstprt,ip->sum_dstprt[p.dstprt]);
+	}
+	else {
+		ip->sum_dstprt[p.dstprt] = 1;
+		msg(MSG_FATAL,"new dstprt value for %x on %d is %d",ip->ip,p.dstprt,ip->sum_dstprt[p.dstprt]);
+	}
+
+
+}
 
 void SynDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 {
-	uint32_t bucket = (ip % 2048);
+	uint32_t bucket = (ip % DOSHASH_SIZE);
 
 	msg(MSG_FATAL,"bucket is %d",bucket);
 
@@ -269,7 +393,7 @@ void SynDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 		ipentry* newipentry = new ipentry;
 		newipentry->ip = ip;
 		newipentry->count = 1;
-		newipentry->entries.push_back(p);
+		updateMaps(newipentry,p,ip);
 
 		ipentrylist->push_back(newipentry);
 		hash->table[bucket] = ipentrylist;
@@ -287,17 +411,7 @@ void SynDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 			{
 				current->count++;
 				msg(MSG_FATAL,"i already found an entry for ip %x",ip);
-
-				for (int j = 0;j < current->entries.size();j++)
-				{
-					if (compare_entry(current->entries[j],p))
-					{
-						msg(MSG_FATAL,"this flow has already been monitored %x",ip);
-						return;
-					}
-				}
-				msg(MSG_FATAL,"this flow could not be found, creating one");
-				current->entries.push_back(p);
+				updateMaps(current,p,ip);
 				return;
 			}
 		}
@@ -306,7 +420,7 @@ void SynDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 		ipentry* newipentry = new ipentry;
 		newipentry->ip = ip;
 		newipentry->count = 1;
-		newipentry->entries.push_back(p);
+		updateMaps(newipentry,p,ip);
 		hash->table[bucket]->push_back(newipentry);
 	}
 
@@ -333,13 +447,41 @@ SynDosDetect::SynDosDetect() {
 }
 
 void* SynDosDetect::threadWrapper(void* instance)
-	{
-	msg(MSG_FATAL,"cluster finding thread started");
+{
 	SynDosDetect* inst = (SynDosDetect*) instance;
 	inst->busy = true;
 	inst->evaluateClusters();
+	inst->lastCheck = time(0);
+	//TODO: clean cluster hash tables!
+	inst->cleanUpCluster();
 	inst->busy = false;
-	msg(MSG_FATAL,"cluster finding thread ended");
-	}
+}
 
+void SynDosDetect::cleanUpCluster()
+{
+	for (int i = 0;i<DOSHASH_SIZE;i++)
+	{
+		if (HashAttack->table[i] != NULL)
+		{
+			for (int j = 0;j < HashAttack->table[i]->size();j++)
+			{
+				delete HashAttack->table[i]->at(j);
+			}
+			delete HashAttack->table[i];
+		}
+		if (HashDefend->table[i] != NULL)
+		{
+			for (int j = 0;j < HashDefend->table[i]->size();j++)
+			{
+				delete HashDefend->table[i]->at(j);
+			}
+			delete HashDefend->table[i];
+		}
+	}
+	delete HashAttack;
+	delete HashDefend;
+
+	HashAttack = NULL;
+	HashDefend = NULL;
+}
 SynDosDetect::~SynDosDetect() { }

@@ -21,6 +21,7 @@
 #ifndef CRC16_H
 #define CRC16_H
 
+#define MAX_FIELD_LEN 16
 #include <stdint.h>
 
 /* CRC16 table calculated by Mark G. Mendel. From xmodem.h, public domain */
@@ -137,43 +138,52 @@ static const uint32_t crc32_tab[] = {
  * @param size size of buffer (amount of bytes)
  * @returns crc-hash
  */
-inline uint32_t kcrc32(uint32_t seed, uint32_t size, const void *buf, const char* rand)
+inline uint32_t kccrc32(uint32_t seed, uint32_t size, const void *buf, const char* rand)
 {
-	uint32_t crc = seed;
-	char* p = (char*) buf;
-	//prepare values
-/*
-	char* value = new char[size];
-	uint8_t i = 0;
-	uint64_t carry;
-	while(i<size)
-	{
-		carry = 0;
-		if (size-i >=4)
-		{
-			carry = *((uint32_t*) (p+i)) + *((uint32_t*) (rand+i)); 
-			*((uint32_t*) (value+i)) = carry>>32 + carry;
-			i+=4;
-		}
-		else if (size-i >=2)
-		{
-			carry = *((uint16_t*) (p+i)) + *((uint16_t*) (rand+i)); 
-			*((uint16_t*) (value+i)) = carry>>16 + carry;
-			i+=2;
-		}
-		else
-		{
-			carry = p[i]+rand[i];
-				value[i] = carry>>8 + carry;
-			i+=1;
-		}	
+        char* p = (char*) buf;
 
-	}*/
-	while (size--)
-		crc = crc32_tab[(crc ^ (*p++ + *rand++)) & 0xFF] ^ (crc >> 8);
-	return crc ^ ~0U;
+        char value[MAX_FIELD_LEN];
+        char* vp = value;
+	//This users if and else statements because of its minimum speedgain compared to switch 
+        if (size==4)
+                *((uint32_t*) (&value)) = *((uint32_t*) (p)) + *((uint32_t*) (rand));
+        else if (size==2)
+                *((uint16_t*) (&value)) = *((uint16_t*) (p)) + *((uint16_t*) (rand));
+        else if (size==1)
+                *value = *p+ *rand;
+        else if (size==5)
+        {
+                *((uint64_t*) (&value)) = *((uint32_t*) (p)) + *((uint32_t*) (rand));
+
+                *(value+4) = *(p+4) + *(rand+4) + (*(value+4)&0x1);
+        }
+        else if (size ==8)
+                *((uint64_t*) (&value)) = *((uint64_t*) (p)) + *((uint64_t*) (rand));
+        else if (size==16)
+        {
+                *((uint64_t*) (&value)) = *((uint64_t*) (p)) + *((uint64_t*) (rand));
+                *((uint64_t*) (&value+8)) = *((uint64_t*) (p+8)) + *((uint64_t*) (rand+8));
+        }
+        else {
+		//if length is different use non carry version
+                while (size--)
+                        seed = crc32_tab[(seed ^ (*p++ + *rand++)) & 0xFF] ^ (seed >> 8);
+                return seed ^ ~0U;
+
+        }
+        while (size--)
+                seed = crc32_tab[(seed ^ *vp++) & 0xFF] ^ (seed >> 8);
+        return seed ^ ~0U;
 }
 
+inline uint32_t kcrc32(uint32_t seed, uint32_t size, const void *buf, const char* rand)
+{
+        char* p = (char*) buf;
+
+        while (size--)
+                seed = crc32_tab[(seed ^ (*p++ + *rand++)) & 0xFF] ^ (seed >> 8);
+        return seed ^ ~0U;
+}
 inline uint32_t crc32(uint32_t seed, uint32_t size, const void *buf)
 {
 	const uint8_t *p = reinterpret_cast<const uint8_t*>(buf);

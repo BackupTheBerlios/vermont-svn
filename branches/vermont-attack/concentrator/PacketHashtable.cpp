@@ -524,7 +524,9 @@ boost::shared_array<IpfixRecord::Data> PacketHashtable::dosBuildBucketData(const
 		ExpFieldData* efd = &expHelperTable.expFieldData[i];
 		
 		if (BaseTCPDosDetect::idToMask(efd->typeId) & packetMask)
+		{
 		memset(data+efd->dstIndex,0,efd->srcLength);
+		}
 		else
 		efd->copyDataFunc(data, reinterpret_cast<const uint8_t*>(p->netHeader)+efd->srcIndex, efd);
 	}
@@ -663,9 +665,10 @@ bool PacketHashtable::dosEqualFlow(IpfixRecord::Data* bucket, const Packet* p,ui
 		ExpFieldData* efd = &expHelperTable.expFieldData[i];
 
 		if (BaseTCPDosDetect::idToMask(efd->typeId) & packetMask)
+			{
 			for (int i=efd->dstIndex;i < efd->dstIndex+efd->srcLength;i++)
 				if (bucket[i]) return false;
-		
+			}
 		// just compare srcLength bytes, as we still have our original packet data
 		else if (memcmp(bucket+efd->dstIndex, p->netHeader+efd->srcIndex, efd->srcLength)!=0)
 			return false;
@@ -902,9 +905,12 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 	// search bucket inside hashtable
 	HashtableBucket* bucket = buckets[hash];
 
+
+	msg(MSG_FATAL,"aggregating Dos Bucket!");
 	if (bucket == 0) {
 		// slot is free, place bucket there
 		DPRINTF("creating new dos bucket");
+		msg(MSG_FATAL,"creating Dos Bucket!");
 		buckets[hash] = createBucket(dosBuildBucketData(p,packetMask), p->observationDomainID, 0, 0, hash);
 		BucketListElement* node = hbucketIM.getNewInstance();
 		node->reset();
@@ -917,7 +923,7 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 		while(1) {
 			if (dosEqualFlow(bucket->data.get(), p,packetMask)) {
 				DPRINTF("appending to bucket\n");
-
+				msg(MSG_FATAL,"appending to Dos Bucket!");
 				expAggregateFlow(bucket->data.get(), p);
 
 				// TODO: tobi_optimize
@@ -928,11 +934,13 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 					exportList.remove(bucket->listNode);
 					exportList.push(bucket->listNode);
 				}
+				
 				break;
 			}
 
 			if (bucket->next == 0) {
 				DPRINTF("creating bucket\n");
+				msg(MSG_FATAL,"creating Dos Bucket eol!");
 				statTotalEntries++;
 				statMultiEntries++;
 				HashtableBucket* buck = createBucket(dosBuildBucketData(p,packetMask), p->observationDomainID, 0, bucket, hash);

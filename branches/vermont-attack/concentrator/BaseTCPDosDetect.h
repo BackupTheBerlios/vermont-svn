@@ -4,9 +4,11 @@
 #include "ipfix.hpp"
 #include <iostream>
 #include <vector>
+#include <map>
 #include "sampler/Packet.h"
 #include "common/Thread.h"
 
+#define DOSHASH_SIZE 2048 
 typedef struct pEntry {
 	uint32_t srcip;
 	uint32_t dstip;
@@ -22,7 +24,9 @@ typedef struct DosCluster {
 
 typedef struct ipentry {
 	uint32_t ip;
-	std::vector<pEntry> entries;
+	std::map<uint32_t,uint32_t> sum_ip;
+	std::map<uint16_t,uint32_t> sum_dstprt;
+	std::map<uint16_t,uint32_t> sum_srcprt;
 	uint32_t count;
 }ipentry;
 
@@ -31,8 +35,8 @@ class DosHash {
 		std::vector<ipentry*>** table;
 
 		DosHash() { 
-			table = new std::vector<ipentry*>*[2048];
-			for (int i = 0;i<2048;i++)
+			table = new std::vector<ipentry*>*[DOSHASH_SIZE];
+			for (int i = 0;i<DOSHASH_SIZE;i++)
 			{
 				table[i] = NULL;
 			}
