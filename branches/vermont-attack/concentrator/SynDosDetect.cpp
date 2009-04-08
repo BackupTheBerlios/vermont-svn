@@ -6,19 +6,18 @@ void SynDosDetect::evaluateClusters()
 
 	ipentry* max = NULL;
 	uint32_t maxdifference = 0;
-	msg(MSG_FATAL,"evaluating clusters");
+	//msg(MSG_FATAL,"evaluating clusters");
 	//FIND LEVEL1 Clusters
 	//
-	if (HashAttack == NULL) { msg(MSG_FATAL,"arsch"); };
 	for (int i = 0;i < DOSHASH_SIZE;i++)
 	{
 		if (HashAttack->table[i] != NULL)
 		{
-			msg(MSG_FATAL,"Bucket %d was not empty, found %d entries",i,HashAttack->table[i]->size());
+			//msg(MSG_FATAL,"Bucket %d was not empty, found %d entries",i,HashAttack->table[i]->size());
 			for (int j = 0;j < HashAttack->table[i]->size();j++)
 			{
 				//now find corresponding defense bucket
-				msg(MSG_FATAL,"searching correspondig defense entry");
+				//msg(MSG_FATAL,"searching correspondig defense entry");
 				ipentry* current = HashAttack->table[i]->at(j);
 				uint32_t bucket = current->ip % DOSHASH_SIZE;
 
@@ -28,16 +27,17 @@ void SynDosDetect::evaluateClusters()
 				{
 					for (int p = 0;p < HashDefend->table[i]->size();p++)
 					{
-						msg(MSG_FATAL,"found existing vector in defense");
+						//msg(MSG_FATAL,"found existing vector in defense");
 						if (HashDefend->table[i]->at(p)->ip == current->ip)
 						{
 							defend_count = HashDefend->table[i]->at(p)->count;
-							msg(MSG_FATAL,"found ipentry in defense, offering %d",defend_count);
+							//msg(MSG_FATAL,"found ipentry in defense, offering %d",defend_count);
 							break;			
 						}
 					}
 				}
-				else msg(MSG_FATAL,"didnt find defense");
+				else { //msg(MSG_FATAL,"didnt find defense"); 
+					}
 				if (maxdifference < (current->count - defend_count) && ((current->count+1)/(defend_count+1)) > 3) { max = current; maxdifference = current->count - defend_count;}
 			}	
 
@@ -99,7 +99,7 @@ void SynDosDetect::evaluateClusters()
 
 			if (difference > maxdifference * 0.9)
 			{
-				msg(MSG_FATAL,"srcprt: we got a winner, its port %d with %d entries",iter2->first,iter2->second);
+				//msg(MSG_FATAL,"srcprt: we got a winner, its port %d with %d entries",iter2->first,iter2->second);
 				max_srcprt = iter2->first;
 				break;
 			}
@@ -120,7 +120,7 @@ void SynDosDetect::evaluateClusters()
 
 			if (difference > maxdifference * 0.9)
 			{
-				msg(MSG_FATAL,"dstprt: we got a winner, its port %d with %d entries",iter3->first,iter3->second);
+				//msg(MSG_FATAL,"dstprt: we got a winner, its port %d with %d entries",iter3->first,iter3->second);
 				max_dstprt = iter3->first;
 				break;
 			}
@@ -194,7 +194,7 @@ int SynDosDetect::checkForAttack(const Packet* p)
 			if (!clusters[i].entry.dstip || clusters[i].entry.dstip == currentPacket.dstip) {
 				if (!clusters[i].entry.srcprt || clusters[i].entry.srcprt == currentPacket.srcprt) {
 					if (!clusters[i].entry.dstprt || clusters[i].entry.dstprt == currentPacket.dstprt) {
-						msg(MSG_FATAL,"bad packet");
+						//msg(MSG_FATAL,"bad packet");
 						return clusters[i].mask; } } } }		
 	}
 
@@ -253,7 +253,7 @@ int SynDosDetect::checkForAttack(const Packet* p)
 
 			Outgoing.expectedValueIn += Outgoing.InHistory[(count+i) % 5] / 5.0;
 			Outgoing.expectedValueOut += Outgoing.OutHistory[(count+i) % 5] / 5.0;
-			//	msg(MSG_FATAL,"%d %d %d %d",Incoming.expectedValueIn,Outgoing.expectedValueOut,Outgoing.expectedValueIn,Incoming.expectedValueOut);
+			//	//msg(MSG_FATAL,"%d %d %d %d",Incoming.expectedValueIn,Outgoing.expectedValueOut,Outgoing.expectedValueIn,Incoming.expectedValueOut);
 		}
 
 		//this was for testing if expectation values are ok
@@ -266,17 +266,14 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		double t_in = ((double) Incoming.expectedValueIn + 500) / ((double) Outgoing.expectedValueOut + 1.0);
 		double t_out = ((double) Outgoing.expectedValueIn + 500) / ((double) Incoming.expectedValueOut + 1.0);
 
-		msg(MSG_FATAL,"current ratio: %.2f > %.2f",ratio_out,t_out);
-		msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_in,t_in);
+		//msg(MSG_FATAL,"current ratio: %.2f > %.2f",ratio_out,t_out);
+		//msg(MSG_FATAL,"current ratio: %.2f > %.2f",ratio_in,t_in);
 
 		if (active_in == true || active_out == true)
 		{
 			//identify clusters
 			thread = new Thread(SynDosDetect::threadWrapper);
 			thread->run(this);
-			for (int i = 0;i<40;i++) msg(MSG_FATAL,"lol");
-			active_in = false;
-			active_out = false;
 			Incoming.varCountIn = 0;
 			Incoming.varCountOut = 0;
 			Outgoing.varCountIn = 0;
@@ -289,7 +286,7 @@ int SynDosDetect::checkForAttack(const Packet* p)
 			active_in = true;
 			HashDefend = new DosHash();
 			HashAttack = new DosHash();
-			msg(MSG_FATAL,"incoming ddos");
+			//msg(MSG_FATAL,"incoming ddos");
 			return 0;
 		}
 		else if (ratio_out > t_out)
@@ -298,7 +295,7 @@ int SynDosDetect::checkForAttack(const Packet* p)
 			HashDefend = new DosHash();
 			HashAttack = new DosHash();
 
-			msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_out,t_out);
+			//msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_out,t_out);
 			return 0;
 		}
 
@@ -307,7 +304,7 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		Incoming.OutHistory[count % 5] = Incoming.varCountOut;
 		Outgoing.InHistory[count % 5] = Outgoing.varCountIn;
 		Outgoing.OutHistory[count % 5] = Outgoing.varCountOut;
-		msg(MSG_FATAL,"%d %d %d %d",Incoming.varCountIn,Incoming.varCountOut,Outgoing.varCountIn,Outgoing.varCountOut);
+		//msg(MSG_FATAL,"%d %d %d %d",Incoming.varCountIn,Incoming.varCountOut,Outgoing.varCountIn,Outgoing.varCountOut);
 
 		//reset counter
 		Incoming.varCountIn = 0;
@@ -322,13 +319,13 @@ int SynDosDetect::checkForAttack(const Packet* p)
 void SynDosDetect::observePacketDefend(pEntry currentPacket)
 {
 
-	msg(MSG_FATAL,"Analyzing possible defense packet from %x",currentPacket.srcip);
+	//msg(MSG_FATAL,"Analyzing possible defense packet from %x",currentPacket.srcip);
 	observePacket(HashDefend,currentPacket,currentPacket.srcip);
 }
 
 void SynDosDetect::observePacketAttack(pEntry currentPacket)
 {
-	msg(MSG_FATAL,"Analyzing possible attack packet to %x",currentPacket.dstip);
+	//msg(MSG_FATAL,"Analyzing possible attack packet to %x",currentPacket.dstip);
 	observePacket(HashAttack,currentPacket,currentPacket.dstip);
 }
 
@@ -368,11 +365,11 @@ void SynDosDetect::updateMaps(ipentry* ip,pEntry p,uint32_t cip)
 	if (ip->sum_dstprt.find(p.dstprt) != ip->sum_dstprt.end())
 	{
 		ip->sum_dstprt[p.dstprt]++;
-		msg(MSG_FATAL,"new dstprt value for %x on %d is %d",ip->ip,p.dstprt,ip->sum_dstprt[p.dstprt]);
+		//msg(MSG_FATAL,"new dstprt value for %x on %d is %d",ip->ip,p.dstprt,ip->sum_dstprt[p.dstprt]);
 	}
 	else {
 		ip->sum_dstprt[p.dstprt] = 1;
-		msg(MSG_FATAL,"new dstprt value for %x on %d is %d",ip->ip,p.dstprt,ip->sum_dstprt[p.dstprt]);
+		//msg(MSG_FATAL,"new dstprt value for %x on %d is %d",ip->ip,p.dstprt,ip->sum_dstprt[p.dstprt]);
 	}
 
 
@@ -382,11 +379,11 @@ void SynDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 {
 	uint32_t bucket = (ip % DOSHASH_SIZE);
 
-	msg(MSG_FATAL,"bucket is %d",bucket);
+	//msg(MSG_FATAL,"bucket is %d",bucket);
 
 	if (hash->table[bucket] == NULL)
 	{
-		msg(MSG_FATAL,"there was no ipentry vector, creating for ip %x",ip);
+		//msg(MSG_FATAL,"there was no ipentry vector, creating for ip %x",ip);
 
 		std::vector<ipentry*>* ipentrylist = new std::vector<ipentry*>();
 
@@ -403,20 +400,20 @@ void SynDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 	}
 	else
 	{
-		msg(MSG_FATAL,"there was already an ipentry vector");
+		//msg(MSG_FATAL,"there was already an ipentry vector");
 		for (int i = 0;i < hash->table[bucket]->size();i++)
 		{
 			ipentry* current = hash->table[bucket]->at(i);
 			if (current->ip == ip)
 			{
 				current->count++;
-				msg(MSG_FATAL,"i already found an entry for ip %x",ip);
+				//msg(MSG_FATAL,"i already found an entry for ip %x",ip);
 				updateMaps(current,p,ip);
 				return;
 			}
 		}
 
-		msg(MSG_FATAL,"the ip entry list did not contain my ip, adding ipentry for %x",ip);
+		//msg(MSG_FATAL,"the ip entry list did not contain my ip, adding ipentry for %x",ip);
 		ipentry* newipentry = new ipentry;
 		newipentry->ip = ip;
 		newipentry->count = 1;
@@ -454,6 +451,8 @@ void* SynDosDetect::threadWrapper(void* instance)
 	inst->lastCheck = time(0);
 	//TODO: clean cluster hash tables!
 	inst->cleanUpCluster();
+	inst->active_in = false;
+	inst->active_out = false;
 	inst->busy = false;
 }
 

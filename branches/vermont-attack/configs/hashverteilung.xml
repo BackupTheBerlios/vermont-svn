@@ -54,7 +54,7 @@
 		<activeTimeout unit="sec">600</activeTimeout>
 	</expiration>
 <hashtableBits>16</hashtableBits>
-	<pollInterval unit="sec">3000</pollInterval>
+	<pollInterval unit="sec">5000</pollInterval>
 	<next>7</next>
 </packetAggregator>		
 

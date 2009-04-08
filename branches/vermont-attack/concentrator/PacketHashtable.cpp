@@ -505,7 +505,6 @@ uint32_t PacketHashtable::expCalculateHash(const IpfixRecord::Data* data)
 	for (int i=expHelperTable.noAggFields; i<expHelperTable.efdLength; i++) {
 		ExpFieldData* efd = &expHelperTable.expFieldData[i];
 		hash = kcrc32(hash,efd->srcLength, reinterpret_cast<const char*>(data)+efd->srcIndex,expHelperTable.varFieldWeights[i-expHelperTable.noAggFields]);
-//		hash = crc32(hash,efd->srcLength, reinterpret_cast<const char*>(data)+efd->srcIndex);
 	}
 	return hash & (htableSize-1);
 }
@@ -807,20 +806,19 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	DPRINTF("PacketHashtable::aggregatePacket()");
 	updatePointers(p);
 	createMaskedFields(p);
-
+/*
 	uint32_t packetMask = varDosSyn.checkForAttack(p);
 
 	if (packetMask != 0) {
-		msg(MSG_FATAL,"dos packet");	//this is a ddos packet
+//		msg(MSG_FATAL,"dos packet");	//this is a ddos packet
 		dosAggregatePacket(p,packetMask);
+		atomic_release(&aggInProgress);
+		return;
 	}
-
+*/
 	//	HASH DISTRIBUTION TEST CODE
-	/*
-	int dist_agg = 1;
-	int avg;
 
-	if (statTotalEntries == 3000000)
+	if (statTotalEntries == 50000)
 	{
 		for (int i = 0;i < htableSize; i++)
 		{
@@ -831,21 +829,16 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 				bucket = bucket->next;
 				length++;
 			}
-			if (!(i% dist_agg)) {
 
-				printf("%d,",avg/dist_agg);
-				avg = 0;
-
-			}
-			else avg += length;
-
-			if (!(i%(256*dist_agg))) printf("\n");
+				printf("%d,",length);
+			if (!(i%256)) printf("\n");
 		}
 		std::cerr << "output for distribution is done\n";
+		exit(0);
 	}
-*/
 	uint32_t hash = expCalculateHash(p->netHeader);
 
+	if (!(statTotalEntries % 50000)) std::cerr << statTotalEntries << std::endl;
 	// search bucket inside hashtable
 	HashtableBucket* bucket = buckets[hash];
 	if (bucket == 0) {
@@ -906,7 +899,7 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 	HashtableBucket* bucket = buckets[hash];
 
 
-	msg(MSG_FATAL,"aggregating Dos Bucket!");
+	//msg(MSG_FATAL,"aggregating Dos Bucket!");
 	if (bucket == 0) {
 		// slot is free, place bucket there
 		DPRINTF("creating new dos bucket");
@@ -923,7 +916,7 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 		while(1) {
 			if (dosEqualFlow(bucket->data.get(), p,packetMask)) {
 				DPRINTF("appending to bucket\n");
-				msg(MSG_FATAL,"appending to Dos Bucket!");
+	//			msg(MSG_FATAL,"appending to Dos Bucket!");
 				expAggregateFlow(bucket->data.get(), p);
 
 				// TODO: tobi_optimize
