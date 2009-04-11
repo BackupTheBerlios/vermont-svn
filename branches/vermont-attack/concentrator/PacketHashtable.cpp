@@ -818,7 +818,7 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 */
 	//	HASH DISTRIBUTION TEST CODE
 
-	if (statTotalEntries == 50000)
+	if (statTotalEntries == 3000000)
 	{
 		for (int i = 0;i < htableSize; i++)
 		{
@@ -838,7 +838,6 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	}
 	uint32_t hash = expCalculateHash(p->netHeader);
 
-	if (!(statTotalEntries % 50000)) std::cerr << statTotalEntries << std::endl;
 	// search bucket inside hashtable
 	HashtableBucket* bucket = buckets[hash];
 	if (bucket == 0) {
