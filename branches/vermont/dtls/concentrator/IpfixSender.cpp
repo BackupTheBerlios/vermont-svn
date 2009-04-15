@@ -465,6 +465,8 @@ void IpfixSender::onDataDataRecord(IpfixDataDataRecord* record)
 
 	startDataSet(dataTemplateInfo->templateId);
 
+	// DPRINTF("dataLength: %d",record->dataLength);
+
 	int i;
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
 		IpfixRecord::FieldInfo* fi = &dataTemplateInfo->fieldInfo[i];
@@ -472,6 +474,7 @@ void IpfixSender::onDataDataRecord(IpfixDataDataRecord* record)
 		/* Split IPv4 fields with length 5, i.e. fields with network mask attached */
 		if ((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
 			uint8_t* mask = &conversionRingbuffer[ringbufferPos++];
+			// ASK: check for overflow of ringbuffer
 			*mask = 32 - *(uint8_t*)(data + fi->offset + 4);
 			ipfix_put_data_field(exporter, data + fi->offset, 4);
 			ipfix_put_data_field(exporter, mask, 1);

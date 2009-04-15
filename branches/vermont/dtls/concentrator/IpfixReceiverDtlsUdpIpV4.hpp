@@ -50,7 +50,7 @@
  * removed. */
 #define DTLS_SHUTDOWN_TIMEOUT 10
 /* Maximum number of concurrent connections */
-#define DTLS_MAX_CONCURRENT_CONNECTIONS 2
+#define DTLS_MAX_CONCURRENT_CONNECTIONS 50
 
 #endif /* SUPPORT_OPENSSL */
 

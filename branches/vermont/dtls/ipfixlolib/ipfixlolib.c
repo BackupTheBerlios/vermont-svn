@@ -62,7 +62,7 @@ static void dtls_fail_connection(ipfix_dtls_connection *con);
 static int init_send_sctp_socket(struct sockaddr_in serv_addr);
 #endif
 static int init_send_udp_socket(struct sockaddr_in serv_addr);
-static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum template_state cleanness);
+static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id);
 static void ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ipfix_sendbuffer *sendbuf);
 static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbufn);
 static int ipfix_reset_sendbuffer(ipfix_sendbuffer *sendbuf);
@@ -176,6 +176,7 @@ static int dtls_receive_if_necessary(ipfix_dtls_connection *con) {
     /* return immediately if there's no need to read data. */
     if ( ! con->want_read) return 1;
 
+    DPRINTF("Trying to receive on socket: %d",con->socket);
     len = read(con->socket,con->recvbuf,sizeof(con->recvbuf));
     if (len == 0) {
 	msg(MSG_FATAL, "IPFIX: EOF detected on UDP socket for DTLS.");
@@ -229,8 +230,8 @@ static int dtls_get_replacement_connection_ready(
 	return 1; /* SUCCESS */
     }
     if (ret == 0) {
-	if (exporter->dtls_connect_timeout && 
-		(time(NULL) - col->dtls_replacement.last_reconnect_attempt_time > exporter->dtls_connect_timeout)) {
+	if (col->dtls_connect_timeout && 
+		(time(NULL) - col->dtls_replacement.last_reconnect_attempt_time > col->dtls_connect_timeout)) {
 	    msg(MSG_ERROR,"DTLS replacement connection setup taking too long.");
 	    dtls_fail_connection(&col->dtls_replacement);
 	} else {
@@ -254,7 +255,23 @@ static int dtls_send_templates(
 	exporter->template_sendbuffer->current);
 }
 
-/* returns 0 on success and -1 on error.
+static void dtls_swap_connections(ipfix_dtls_connection *a, ipfix_dtls_connection *b) {
+    /* Very ineffecient because recvbuf is copied as well. But that's ok because
+     * this function is called only on rare occasions. */
+    ipfix_dtls_connection tmp;
+    memcpy(&tmp,a,sizeof(tmp));
+    memcpy(a,b,sizeof(*b));
+    memcpy(b,&tmp,sizeof(*b));
+}
+
+
+/* This function pushes the connection setup forward if we are in state C_NEW.
+ * It also sets up the replacement connection if it's time to replace the 
+ * current connection with a new one.
+ * If we are in state C_DISCONNECT then it sets up a new main connection.
+ *
+ * Return values:
+ * returns 0 on success and -1 on error.
  * Note that success does not mean that we are connected. You still have
  * to check the state member of ipfix_receiving_collector to determine
  * if we are connected. */
@@ -262,19 +279,23 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
     int ret;
 
     if (col->state == C_CONNECTED) {
-	if( exporter->dtls_max_connection_age == 0 ||
-		time(NULL) - col->connect_time < exporter->dtls_max_connection_age) 
+	if( col->dtls_max_connection_age == 0 ||
+		time(NULL) - col->connect_time < col->dtls_max_connection_age) 
 	return 0;
 	/* Alright, the connection is already very old and needs to be
 	 * replaced. Let's get the replacement / backup connection ready. */
 	ret = dtls_get_replacement_connection_ready(exporter, col);
 	if (ret == 1) { /* Connection setup completed */
+	    DPRINTF("Swapping connections.");
+	    dtls_swap_connections(&col->dtls_main,&col->dtls_replacement);
 	    DPRINTF("Shutting down old DTLS connection.");
-	    dtls_shutdown_and_cleanup(&col->dtls_main);
-	    DPRINTF("Swapping in new DTLS connection.");
-	    memcpy(&col->dtls_main,&col->dtls_replacement,sizeof(col->dtls_main));
+	    dtls_shutdown_and_cleanup(&col->dtls_replacement);
 	    col->connect_time = time(NULL);
 	    ret = dtls_send_templates(exporter, col);
+	    /* We do not need to check the return value because
+	     * dtls_send_templates already shutdown the DTLS connection
+	     * in case of failure.
+	     * It also sets state to C_DISCONNECTED in this case. */
 	}
 	/* We ignore all other return values of dtls_get_replacement_connection_ready() */
     }
@@ -301,8 +322,8 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
 	/* Ok. We get to this point if dtls_connect() returned 0.
 	 * In this case the connection setup is still ongoing.
 	 * But let's check if it's not ongoing for too long. */
-	if (exporter->dtls_connect_timeout && 
-		(time(NULL) - col->dtls_main.last_reconnect_attempt_time > exporter->dtls_connect_timeout)) {
+	if (col->dtls_connect_timeout && 
+		(time(NULL) - col->dtls_main.last_reconnect_attempt_time > col->dtls_connect_timeout)) {
 	    msg(MSG_ERROR,"DTLS connection setup taking too long.");
 	    dtls_fail_connection(&col->dtls_main);
 	    col->state = C_DISCONNECTED;
@@ -420,7 +441,8 @@ static int dtls_receiver(ipfix_dtls_connection *con) {
  * n>0: sent n bytes
  * 0: Could not send due to OpenSSL returning SSL_ERROR_WANT_READ
  * -1: Recoverable error
- * -2: Error. Shutdown connection if you get this.
+ * -2: Bad Error. DTLS connection has been shutdown already.
+ *	You should set state to C_DISCONNECT
  */
 
 static int dtls_send_helper(ipfix_exporter *exporter,
@@ -521,6 +543,7 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 
     /* Create socket */
     con->socket = init_send_udp_socket(col->addr);
+    DPRINTF("Created socket %d",con->socket);
 
     /* set socket to non-blocking i/o */
     flags = fcntl(con->socket,F_GETFL,0);
@@ -608,6 +631,7 @@ static void dtls_shutdown_and_cleanup(ipfix_dtls_connection *con) {
     SSL_free(con->ssl);
     con->ssl = NULL;
     con->want_read = 0;
+    con->last_reconnect_attempt_time = 0;
     /* Close socket */
     if ( con->socket != -1) {
 	DPRINTF("Closing socket");
@@ -768,8 +792,6 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
 	tmp->private_key_file = NULL;
 	tmp->ca_file = NULL;
 	tmp->ca_path = NULL;
-	tmp->dtls_connect_timeout = 30;
-	tmp->dtls_max_connection_age = 120;
 #endif
 
         // initialize the sendbuffers
@@ -914,6 +936,9 @@ int add_collector_dtls(
     col->dtls_replacement.socket = -1;
     col->dtls_replacement.ssl = NULL;
     col->dtls_replacement.want_read = 0;
+
+    col->dtls_max_connection_age = 10;
+    col->dtls_connect_timeout = 30;
 
     ipfix_aux_config_dtls *aux_config_dtls = (ipfix_aux_config_dtls *) aux_config;
     if (aux_config && aux_config_dtls->peer_fqdn)
@@ -1063,52 +1088,42 @@ int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int co
  * Parmeters:
  * exporter: Exporter to search for the template
  * template_id: ID of the template we search
- * cleanness: search for T_UNUSED templates or for existing by ID
  * Returns: the index of the template in the exporter or -1 on failure.
  */
 
-static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, enum template_state cleanness)
-{
-	DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_find_template with ID: %d",template_id);
+static int ipfix_find_template(
+	ipfix_exporter *exporter,
+	uint16_t template_id) {
 
-        int i=0;
-        int searching;
+    DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_find_template with ID: %d",template_id);
 
-        // first, some safety checks:
-        if(exporter == NULL) {
-                msg(MSG_ERROR, "IPFIX: find_template, NULL exporter given");
-                return -1;
-        }
-        if(exporter->template_arr == NULL) {
-                msg(MSG_ERROR, "IPFIX: find_template, template array not initialized, cannot search for %d", template_id);
-                return -1;
-        }
-
-        // do we already have a template with this ID?
-        // -> update it!
-        searching = TRUE;
-       if (cleanness == T_UNUSED) {
-		while(searching && ( i< exporter->ipfix_lo_template_maxsize) ) {
-			if( exporter->template_arr[i].state == cleanness) {
-					// we found an unused slot; return the index:
-					return i;
-			}
-			i++;
-		}
-	}else{
-		while(searching && ( i< exporter->ipfix_lo_template_maxsize) ) {
-				// we are searching for an existing template, compare the template_id:
-				if(exporter->template_arr[i].template_id == template_id) {
-					DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_find_template with ID: %d, validity %d found at %d", template_id, exporter->template_arr[i].state, i);
-					return i;
-					searching = FALSE;
-				}
-			i++;
-		}
+    int i=0;
+    for (;i<exporter->ipfix_lo_template_maxsize;i++) {
+	if(exporter->template_arr[i].template_id == template_id) {
+	    DPRINTFL(MSG_VDEBUG,
+		    "IPFIX: ipfix_find_template with ID: %d, validity %d found at %d",
+		    template_id, exporter->template_arr[i].state, i);
+	    return i;
 	}
-        return -1;
+    }
+    DPRINTFL(MSG_DEBUG, "IPFIX: ipfix_find_template unable to find template with ID: %d",
+	    template_id);
+    return -1;
 }
 
+static int ipfix_get_free_template_slot(ipfix_exporter *exporter) {
+    DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_get_free_template_slot");
+
+    int i=0;
+    for (;i<exporter->ipfix_lo_template_maxsize;i++) {
+	if(exporter->template_arr[i].state == T_UNUSED) {
+	    DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_get_free_template_slot found at %d",i);
+	    return i;
+	}
+    }
+    DPRINTFL(MSG_DEBUG, "IPFIX: ipfix_get_free_template_slot failed.");
+    return -1;
+}
 
 /*
  * Remove a template from the exporting process but create a withdrawal message first
@@ -1118,45 +1133,43 @@ static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id, e
  * Returns: 0 on success, -1 on failure
  * This will free the templates data store!
  */
-int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
-{
-        int ret = 0;
-// argument T_SENT is ignored in ipfix_find_template
-        int found_index = ipfix_find_template(exporter,template_id, T_SENT);
-	if (found_index >= 0) {
-		if(exporter->template_arr[found_index].state == T_SENT){
-			DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_remove_template_set: creating withdrawal msg for ID: %d, validity %d", template_id, exporter->template_arr[found_index].state);
-			char *p_pos;
-			char *p_end;
-	
-			// write the withdrawal message fields into the buffer
-			// beginning of the buffer
-			p_pos = exporter->template_arr[found_index].template_fields;
-			// end of the buffer since the WITHDRAWAL message for one template is always 8 byte
-			p_end = p_pos + 8;
-	
-			// set ID is 2 for a template, 4 for a template with fixed fields:
-			// for withdrawal masseges we keep the template set ID
-			p_pos +=  2;
-			// write 8 to the lenght field
-			write_unsigned16 (&p_pos, p_end, 8);
-			// keep the template ID:
-			p_pos +=  2;
-			// write 0 for the field count, since it indicates that this is a withdrawal message
-			write_unsigned16 (&p_pos, p_end, 0);
-			exporter->template_arr[found_index].fields_length = 8;
-			exporter->template_arr[found_index].field_count = 0;
-			exporter->template_arr[found_index].state = T_WITHDRAWN;
-			DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_remove_template_set: ... Withdrawn");
-       		}
-       		if(exporter->template_arr[found_index].state == T_COMMITED) {
-			ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]) );
-		}
-        }else{
-		msg(MSG_ERROR, "IPFIX: remove_template ID %u not found", template_id);
-		return -1;
-        }
-        return ret;
+int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id) {
+    int found_index = ipfix_find_template(exporter,template_id);
+    if (found_index < 0) {
+	msg(MSG_ERROR, "IPFIX: remove_template ID %u not found", template_id);
+	return -1;
+    }
+    if(exporter->template_arr[found_index].state == T_SENT){
+	DPRINTFL(MSG_VDEBUG,
+		"IPFIX: ipfix_remove_template_set: creating withdrawal msg for ID: %d, validity %d",
+		template_id, exporter->template_arr[found_index].state);
+	char *p_pos;
+	char *p_end;
+
+	// write the withdrawal message fields into the buffer
+	// beginning of the buffer
+	p_pos = exporter->template_arr[found_index].template_fields;
+	// end of the buffer since the WITHDRAWAL message for one template is always 8 byte
+	p_end = p_pos + 8;
+
+	// set ID is 2 for a template, 4 for a template with fixed fields:
+	// for withdrawal masseges we keep the template set ID
+	p_pos +=  2;
+	// write 8 to the lenght field
+	write_unsigned16 (&p_pos, p_end, 8);
+	// keep the template ID:
+	p_pos +=  2;
+	// write 0 for the field count, since it indicates that this is a withdrawal message
+	write_unsigned16 (&p_pos, p_end, 0);
+	exporter->template_arr[found_index].fields_length = 8;
+	exporter->template_arr[found_index].field_count = 0;
+	exporter->template_arr[found_index].fields_added = 0;
+	exporter->template_arr[found_index].state = T_WITHDRAWN;
+	DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_remove_template_set: ... Withdrawn");
+    } else {
+	ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]) );
+    }
+    return 0;
 }
 
 /************************************************************************************/
@@ -1167,6 +1180,10 @@ int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id)
 
 /*
  * Prepends an ipfix message header to the sendbuffer
+ *
+ * One could argue that this function should be called ipfix_update_header
+ * as the header is already there. The data it contains is just incorrect and
+ * needs to be updated. No new header is prepended.
  *
  * The ipfix message header is set according to:
  * - the exporter ( Source ID and sequence number)
@@ -1265,11 +1282,6 @@ out:
  */
 static int ipfix_reset_sendbuffer(ipfix_sendbuffer *sendbuf)
 {
-        if(sendbuf == NULL ) {
-                DPRINTFL(MSG_VDEBUG, "IPFIX: trying to reset NULL sendbuf");
-                return -1;
-        }
-
         sendbuf->current = HEADER_USED_IOVEC_COUNT;
         sendbuf->committed = HEADER_USED_IOVEC_COUNT;
         sendbuf->marker = HEADER_USED_IOVEC_COUNT;
@@ -1332,9 +1344,11 @@ static int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_c
 		c->dtls_main.socket = c->dtls_replacement.socket = -1;
 		c->dtls_main.ssl = c->dtls_replacement.ssl = NULL;
 		c->dtls_main.want_read = c->dtls_replacement.want_read = 0;
+		c->dtls_main.last_reconnect_attempt_time =
+		    c->dtls_replacement.last_reconnect_attempt_time = 0;
 		c->peer_fqdn = NULL;
 #endif
-#
+
         }
 
         *col=tmp;
@@ -1404,7 +1418,6 @@ static int ipfix_init_template_array(ipfix_exporter *exporter, int template_capa
         DPRINTFL(MSG_VDEBUG, "IPFIX - ipfix_init_template_array with elem %d", template_capacity);
         // allocate the memory for template_capacity elements:
         exporter->ipfix_lo_template_maxsize  = template_capacity;
-        exporter->ipfix_lo_template_current_count = 0 ;
         exporter->template_arr =  (ipfix_lo_template*) malloc (template_capacity * sizeof(ipfix_lo_template) );
 
         for(i = 0; i< template_capacity; i++) {
@@ -1426,13 +1439,12 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter)
          This was our memory leak.
          JanP, 2005-21-1
          */
-        int i=0;
-        int ret = 0;
+        int ret, i;
         
         for(i=0; i< exporter->ipfix_lo_template_maxsize; i++) {
                 // if template was sent we need a withdrawal message first
                 if (exporter->template_arr[i].state == T_SENT){
-                 	ret = ipfix_remove_template_set(exporter, exporter->template_arr[i].template_id );
+                 	ipfix_remove_template_set(exporter, exporter->template_arr[i].template_id );
                 }
         }
         // send all created withdrawal messages
@@ -1449,7 +1461,6 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter)
 
         exporter->template_arr = NULL;
         exporter->ipfix_lo_template_maxsize = 0;
-        exporter->ipfix_lo_template_current_count = 0;
 
         return 0;
 }
@@ -1458,29 +1469,27 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter)
 /*
  * Updates the template sendbuffers
  * will be called, after a template has been added or removed
+ *
+ * Watch out: By calling this function you undertake a commitment!
+ * The commitment is that you send out sctp_sendbuf to all SCTP collectors!
+ * This function alters the state of all templates that are
+ * in state T_COMMITED to state T_SENT. In the SCTP case templates
+ * will be copied to sctp_sendbuf only once and this is when this state
+ * transition takes place.
+ * So if you call this function and do not send out sctp_sendbuf afterwards
+ * the affected templates will never be sent because this state transition
+ * takes place only once.
  */
 static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 {
-        int ret;
         int i;
-
-        // first, some safety checks:
-        if (exporter == NULL) {
-                DPRINTFL(MSG_VDEBUG, "IPFIX: trying to update NULL template sendbuffer");
-                return -1;
-        }
-        if (exporter->template_arr == NULL) {
-                DPRINTFL(MSG_VDEBUG,  "IPFIX: update_template_sendbuffer, template store not initialized");
-                return -1;
-
-        }
 
         ipfix_sendbuffer* t_sendbuf = exporter->template_sendbuffer;
 	ipfix_sendbuffer* sctp_sendbuf = exporter->sctp_template_sendbuffer;
 
         // clean the template sendbuffers
-        ret=ipfix_reset_sendbuffer(t_sendbuf);
-	ret=ipfix_reset_sendbuffer(sctp_sendbuf);
+        ipfix_reset_sendbuffer(t_sendbuf);
+	ipfix_reset_sendbuffer(sctp_sendbuf);
 
         // place all valid templates into the template sendbuffer
         // could be done just like put_data_field:
@@ -1532,6 +1541,7 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 				sctp_sendbuf->current++;
 				sctp_sendbuf->committed_data_length +=  exporter->template_arr[i].fields_length;
 				
+				/* ASK: We don't we just delete the template? */
 				exporter->template_arr[i].state = T_TOBEDELETED;
 				DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_update_template_sendbuffer: Withdrawal for template ID: %d added to sctp_sendbuffer", exporter->template_arr[i].template_id);
 				break;
@@ -1653,6 +1663,8 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
         expired = ( (time_now - exporter->last_template_transmission_time) >  exporter->template_transmission_timer);
                 
         // update the sendbuffers
+	// Watch out: You undertake a commitment by calling this function
+	// See the definition of the function for more details.
 	ipfix_update_template_sendbuffer(exporter);
 
 	// send the sendbuffer to all collectors depending on their protocol
@@ -1819,16 +1831,8 @@ static int ipfix_send_data(ipfix_exporter* exporter)
         // send the current data_sendbuffer:
         int data_length=0;
         
-#ifdef SUPPORT_SCTP
-	//time_t time_now = time(NULL);
-#endif
-        
         // is there data to send?
         if (exporter->data_sendbuffer->committed_data_length > 0 ) {
-		// increment sequence number
-		//exporter->sequence_number += exporter->sn_increment;
-		//exporter->sn_increment = 0;
-
                 data_length = exporter->data_sendbuffer->committed_data_length;
 
                 // prepend a header to the sendbuffer
@@ -1992,13 +1996,10 @@ int ipfix_send(ipfix_exporter *exporter)
  * Marks the beginning of a data set
  * Parameters:
  *  exporter: exporting process to send data to
- *   data_length: total length of data put into this set  (network byte order)
  *  template_id: ID of the used template (in network byte order)
  * Note: the set ID MUST match a previously sent template ID! This is the user's responsibility, as the
  * library will not perform any checks.
  */
-// parameter data_length will be deprecated soon!!!
-// calculate via put datafield.
 int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
 {
 	ipfix_set_manager *manager = &(exporter->data_sendbuffer->set_manager);
@@ -2007,7 +2008,7 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
 	// security check
 	if(exporter->data_sendbuffer->current != exporter->data_sendbuffer->committed) {
                 msg(MSG_ERROR, "IPFIX: start_data_set called twice.");
-                goto out;
+                return -1;
         }
     
         // check, if there is enough space in the data set buffer
@@ -2016,7 +2017,7 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
                 msg(MSG_ERROR, "IPFIX: start_data_set sendbuffer too small to handle more than %i entries",
                     exporter->data_sendbuffer->current
                    );
-                goto out;
+                return -1;
         }
 
 	// check if we do have space for another set header
@@ -2024,7 +2025,7 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
                 msg(MSG_ERROR, "IPFIX: start_data_set set_header_store too small to handle more than %i entries",
                     current + 1
                    );
-                goto out;
+                return -1;
         }
 
         // write the set id (=template id) to the data set buffer (length will be added by ipfix_end_data_set):
@@ -2041,11 +2042,20 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
         manager->data_length = 0;
 
         return 0;
-
-out:
-        return -1;
 }
 
+int ipfix_put_data_field(ipfix_exporter *exporter,void *data, unsigned length) {
+    ipfix_sendbuffer *dsb = exporter->data_sendbuffer;
+    if (dsb->current >= IPFIX_MAX_SENDBUFSIZE) {
+	msg(MSG_ERROR, "IPFIX: Sendbuffer too small to handle  %i entries!\n", dsb->current );
+	return -1;
+    }
+    dsb->entries[ dsb->current ].iov_base = data;
+    dsb->entries[ dsb->current ].iov_len =  length;
+    dsb->current++;
+    dsb->set_manager.data_length+= length;
+    return 0;
+}
 
 /*
  * Marks the end of a data set
@@ -2099,7 +2109,7 @@ int ipfix_cancel_data_set(ipfix_exporter *exporter)
 	// security check
 	if(exporter->data_sendbuffer->current == exporter->data_sendbuffer->committed) {
                 msg(MSG_ERROR, "IPFIX: cancel_data_set called but there is no set to cancel.");
-                goto out;
+                return -1;
         }
     
         // clean set id and length:
@@ -2116,9 +2126,6 @@ int ipfix_cancel_data_set(ipfix_exporter *exporter)
         exporter->data_sendbuffer->marker = exporter->data_sendbuffer->committed;
 
         return 0;
-
-out:
-        return -1;
 }
 
 /*
@@ -2170,150 +2177,111 @@ out:
 /*******************************************************************/
 
 /*
- * Marks the beginning of a data template set
+ * Marks the beginning of a data template set and a template record
  * Parameters:
  *  exporter: exporting process to associate the template with
  *  template_id: the template's ID (in host byte order)
  *  field_count: number of template fields in this template (in host byte order)
  */
-// length not ommited; need it to allocate buffer for template
-// template length changes depending on vendor specific stuff.
-
-// gerhard: bei Template alles in Host-Byte-Order. Hier koeen wir auf IOVecs verzichten und die
-// Felder direkt hintereinander in den Buffer schreiben. Dabei wandeln wir jeweils in Network-Byte-Order
-// um.
-
 
 /*
- * Will allocate memory and stuff for a new template
- * End_data_template set will add this template to the exporter
+ * Allocate memory for a new template
+ * end_data_template_set will add this template to the exporter
  */
-int ipfix_start_datatemplate_set (ipfix_exporter *exporter, uint16_t template_id, uint16_t preceding, uint16_t field_count, uint16_t fixedfield_count)
-{
-        // are we updating an existing template?
-        int i;
-        int searching;
-        int found_index = -1;
-	int datatemplate=(fixedfield_count || preceding) ? 1 : 0;
+int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
+	uint16_t template_id, uint16_t preceding, uint16_t field_count,
+	uint16_t fixedfield_count) {
+    // are we updating an existing template?
+    int datatemplate=(fixedfield_count || preceding) ? 1 : 0;
 
-	/* Make sure that template_id is > 255 */
-	if ( ! template_id > 255 ) {
-	    msg(MSG_ERROR, "IPFIX: start_datatemplate_set: Template id has to be > 255. Start of template cancelled.");
+    /* Make sure that template_id is > 255 */
+    if ( ! template_id > 255 ) {
+	msg(MSG_ERROR, "IPFIX: start_datatemplate_set: Template id has to be > 255. Start of template cancelled.");
+	return -1;
+    }
+    int found_index = ipfix_find_template(exporter, template_id);
+
+    // have we found a template?
+    if(found_index >= 0) {
+	// we must overwrite the old template.
+	// first, clean up the old template:
+	switch (exporter->template_arr[found_index].state){
+	    case T_SENT:
+		// create a withdrawal message first
+		ipfix_remove_template_set(exporter, exporter->template_arr[found_index].template_id);
+		/* fall through */
+	    case T_WITHDRAWN:
+		// send withdrawal messages
+		ipfix_send_templates(exporter);
+		/* fall through */
+	    case T_COMMITED:
+	    case T_UNCLEAN:
+	    case T_TOBEDELETED:
+		// nothing to do, template can be deleted
+		ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]));
+		break;
+	    default:
+		DPRINTFL(MSG_VDEBUG, "template valid flag is T_UNUSED or wrong\n");	
+		break;
+	}
+    } else {
+	/* allocate a new, free slot */
+	found_index = ipfix_get_free_template_slot(exporter);
+	if (found_index < 0) {
+	    msg(MSG_ERROR,"Unable to find free template slot.");
 	    return -1;
 	}
-        found_index = ipfix_find_template(exporter, template_id, T_SENT);
+    }
 
-        // have we found a template?
-        if(found_index >= 0) {
-                // we must overwrite the old template.
-                // first, clean up the old template:
-		switch (exporter->template_arr[found_index].state){
-			case T_SENT:
-				// create a withdrawal message first
-				ipfix_remove_template_set(exporter, exporter->template_arr[found_index].template_id);
-			case T_WITHDRAWN:
-				// send withdrawal messages
-				ipfix_send_templates(exporter);
-			case T_COMMITED:
-			case T_UNCLEAN:
-			case T_TOBEDELETED:
-				// nothing to do, template can be deleted
-				ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]));
-				break;
-			default:
-				DPRINTFL(MSG_VDEBUG, "template valid flag is T_UNUSED or wrong\n");	
-				break;
-		}
-        } else {
-                /* allocate a new, free slot */
+    char *p_pos;
+    char *p_end;
 
-                searching = TRUE;
+    // allocate memory for the template's fields:
+    // maximum length of the data: 8 bytes for each field, as one field contains:
+    // field type, field length (2*2bytes)
+    // and may contain an Enterprise Number (4 bytes)
+    // also, reserve 8 bytes space for the header!
 
-                // check if there is a free slot at all:
-                if(exporter->ipfix_lo_template_current_count >= exporter->ipfix_lo_template_maxsize ) {
-                        msg(MSG_ERROR, "IPFIX: start_template_set has no more free slots for new templates available, not added");
-                        // do error handling:
-                        found_index = -1;
-                        searching = FALSE;
-                        return -1;
-                }
+    exporter->template_arr[found_index].max_fields_length = 8 * (field_count + fixedfield_count) + (datatemplate ? 12 : 8);
+    exporter->template_arr[found_index].template_fields = (char*)malloc(exporter->template_arr[found_index].max_fields_length );
 
-                i = 0;
+    // initialize the rest:
+    exporter->template_arr[found_index].state = T_UNCLEAN;
+    exporter->template_arr[found_index].template_id = template_id;
+    exporter->template_arr[found_index].field_count = field_count;
+    exporter->template_arr[found_index].fields_added = 0;
 
-                // search for a free slot:
-                while(searching && i < exporter->ipfix_lo_template_maxsize) {
+    // also, write the template header fields into the buffer (except the lenght field);
 
-                        if(exporter->template_arr[i].state == T_UNUSED ) {
-                                // we have found a free slot:
+    // beginning of the buffer
+    p_pos = exporter->template_arr[found_index].template_fields;
+    // end of the buffer
+    p_end = p_pos + exporter->template_arr[found_index].max_fields_length;
 
-                                // increase total number of templates.
-                                exporter->ipfix_lo_template_current_count ++;
-                                searching = FALSE;
-                                found_index = i;
-                                exporter->template_arr[i].template_fields = NULL;
-                                // TODO: maybe check, if this field is not null. Might only happen, when
-                                // asynchronous threads change the template fields.
-                        }
-                        i++;
-                }
-        }
+    // ++ Start of Set Header
+    // set ID is 2 for a template set, 4 for a template with fixed fields:
+    // see RFC 5101: 3.3.2 Set Header Format
+    write_unsigned16 (&p_pos, p_end, datatemplate ? 4 : 2);
+    // write 0 to the lenght field; this will be overwritten with end_template
+    write_unsigned16 (&p_pos, p_end, 0);
+    // ++ End of Set Header
 
-        /*
-         initialize the slot
-         test for a valid slot
-         */
-        if( (found_index >= 0 ) && ( found_index < exporter->ipfix_lo_template_maxsize ) ) {
-                //  int ret;
-                char *p_pos;
-                char *p_end;
+    // ++ Start of Template Record Header
+    // write the template ID: (has to be > 255)
+    write_unsigned16 (&p_pos, p_end, template_id); 
+    // write the field count:
+    write_unsigned16 (&p_pos, p_end, field_count);
+    if (datatemplate) {
+	// write the fixedfield count:
+	write_unsigned16 (&p_pos, p_end, fixedfield_count);
+	// write the preceding:
+	write_unsigned16 (&p_pos, p_end, preceding);
+    }
+    // ++ End of Template Record Header
 
-                // allocate memory for the template's fields:
-                // maximum length of the data: 8 bytes for each field, as one field contains:
-                // field type, field length (2*2bytes)
-                // and may contain an Enterprise Number (4 bytes)
-                // also, reserve 8 bytes space for the header!
+    exporter->template_arr[found_index].fields_length = (datatemplate ? 12 : 8);
 
-                exporter->template_arr[found_index].max_fields_length = 8 * (field_count + fixedfield_count) + (datatemplate ? 12 : 8);
-		exporter->template_arr[found_index].fields_length = (datatemplate ? 12 : 8);
-
-                exporter->template_arr[found_index].template_fields = (char*)malloc(exporter->template_arr[found_index].max_fields_length );
-
-                // initialize the rest:
-                exporter->template_arr[found_index].state = T_UNCLEAN;
-                exporter->template_arr[found_index].template_id = template_id;
-                exporter->template_arr[found_index].field_count = field_count;
-
-                // also, write the template header fields into the buffer (except the lenght field);
-
-                // beginning of the buffer
-                p_pos = exporter->template_arr[found_index].template_fields;
-                // end of the buffer
-                p_end = p_pos + exporter->template_arr[found_index].max_fields_length;
-                // add offset to the buffer's beginning: this is, where we will write to.
-                //  p_pos +=  (*exporter).template_arr[found_index].fields_length;
-
-		// set ID is 2 for a template set, 4 for a template with fixed fields:
-		// see RFC 5101: 3.3.2 Set Header Format
-		write_unsigned16 (&p_pos, p_end, datatemplate ? 4 : 2);
-                // write 0 to the lenght field; this will be overwritten with end_template
-                write_unsigned16 (&p_pos, p_end, 0);
-                // write the template ID: (has to be > 255)
-                write_unsigned16 (&p_pos, p_end, template_id); 
-                // write the field count:
-                write_unsigned16 (&p_pos, p_end, field_count);
-
-                if (datatemplate) {
-                        // write the fixedfield count:
-                        write_unsigned16 (&p_pos, p_end, fixedfield_count);
-                        // write the preceding:
-                        write_unsigned16 (&p_pos, p_end, preceding);
-                }
-
-                // does this work?
-                // (*exporter).template_arr[found_index].fields_length += 8;
-        } else return -1;
-
-        return 0;
+    return 0;
 }
 /*
  * Marks the beginning of an option template set
@@ -2339,58 +2307,67 @@ int ipfix_start_optionstemplate_set(ipfix_exporter *exporter, uint16_t template_
  *  enterprise: enterprise type (in host byte order)
  * Note: This function is called after ipfix_start_data_template_set or ipfix_start_option_template_set.
  * Note: This function MAY be replaced by a macro in future versions.
+ *
+ * Note: This function does not check whether the user adds more fields than
+ * he is supposed to add.
  */
-int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uint16_t type, uint16_t length, uint32_t enterprise_id)
-{
-        int found_index;
-        /* set pointers to the buffer */
-        int ret;
-        char *p_pos;
-        char *p_end;
-	int enterprise_bit_set = ipfix_enterprise_flag_set(type);
+int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
+	uint16_t type, uint16_t length, uint32_t enterprise_id) {
 
-        found_index=ipfix_find_template(exporter, template_id,  T_UNCLEAN);
+    int found_index;
+    /* set pointers to the buffer */
+    char *p_pos;
+    char *p_end;
+    int enterprise_bit_set = ipfix_enterprise_flag_set(type);
 
-        /* test for a valid slot */
-        if( found_index < 0 || found_index >= exporter->ipfix_lo_template_maxsize ) {
-                msg(MSG_VDEBUG, "IPFIX: put_template_field,  template ID %d not found", template_id);
-                return -1;
-        }
+    found_index = ipfix_find_template(exporter, template_id);
 
-        /* beginning of the buffer */
-        p_pos = exporter->template_arr[found_index].template_fields;
-        // end of the buffer
-        p_end = p_pos + exporter->template_arr[found_index].max_fields_length;
+    /* test for a valid slot */
+    if(found_index < 0) {
+	msg(MSG_VDEBUG, "IPFIX: put_template_field, template ID %u not found", template_id);
+	return -1;
+    }
+    if (exporter->template_arr[found_index].fields_added >=
+	    exporter->template_arr[found_index].field_count) {
+	msg(MSG_ERROR, "IPFIX: Can not add more template fields.");
+	return -1;
+    }
 
-        DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: template found at %d", found_index);
-        DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: A p_pos %p, p_end %p", p_pos, p_end);
-        DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: max_fields_len %d", exporter->template_arr[found_index].max_fields_length);
-        DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: fieldss_len %d", exporter->template_arr[found_index].fields_length);
+    /* beginning of the buffer */
+    p_pos = exporter->template_arr[found_index].template_fields;
+    // end of the buffer
+    p_end = p_pos + exporter->template_arr[found_index].max_fields_length;
 
-        // add offset to the buffer's beginning: this is, where we will write to.
-        p_pos += exporter->template_arr[found_index].fields_length;
+    DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: template found at %d", found_index);
+    DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: A p_pos %p, p_end %p", p_pos, p_end);
+    DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: max_fields_len %d", exporter->template_arr[found_index].max_fields_length);
+    DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: fieldss_len %d", exporter->template_arr[found_index].fields_length);
 
-        DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: B p_pos %p, p_end %p", p_pos, p_end);
+    // add offset to the buffer's beginning: this is, where we will write to.
+    p_pos += exporter->template_arr[found_index].fields_length;
 
-        if(enterprise_bit_set) {
-                DPRINTFL(MSG_VDEBUG, "Notice: using enterprise ID %d with data %d", template_id, enterprise_id);
-        }
+    DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: B p_pos %p, p_end %p", p_pos, p_end);
 
-        // now write the field to the buffer:
-        ret = write_extension_and_fieldID(&p_pos, p_end, type);
-        // write the field length
-        ret = write_unsigned16(&p_pos, p_end, length);
+    if(enterprise_bit_set) {
+	DPRINTFL(MSG_VDEBUG, "Notice: using enterprise ID %d with data %d", template_id, enterprise_id);
+    }
 
-        // add the 4 bytes to the written length:
-        exporter->template_arr[found_index].fields_length += 4;
+    // now write the field to the buffer:
+    write_extension_and_fieldID(&p_pos, p_end, type);
+    // write the field length
+    write_unsigned16(&p_pos, p_end, length);
 
-        // write the vendor specific id
-        if (enterprise_bit_set) {
-                ret = write_unsigned32(&p_pos, p_end, enterprise_id);
-                exporter->template_arr[found_index].fields_length += 4;
-        }
+    // add the 4 bytes to the written length:
+    exporter->template_arr[found_index].fields_length += 4;
 
-        return 0;
+    // write the vendor specific id
+    if (enterprise_bit_set) {
+	write_unsigned32(&p_pos, p_end, enterprise_id);
+	exporter->template_arr[found_index].fields_length += 4;
+    }
+
+    exporter->template_arr[found_index].fields_added ++;
+    return 0;
 }
 
 
@@ -2425,11 +2402,11 @@ int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void
 	
         int i;
 
-        found_index=ipfix_find_template(exporter, template_id,  T_UNCLEAN);
+        found_index = ipfix_find_template(exporter, template_id);
 
         /* test for a valid slot */
-        if ( found_index < 0 || found_index >= exporter->ipfix_lo_template_maxsize ) {
-                fprintf (stderr, "Template not found. ");
+        if (found_index < 0) {
+                msg(MSG_VDEBUG, "IPFIX: put_template_field, template ID %u not found", template_id);
                 return -1;
         }
 
@@ -2440,7 +2417,7 @@ int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void
         /* beginning of the buffer */
         p_pos =  (*exporter).template_arr[found_index].template_fields;
         // end of the buffer
-        p_end = p_pos +  (*exporter).template_arr[found_index].max_fields_length;
+        p_end = p_pos + (*exporter).template_arr[found_index].max_fields_length;
 
         DPRINTFL(MSG_VDEBUG, "ipfix_put_template_data: template found at %i", found_index);
         DPRINTFL(MSG_VDEBUG, "ipfix_put_template_data: A p_pos %p, p_end %p", p_pos, p_end);
@@ -2470,44 +2447,49 @@ int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void
  */
 int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
 {
-        int found_index;
-        char *p_pos;
-        char *p_end;
+    int found_index;
+    char *p_pos;
+    char *p_end;
 
-        found_index=ipfix_find_template(exporter, template_id, T_UNCLEAN);
+    found_index = ipfix_find_template(exporter, template_id);
 
-        // test for a valid slot:
-        if ( (found_index < 0 ) || ( found_index >= exporter->ipfix_lo_template_maxsize ) ) {
-                msg(MSG_ERROR, "IPFIX: template %d not found", template_id);
-                return -1;
-        }
+    // test for a valid slot:
+    if (found_index < 0) {
+	msg(MSG_ERROR, "IPFIX: template %u not found", template_id);
+	return -1;
+    }
+    ipfix_lo_template *templ=(&exporter->template_arr[found_index]);
+    if (templ->fields_added != templ->field_count) {
+	msg(MSG_ERROR, "IPFIX: Number of added template fields does not match number passed to ipfix_start_template_set");
+	ipfix_deinit_template_set(exporter, templ);
+	return -1;
+    }
 
-        // reallocate the memory , i.e. free superfluous memory, as we allocated enough memory to hold
-        // all possible vendor specific IDs.
-        ipfix_lo_template *templ=(&exporter->template_arr[found_index]);
-	/* FIXME: Remove instance of strong profanity from comment below or
-	 * apply the Parental Advisory sticker to source code */
-        /* sometime I'll fuck C++ with a serious chainsaw - casting malloc() et al is DUMB */
-        templ->template_fields=(char *)realloc(templ->template_fields, templ->fields_length);
-	// FIXME: Shouldn't max_fields_length be reset at this point?
+    // reallocate the memory , i.e. free superfluous memory, as we allocated enough memory to hold
+    // all possible vendor specific IDs.
+    /* FIXME: Remove instance of strong profanity from comment below or
+     * apply the Parental Advisory sticker to source code */
+    /* sometime I'll fuck C++ with a serious chainsaw - casting malloc() et al is DUMB */
+    templ->template_fields=(char *)realloc(templ->template_fields, templ->fields_length);
+    templ->max_fields_length=templ->fields_length;
 
-        /*
-         write the real length field:
-         set pointers:
-         beginning of the buffer
-         */
-        p_pos = exporter->template_arr[found_index].template_fields;
-        // end of the buffer
-        p_end = p_pos + exporter->template_arr[found_index].max_fields_length; // FIXME: max_fields_length is obsolete due to the realloc above
-        // add offset of 2 bytes to the buffer's beginning: this is, where we will write to.
-        p_pos += 2;
+    /*
+       write the real length field:
+       set pointers:
+       beginning of the buffer
+       */
+    p_pos = exporter->template_arr[found_index].template_fields;
+    // end of the buffer
+    p_end = p_pos + exporter->template_arr[found_index].max_fields_length;
+    // add offset of 2 bytes to the buffer's beginning: this is, where we will write to.
+    p_pos += 2;
 
-        // write the lenght field
-        write_unsigned16 (&p_pos, p_end, templ->fields_length);
-        // call the template valid
-        templ->state = T_COMMITED;
+    // write the lenght field
+    write_unsigned16 (&p_pos, p_end, templ->fields_length);
+    // call the template valid
+    templ->state = T_COMMITED;
 
-        return 0;
+    return 0;
 }
 
 /*
@@ -2519,29 +2501,22 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
  * Returns: 0  on success, -1 on failure
  * This is an internal function.
  */
-int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template *templ)
-{
-        // note: ipfix_deinit_template_array tries to free all possible templates, many of them
-        // won't be initialized. So you'll get a lot of warning messages, which are just fine...
+int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template *templ) {
+    // note: ipfix_deinit_template_array tries to free all possible templates, many of them
+    // won't be initialized. So you'll get a lot of warning messages, which are just fine...
 
-        if(templ == NULL) {
-                return -1;
-        }
+    if(templ == NULL)
+	return -1;
 
-        // FIXME: make sure, we get a mutex lock on the templates, or else an other process
-        // might try to write to an unclean template!!!
+    // first test, if we can free this template
+    if (templ->state == T_UNUSED)
+	return -1;
+    DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_deinit_template_set: deleting Template ID: %d validity: %d", templ->template_id, templ->state);
+    templ->state = T_UNUSED;
+    free(templ->template_fields);
+    templ->template_fields = 0;
 
-        // first test, if we can free this template
-        if (templ->state == T_UNUSED) {
-                return -1;
-        } else {
-        	DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_deinit_template_set: deleting Template ID: %d validity: %d", templ->template_id, templ->state);
-		templ->state = T_UNUSED;
-		free(templ->template_fields);
-                exporter->ipfix_lo_template_current_count--;
-	}
-
-        return 0;
+    return 0;
 }
 // Set up time after that Templates are going to be resent
 int ipfix_set_template_transmission_timer(ipfix_exporter *exporter, uint32_t timer){

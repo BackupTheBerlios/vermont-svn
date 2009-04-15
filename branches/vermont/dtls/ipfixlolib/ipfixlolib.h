@@ -146,19 +146,6 @@ extern "C" {
 }
 */
 
-/* BUGFIX: After the makro found an error condition, it skips accessing data. */
-#define ipfix_put_data_field(EXPORTER, POINTER, LENGTH) { \
-		if (EXPORTER->data_sendbuffer->current >= IPFIX_MAX_SENDBUFSIZE) { \
-		    msg(MSG_ERROR, "IPFIX: Sendbuffer too small to handle  %i entries!\n", EXPORTER->data_sendbuffer->current ); \
-			errno = -1;					\
-		} else {						\
-			(EXPORTER->data_sendbuffer->entries[ EXPORTER->data_sendbuffer->current ]).iov_base = POINTER; \
-			(EXPORTER->data_sendbuffer->entries[ EXPORTER->data_sendbuffer->current ]).iov_len =  LENGTH; \
-			EXPORTER->data_sendbuffer->current++;	\
-			(EXPORTER->data_sendbuffer->set_manager).data_length+= LENGTH; \
-		} \
-}
-
 /* Struct containing an ipfix-header */
 /*     Header Format (see draft-ietf-ipfix-protocol-03.txt) */
 
@@ -286,13 +273,16 @@ enum collector_state {C_UNUSED, C_NEW, C_DISCONNECTED, C_CONNECTED};
  *
  */
 typedef struct{
-	/* number of the current set */
+	/* number of the current set. */
+	/* There's a maximum which is IPFIX_MAX_SETS_PER_PACKET.
+	 * set_counter also serves as an index into set_header_store. */
 	unsigned set_counter;
 
 	/* buffer to store set headers */
 	ipfix_set_header set_header_store[IPFIX_MAX_SETS_PER_PACKET];
 
 	/* set length = sum of field length */
+	/* This refers to the current data set only */
 	unsigned data_length;
 } ipfix_set_manager;
 
@@ -312,10 +302,14 @@ typedef struct {
 	unsigned committed; /* last commited entry in entries, i.e. when end_data_set was called for the last time */
 	unsigned marker; /* marker that allows to delete recently added entries */
 	unsigned committed_data_length; /* length of the contained data (in bytes) */
-	ipfix_header packet_header; /* A misnomer in my opinion. Should be message_header since it's the header
-				    of an IPFIX Message. */
+	ipfix_header packet_header; /* A misnomer in my (Daniel Mentz's)
+				       opinion. Should be message_header
+				       since it's the header of an
+				       IPFIX Message. */
 	//  int uncommited_data_length; /* length of data not yet commited */
-	ipfix_set_manager set_manager;
+	ipfix_set_manager set_manager; /* Only relevant when sendbuffer used
+					  for data. Not relevant if used for
+					  template sets. */
 } ipfix_sendbuffer;
 
 #ifdef SUPPORT_OPENSSL
@@ -355,6 +349,10 @@ typedef struct {
 	int packets_written; /**< if protcol==RAWDIR: number of packets written to packet_directory_path. Ignored otherwise. */
 #endif
 #ifdef SUPPORT_OPENSSL
+	/* Time in seconds after which a DTLS connection
+	 * will be replaced by a new one. */
+	unsigned dtls_max_connection_age;
+	unsigned dtls_connect_timeout;
 	ipfix_dtls_connection dtls_main;
 	ipfix_dtls_connection dtls_replacement;
 	time_t connect_time; /* point in time when the connection setup
@@ -372,9 +370,19 @@ typedef struct {
 typedef struct{
 	enum template_state state; // indicates, whether this template is valid.
 	uint16_t template_id;
-	uint16_t field_count;
-	int fields_length;
-	int max_fields_length;
+	uint16_t field_count;	// the number of fields the user announced
+				// when calling ipfix_start_template_set
+	uint16_t fields_added;	// make sure the user does not add more
+				// fields than he told us to add in the
+				// first place.
+				// Make sure fields_added <= field_count
+	int fields_length;	// This also includes the length of the Set Header
+				// It's basically the number of bytes written
+				// into template_fields so far.
+
+	int max_fields_length;	// size of the malloced char array
+				// template_fields points to.
+
 	char *template_fields;	// This includes the Set Header and the
 				// Template Record Header as it goes out on the wire.
 				// Note that the type ipfix_set_header is *not* used
@@ -413,7 +421,6 @@ typedef struct {
 	// (0 ==> no reconnection -> destroy collector)
 	uint32_t sctp_reconnect_timer;
 	int ipfix_lo_template_maxsize;
-	int ipfix_lo_template_current_count;
 	ipfix_lo_template *template_arr;
 #ifdef SUPPORT_OPENSSL
 	SSL_CTX *ssl_ctx;
@@ -421,10 +428,6 @@ typedef struct {
 	const char *private_key_file;
 	const char *ca_file;
 	const char *ca_path;
-	unsigned dtls_connect_timeout;
-	/* Time in seconds after which a DTLS connection
-	 * will be replaced by a new one. */
-	unsigned dtls_max_connection_age;
 #endif
 } ipfix_exporter;
 
@@ -446,6 +449,7 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id );
 int ipfix_remove_template(ipfix_exporter *exporter, uint16_t template_id);
 */
 int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id);
+int ipfix_put_data_field(ipfix_exporter *exporter,void *data, unsigned length);
 int ipfix_end_data_set(ipfix_exporter *exporter, uint16_t number_of_records);
 int ipfix_cancel_data_set(ipfix_exporter *exporter);
 int ipfix_set_data_field_marker(ipfix_exporter *exporter);
