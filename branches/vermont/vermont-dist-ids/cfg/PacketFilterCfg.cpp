@@ -20,7 +20,7 @@ PacketFilterCfg::PacketFilterCfg(XMLElement* elem)
 {
 	if (!elem)
 		return;
-	
+
 	XMLNode::XMLSet<XMLElement*> set = elem->getElementChildren();
 	for (XMLNode::XMLSet<XMLElement*>::iterator it = set.begin();
 	     it != set.end();
@@ -31,6 +31,9 @@ PacketFilterCfg::PacketFilterCfg(XMLElement* elem)
 		if (e->matches("countBased")) {
 			msg(MSG_INFO, "Filter: Creating count based sampler");
 			c = new PacketCountFilterCfg(e);
+		} else if (e->matches("hostBased")) {
+			msg(MSG_INFO, "Filter: Creating host based sampler");
+			c = new HostFilterCfg(e);
 		} else if (e->matches("stringBased")) {
 			msg(MSG_INFO, "Filter: Creating string based sampler");
 			c = new PacketStringFilterCfg(e);
@@ -113,6 +116,56 @@ PacketFilterHelperCfg::PacketFilterHelperCfg(XMLElement *e)
 {
 
 }
+
+HostFilterCfg::HostFilterCfg(XMLElement *e)
+	: PacketFilterHelperCfg(e), instance(NULL)
+{
+	XMLNode::XMLSet<XMLElement*> set = _elem->getElementChildren();
+	for (XMLNode::XMLSet<XMLElement*>::iterator it = set.begin();
+	     it != set.end();
+	     it++) {
+		XMLElement* e = *it;
+
+		if (e->matches("addr")) {
+			address = e->getFirstText();
+		} else if (e->matches("ip")) {
+			// cast e->getFirstText() to uint32_t to avoid string compare
+			// no conversion from network byte order necessary for (ascii) strings
+			std::string ip_str = e->getFirstText();
+			unint32_t ip_addr = 0;
+			for (int i = 0; i < 4; i++) {
+				// shift ip_addr left 8 times (no effect in 1st round)
+				// seperate ip_str at the dots, convert every number-part to integer
+				// "save" the number in ip_addr
+				ip_addr = (ip_addr << 8) | atoi(strtok(&ip_str, "."));
+			}
+			ipList.insert(htonl(ip_addr));
+		} else {
+			msg(MSG_FATAL, "Unknown observer config statement %s\n", e->getName().c_str());
+			continue;
+		}
+	}
+}
+
+HostFilterCfg::~HostFilterCfg()
+{
+}
+
+Module* HostFilterCfg::getInstance()
+{
+	if (!instance)
+		// WAS MACHEN?!? SystematicSampler passt mal garnicht.
+		//instance = new SystematicSampler(SYSTEMATIC_SAMPLER_COUNT_BASED,
+		//				getAddrFilter(), getIpList());
+
+	return (Module*)instance;
+}
+
+sdt::List<uint32_t> HostFilterCfg::getIpList()
+{
+	return ipList;
+}
+
 
 PacketCountFilterCfg::PacketCountFilterCfg(XMLElement *e)
 	: PacketFilterHelperCfg(e), instance(NULL)
