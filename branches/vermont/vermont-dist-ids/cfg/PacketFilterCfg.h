@@ -4,11 +4,13 @@
 #include <cfg/Cfg.h>
 #include "reconf/FilterModule.h"
 
+#include <set>
 #include <vector>
 #include <algorithm>
 
 // forward declaration of instances
 class RegExFilter;
+class HostFilter;
 class StringFilter;
 class SystematicSampler;
 class StateConnectionFilter;
@@ -71,7 +73,7 @@ public:
 	virtual std::string getName() { return "hostBased"; }
 
 	virtual std::string getAddrFilter() { return addrFilter; }
-	virtual std::list<uint32_t> getIpList();
+	virtual std::set<uint32_t> getIpList();
 
 	virtual Module* getInstance();
 
