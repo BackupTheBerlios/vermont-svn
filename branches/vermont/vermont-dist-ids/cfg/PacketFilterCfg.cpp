@@ -127,17 +127,21 @@ HostFilterCfg::HostFilterCfg(XMLElement *e)
 		XMLElement* e = *it;
 
 		if (e->matches("addr")) {
-			address = e->getFirstText();
+			addrFilter = e->getFirstText();
 		} else if (e->matches("ip")) {
 			// cast e->getFirstText() to uint32_t to avoid string compare
 			// no conversion from network byte order necessary for (ascii) strings
 			std::string ip_str = e->getFirstText();
-			unint32_t ip_addr = 0;
+			uint32_t ip_addr = 0;
+			size_t pos_1 = 0;
+			size_t pos_2 = 0;
 			for (int i = 0; i < 4; i++) {
 				// shift ip_addr left 8 times (no effect in 1st round)
 				// seperate ip_str at the dots, convert every number-part to integer
 				// "save" the number in ip_addr
-				ip_addr = (ip_addr << 8) | atoi(strtok(&ip_str, "."));
+				pos_2 = ip_str.find(".", pos_1);
+				ip_addr = (ip_addr << 8) | atoi((ip_str.substr(pos_1, pos_2)).c_str());
+				pos_1 = pos_2;
 			}
 			ipList.insert(htonl(ip_addr));
 		} else {
@@ -161,7 +165,7 @@ Module* HostFilterCfg::getInstance()
 	return (Module*)instance;
 }
 
-sdt::List<uint32_t> HostFilterCfg::getIpList()
+std::set<uint32_t> HostFilterCfg::getIpList()
 {
 	return ipList;
 }
