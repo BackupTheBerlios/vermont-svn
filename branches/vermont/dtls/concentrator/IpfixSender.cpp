@@ -51,6 +51,7 @@ IpfixSender::IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, u
 		const std::string &privateKeyFile, const std::string &caFile, const std::string &caPath)
 
 	: statSentPackets(0),
+	  remainingSpace(0),
 	  noCachedRecords(0),
 	  recordCacheTimeout(IS_DEFAULT_RECORDCACHETIMEOUT),
 	  timeoutRegistered(false),
@@ -84,6 +85,8 @@ IpfixSender::IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, u
 
 	if ( ! certificateChainFile.empty()) certificate_chain_file = certificateChainFile.c_str();
 	if ( ! privateKeyFile.empty()) private_key_file = privateKeyFile.c_str();
+	/* Private key will be searched for in the certificate chain file if
+	 * no private key file is set */
 	if (certificate_chain_file || private_key_file)
 		ipfix_set_dtls_certificate(ipfixExporter, certificate_chain_file, private_key_file);
 
@@ -376,23 +379,26 @@ void IpfixSender::onDataTemplateDestruction(IpfixDataTemplateDestructionRecord* 
  * @param templateId of the new Data Set
  * @return returns -1 on error, 0 otherwise
  */
-void IpfixSender::startDataSet(uint16_t templateId)
+void IpfixSender::startDataSet(uint16_t templateId, uint16_t dataLength)
 {
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
 	uint16_t my_n_template_id = htons(templateId);
 
 	/* check if we can use the current Data Set */
-	//TODO: make maximum number of records per Data Set variable
-	if((noCachedRecords < 10) && (templateId == currentTemplateId))
+	if((remainingSpace >= dataLength) && (templateId == currentTemplateId))
 		return;
 
+	/* ASK: We can send more than one set in one message */
 	if(noCachedRecords > 0)
 		endAndSendDataSet();
 
+	/* TODO: Check if there's space for the set header
+	 * (IPFIX_OVERHEAD_PER_SET)
+	 * plus dataLength. */
 	if (ipfix_start_data_set(exporter, my_n_template_id) != 0 ) {
 		THROWEXCEPTION("sndIpfix: ipfix_start_data_set failed!");
 	}
-
+	remainingSpace = ipfix_get_remaining_space(exporter);
 	currentTemplateId = templateId;
 }
 
@@ -403,6 +409,8 @@ void IpfixSender::startDataSet(uint16_t templateId)
  */
 void IpfixSender::endAndSendDataSet()
 {
+	/* ASK: noCachedRecords==0 does not mean we did not start a data set.
+	 * A data set might still be open. */
 	if(noCachedRecords > 0) {
 		ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
 
@@ -463,7 +471,7 @@ void IpfixSender::onDataDataRecord(IpfixDataDataRecord* record)
 		THROWEXCEPTION("exporter not set");
 	}
 
-	startDataSet(dataTemplateInfo->templateId);
+	startDataSet(dataTemplateInfo->templateId, record->dataLength);
 
 	// DPRINTF("dataLength: %d",record->dataLength);
 
@@ -494,6 +502,7 @@ void IpfixSender::onDataDataRecord(IpfixDataDataRecord* record)
 			ipfix_put_data_field(exporter, data + fi->offset, fi->type.length);
 		}
 	}
+	remainingSpace -= record->dataLength;
 
 	registerTimeout();
 
@@ -546,9 +555,7 @@ void IpfixSender::sendRecords(bool forcesend)
 {
 	if (noCachedRecords == 0) return;
 
-	// TODO: extend ipfixlolib so that as many records as possible may be stored
-	// in one network packet
-	if ((noCachedRecords >= 10) || forcesend) {
+	if (forcesend) {
 		// send packet
 		endAndSendDataSet();
 		statSentPackets++;

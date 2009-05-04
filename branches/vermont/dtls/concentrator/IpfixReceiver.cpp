@@ -47,8 +47,8 @@ IpfixReceiver::IpfixReceiver()
 
 IpfixReceiver::IpfixReceiver(int port)
 	: exitFlag(true),
-	  thread(threadWrapper),
-	  receiverPort(port)
+	  receiverPort(port),
+	  thread(threadWrapper)
 	  
 {
 }

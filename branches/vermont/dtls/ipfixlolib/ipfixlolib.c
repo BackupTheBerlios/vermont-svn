@@ -35,12 +35,16 @@
  2004-11-12
  jan@petranek.de
  */
+// We need linux/in.h for IP_MTU
+
 #include "ipfixlolib.h"
 #include <netinet/in.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+/* Copied from linux/in.h */
+#define IP_MTU          14
 
 #ifdef __cplusplus
 extern "C" {
@@ -76,6 +80,9 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter);
 static int ipfix_update_template_sendbuffer(ipfix_exporter *exporter);
 static int ipfix_send_templates(ipfix_exporter* exporter);
 static int ipfix_send_data(ipfix_exporter* exporter);
+static void update_exporter_mtu(ipfix_exporter *exporter);
+static int update_collector_mtu(ipfix_exporter *exporter, ipfix_receiving_collector *col);
+static int get_mtu(const int s);
 
 #ifdef SUPPORT_OPENSSL
 
@@ -162,8 +169,8 @@ static int ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
 }
 
 static void deinit_openssl_ctx(ipfix_exporter *e) {
-	if (e->ssl_ctx) SSL_CTX_free(e->ssl_ctx);
-	e->ssl_ctx = NULL;
+    if (e->ssl_ctx) SSL_CTX_free(e->ssl_ctx);
+    e->ssl_ctx = NULL;
 }
 
 /* Return values:
@@ -538,11 +545,15 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
     if (con->socket!=-1) {
 	msg(MSG_FATAL,"socket != -1");
 	close(con->socket);
+	con->socket = -1;
     }
 #endif
 
-    /* Create socket */
-    con->socket = init_send_udp_socket(col->addr);
+    /* Create socket
+     init_send_udp_socket() also activates PMTU Discovery. */
+    if ((con->socket = init_send_udp_socket(col->addr)) < 0) {
+	return -1;
+    }
     DPRINTF("Created socket %d",con->socket);
 
     /* set socket to non-blocking i/o */
@@ -596,6 +607,8 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 	close(con->socket);con->socket = -1;
 	return -1;
     }
+    BIO_ctrl(sbio,BIO_CTRL_DGRAM_MTU_DISCOVER,0,0);
+    /* Does not return useful value. */
 
     BIO_ctrl_set_connected(sbio,1,&col->addr); /* TODO: Explain, why are we doing this? */
     /* create a dummy BIO that always returns EOF */
@@ -630,6 +643,7 @@ static void dtls_shutdown_and_cleanup(ipfix_dtls_connection *con) {
     /* Note: SSL_free() also frees associated sending and receiving BIOs */
     SSL_free(con->ssl);
     con->ssl = NULL;
+    con->mtu = 0;
     con->want_read = 0;
     con->last_reconnect_attempt_time = 0;
     /* Close socket */
@@ -670,8 +684,25 @@ static int init_send_udp_socket(struct sockaddr_in serv_addr){
                 close(s);
                 return -1;
         }
+	const int optval = IP_PMTUDISC_DO;
+	if (setsockopt(s,IPPROTO_IP,IP_MTU_DISCOVER,&optval,sizeof(optval))) {
+                msg(MSG_FATAL, "IPFIX: setsockopt(...,IP_MTU_DISCOVER,...) failed, %s", strerror(errno));
+                /* clean up */
+                close(s);
+                return -1;
+	}
 
 	return s;
+}
+
+static int get_mtu(const int s) {
+    int optval = 0;
+    socklen_t optlen = sizeof(optval);
+    if (getsockopt(s,IPPROTO_IP,IP_MTU,&optval,&optlen)) {
+	msg(MSG_FATAL, "IPFIX: getsockopt(...,IP_MTU,...) failed, %s", strerror(errno));
+	return -1;
+    } else
+	return optval;
 }
 
 
@@ -782,9 +813,12 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
                 goto out;
         }
 
-        tmp->source_id=source_id;
         tmp->sequence_number = 0;
         tmp->sn_increment = 0;
+        tmp->source_id=source_id;
+
+	tmp->mtu = IPFIX_DEFAULT_MTU;
+
         tmp->collector_max_num = 0;
 #ifdef SUPPORT_OPENSSL
 	tmp->ssl_ctx = NULL;
@@ -900,6 +934,37 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter) {
         return 0;
 }
 
+static void update_exporter_mtu(ipfix_exporter *exporter) {
+    ipfix_receiving_collector *col;
+    int i;
+    uint16_t mtu;
+    mtu = IPFIX_DEFAULT_MTU;
+    for(i=0;i<exporter->collector_max_num;i++) {
+	col = &exporter->collector_arr[i];
+	if(col->state != C_UNUSED &&
+		(col->protocol == UDP || col->protocol == DTLS_OVER_UDP) &&
+		col->mtu < mtu)
+	    mtu = collector->mtu;
+    }
+    exporter->mtu = mtu;
+    DPRINTF("New exporter MTU: %u",mtu);
+}
+
+static int update_collector_mtu(ipfix_exporter *exporter,
+	ipfix_receiving_collector *col) {
+    if (col->protocol == UDP) {
+	int mtu = get_mtu(col->data_socket);
+	DPRINTF("get_mtu() returned %d",mtu);
+	if (mtu<0) {
+	    remove_collector(col);
+	    return -1;
+	}
+	col->mtu = mtu;
+	update_exporter_mtu(exporter);
+    }
+    return 0;
+}
+
 static ipfix_receiving_collector *get_free_collector_slot(ipfix_exporter *exporter) {
     ipfix_receiving_collector *collector;
     int i;
@@ -935,6 +1000,7 @@ int add_collector_dtls(
 
     col->dtls_replacement.socket = -1;
     col->dtls_replacement.ssl = NULL;
+    col->dtls_replacement.mtu = 0;
     col->dtls_replacement.want_read = 0;
 
     col->dtls_max_connection_age = 10;
@@ -957,6 +1023,9 @@ int add_collector_dtls(
 }
 #endif
 
+/* Remaining protocols are
+   SCTP, UDP and TCP at the moment
+ */
 int add_collector_remaining_protocols(
 	ipfix_exporter *exporter,
 	ipfix_receiving_collector *col) {
@@ -969,7 +1038,16 @@ int add_collector_remaining_protocols(
     }
     // now, we may set the collector to valid;
     col->state = C_NEW; /* By setting the state to C_NEW we are
-				 basically allocation the slot. */
+			     basically allocation the slot. */
+    /* col->state must not be C_UNUSED when we call
+       update_collector_mtu(). That's why we call this function
+       after setting state to C_NEW. */
+    if (update_collector_mtu(exporter, col)) {
+	/* update_collector_mtu calls remove_collector
+	   in case of failure which in turn sets
+	   col->state to C_UNUSED. */
+	return -1;
+    }
     col->last_reconnect_attempt_time = time(NULL);
 
     return 0;
@@ -1001,6 +1079,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
 	   );
 	return -1;
     }
+    collector->mtu = IPFIX_DEFAULT_MTU;
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
     /* It is the duty of add_collector_rawdir to set collector->state */
     if (proto==RAWDIR) return add_collector_rawdir(collector,coll_ip4_addr);
@@ -1106,8 +1185,6 @@ static int ipfix_find_template(
 	    return i;
 	}
     }
-    DPRINTFL(MSG_DEBUG, "IPFIX: ipfix_find_template unable to find template with ID: %d",
-	    template_id);
     return -1;
 }
 
@@ -1342,6 +1419,7 @@ static int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_c
 #endif
 #ifdef SUPPORT_OPENSSL
 		c->dtls_main.socket = c->dtls_replacement.socket = -1;
+		c->dtls_main.mtu = c->dtls_replacement.mtu = 0;
 		c->dtls_main.ssl = c->dtls_replacement.ssl = NULL;
 		c->dtls_main.want_read = c->dtls_replacement.want_read = 0;
 		c->dtls_main.last_reconnect_attempt_time =
@@ -1719,8 +1797,19 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 						exporter->template_sendbuffer->entries,
 						exporter->template_sendbuffer->current
 						))  == -1){
-						msg(MSG_ERROR, "ipfix_send_templates(): could not send to %s:%d errno: %s  (UDP)... socket not opened at the collector?",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
-					}else{
+						if (errno == EMSGSIZE) {
+						    msg(MSG_ERROR,
+							    "Unable to send templates to %s:%d b/c message is bigger than MTU. That is a severe problem.",
+							    exporter->collector_arr[i].ipv4address,
+							    exporter->collector_arr[i].port_number);
+						} else {
+						    msg(MSG_ERROR,
+							    "ipfix_send_templates(): could not send to %s:%d errno: %s  (UDP)... socket not opened at the collector?",
+							    exporter->collector_arr[i].ipv4address,
+							    exporter->collector_arr[i].port_number,
+							    strerror(errno));
+						}
+					} else {
 						msg(MSG_VDEBUG, "ipfix_send_templates(): %d Template Bytes sent to UDP collector %s:%d",
 							bytes_sent, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
 					}
@@ -1846,6 +1935,8 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                                 DPRINTFL(MSG_VDEBUG, "IPFIX: Sending to exporter %s", exporter->collector_arr[i].ipv4address);
 
                                 // debugging output of data buffer:
+				/* Keep in mind that the IPFIX message header (16 bytes) is not included
+				   in commited_data_length */
                                 DPRINTFL(MSG_VDEBUG, "Sendbuffer contains %u bytes",  exporter->data_sendbuffer->committed_data_length );
                                 DPRINTFL(MSG_VDEBUG, "Sendbuffer contains %u fields",  exporter->data_sendbuffer->committed );
                                 int tested_length = 0;
@@ -1854,13 +1945,16 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                                 for (j =0; j <  exporter->data_sendbuffer->committed; j++) {
                                         if(exporter->data_sendbuffer->entries[j].iov_len > 0 ) {
                                                 tested_length += exporter->data_sendbuffer->entries[j].iov_len;
-                                                DPRINTFL(MSG_VDEBUG, "Data Buffer [%i] has %u bytes", j, exporter->data_sendbuffer->entries[j].iov_len);
+                                                // DPRINTFL(MSG_VDEBUG, "Data Buffer [%i] has %u bytes", j, exporter->data_sendbuffer->entries[j].iov_len);
 
                                                 /*for (k=0; k < exporter->data_sendbuffer->entries[j].iov_len; k++) {
                                                         DPRINTFL (MSG_VDEBUG, "Data at  buf_vector[%i] pos %i is 0x%hx", j,k,   *(  (char*) ( (*(*exporter).data_sendbuffer).entries[j].iov_base+k) ) );
                                                 }*/
                                         }
                                 }
+				/* Keep in mind that the IPFIX message header (16 bytes) is not included
+				   in commited_data_length. So there should be a difference of 16 bytes
+				   between tested_length and commited_data_length */
                                 DPRINTFL(MSG_VDEBUG, "IPFIX: Sendbuffer really contains %u bytes!", tested_length );
 #endif
 				switch(exporter->collector_arr[i].protocol){
@@ -1873,6 +1967,16 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						exporter->data_sendbuffer->committed
 							     )) == -1){
 						msg(MSG_VDEBUG, "ipfix_send_data(): could not send to %s:%d errno: %s  (UDP)... socket not opened at the collector?",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
+						if (errno == EMSGSIZE) {
+						    msg(MSG_ERROR, "Updating MTU estimate for collector %s:%d",
+							    exporter->collector_arr[i].ipv4address,
+							    exporter->collector_arr[i].port_number);
+						    /* If update_collector_mtu fails, it calls
+						       remove_collector(). So keep in mind that
+						       the collector might be gone (set to C_UNUSED)
+						       after calling this function. */
+						    update_collector_mtu(exporter, &exporter->collector_arr[i]);
+						}
 					}else{
 
 						msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to UDP collector %s:%d",
@@ -2042,6 +2146,16 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
         manager->data_length = 0;
 
         return 0;
+}
+
+uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter) {
+	// 20 bytes for IP header
+	// 8 bytes for UDP header
+	// 16 bytes for IPFIX header
+    return exporter->mtu
+	- 20 - 8 - 16
+	- exporter->data_sendbuffer->committed_data_length
+	- exporter->data_sendbuffer->set_manager.data_length;
 }
 
 int ipfix_put_data_field(ipfix_exporter *exporter,void *data, unsigned length) {

@@ -112,7 +112,7 @@ extern "C" {
  * maximum size of a sendbuffer
  * TODO: This value is delibaretely chosen, adapt it if you need it or make it dynamic.
  */
-#define IPFIX_MAX_SENDBUFSIZE 1024
+#define IPFIX_MAX_SENDBUFSIZE 8192
 
 /*
  * maximum size of an IPFIX packet
@@ -120,8 +120,15 @@ extern "C" {
 #define IPFIX_MAX_PACKETSIZE (1<<16)
 
 /*
+ * Stevens: The maximum size of an IPv4 datagram is 65535 bytes, including
+ * the IPv4 header. This is because of the 16-bit total length field.
+ */
+#define IPFIX_DEFAULT_MTU 65535
+
+/*
  * This macro appends data to the sendbuffer. If the sendbuffer is too small,
  * it will print an error message and set errno to -1.
+ expoter->mtu = mtu;
  */
 
 /* #define ipfix_add_data2sendbuffer(SENDBUF, POINTER, LENGTH) { \ */
@@ -215,6 +222,8 @@ typedef struct {
     uint16_t length;
 } ipfix_set_header;
 
+#define IPFIX_OVERHEAD_PER_SET 4
+
 
 enum ipfix_transport_protocol {
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
@@ -301,7 +310,8 @@ typedef struct {
 	unsigned current; /* last accessed entry in entries */
 	unsigned committed; /* last commited entry in entries, i.e. when end_data_set was called for the last time */
 	unsigned marker; /* marker that allows to delete recently added entries */
-	unsigned committed_data_length; /* length of the contained data (in bytes) */
+	unsigned committed_data_length; /* length of the contained data (in bytes)
+					 * not including the IPFIX message header. */
 	ipfix_header packet_header; /* A misnomer in my (Daniel Mentz's)
 				       opinion. Should be message_header
 				       since it's the header of an
@@ -315,6 +325,7 @@ typedef struct {
 #ifdef SUPPORT_OPENSSL
 typedef struct {
 	int socket;
+	uint16_t mtu;
 	SSL *ssl;
 	int want_read;
 	time_t last_reconnect_attempt_time;
@@ -344,6 +355,10 @@ typedef struct {
 	struct sockaddr_in addr;
 	uint32_t last_reconnect_attempt_time; // applies only to SCTP and DTLS at the moment
 	enum collector_state state;
+	uint16_t mtu; /* Maximum transmission unit.
+			 Applies to UDP and DTLS only.
+		         mtu is set to IPFIX_DEFAULT_MTU in
+		         ipfix_add_collector(). */
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
 	int packets_written; /**< if protcol==RAWDIR: number of packets written to packet_directory_path. Ignored otherwise. */
@@ -397,6 +412,13 @@ typedef struct {
 	uint32_t sequence_number; // total number of data records 
 	uint32_t sn_increment; // to be added to sequence number before sending data records
 	uint32_t source_id;
+	uint16_t mtu; /* Maximum transmission unit.
+		       * Applies to UDP and DTLS over UDP only.
+		       * This is the minimum of all collectors' MTUs.
+		       * Only observed when sending messages
+		       * containing data sets. IPFIX messages
+		       * containing template sets might get
+		       * longer than that. That's a TODO */
 	ipfix_sendbuffer *template_sendbuffer;
 	ipfix_sendbuffer *sctp_template_sendbuffer;
 	ipfix_sendbuffer *data_sendbuffer;
@@ -449,6 +471,7 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id );
 int ipfix_remove_template(ipfix_exporter *exporter, uint16_t template_id);
 */
 int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id);
+uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter);
 int ipfix_put_data_field(ipfix_exporter *exporter,void *data, unsigned length);
 int ipfix_end_data_set(ipfix_exporter *exporter, uint16_t number_of_records);
 int ipfix_cancel_data_set(ipfix_exporter *exporter);

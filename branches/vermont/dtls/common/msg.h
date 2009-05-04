@@ -38,7 +38,7 @@ typedef void (*LOGFUNCTION)(void *);
 #endif
 
 /** Maximum length of exception strings */
-const int EXCEPTION_MAXLEN = 1024;
+#define EXCEPTION_MAXLEN 1024
 
 /* defines for the message system */
 #define MSG_BLANK 256

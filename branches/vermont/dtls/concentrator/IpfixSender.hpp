@@ -90,7 +90,7 @@ protected:
 	void removeRecordReferences();
 	void endAndSendDataSet();
 
-	void startDataSet(uint16_t templateId);
+	void startDataSet(uint16_t templateId, uint16_t dataLength);
 	bool isTemplateRegistered(IpfixRecord::TemplateInfo* ti);
 	void removeRegisteredTemplate(IpfixRecord::TemplateInfo* ti);
 	void addRegisteredTemplate(boost::shared_ptr<IpfixRecord::TemplateInfo> ti);
@@ -103,6 +103,7 @@ private:
 	uint16_t ringbufferPos; /**< Pointer to next free slot in @c conversionRingbuffer. */
 	uint8_t conversionRingbuffer[65536]; /**< Ringbuffer used to store converted imasks between @c ipfix_put_data_field() and @c ipfix_send() */
 	uint16_t currentTemplateId; /**< Template ID of the unfinished data set */
+	uint16_t remainingSpace; /**< Remaining space in current IPFIX message measured in bytes. */
 	uint16_t noCachedRecords; /**< number of records already passed to ipfixlob, should be equal to recordsToRelease.size() */
 	list<boost::shared_ptr<IpfixRecord::TemplateInfo> > registeredTemplates; /**< contains all templates which were already registered in ipfixlolib */
 	
