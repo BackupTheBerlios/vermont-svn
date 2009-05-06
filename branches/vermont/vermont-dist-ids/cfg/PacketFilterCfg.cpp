@@ -9,6 +9,7 @@
 #include <sampler/ConnectionFilter.h>
 #include <sampler/AnonFilter.h>
 #include <sampler/PayloadFilter.h>
+#include <sampler/HostFilter.h>
 #include "common/msg.h"
 
 
@@ -157,7 +158,9 @@ HostFilterCfg::~HostFilterCfg()
 
 Module* HostFilterCfg::getInstance()
 {
-	if (!instance)
+	if (!instance) {
+		instance = new HostFilter(addrFilter, ipList);
+	}
 		// WAS MACHEN?!? SystematicSampler passt mal garnicht.
 		//instance = new SystematicSampler(SYSTEMATIC_SAMPLER_COUNT_BASED,
 		//				getAddrFilter(), getIpList());

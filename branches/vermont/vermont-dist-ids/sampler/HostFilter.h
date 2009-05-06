@@ -17,13 +17,7 @@
 class HostFilter : public PacketProcessor
 {
 public:
-	HostFilter()
-	{
-		// Config einlesen? Aufruf der HostFilterCfg-Methoden an conf Objekt
-		conf = HostFilterCfg.getInstance();		
-		ipList = conf.getIpList();
-		addrFilter = conf.getAddrFilter();
-	}
+	HostFilter(std::string addrfilter, std::set<uint32_t> iplist);
 	
 	bool processPacket(Packet *p);
 	

@@ -15,6 +15,13 @@
 #define IPV4_SRC_IP_OFFSET			12
 #define IPV4_DST_IP_OFFSET			16
 
+
+HostFilter::HostFilter(std::string addrfilter, std::set<uint32_t> iplist)
+	: addrFilter(addrfilter), ipList(iplist)
+{
+}
+
+
 bool HostFilter::processPacket(Packet *p)
 {
 	// if no IPv4 Packet
