@@ -17,7 +17,7 @@
 class HostFilter : public PacketProcessor
 {
 public:
-	HostFilter(std::string addrFilter, std::set<uint32_t> ipList);
+	HostFilter(std::string addrfilter, std::set<uint32_t> iplist);
 
 	bool processPacket(Packet *p);
 

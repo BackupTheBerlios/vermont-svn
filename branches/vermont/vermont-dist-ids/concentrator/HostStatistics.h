@@ -18,7 +18,7 @@ public:
 	void onDataDataRecord(IpfixDataDataRecord* record);
 
 private:
-	bool exportData();
+	bool onReconfiguration();
 
 	std::string ipSubnet;
 	std::string addrFilter;

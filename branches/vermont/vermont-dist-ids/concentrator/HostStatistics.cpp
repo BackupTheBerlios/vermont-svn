@@ -27,8 +27,9 @@ HostStatistics::HostStatistics(std::string ipSubnet, std::string addrFilter, std
 		pos_1 = pos_2;
 	}
 	netSize = (uint8_t)atoi(ipSubnet.substr(found));
-	// shift the netAddr to the right; this allows '==' comparisons if the other IPs are equally shifted
-	netAddr = (netAddr >> netSize);
+	netAddr = htonl(netAddr);
+	// shift the netAddr to the left; this allows '==' comparisons if the other IPs are equally shifted
+	netAddr = (netAddr << netSize);
 	logTimer = time(NULL);
 }
 
@@ -37,14 +38,14 @@ void HostStatistics::onDataDataRecord(IpfixDataDataRecord* record)
 	Connection conn(record);
 	std::map<uint32_t, uint64_t>::iterator it;
 
-	if ((addrFilter == 'src') && ((conn->srcIP >> netSize) == netAddr)) {
+	if ((addrFilter == 'src') && ((conn->srcIP << netSize) == netAddr)) {
 		it = trafficMap.find(conn->srcIP);
 		if (it == trafficMap.end())	{
 			trafficMap.insert(pair<uint32_t, uint64_t>(conn->srcIP, conn->srcOctets));
 		} else {
 			trafficMap[it] += conn->srcOctets;
 		}
-	} else if ((addFilter == 'dst') && ((conn->dstIP >> netSize) == netAddr)) {
+	} else if ((addFilter == 'dst') && ((conn->dstIP << netSize) == netAddr)) {
 		it = trafficMap.find(conn->dstIP);
 		if (it == trafficMap.end()) {
 			trafficMap.insert(pair<uint32_t, uint64_t>(conn->dstIP, conn->dstOctets));
@@ -52,14 +53,14 @@ void HostStatistics::onDataDataRecord(IpfixDataDataRecord* record)
 			trafficMap[it] += conn->dstcOctets;
 		}
 	} else {
-		if ((conn->srcIP >> netSize) == netAddr) {
+		if ((conn->srcIP << netSize) == netAddr) {
 			it = trafficMap.find(conn->srcIP);
 			if (it == trafficMap.end())	{
 				trafficMap.insert(pair<uint32_t, uint64_t>(conn->srcIP, (conn->srcOctets + conn->dstOctets)));
 			} else {
 				trafficMap[it] += (conn->srcOctets + conn->dstOctets);
 			}
-		} else if ((conn->dstIP >> netSize) == netAddr) {
+		} else if ((conn->dstIP << netSize) == netAddr) {
 			it = trafficMap.find(conn->dstIP);
 			if (it == trafficMap.end())	{
 				trafficMap.insert(pair<uint32_t, uint64_t>(conn->dstIP, (conn->srcOctets + conn->dstOctets)));
@@ -70,7 +71,7 @@ void HostStatistics::onDataDataRecord(IpfixDataDataRecord* record)
 	}
 }
 
-bool exportData()
+bool onReconfiguration()
 {
 	std::map<uint32_t, uint64_t>::iterator it;
 
