@@ -9,6 +9,8 @@
 
 HostStatisticsCfg::HostStatisticsCfg(XMLElement* elem) : CfgHelper<HostStatistics, HostStatisticsCfg>(elem, "hostStatistics")
 {
+	if (!elem) return;  // needed because of table inside ConfigManager
+
 	try {
 		ipSubnet = get("subnet");
 		addrFilter = get("addrFilter");
