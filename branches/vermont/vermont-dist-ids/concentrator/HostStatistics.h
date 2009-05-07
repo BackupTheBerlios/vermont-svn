@@ -11,14 +11,14 @@
 
 #include <time.h>
 
-class HostStatistics : public IpfixRecordDestination
+class HostStatistics : public IpfixRecordDestination, public Module
 {
 public:
 	HostStatistics(std::string ipSubnet, std::string addrFilter, std::string logPath, uint16_t logInt);
 	void onDataDataRecord(IpfixDataDataRecord* record);
 
 private:
-	bool onReconfiguration();
+	virtual void onReconfiguration1();
 
 	std::string ipSubnet;
 	std::string addrFilter;
