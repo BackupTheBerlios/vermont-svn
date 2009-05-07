@@ -16,8 +16,8 @@
 #define IPV4_DST_IP_OFFSET			16
 
 
-HostFilter::HostFilter(std::string addrfilter, std::set<uint32_t> iplist)
-	: addrFilter(addrfilter), ipList(iplist)
+HostFilter::HostFilter(std::string addrFilter, std::set<uint32_t> ipList)
+	: addrFilter(addrFilter), ipList(ipList)
 {
 }
 
@@ -41,7 +41,7 @@ bool HostFilter::processPacket(Packet *p)
 	} else if (addrFilter == "both") {
 		return ((ipList.find(srcIp) != ipList.end()) || (ipList.find(dstIp) != ipList.end()));
 	} else {
-		msg(MSG_FATAL, "Unknown observer config statement %s\n", conf.getAddrFilter());
+		msg(MSG_FATAL, "Unknown hostFilter config statement %s\n", addrFilter.c_str());
 		return false;
 	}
 }

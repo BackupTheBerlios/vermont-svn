@@ -12,6 +12,7 @@
 #ifndef HOSTFILTER_H_
 #define HOSTFILTER_H_
 
+#include <set>
 #include "PacketProcessor.h"
 
 class HostFilter : public PacketProcessor
