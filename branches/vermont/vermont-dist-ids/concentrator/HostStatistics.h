@@ -18,6 +18,8 @@ public:
 	void onDataDataRecord(IpfixDataDataRecord* record);
 
 private:
+	bool exportData();
+
 	std::string ipSubnet;
 	std::string addrFilter;
 	std::string logPath;

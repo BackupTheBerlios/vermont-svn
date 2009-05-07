@@ -69,3 +69,17 @@ void HostStatistics::onDataDataRecord(IpfixDataDataRecord* record)
 		}
 	}
 }
+
+bool exportData()
+{
+	std::map<uint32_t, uint64_t>::iterator it;
+
+	logFile = fopen(logPath, "w");
+	// insert current timestamp
+	fprintf(logFile, "%d", time(NULL));
+	// for each element in ipList, write an entry like: IP:Bytesum
+	for (it = trafficMap.begin(); it != trafficMap.end(); it++) {
+		fprintf(logFile, " %d:%d", it->first, it->second);
+	}
+	logFile.close();
+}
