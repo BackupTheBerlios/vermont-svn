@@ -127,7 +127,7 @@ HostFilterCfg::HostFilterCfg(XMLElement *e)
 	     it++) {
 		XMLElement* e = *it;
 
-		if (e->matches("addr")) {
+		if (e->matches("addrFilter")) {
 			addrFilter = e->getFirstText();
 		} else if (e->matches("ip")) {
 			// cast e->getFirstText() to uint32_t to avoid string compare
@@ -161,10 +161,6 @@ Module* HostFilterCfg::getInstance()
 	if (!instance) {
 		instance = new HostFilter(addrFilter, ipList);
 	}
-		// WAS MACHEN?!? SystematicSampler passt mal garnicht.
-		//instance = new SystematicSampler(SYSTEMATIC_SAMPLER_COUNT_BASED,
-		//				getAddrFilter(), getIpList());
-
 	return (Module*)instance;
 }
 

@@ -17,14 +17,13 @@
 class HostFilter : public PacketProcessor
 {
 public:
-	HostFilter(std::string addrfilter, std::set<uint32_t> iplist);
-	
+	HostFilter(std::string addrFilter, std::set<uint32_t> ipList);
+
 	bool processPacket(Packet *p);
-	
+
 private:
-	HostFilterCfg* conf;
 	std::string addrFilter;
-	std::set<unit32_t> ipList;
-}
+	std::set<uint32_t> ipList;
+};
 
 #endif /*HOSTFILTER_H_*/
