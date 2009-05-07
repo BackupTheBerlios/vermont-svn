@@ -15,9 +15,11 @@
 class HostStatisticsCfg : public CfgBase
 {
 public:
+	friend class ConfigManager;
+
 	std::string getName() { return "hostStatistics"; }
 
-	Module* HostFilterCfg::getInstance();
+	Module* createInstance();
 
 	HostStatisticsCfg(XMLElement* elem)
 	: CfgBase(elem)

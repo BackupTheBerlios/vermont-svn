@@ -7,7 +7,7 @@
 
 #include "HostStatisticsCfg.h"
 
-Module* HostFilterCfg::getInstance()
+Module* HostStatisticsCfg::createInstance()
 {
 	if (!instance) {
 		instance = new HostStatistics(ipSubnet, addrFilter, logPath, logInt);
