@@ -10,6 +10,9 @@
 #define HOSTSTATISTICS_H_
 
 #include <time.h>
+#include <map>
+
+#include "IpfixRecordDestination.h"
 
 class HostStatistics : public IpfixRecordDestination, public Module
 {
