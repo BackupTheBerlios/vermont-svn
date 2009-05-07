@@ -12,14 +12,14 @@
 
 #include <string>
 
-class HostStatisticsCfg : public CfgBase
+class HostStatisticsCfg : public Cfg
 {
 public:
 	friend class ConfigManager;
 
 	std::string getName() { return "hostStatistics"; }
 
-	Module* createInstance();
+	Module* getInstance();
 
 	HostStatisticsCfg(XMLElement* elem)
 	: CfgBase(elem)
