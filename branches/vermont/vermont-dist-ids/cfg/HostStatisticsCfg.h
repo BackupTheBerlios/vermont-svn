@@ -8,31 +8,26 @@
 #ifndef HOSTSTATISTICSCFG_H_
 #define HOSTSTATISTICSCFG_H_
 
+#include "XMLElement.h"
 #include "Cfg.h"
+#include "concentrator/HostStatistics.h"
 
 #include <string>
 
-class HostStatisticsCfg : public Cfg
+
+class HostStatisticsCfg : public CfgHelper<HostStatistics, HostStatisticsCfg>
 {
 public:
 	friend class ConfigManager;
 
 	std::string getName() { return "hostStatistics"; }
 
-	Module* getInstance();
+	HostStatistics* createInstance();
+	virtual HostStatisticsCfg* create(XMLElement* e);
+	virtual bool deriveFrom(HostStatisticsCfg* old);
 
-	HostStatisticsCfg(XMLElement* elem)
-	: CfgBase(elem)
-	{
-		try {
-			ipSubnet = get("subnet");
-			addrFilter = get("addrFilter");
-			logPath = get("logPath");
-			logInt = (uint16_t)getInt("logIntervall", 10);
-		} catch(IllegalEntry ie) {
-			THROWEXCEPTION("Illegal hostStatistics entry in config file");
-		}
-	}
+protected:
+	HostStatisticsCfg(XMLElement*);
 
 	std::string getSubnet() { return ipSubnet; }
 	std::string getAddrFilter() { return addrFilter; }

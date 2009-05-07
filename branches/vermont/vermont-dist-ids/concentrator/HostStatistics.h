@@ -14,15 +14,15 @@
 
 #include "IpfixRecordDestination.h"
 
-class HostStatistics : public IpfixRecordDestination, public Module
+class HostStatistics : public IpfixRecordDestination, public Module, public Source<NullEmitable*>
 {
 public:
 	HostStatistics(std::string ipSubnet, std::string addrFilter, std::string logPath, uint16_t logInt);
 	void onDataDataRecord(IpfixDataDataRecord* record);
 
-private:
 	virtual void onReconfiguration1();
 
+private:
 	std::string ipSubnet;
 	std::string addrFilter;
 	std::string logPath;
