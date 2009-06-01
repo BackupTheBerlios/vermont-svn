@@ -14,6 +14,7 @@ class SynDosDetect :public BaseTCPDosDetect
 		uint16_t count;
 		void cleanUpCluster();
 		bool active_out;
+		int active_thres;
 		void observePacketAttack(pEntry p);
 		void observePacketDefend(pEntry p);
 		void evaluateClusters();
@@ -22,7 +23,7 @@ class SynDosDetect :public BaseTCPDosDetect
 		void updateMaps(ipentry*,pEntry,uint32_t);
 	public:
 	static	void* threadWrapper(void* instance);
-		int checkForAttack(const Packet* p);
+		int checkForAttack(const Packet* p,uint32_t*);
 		bool busy;
 		SynDosDetect();
 		~SynDosDetect();

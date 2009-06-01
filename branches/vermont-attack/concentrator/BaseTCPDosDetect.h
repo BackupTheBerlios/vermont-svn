@@ -18,7 +18,8 @@ typedef struct pEntry {
 
 typedef struct DosCluster {
 	pEntry entry;
-	bool wasFiltered;
+	uint32_t time;
+	bool wasFiltered; //for later use
 	uint32_t mask;
 }DosCluster;
 
@@ -62,13 +63,14 @@ class BaseTCPDosDetect {
 	Thread* thread;
 	DosHash* HashDefend;
 	DosHash* HashAttack;
+	uint32_t clusterLifeTime;
 	std::vector<DosCluster> clusters;
 	public:
 	BaseTCPDosDetect(); 
 	virtual ~BaseTCPDosDetect();
 
 	static uint8_t idToMask(uint16_t field);
-	virtual int checkForAttack(const Packet* p) = 0;
+	virtual int checkForAttack(const Packet* p,uint32_t*) = 0;
 
 };
 

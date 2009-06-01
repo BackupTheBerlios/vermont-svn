@@ -4,6 +4,7 @@
 void SynDosDetect::evaluateClusters()
 {
 
+	msg(MSG_FATAL,"at %d",active_thres);
 	ipentry* max = NULL;
 	uint32_t maxdifference = 0;
 	//msg(MSG_FATAL,"evaluating clusters");
@@ -38,7 +39,12 @@ void SynDosDetect::evaluateClusters()
 				}
 				else { //msg(MSG_FATAL,"didnt find defense"); 
 					}
-				if (maxdifference < (current->count - defend_count) && ((current->count+1)/(defend_count+1)) > 3) { max = current; maxdifference = current->count - defend_count;}
+				if ( (maxdifference < (int) ( current->count - defend_count)) && ( (int) ( current->count - defend_count)  > (int) (0.8 * active_thres)) ) { 
+
+				msg(MSG_FATAL,"%d > %d",current->count - defend_count,(int) (0.8*active_thres));
+				max = current; 
+				maxdifference = current->count - defend_count;
+				}
 			}	
 
 		}
@@ -128,6 +134,7 @@ void SynDosDetect::evaluateClusters()
 		}
 
 		DosCluster cluster;
+		cluster.time= time(0);
 		if (active_out)
 		{
 			cluster.entry.srcip = max->ip;
@@ -156,15 +163,18 @@ void SynDosDetect::evaluateClusters()
 		msg(MSG_FATAL,"DOS CLUSTER IS: srcip %x dstip %x srcprt %d dstprt %d",cluster.entry.srcip,cluster.entry.dstip,cluster.entry.srcprt,cluster.entry.dstprt);
 		clusters.push_back(cluster);
 	}
+	else {
+		msg(MSG_FATAL,"false positive trigger, ignoring, maxdifference was not bigger than %d",active_thres);
+	}
 }
 
 
-int SynDosDetect::checkForAttack(const Packet* p)
+int SynDosDetect::checkForAttack(const Packet* p,uint32_t* dummy)
 {
 
 	//we are currently seraching for clusters
 	if (busy) {
-		msg(MSG_FATAL,"i'm busy");
+	//	msg(MSG_FATAL,"i'm busy");
 		return 0;
 	}
 
@@ -190,6 +200,12 @@ int SynDosDetect::checkForAttack(const Packet* p)
 	//check if the received packet is in dos cluster
 	for (int i = 0;i < clusters.size();i++)
 	{
+		if (now >= clusters[i].time + clusterLifeTime)
+			{
+				clusters.erase(clusters.begin() + i--);	
+				msg(MSG_FATAL,"dos cluster timed out!");
+				continue;
+			}
 		if (!clusters[i].entry.srcip || clusters[i].entry.srcip == currentPacket.srcip) {
 			if (!clusters[i].entry.dstip || clusters[i].entry.dstip == currentPacket.dstip) {
 				if (!clusters[i].entry.srcprt || clusters[i].entry.srcprt == currentPacket.srcprt) {
@@ -263,11 +279,14 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		double ratio_in  = ((double) Incoming.varCountIn + 1.0) / ((double) Outgoing.varCountOut + 1.0);
 		double ratio_out = ((double) Outgoing.varCountIn + 1.0) / ((double) Incoming.varCountOut + 1.0);
 
-		double t_in = ((double) Incoming.expectedValueIn + 500) / ((double) Outgoing.expectedValueOut + 1.0);
-		double t_out = ((double) Outgoing.expectedValueIn + 500) / ((double) Incoming.expectedValueOut + 1.0);
 
-		//msg(MSG_FATAL,"current ratio: %.2f > %.2f",ratio_out,t_out);
-		//msg(MSG_FATAL,"current ratio: %.2f > %.2f",ratio_in,t_in);
+		int threshold_in = Incoming.expectedValueIn < 225? 75 : Incoming.expectedValueIn/3;
+		double t_in = ((double) Incoming.expectedValueIn + threshold_in) / ((double) Outgoing.expectedValueOut + 1.0);
+		int threshold_out = Outgoing.expectedValueIn < 150? 75 : Outgoing.expectedValueIn/2;
+		double t_out = ((double) Outgoing.expectedValueIn + threshold_out) / ((double) Incoming.expectedValueOut + 1.0);
+
+//		msg(MSG_FATAL,"current ratio: %.2f > %.2f",ratio_out,t_out);
+//		msg(MSG_FATAL,"current ratio: %.2f > %.2f",ratio_in,t_in);
 
 		if (active_in == true || active_out == true)
 		{
@@ -284,18 +303,22 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		if (ratio_in > t_in)
 		{
 			active_in = true;
+			active_thres = threshold_in;
 			HashDefend = new DosHash();
 			HashAttack = new DosHash();
-			//msg(MSG_FATAL,"incoming ddos");
+			msg(MSG_FATAL,"incoming ddos %.2f > %.2f",ratio_in,t_in);
 			return 0;
 		}
 		else if (ratio_out > t_out)
 		{
 			active_out = true;
+			active_thres = threshold_out;
 			HashDefend = new DosHash();
 			HashAttack = new DosHash();
 
-			//msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_out,t_out);
+			msg(MSG_FATAL,"outgoing ddos: %.2f > %.2f",ratio_out,t_out);
+			msg(MSG_FATAL,"measured syns sent: %d  fins received: %d",Outgoing.varCountIn,Incoming.varCountOut);
+			msg(MSG_FATAL,"expected syns %d, thresh: %d,expected fins %d ",Outgoing.expectedValueIn,threshold_out,Incoming.expectedValueOut);
 			return 0;
 		}
 
@@ -304,7 +327,7 @@ int SynDosDetect::checkForAttack(const Packet* p)
 		Incoming.OutHistory[count % 5] = Incoming.varCountOut;
 		Outgoing.InHistory[count % 5] = Outgoing.varCountIn;
 		Outgoing.OutHistory[count % 5] = Outgoing.varCountOut;
-		//msg(MSG_FATAL,"%d %d %d %d",Incoming.varCountIn,Incoming.varCountOut,Outgoing.varCountIn,Outgoing.varCountOut);
+		//msg(MSG_FATAL,"%d %d %d %d",Incoming.varCountIn,Outgoing.varCountOut,Outgoing.varCountIn,Incoming.varCountOut);
 
 		//reset counter
 		Incoming.varCountIn = 0;
@@ -430,6 +453,7 @@ SynDosDetect::SynDosDetect() {
 	active_in  = false;
 	active_out = false;
 	count = 0;
+	clusterLifeTime = 20;
 	for (int i = 0; i < 5;i++)
 	{
 		Incoming.InHistory[i] = 0;
@@ -449,9 +473,11 @@ void* SynDosDetect::threadWrapper(void* instance)
 	inst->busy = true;
 	inst->evaluateClusters();
 	inst->lastCheck = time(0);
-	//TODO: clean cluster hash tables!
 	inst->cleanUpCluster();
 	inst->active_in = false;
+	inst->Incoming.InHistory[inst->count % 5] += 2*inst->active_thres;
+        inst->Outgoing.InHistory[inst->count % 5] += 2*inst->active_thres;
+	inst->active_thres = 0;
 	inst->active_out = false;
 	inst->busy = false;
 }

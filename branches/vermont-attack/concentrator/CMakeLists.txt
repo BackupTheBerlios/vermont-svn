@@ -47,6 +47,7 @@ ADD_LIBRARY(concentrator
 	IpfixSampler.cpp
 	AutoFocus.cpp
 	SynDosDetect.cpp
+	TCPDosDetect.cpp
 	autofocus_report.cpp
         autofocus_attribute.cpp
         autofocus_iprecord.h

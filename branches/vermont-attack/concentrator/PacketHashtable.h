@@ -8,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include "SynDosDetect.h"
+#include "TCPDosDetect.h"
 #include <boost/smart_ptr.hpp>
 
 
@@ -114,8 +115,8 @@ class PacketHashtable : public BaseHashtable
 		uint8_t getRawPacketFieldLength(IpfixRecord::FieldInfo::Type type);
 		uint16_t getRawPacketFieldIndex(uint16_t typeId, const Packet* p);
 		bool isRawPacketPtrVariable(const IpfixRecord::FieldInfo::Type& type);
-
-		SynDosDetect varDosSyn;
+		BaseTCPDosDetect* varDosSyn;
+		uint32_t statNewEntries;
 };
 
 #endif /*PACKETHASHTABLE_H_*/

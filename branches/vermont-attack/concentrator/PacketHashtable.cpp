@@ -20,7 +20,7 @@ PacketHashtable::PacketHashtable(Source<IpfixRecord*>* recordsource, Rule* rule,
 		THROWEXCEPTION("PacketAggregator can not perform biflow aggregation, but one of its rules is configured to do that");
 	buildExpHelperTable();
 
-	varDosSyn = SynDosDetect();
+	varDosSyn = new TCPDosDetect();
 }
 
 
@@ -806,36 +806,17 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	DPRINTF("PacketHashtable::aggregatePacket()");
 	updatePointers(p);
 	createMaskedFields(p);
-/*
-	uint32_t packetMask = varDosSyn.checkForAttack(p);
+
+/*	uint32_t packetMask = varDosSyn->checkForAttack(p,&statNewEntries);
+
 
 	if (packetMask != 0) {
-//		msg(MSG_FATAL,"dos packet");	//this is a ddos packet
 		dosAggregatePacket(p,packetMask);
 		atomic_release(&aggInProgress);
 		return;
 	}
+
 */
-	//	HASH DISTRIBUTION TEST CODE
-
-	if (statTotalEntries == 3000000)
-	{
-		for (int i = 0;i < htableSize; i++)
-		{
-			HashtableBucket* bucket = buckets[i];
-			int length = 0;
-			while(bucket != 0)
-			{
-				bucket = bucket->next;
-				length++;
-			}
-
-				printf("%d,",length);
-			if (!(i%256)) printf("\n");
-		}
-		std::cerr << "output for distribution is done\n";
-		exit(0);
-	}
 	uint32_t hash = expCalculateHash(p->netHeader);
 
 	// search bucket inside hashtable
@@ -850,6 +831,7 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 		buckets[hash]->listNode = node;
 		exportList.push(node);
 		statTotalEntries++;
+		statNewEntries++;
 	} else {
 		// This slot is already used, search spill chain for equal flow
 		while(1) {
@@ -872,6 +854,7 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 			if (bucket->next == 0) {
 				DPRINTF("creating bucket\n");
 				statTotalEntries++;
+				statNewEntries++;
 				statMultiEntries++;
 				HashtableBucket* buck = createBucket(buildBucketData(p), p->observationDomainID, 0, bucket, hash);
 				bucket->next = buck;
@@ -910,6 +893,7 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 		buckets[hash]->listNode = node;
 		exportList.push(node);
 		statTotalEntries++;
+		statNewEntries++;
 	} else {
 		// This slot is already used, search spill chain for equal flow
 		while(1) {
@@ -934,6 +918,7 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 				DPRINTF("creating bucket\n");
 				msg(MSG_FATAL,"creating Dos Bucket eol!");
 				statTotalEntries++;
+				statNewEntries++;
 				statMultiEntries++;
 				HashtableBucket* buck = createBucket(dosBuildBucketData(p,packetMask), p->observationDomainID, 0, bucket, hash);
 				bucket->next = buck;
