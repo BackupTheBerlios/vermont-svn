@@ -2,6 +2,8 @@
 #include "InfoElementCfg.h"
 #include "concentrator/Rule.hpp"
 #include "concentrator/Rules.hpp"
+#include "concentrator/SynDosDetect.h"
+#include "concentrator/TCPDosDetect.h"
 #include  "XMLElement.h"
 
 AggregatorBaseCfg::AggregatorBaseCfg(XMLElement* elem)
@@ -12,6 +14,7 @@ AggregatorBaseCfg::AggregatorBaseCfg(XMLElement* elem)
 
 	rules = new Rules;
 	htableBits = HT_DEFAULT_BITSIZE;
+	baseTCP = NULL;
 
 	XMLNode::XMLSet<XMLElement*> set = elem->getElementChildren();
 	for (XMLNode::XMLSet<XMLElement*>::iterator it = set.begin();
@@ -22,6 +25,8 @@ AggregatorBaseCfg::AggregatorBaseCfg(XMLElement* elem)
 			Rule* r = readRule(e);
 			if (r)
 				rules->rule[rules->count++] = r;
+		} else if (e->matches("DosDefense")) {
+			baseTCP = readDos(e);
 		} else if (e->matches("expiration")) {
 			// get the time values or set them to '0' if they are not specified
 			maxBufferTime = getTimeInUnit("activeTimeout", SEC, 0, e);
@@ -37,6 +42,41 @@ AggregatorBaseCfg::AggregatorBaseCfg(XMLElement* elem)
 			msg(MSG_FATAL, "Unkown Aggregator config entry %s\n", e->getName().c_str());
 		}
 	}
+}
+
+
+BaseTCPDosDetect* AggregatorBaseCfg::readDos(XMLElement* elem)
+{
+BaseTCPDosDetect* temp = NULL;
+int module;
+int dosTemplateId;
+int minimumRate;
+int clusterTimeout;
+
+XMLNode::XMLSet<XMLElement*> set = elem->getElementChildren();
+ for (XMLNode::XMLSet<XMLElement*>::iterator it = set.begin();it!=set.end();it++)
+	{
+
+	XMLElement* e = *it;
+		if (e->matches("module")) {
+			module = getInt("module",-1,e);				
+		} else if (e->matches("dosTemplateId")) {
+			dosTemplateId = getInt("dosTemplateId",-1,e);	
+		} else if (e->matches("minimumRate")) {
+			minimumRate = getInt("minimumRate",75,e);	
+		} else if (e->matches("clusterTimeout")) {
+			clusterTimeout = getInt("clusterTimeout",15,e) * 60;
+		}
+	}
+
+if (module == -1) THROWEXCEPTION("module has to be specified for the DoS protection");
+else if (dosTemplateId == -1) THROWEXCEPTION("dosTemplateId has to be specified for the DoS protection");
+else {
+	if (module == 0) temp = new SynDosDetect(dosTemplateId,minimumRate,clusterTimeout);
+	else if (module == 1) temp = new TCPDosDetect(dosTemplateId,minimumRate,clusterTimeout);
+	else THROWEXCEPTION("module number undefined");
+}
+return temp;
 }
 
 AggregatorBaseCfg::~AggregatorBaseCfg()

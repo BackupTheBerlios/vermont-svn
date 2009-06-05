@@ -3,6 +3,7 @@
 
 #include "Cfg.h"
 #include "concentrator/Rule.hpp"
+#include "concentrator/BaseTCPDosDetect.h"
 
 // forward declarations
 class Rule;
@@ -20,12 +21,12 @@ protected:
 	
 	static Rule::Field* readFlowKeyRule(XMLElement* e);
 	static Rule::Field* readNonFlowKeyRule(XMLElement* e);
-
+	BaseTCPDosDetect* readDos(XMLElement* e);
 	unsigned maxBufferTime;	
 	unsigned minBufferTime;
 	unsigned pollInterval;
 	uint8_t htableBits;
-
+	BaseTCPDosDetect* baseTCP;
 	Rules* rules;
 };
 

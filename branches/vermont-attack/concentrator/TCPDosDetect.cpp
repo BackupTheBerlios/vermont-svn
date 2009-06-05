@@ -255,6 +255,7 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 					firstTrigger =  expectedScope;
 					threshold_saved = threshold;
 		//			printf("a peak triggered the mechanism with %d > %d\n",*newEntries - expectedScope,threshold);
+	//
 				}
 				else {
 		//			printf("%d < %d\n",*newEntries-expectedScope,threshold);
@@ -262,7 +263,6 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 			} 
 			if (firstTrigger != 0)
 			{
-
 				addedDeviations += *newEntries;
 
 				printf("window count: %d, value %d (+%d) threshold %d\n",windowCount+1,addedDeviations+((30-windowCount)*firstTrigger),*newEntries,(int)(30*(threshold_saved+firstTrigger)));
@@ -274,6 +274,7 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 					HashAttack = new DosHash();
 					active_thres = threshold_saved;
 					*newEntries = 0;
+
 					return 0;
 				}
 
@@ -417,16 +418,25 @@ void TCPDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 
 }
 
-TCPDosDetect::TCPDosDetect() {
-	setup = true;
-	busy = false;
-	active_in  = false;
-	count = 0;
-	clusterLifeTime = 35;
+void TCPDosDetect::setCycle(int clength)
+{
+	cycle = clength/1000;
+	History = new uint32_t[cycle];
 	for (int i = 0; i < 30;i++)
 	{
 		History[i] = 0;
 	}
+	msg(MSG_FATAL,"GENERAL CYCLE SET TO %d",cycle);
+
+}
+
+TCPDosDetect::TCPDosDetect(int dosTemplateId,int minimumRate,int clusterLifetime ) {
+	setup = true;
+	busy = false;
+	active_in  = false;
+	count = 0;
+	this->dosTemplateId = dosTemplateId;
+	clusterLifeTime = clusterLifetime;
 	Incoming.varCountIn = 0;
 	Incoming.varCountOut = 0;
 	Outgoing.varCountIn = 0;
@@ -434,6 +444,7 @@ TCPDosDetect::TCPDosDetect() {
 	firstTrigger = 0;
 	addedDeviations = 0;
 	windowCount = 0;
+	msg(MSG_FATAL,"TCP DoS started with: %d %d %d",dosTemplateId,minimumRate,clusterLifetime);
 }
 void* TCPDosDetect::threadWrapper(void* instance)
 {

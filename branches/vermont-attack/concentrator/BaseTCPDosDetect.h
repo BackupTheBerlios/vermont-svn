@@ -64,13 +64,20 @@ class BaseTCPDosDetect {
 	DosHash* HashDefend;
 	DosHash* HashAttack;
 	uint32_t clusterLifeTime;
+	uint32_t minimumRate;
+	uint32_t cycle;
+	uint32_t dosTemplateId;
 	std::vector<DosCluster> clusters;
 	public:
-	BaseTCPDosDetect(); 
-	virtual ~BaseTCPDosDetect();
+	BaseTCPDosDetect(int,int,int); 
+	BaseTCPDosDetect() { };
+virtual	~BaseTCPDosDetect();
 
+	uint32_t getDosTemplateId();
+	virtual void setCycle(int);
 	static uint8_t idToMask(uint16_t field);
 	virtual int checkForAttack(const Packet* p,uint32_t*) = 0;
+	virtual void evaluateClusters() = 0;
 
 };
 

@@ -291,8 +291,8 @@ int SynDosDetect::checkForAttack(const Packet* p,uint32_t* dummy)
 		if (active_in == true || active_out == true)
 		{
 			//identify clusters
-			thread = new Thread(SynDosDetect::threadWrapper);
-			thread->run(this);
+			//thread = new Thread(SynDosDetect::threadWrapper);
+			//thread->run(this);
 			Incoming.varCountIn = 0;
 			Incoming.varCountOut = 0;
 			Outgoing.varCountIn = 0;
@@ -447,13 +447,14 @@ void SynDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 
 }
 
-SynDosDetect::SynDosDetect() {
+SynDosDetect::SynDosDetect(int dosTemplateId,int minimumRate,int clusterLifetime) {
 	setup = true;
 	busy = false;
 	active_in  = false;
 	active_out = false;
 	count = 0;
-	clusterLifeTime = 20;
+	this->dosTemplateId = dosTemplateId;
+	clusterLifeTime = clusterLifetime;
 	for (int i = 0; i < 5;i++)
 	{
 		Incoming.InHistory[i] = 0;
@@ -465,6 +466,7 @@ SynDosDetect::SynDosDetect() {
 	Incoming.varCountOut = 0;
 	Outgoing.varCountIn = 0;
 	Outgoing.varCountOut = 0;
+	msg(MSG_FATAL,"SYN DoS started with: %d %d %d",dosTemplateId,minimumRate,clusterLifetime);
 }
 
 void* SynDosDetect::threadWrapper(void* instance)

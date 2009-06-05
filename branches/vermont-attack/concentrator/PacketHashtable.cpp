@@ -1,7 +1,6 @@
 #include "PacketHashtable.h"
 #include <iostream>
 #include <fstream>
-
 #include "crc.hpp"
 
 #include "ipfix.hpp"
@@ -20,10 +19,14 @@ PacketHashtable::PacketHashtable(Source<IpfixRecord*>* recordsource, Rule* rule,
 		THROWEXCEPTION("PacketAggregator can not perform biflow aggregation, but one of its rules is configured to do that");
 	buildExpHelperTable();
 
-	varDosSyn = new TCPDosDetect();
+	TCPDefend = NULL;
 }
 
 
+void PacketHashtable::setDosDetect(BaseTCPDosDetect* basetcp)
+{
+	TCPDefend = basetcp;
+}
 PacketHashtable::~PacketHashtable()
 {
 	// free express aggregator helper structures
@@ -807,8 +810,10 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	updatePointers(p);
 	createMaskedFields(p);
 
-/*	uint32_t packetMask = varDosSyn->checkForAttack(p,&statNewEntries);
-
+	uint32_t packetMask = 0;
+	if (TCPDefend)	
+			packetMask = TCPDefend->checkForAttack(p,&statNewEntries);
+//	else msg(MSG_FATAL,"no dos set");
 
 	if (packetMask != 0) {
 		dosAggregatePacket(p,packetMask);
@@ -816,7 +821,6 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 		return;
 	}
 
-*/
 	uint32_t hash = expCalculateHash(p->netHeader);
 
 	// search bucket inside hashtable

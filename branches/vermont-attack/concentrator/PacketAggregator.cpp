@@ -19,7 +19,7 @@
  */
 
 #include "PacketAggregator.h"
-
+#include "BaseTCPDosDetect.h"
 #include "PacketHashtable.h"
 
 #include <sstream>
@@ -28,11 +28,14 @@
  * constructs a new instance
  * @param pollinterval sets the interval of polling the hashtable for expired flows in ms
  */
-PacketAggregator::PacketAggregator(uint32_t pollinterval)
+PacketAggregator::PacketAggregator(uint32_t pollinterval,BaseTCPDosDetect* baseTCP)
 	: BaseAggregator(pollinterval),
 	  statPacketsReceived(0),
 	  statIgnoredPackets(0)
 {
+	TCPDefend = baseTCP;
+	if (TCPDefend != NULL)
+		TCPDefend->setCycle(pollinterval);
 }
 
 
@@ -72,7 +75,9 @@ void PacketAggregator::receive(Packet* e)
 BaseHashtable* PacketAggregator::createHashtable(Rule* rule, uint16_t minBufferTime,
 		uint16_t maxBufferTime, uint8_t hashbits)
 {
-	return new PacketHashtable(this, rule, minBufferTime, maxBufferTime, hashbits);
+	PacketHashtable* tmp = new PacketHashtable(this, rule, minBufferTime, maxBufferTime, hashbits);
+	tmp->setDosDetect(TCPDefend);
+	return tmp;
 }
 
 

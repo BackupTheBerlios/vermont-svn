@@ -13,8 +13,20 @@ uint8_t BaseTCPDosDetect::idToMask(uint16_t field)
 
 }
 
-BaseTCPDosDetect::BaseTCPDosDetect()
+uint32_t BaseTCPDosDetect::getDosTemplateId() {
+	return dosTemplateId;
+
+}
+void BaseTCPDosDetect::setCycle(int clength)
+{
+		cycle = clength;
+}
+
+BaseTCPDosDetect::BaseTCPDosDetect(int dosTemplateId,int minimumRate,int clusterTimeout)
 	{ 
+		this->dosTemplateId = dosTemplateId;
+		this->minimumRate = minimumRate;
+		clusterLifeTime = clusterTimeout;
 		HashAttack = NULL;
 		HashDefend = NULL;
 	}

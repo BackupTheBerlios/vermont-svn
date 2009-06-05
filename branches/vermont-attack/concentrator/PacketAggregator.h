@@ -21,6 +21,7 @@
 #ifndef PACKETAGGREGATOR_H_
 #define PACKETAGGREGATOR_H_
 
+#include "BaseTCPDosDetect.h"
 #include "Rules.hpp"
 #include "BaseAggregator.h"
 #include "reconf/Module.h"
@@ -40,7 +41,7 @@ class PacketAggregator
 		: public BaseAggregator, public Destination<Packet*>
 {
 public:
-	PacketAggregator(uint32_t pollinterval);
+	PacketAggregator(uint32_t pollinterval,BaseTCPDosDetect* baseTCP);
 	virtual ~PacketAggregator();
 
 	virtual void receive(Packet* e);
@@ -55,6 +56,7 @@ protected:
 private:
 	uint32_t statPacketsReceived;
 	uint32_t statIgnoredPackets;
+	BaseTCPDosDetect* TCPDefend;
 };
 
 #endif /*PACKETAGGREGATOR_H_*/

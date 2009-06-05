@@ -3,6 +3,7 @@
 
 
 #include "Rule.hpp"
+#include "BaseTCPDosDetect.h"
 #include "sampler/Packet.h"
 #include "BaseHashtable.h"
 #include <iostream>
@@ -22,6 +23,7 @@ class PacketHashtable : public BaseHashtable
 
 		void aggregatePacket(const Packet* p);
 		void dosAggregatePacket(const Packet* p,uint32_t packetMask);
+		void setDosDetect(BaseTCPDosDetect* basetcp);
 
 
 	private:
@@ -115,7 +117,7 @@ class PacketHashtable : public BaseHashtable
 		uint8_t getRawPacketFieldLength(IpfixRecord::FieldInfo::Type type);
 		uint16_t getRawPacketFieldIndex(uint16_t typeId, const Packet* p);
 		bool isRawPacketPtrVariable(const IpfixRecord::FieldInfo::Type& type);
-		BaseTCPDosDetect* varDosSyn;
+		BaseTCPDosDetect* TCPDefend;
 		uint32_t statNewEntries;
 };
 

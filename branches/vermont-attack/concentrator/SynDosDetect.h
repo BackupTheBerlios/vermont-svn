@@ -25,7 +25,7 @@ class SynDosDetect :public BaseTCPDosDetect
 	static	void* threadWrapper(void* instance);
 		int checkForAttack(const Packet* p,uint32_t*);
 		bool busy;
-		SynDosDetect();
+		SynDosDetect(int,int,int);
 		~SynDosDetect();
 };
 

@@ -10,7 +10,7 @@ class TCPDosDetect :public BaseTCPDosDetect
 
 	private:
 		
-		uint32_t History[30];
+		uint32_t*  History;
 		bool active_in;
 		bool setup;
 		uint16_t count;
@@ -29,10 +29,11 @@ class TCPDosDetect :public BaseTCPDosDetect
 		int windowCount;
 		int32_t addedDeviations;
 	public:
+		void setCycle(int);
 	static	void* threadWrapper(void* instance);
 		int checkForAttack(const Packet* p,uint32_t*);
 		bool busy;
-		TCPDosDetect();
+		TCPDosDetect(int,int,int);
 		~TCPDosDetect();
 };
 
