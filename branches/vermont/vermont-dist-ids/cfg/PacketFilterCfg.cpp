@@ -11,7 +11,10 @@
 #include <sampler/PayloadFilter.h>
 #include <sampler/HostFilter.h>
 #include "common/msg.h"
-
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <cassert>
 
@@ -130,21 +133,9 @@ HostFilterCfg::HostFilterCfg(XMLElement *e)
 		if (e->matches("addrFilter")) {
 			addrFilter = e->getFirstText();
 		} else if (e->matches("ip")) {
-			// cast e->getFirstText() to uint32_t to avoid string compare
-			// no conversion from network byte order necessary for (ascii) strings
 			std::string ip_str = e->getFirstText();
-			uint32_t ip_addr = 0;
-			size_t pos_1 = 0;
-			size_t pos_2 = 0;
-			for (int i = 0; i < 4; i++) {
-				// shift ip_addr left 8 times (no effect in 1st round)
-				// seperate ip_str at the dots, convert every number-part to integer
-				// "save" the number in ip_addr
-				pos_2 = ip_str.find(".", pos_1);
-				ip_addr = (ip_addr << 8) | atoi((ip_str.substr(pos_1, pos_2)).c_str());
-				pos_1 = pos_2;
-			}
-			ipList.insert(htonl(ip_addr));
+			in_addr_t addr = inet_addr(ip_str.c_str());
+			ipList.insert(addr);
 		} else {
 			msg(MSG_FATAL, "Unknown observer config statement %s\n", e->getName().c_str());
 			continue;
