@@ -137,7 +137,6 @@ void TCPDosDetect::evaluateClusters()
 			cluster.entry.srcip = max->ip;
 			cluster.entry.dstip = max_cip;
 			cluster.mask = 0;
-			//todo viele schoene defines fuer die mask
 			if (max_cip == 0) cluster.mask |= 2;
 			cluster.wasFiltered = false;
 		}
@@ -148,7 +147,6 @@ void TCPDosDetect::evaluateClusters()
 			cluster.entry.srcprt= max_srcprt;
 			cluster.entry.dstprt= max_dstprt;
 			cluster.mask = 0;
-			//todo viele schoene defines fuer die mask
 			if (max_cip == 0) cluster.mask |= 1;
 			cluster.wasFiltered = false;
 		}
@@ -203,6 +201,8 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 
 	uint16_t homenet = (currentPacket.srcip&0xFFFF0000)>>16;
 	uint16_t destnet = (currentPacket.dstip&0xFFFF0000)>>16;
+
+	//TODO: the subnets are predefined here!
 
 	if ((homenet == 0x8B3F) || (homenet == 0x6BEB) || (homenet == 0x83BC))
 	{

@@ -219,6 +219,8 @@ int SynDosDetect::checkForAttack(const Packet* p,uint32_t* dummy)
 	//check wheter packet is incoming or outgoing
 	uint16_t homenet = (currentPacket.srcip&0xFFFF0000)>>16;
 	uint16_t destnet = (currentPacket.dstip&0xFFFF0000)>>16;
+
+	//TODO: subnets are still predefined!
 	if ((homenet == 0x8B3F) || (homenet == 0x6BEB) || (homenet == 0x83BC))
 	{
 		if (ddos_flags & 2)
