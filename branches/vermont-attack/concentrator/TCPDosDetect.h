@@ -33,7 +33,7 @@ class TCPDosDetect :public BaseTCPDosDetect
 	static	void* threadWrapper(void* instance);
 		int checkForAttack(const Packet* p,uint32_t*);
 		bool busy;
-		TCPDosDetect(int,int,int);
+		TCPDosDetect(int,int,int,std::map<uint32_t,uint32_t>);
 		~TCPDosDetect();
 };
 

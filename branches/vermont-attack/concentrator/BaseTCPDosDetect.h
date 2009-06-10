@@ -67,9 +67,10 @@ class BaseTCPDosDetect {
 	uint32_t minimumRate;
 	uint32_t cycle;
 	uint32_t dosTemplateId;
+	std::map<uint32_t,uint32_t> internals;
 	std::vector<DosCluster> clusters;
 	public:
-	BaseTCPDosDetect(int,int,int); 
+	BaseTCPDosDetect(int,int,int,std::map<uint32_t,uint32_t>); 
 	BaseTCPDosDetect() { };
 virtual	~BaseTCPDosDetect();
 

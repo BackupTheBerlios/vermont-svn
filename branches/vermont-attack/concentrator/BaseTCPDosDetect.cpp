@@ -22,10 +22,11 @@ void BaseTCPDosDetect::setCycle(int clength)
 		cycle = clength;
 }
 
-BaseTCPDosDetect::BaseTCPDosDetect(int dosTemplateId,int minimumRate,int clusterTimeout)
+BaseTCPDosDetect::BaseTCPDosDetect(int dosTemplateId,int minimumRate,int clusterTimeout,std::map<uint32_t,uint32_t> subnets)
 	{ 
 		this->dosTemplateId = dosTemplateId;
 		this->minimumRate = minimumRate;
+		internals = subnets;
 		clusterLifeTime = clusterTimeout;
 		HashAttack = NULL;
 		HashDefend = NULL;

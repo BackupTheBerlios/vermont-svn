@@ -5,7 +5,7 @@
 #include "concentrator/SynDosDetect.h"
 #include "concentrator/TCPDosDetect.h"
 #include  "XMLElement.h"
-
+#include <map>
 AggregatorBaseCfg::AggregatorBaseCfg(XMLElement* elem)
 	: CfgBase(elem), pollInterval(0)
 {
@@ -52,6 +52,7 @@ int module;
 int dosTemplateId;
 int minimumRate;
 int clusterTimeout;
+std::map<uint32_t,uint32_t> subnets;
 
 XMLNode::XMLSet<XMLElement*> set = elem->getElementChildren();
  for (XMLNode::XMLSet<XMLElement*>::iterator it = set.begin();it!=set.end();it++)
@@ -62,6 +63,20 @@ XMLNode::XMLSet<XMLElement*> set = elem->getElementChildren();
 			module = getInt("module",-1,e);				
 		} else if (e->matches("dosTemplateId")) {
 			dosTemplateId = getInt("dosTemplateId",-1,e);	
+		} else if (e->matches("internal")) {
+			string ipstring = e->getFirstText();
+			uint32_t ip = 0;
+			uint32_t subnet = inet_addr("255.255.255.255");
+			int last_pos = ipstring.find("/");
+		        if (last_pos)
+			{
+		        string tempstr = ipstring.substr(0,last_pos);
+		        ip = ntohl(inet_addr(tempstr.c_str()));
+			tempstr = ipstring.substr(last_pos+1,ipstring.length());
+			subnet >>= (32-atoi(tempstr.c_str()));
+			subnet <<= (32-atoi(tempstr.c_str()));
+			}
+			subnets[ip] = subnet;
 		} else if (e->matches("minimumRate")) {
 			minimumRate = getInt("minimumRate",75,e);	
 		} else if (e->matches("clusterTimeout")) {
@@ -69,11 +84,12 @@ XMLNode::XMLSet<XMLElement*> set = elem->getElementChildren();
 		}
 	}
 
+if (subnets.empty()) THROWEXCEPTION("there was no internal network specified for DoS protection");
 if (module == -1) THROWEXCEPTION("module has to be specified for the DoS protection");
 else if (dosTemplateId == -1) THROWEXCEPTION("dosTemplateId has to be specified for the DoS protection");
 else {
-	if (module == 0) temp = new SynDosDetect(dosTemplateId,minimumRate,clusterTimeout);
-	else if (module == 1) temp = new TCPDosDetect(dosTemplateId,minimumRate,clusterTimeout);
+	if (module == 0) temp = new SynDosDetect(dosTemplateId,minimumRate,clusterTimeout,subnets);
+	else if (module == 1) temp = new TCPDosDetect(dosTemplateId,minimumRate,clusterTimeout,subnets);
 	else THROWEXCEPTION("module number undefined");
 }
 return temp;

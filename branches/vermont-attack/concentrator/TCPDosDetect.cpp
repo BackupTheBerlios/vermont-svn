@@ -5,18 +5,18 @@ void TCPDosDetect::evaluateClusters()
 
 	ipentry* max = NULL;
 	uint32_t maxdifference = 0;
-	//msg(MSG_FATAL,"evaluating clusters");
+	//DPRINTF("evaluating clusters");
 	//FIND LEVEL1 Clusters
 	//
 	for (int i = 0;i < DOSHASH_SIZE;i++)
 	{
 		if (HashAttack->table[i] != NULL)
 		{
-			//msg(MSG_FATAL,"Bucket %d was not empty, found %d entries",i,HashAttack->table[i]->size());
+			//DPRINTF("Bucket %d was not empty, found %d entries",i,HashAttack->table[i]->size());
 			for (int j = 0;j < HashAttack->table[i]->size();j++)
 			{
 				//now find corresponding defense bucket
-				//msg(MSG_FATAL,"searching correspondig defense entry");
+				//DPRINTF("searching correspondig defense entry");
 				ipentry* current = HashAttack->table[i]->at(j);
 				uint32_t bucket = current->ip % DOSHASH_SIZE;
 
@@ -26,16 +26,16 @@ void TCPDosDetect::evaluateClusters()
 				{
 					for (int p = 0;p < HashDefend->table[i]->size();p++)
 					{
-						//msg(MSG_FATAL,"found existing vector in defense");
+						//DPRINTF("found existing vector in defense");
 						if (HashDefend->table[i]->at(p)->ip == current->ip)
 						{
 							defend_count = HashDefend->table[i]->at(p)->count;
-							//msg(MSG_FATAL,"found ipentry in defense, offering %d",defend_count);
+							//DPRINTF("found ipentry in defense, offering %d",defend_count);
 							break;			
 						}
 					}
 				}
-				else { //msg(MSG_FATAL,"didnt find defense"); 
+				else { //DPRINTF("didnt find defense"); 
 				}
 				if ((maxdifference < (int) (current->count - defend_count)) && ( (int) (current->count - defend_count) > (int) (0.8* active_thres)) )
 				{
@@ -48,7 +48,7 @@ void TCPDosDetect::evaluateClusters()
 	}
 	if (max!=NULL)
 	{
-		msg(MSG_FATAL,"level1 cluster was %x with %d unmatched packets",max->ip,maxdifference);
+		DPRINTF("level1 cluster was %x with %d unmatched packets",max->ip,maxdifference);
 
 
 		//find L2 clusters
@@ -102,7 +102,7 @@ void TCPDosDetect::evaluateClusters()
 
 			if (difference > maxdifference * 0.9)
 			{
-				//msg(MSG_FATAL,"srcprt: we got a winner, its port %d with %d entries",iter2->first,iter2->second);
+				//DPRINTF("srcprt: we got a winner, its port %d with %d entries",iter2->first,iter2->second);
 				max_srcprt = iter2->first;
 				break;
 			}
@@ -123,7 +123,7 @@ void TCPDosDetect::evaluateClusters()
 
 			if (difference > maxdifference * 0.9)
 			{
-				//msg(MSG_FATAL,"dstprt: we got a winner, its port %d with %d entries",iter3->first,iter3->second);
+				//DPRINTF("dstprt: we got a winner, its port %d with %d entries",iter3->first,iter3->second);
 				max_dstprt = iter3->first;
 				break;
 			}
@@ -155,7 +155,7 @@ void TCPDosDetect::evaluateClusters()
 		if (max_srcprt == 0) cluster.mask |= 4;
 		if (max_dstprt == 0) cluster.mask |= 8;
 
-		msg(MSG_FATAL,"DOS CLUSTER IS: srcip %x dstip %x srcprt %d dstprt %d",cluster.entry.srcip,cluster.entry.dstip,cluster.entry.srcprt,cluster.entry.dstprt);
+		msg(MSG_FATAL,"Detected Attack! DOS CLUSTER IS: srcip %x dstip %x srcprt %d dstprt %d",cluster.entry.srcip,cluster.entry.dstip,cluster.entry.srcprt,cluster.entry.dstprt);
 		clusters.push_back(cluster);
 	}
 }
@@ -165,7 +165,7 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 {
 	//we are currently seraching for clusters
 	if (busy) {
-		//msg(MSG_FATAL,"i'm busy");
+		//DPRINTF("i'm busy");
 		return 0;
 	}
 
@@ -187,33 +187,60 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 		if (now >= (clusters[i].time + clusterLifeTime))
 			{
 				clusters.erase(clusters.begin() + i--);	
-				msg(MSG_FATAL,"dos cluster timed out!");
+				DPRINTF("dos cluster timed out!");
 				continue;
 			}
-//		msg(MSG_FATAL,"entering cluster search");
+//		DPRINTF("entering cluster search");
 		if (!clusters[i].entry.srcip || clusters[i].entry.srcip == currentPacket.srcip) {
 			if (!clusters[i].entry.dstip || clusters[i].entry.dstip == currentPacket.dstip) {
 				if (!clusters[i].entry.srcprt || clusters[i].entry.srcprt == currentPacket.srcprt) {
 					if (!clusters[i].entry.dstprt || clusters[i].entry.dstprt == currentPacket.dstprt) {
-//					msg(MSG_FATAL,"bad packet");
+//					DPRINTF("bad packet");
 						return clusters[i].mask; } } } }		
 	}
 
-	uint16_t homenet = (currentPacket.srcip&0xFFFF0000)>>16;
-	uint16_t destnet = (currentPacket.dstip&0xFFFF0000)>>16;
-
-	//TODO: the subnets are predefined here!
-
-	if ((homenet == 0x8B3F) || (homenet == 0x6BEB) || (homenet == 0x83BC))
+	//Check if packet is incoming or outgoing
+	bool outgoing = false;
+	bool incoming = false;
+	map<uint32_t,uint32_t>::iterator iter = internals.begin();
+	while (iter != internals.end()) 
 	{
-		Outgoing.varCountOut++; //packet_outgoing
-		if (active_in) observePacketDefend(currentPacket);
+		if ((currentPacket.srcip & iter->second) == iter->first) 
+		{
+			outgoing=true;
+			break;
+		}
+		if ((currentPacket.dstip & iter->second) == iter->first) 
+		{
+
+			incoming=true;
+			break;
+		}
+
+		iter++;
 	}
-	else if ((destnet == 0x8B3F) || (destnet == 0x6BEB) || (destnet == 0x83BC))
+	if (outgoing)
 	{
-		Incoming.varCountIn++; //packet_incoming
-		if (active_in) observePacketAttack(currentPacket);
+			Outgoing.varCountOut++; //FIN 
+			if (active_in) { 
+			observePacketDefend(currentPacket);
+			observePacketAttack(currentPacket); 
+			}
 	}
+	else if (incoming)
+	{
+			Incoming.varCountIn++; //SYN
+			if (active_in) { 
+			observePacketAttack(currentPacket);
+			 observePacketDefend(currentPacket); 
+			}
+	}
+	else {
+		//this packet was received at a non monitored interface
+		return 0;
+	}
+
+
 
 	if (now != lastCheck)
 	{
@@ -224,15 +251,15 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 
 		int32_t expectedScope = 0;
 
-		for (int i = 0;i<30;i++)
+		for (int i = 0;i<cycle;i++)
 		{
-			expectedScope += History[i%30];
+			expectedScope += History[i%cycle];
 		}
-		expectedScope /= 30;
+		expectedScope /= cycle;
 
 		int threshold = expectedScope > 750? expectedScope / 10 : 75;
 
-//		msg(MSG_FATAL,"expectedScopre %d neue eintraege %d",expectedScope,*newEntries);
+//		DPRINTF("expectedScopre %d neue eintraege %d",expectedScope,*newEntries);
 		if (active_in)
 		{
 			//ddos!
@@ -242,32 +269,28 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 			*newEntries = 0;
 			windowCount=0;
 			addedDeviations=0;
-			printf("DOS ATTACK!\n");
 			return 0;
 		}
-		if (count==30) { msg(MSG_FATAL,"ready now"); }
-		if (count > 30)
+		if (count==cycle) { DPRINTF("ready now"); }
+		if (count > cycle)
 		{
 			if (firstTrigger == 0)
 			{
 				if ((int32_t) (*newEntries - expectedScope) > threshold) 
 				{
+					//a peak triggered the mechanism
 					firstTrigger =  expectedScope;
 					threshold_saved = threshold;
-		//			printf("a peak triggered the mechanism with %d > %d\n",*newEntries - expectedScope,threshold);
-	//
-				}
-				else {
-		//			printf("%d < %d\n",*newEntries-expectedScope,threshold);
 				}
 			} 
 			if (firstTrigger != 0)
 			{
+				//lets predict the attack speed and sum up the deviations from our expected values
 				addedDeviations += *newEntries;
 
-				printf("window count: %d, value %d (+%d) threshold %d\n",windowCount+1,addedDeviations+((30-windowCount)*firstTrigger),*newEntries,(int)(30*(threshold_saved+firstTrigger)));
+				DPRINTF("window count: %d, value %d (+%d) threshold %d\n",windowCount+1,addedDeviations+((cycle-windowCount)*firstTrigger),*newEntries,(int)(cycle*(threshold_saved+firstTrigger)));
 
-				if ((addedDeviations + ((30-windowCount)*firstTrigger)) > (30*(threshold_saved+firstTrigger))) {
+				if ((addedDeviations + ((cycle-windowCount)*firstTrigger)) > (cycle*(threshold_saved+firstTrigger))) {
 
 					active_in = true;
 					HashDefend = new DosHash();
@@ -278,18 +301,20 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 					return 0;
 				}
 
+
 				if (*newEntries < firstTrigger) { 
 					if (bogus == true)
 					{
-						windowCount = 29;
-						printf("bogus, resetting\n");
+						//received two below avarage measures, resetting
+						windowCount = cycle-1;
+						DPRINTF("bogus, resetting\n");
 					}
 					else { bogus = true; }
 				}
 				windowCount++;
 
 			}
-			if (windowCount==30) 
+			if (windowCount==cycle) 
 			{
 				firstTrigger =0;
 				windowCount=0;
@@ -298,9 +323,8 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 			}
 		}
 		//update history
-		History[count % 30] = *newEntries;
+		History[count % cycle] = *newEntries;
 		*newEntries = 0;
-		//msg(MSG_FATAL,"%d %d %d %d",Incoming.varCountIn,Incoming.varCountOut,Outgoing.varCountIn,Outgoing.varCountOut);
 
 		//reset counter
 		Incoming.varCountIn = 0;
@@ -313,13 +337,13 @@ int TCPDosDetect::checkForAttack(const Packet* p,uint32_t* newEntries)
 void TCPDosDetect::observePacketDefend(pEntry currentPacket)
 {
 
-	//msg(MSG_FATAL,"Analyzing possible defense packet from %x",currentPacket.srcip);
+	//DPRINTF("Analyzing possible defense packet from %x",currentPacket.srcip);
 	observePacket(HashDefend,currentPacket,currentPacket.srcip);
 }
 
 void TCPDosDetect::observePacketAttack(pEntry currentPacket)
 {
-	//msg(MSG_FATAL,"Analyzing possible attack packet to %x",currentPacket.dstip);
+	//DPRINTF("Analyzing possible attack packet to %x",currentPacket.dstip);
 	observePacket(HashAttack,currentPacket,currentPacket.dstip);
 }
 
@@ -359,11 +383,11 @@ void TCPDosDetect::updateMaps(ipentry* ip,pEntry p,uint32_t cip)
 	if (ip->sum_dstprt.find(p.dstprt) != ip->sum_dstprt.end())
 	{
 		ip->sum_dstprt[p.dstprt]++;
-		//msg(MSG_FATAL,"new dstprt value for %x on %d is %d",ip->ip,p.dstprt,ip->sum_dstprt[p.dstprt]);
+		//DPRINTF("new dstprt value for %x on %d is %d",ip->ip,p.dstprt,ip->sum_dstprt[p.dstprt]);
 	}
 	else {
 		ip->sum_dstprt[p.dstprt] = 1;
-		//msg(MSG_FATAL,"new dstprt value for %x on %d is %d",ip->ip,p.dstprt,ip->sum_dstprt[p.dstprt]);
+		//DPRINTF("new dstprt value for %x on %d is %d",ip->ip,p.dstprt,ip->sum_dstprt[p.dstprt]);
 	}
 
 
@@ -373,11 +397,11 @@ void TCPDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 {
 	uint32_t bucket = (ip % DOSHASH_SIZE);
 
-	//msg(MSG_FATAL,"bucket is %d",bucket);
+	//DPRINTF("bucket is %d",bucket);
 
 	if (hash->table[bucket] == NULL)
 	{
-		//msg(MSG_FATAL,"there was no ipentry vector, creating for ip %x",ip);
+		//DPRINTF("there was no ipentry vector, creating for ip %x",ip);
 
 		std::vector<ipentry*>* ipentrylist = new std::vector<ipentry*>();
 
@@ -394,20 +418,20 @@ void TCPDosDetect::observePacket(DosHash* hash,pEntry p,uint32_t ip)
 	}
 	else
 	{
-		//msg(MSG_FATAL,"there was already an ipentry vector");
+		//DPRINTF("there was already an ipentry vector");
 		for (int i = 0;i < hash->table[bucket]->size();i++)
 		{
 			ipentry* current = hash->table[bucket]->at(i);
 			if (current->ip == ip)
 			{
 				current->count++;
-				//msg(MSG_FATAL,"i already found an entry for ip %x",ip);
+				//DPRINTF("i already found an entry for ip %x",ip);
 				updateMaps(current,p,ip);
 				return;
 			}
 		}
 
-		//msg(MSG_FATAL,"the ip entry list did not contain my ip, adding ipentry for %x",ip);
+		//DPRINTF("the ip entry list did not contain my ip, adding ipentry for %x",ip);
 		ipentry* newipentry = new ipentry;
 		newipentry->ip = ip;
 		newipentry->count = 1;
@@ -422,20 +446,21 @@ void TCPDosDetect::setCycle(int clength)
 {
 	cycle = clength/1000;
 	History = new uint32_t[cycle];
-	for (int i = 0; i < 30;i++)
+	for (int i = 0; i < cycle;i++)
 	{
 		History[i] = 0;
 	}
-	msg(MSG_FATAL,"GENERAL CYCLE SET TO %d",cycle);
+	DPRINTF("GENERAL CYCLE SET TO %d",cycle);
 
 }
 
-TCPDosDetect::TCPDosDetect(int dosTemplateId,int minimumRate,int clusterLifetime ) {
+TCPDosDetect::TCPDosDetect(int dosTemplateId,int minimumRate,int clusterLifetime,std::map<uint32_t,uint32_t> subnets) {
 	setup = true;
 	busy = false;
 	active_in  = false;
 	count = 0;
 	this->dosTemplateId = dosTemplateId;
+	internals = subnets;
 	clusterLifeTime = clusterLifetime;
 	Incoming.varCountIn = 0;
 	Incoming.varCountOut = 0;
@@ -444,7 +469,15 @@ TCPDosDetect::TCPDosDetect(int dosTemplateId,int minimumRate,int clusterLifetime
 	firstTrigger = 0;
 	addedDeviations = 0;
 	windowCount = 0;
-	msg(MSG_FATAL,"TCP DoS started with: %d %d %d",dosTemplateId,minimumRate,clusterLifetime);
+	DPRINTF("TCP DoS started with: %d %d %d",dosTemplateId,minimumRate,clusterLifetime);
+	DPRINTF("My internal networks are:");
+
+	map<uint32_t,uint32_t>::iterator iter = internals.begin();
+	while (iter != internals.end()) 
+	{
+		DPRINTF("%x:%x",iter->first,iter->second);
+		iter++;
+	}
 }
 void* TCPDosDetect::threadWrapper(void* instance)
 {
@@ -455,7 +488,7 @@ void* TCPDosDetect::threadWrapper(void* instance)
 	inst->lastCheck = time(0);
 	inst->cleanUpCluster();
 	inst->active_thres = 0;
-	msg(MSG_FATAL,"thread is now dead");
+	DPRINTF("thread is now dead");
 }
 
 void TCPDosDetect::cleanUpCluster()

@@ -84,6 +84,16 @@ Output type: IpfixRecord
 		<activeTimeout unit="sec">1</activeTimeout>
 	</expiration>
 	<pollInterval unit="msec">1000</pollInterval>
+	<DosDefense>
+		<module>1</module>
+		<dosTemplateId>100</dosTemplateId>
+		<minimumRate>77</minimumRate>
+		<internal>139.63.0.0/16</internal>
+		<internal>110.235.0.0/16</internal>
+		<clusterTimeout>10</clusterTimeout>
+	<DosDefend>
+
+
 	<next>4</next>
 </packetAggregator>				
 </code>
@@ -101,7 +111,12 @@ Output type: IpfixRecord
 |activeTimeout |  0  |Periodic expiration timeout for long-lasting flows (typically larger than inactiveTimeout). |
 |pollInterval |  0  |Length of interval when flows should be exported to next module. |
 |hashtableBits |  17  |Length of hashtable used for aggregation in bits. The resulting hashtable will have a size of ''2^hashtableBits''. |
-
+|DosDefend| none |Enables DoS protection for the used hash table.|
+|module| none |Specifies the used protection module. 0 = Syn Dos Protection, 1 = TCP packet flooding protection.|
+|minimumRate| 75 |minimum rate of detectable DoS attacks. might possibly be increased in case of bursty networks|
+|clusterLifeTime| 15 |minutes an attack cluster is active. packets belonging to an attack will be filtered for the set minutes. If the timeout expired, the attack has to be redetected|
+|internal| none |subnets which are declared as internal, so the module can distinguish incoming from outgoing packets. Notation is "A.B.C.D/M"|
+|dosTemplateId| none |the templateId which will be set for meta flows into which dos packets are aggregated.| 
 == IpfixCollector ==
 
 Receives IPFIX records from the network and imports them into Vermont. Protocols UDP and SCTP are supported at the moment.

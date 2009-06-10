@@ -8,8 +8,6 @@
 #include "BaseHashtable.h"
 #include <iostream>
 #include <fstream>
-#include "SynDosDetect.h"
-#include "TCPDosDetect.h"
 #include <boost/smart_ptr.hpp>
 
 

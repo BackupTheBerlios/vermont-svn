@@ -549,7 +549,6 @@ boost::shared_array<IpfixRecord::Data> PacketHashtable::buildBucketData(const Pa
 		ExpFieldData* efd = &expHelperTable.expFieldData[i];
 		efd->copyDataFunc(data, reinterpret_cast<const uint8_t*>(p->netHeader)+efd->srcIndex, efd);
 	}
-
 	return htdata;
 }
 
@@ -879,6 +878,8 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 
 void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 {
+
+	//TODO: set template ID to dostemplateId
 	uint32_t hash = dosCalculateHash(p->netHeader,packetMask);
 
 	// search bucket inside hashtable
