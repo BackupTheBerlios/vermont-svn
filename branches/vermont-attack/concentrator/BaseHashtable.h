@@ -108,7 +108,7 @@ protected:
 	int isToBeAggregated(IpfixRecord::FieldInfo::Type type);
 	HashtableBucket* createBucket(boost::shared_array<IpfixRecord::Data> data, uint32_t obsdomainid,
 		HashtableBucket* next, HashtableBucket* prev, uint32_t hash);
-	void exportBucket(HashtableBucket* bucket);
+	virtual void exportBucket(HashtableBucket* bucket);
 	void destroyBucket(HashtableBucket* bucket);
 	void createDataTemplate(Rule* rule);
 	void sendDataTemplate();

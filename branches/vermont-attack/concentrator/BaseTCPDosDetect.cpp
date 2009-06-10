@@ -13,13 +13,19 @@ uint8_t BaseTCPDosDetect::idToMask(uint16_t field)
 
 }
 
-uint32_t BaseTCPDosDetect::getDosTemplateId() {
-	return dosTemplateId;
+boost::shared_ptr<IpfixRecord::DataTemplateInfo> BaseTCPDosDetect::getDosTemplate() {
+	return dosTemplate;
 
 }
 void BaseTCPDosDetect::setCycle(int clength)
 {
 		cycle = clength;
+}
+
+void BaseTCPDosDetect::createDosTemplate(const boost::shared_ptr<IpfixRecord::DataTemplateInfo> dataTemp)
+{
+	dosTemplate = boost::shared_ptr<IpfixRecord::DataTemplateInfo>(new IpfixRecord::DataTemplateInfo(*dataTemp));
+	dosTemplate->templateId = dosTemplateId;
 }
 
 BaseTCPDosDetect::BaseTCPDosDetect(int dosTemplateId,int minimumRate,int clusterTimeout,std::map<uint32_t,uint32_t> subnets)

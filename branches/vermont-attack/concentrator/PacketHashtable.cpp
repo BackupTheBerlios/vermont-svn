@@ -26,6 +26,7 @@ PacketHashtable::PacketHashtable(Source<IpfixRecord*>* recordsource, Rule* rule,
 void PacketHashtable::setDosDetect(BaseTCPDosDetect* basetcp)
 {
 	TCPDefend = basetcp;
+	TCPDefend->createDosTemplate(dataTemplate);
 }
 PacketHashtable::~PacketHashtable()
 {
@@ -876,10 +877,32 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	atomic_release(&aggInProgress);
 }
 
+/**
+ * Exports the given @c bucket;
+ * this function is overwritten from BaseHashtable because of a different templateId for dos meta flows
+ */
+void PacketHashtable::exportBucket(HashtableBucket* bucket)
+{
+	/* Pass Data Record to exporter interface */
+	IpfixDataDataRecord* ipfixRecord = dataDataRecordIM.getNewInstance();
+	ipfixRecord->sourceID = sourceID;
+
+	if (bucket->isDosBucket) {
+	ipfixRecord->dataTemplateInfo = TCPDefend->getDosTemplate();
+	}
+	else ipfixRecord->dataTemplateInfo = dataTemplate;
+	ipfixRecord->dataLength = fieldLength;
+	ipfixRecord->message = bucket->data;
+	ipfixRecord->data = bucket->data.get();
+
+	recordSource->send(ipfixRecord);
+
+	statRecordsSent++;
+}
+ 
 void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 {
 
-	//TODO: set template ID to dostemplateId
 	uint32_t hash = dosCalculateHash(p->netHeader,packetMask);
 
 	// search bucket inside hashtable
@@ -889,13 +912,13 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 	//msg(MSG_FATAL,"aggregating Dos Bucket!");
 	if (bucket == 0) {
 		// slot is free, place bucket there
-		DPRINTF("creating new dos bucket");
-		msg(MSG_FATAL,"creating Dos Bucket!");
+		DPRINTF("creating Dos Bucket!");
 		buckets[hash] = createBucket(dosBuildBucketData(p,packetMask), p->observationDomainID, 0, 0, hash);
 		BucketListElement* node = hbucketIM.getNewInstance();
 		node->reset();
 		node->bucket = buckets[hash];
 		buckets[hash]->listNode = node;
+		node->bucket->isDosBucket = true;
 		exportList.push(node);
 		statTotalEntries++;
 		statNewEntries++;
@@ -920,8 +943,7 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 			}
 
 			if (bucket->next == 0) {
-				DPRINTF("creating bucket\n");
-				msg(MSG_FATAL,"creating Dos Bucket eol!");
+				DPRINTF("creating Dosbucket\n");
 				statTotalEntries++;
 				statNewEntries++;
 				statMultiEntries++;
@@ -932,6 +954,7 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 				exportList.push(node);
 				node->bucket = buck;
 				buck->listNode = node;
+				buck->isDosBucket = true;
 				break;
 			}
 			bucket = (HashtableBucket*)bucket->next;

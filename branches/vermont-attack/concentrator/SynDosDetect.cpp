@@ -155,7 +155,7 @@ void SynDosDetect::evaluateClusters()
 		if (max_srcprt == 0) cluster.mask |= 4;
 		if (max_dstprt == 0) cluster.mask |= 8;
 
-		DPRINTF("DOS CLUSTER IS: srcip %x dstip %x srcprt %d dstprt %d",cluster.entry.srcip,cluster.entry.dstip,cluster.entry.srcprt,cluster.entry.dstprt);
+		msg(MSG_FATAL,"Syn DoS attack detected! DOS CLUSTER IS: srcip %x dstip %x srcprt %d dstprt %d",cluster.entry.srcip,cluster.entry.dstip,cluster.entry.srcprt,cluster.entry.dstprt);
 		clusters.push_back(cluster);
 	}
 }

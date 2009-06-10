@@ -82,6 +82,8 @@ class PacketHashtable : public BaseHashtable
 
 		};
 
+		BaseTCPDosDetect* TCPDefend;
+		uint32_t statNewEntries;
 		ExpHelperTable expHelperTable;
 		bool snapshotWritten; /**< set to true, if snapshot of hashtable was already written */
 		time_t startTime; /**< if a snapshot of the hashtable should be performed, this variable is used and stores initialization time of this hashtable */
@@ -115,8 +117,8 @@ class PacketHashtable : public BaseHashtable
 		uint8_t getRawPacketFieldLength(IpfixRecord::FieldInfo::Type type);
 		uint16_t getRawPacketFieldIndex(uint16_t typeId, const Packet* p);
 		bool isRawPacketPtrVariable(const IpfixRecord::FieldInfo::Type& type);
-		BaseTCPDosDetect* TCPDefend;
-		uint32_t statNewEntries;
+		void exportBucket(HashtableBucket* bucket);
+
 };
 
 #endif /*PACKETHASHTABLE_H_*/

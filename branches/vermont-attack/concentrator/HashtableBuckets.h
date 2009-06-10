@@ -18,8 +18,10 @@ public:
 	HashtableBucket* prev; /**< previous bucket in spillchain */
 	HashtableBucket* next; /**< next bucket in spillchain */
 	uint32_t observationDomainID;
+	bool isDosBucket;
 	BucketListElement* listNode;
 	uint32_t hash;
+	HashtableBucket():isDosBucket(false) { }
 };
 
 

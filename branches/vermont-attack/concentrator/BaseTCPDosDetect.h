@@ -2,6 +2,7 @@
 #define BASETCPDOSDETECT_H
 
 #include "ipfix.hpp"
+#include "IpfixRecord.hpp"
 #include <iostream>
 #include <vector>
 #include <map>
@@ -63,6 +64,7 @@ class BaseTCPDosDetect {
 	Thread* thread;
 	DosHash* HashDefend;
 	DosHash* HashAttack;
+	boost::shared_ptr<IpfixRecord::DataTemplateInfo> dosTemplate; 
 	uint32_t clusterLifeTime;
 	uint32_t minimumRate;
 	uint32_t cycle;
@@ -74,7 +76,8 @@ class BaseTCPDosDetect {
 	BaseTCPDosDetect() { };
 virtual	~BaseTCPDosDetect();
 
-	uint32_t getDosTemplateId();
+	void createDosTemplate(boost::shared_ptr<IpfixRecord::DataTemplateInfo>);
+	boost::shared_ptr<IpfixRecord::DataTemplateInfo> getDosTemplate();
 	virtual void setCycle(int);
 	static uint8_t idToMask(uint16_t field);
 	virtual int checkForAttack(const Packet* p,uint32_t*) = 0;
