@@ -26,7 +26,8 @@ PacketHashtable::PacketHashtable(Source<IpfixRecord*>* recordsource, Rule* rule,
 void PacketHashtable::setDosDetect(BaseTCPDosDetect* basetcp)
 {
 	TCPDefend = basetcp;
-	TCPDefend->createDosTemplate(dataTemplate);
+	if (TCPDefend)
+		TCPDefend->createDosTemplate(dataTemplate);
 }
 PacketHashtable::~PacketHashtable()
 {
@@ -525,7 +526,7 @@ boost::shared_array<IpfixRecord::Data> PacketHashtable::dosBuildBucketData(const
 	// copy all data ...
 	for (int i=0; i<expHelperTable.efdLength; i++) {
 		ExpFieldData* efd = &expHelperTable.expFieldData[i];
-		
+
 		if (BaseTCPDosDetect::idToMask(efd->typeId) & packetMask)
 		{
 		memset(data+efd->dstIndex,0,efd->srcLength);
@@ -811,7 +812,7 @@ void PacketHashtable::aggregatePacket(const Packet* p)
 	createMaskedFields(p);
 
 	uint32_t packetMask = 0;
-	if (TCPDefend)	
+	if (TCPDefend)
 			packetMask = TCPDefend->checkForAttack(p,&statNewEntries);
 //	else msg(MSG_FATAL,"no dos set");
 
@@ -887,8 +888,8 @@ void PacketHashtable::exportBucket(HashtableBucket* bucket)
 	IpfixDataDataRecord* ipfixRecord = dataDataRecordIM.getNewInstance();
 	ipfixRecord->sourceID = sourceID;
 
-	if (bucket->isDosBucket) {
-	ipfixRecord->dataTemplateInfo = TCPDefend->getDosTemplate();
+	if (bucket->isDosBucket && TCPDefend) {
+		ipfixRecord->dataTemplateInfo = TCPDefend->getDosTemplate();
 	}
 	else ipfixRecord->dataTemplateInfo = dataTemplate;
 	ipfixRecord->dataLength = fieldLength;
@@ -899,7 +900,7 @@ void PacketHashtable::exportBucket(HashtableBucket* bucket)
 
 	statRecordsSent++;
 }
- 
+
 void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 {
 
@@ -938,7 +939,7 @@ void PacketHashtable::dosAggregatePacket(const Packet* p, uint32_t packetMask)
 					exportList.remove(bucket->listNode);
 					exportList.push(bucket->listNode);
 				}
-				
+
 				break;
 			}
 
