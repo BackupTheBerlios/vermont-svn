@@ -42,8 +42,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#ifdef __linux__
 /* Copied from linux/in.h */
 #define IP_MTU          14
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -683,6 +685,8 @@ static int init_send_udp_socket(struct sockaddr_in serv_addr){
                 close(s);
                 return -1;
         }
+#ifdef IP_PMTUDISC_DO
+	// probably works only on Linux
 	const int optval = IP_PMTUDISC_DO;
 	if (setsockopt(s,IPPROTO_IP,IP_MTU_DISCOVER,&optval,sizeof(optval))) {
                 msg(MSG_FATAL, "IPFIX: setsockopt(...,IP_MTU_DISCOVER,...) failed, %s", strerror(errno));
@@ -690,11 +694,13 @@ static int init_send_udp_socket(struct sockaddr_in serv_addr){
                 close(s);
                 return -1;
 	}
+#endif
 
 	return s;
 }
 
 static int get_mtu(const int s) {
+#ifdef __linux__
     int optval = 0;
     socklen_t optlen = sizeof(optval);
     if (getsockopt(s,IPPROTO_IP,IP_MTU,&optval,&optlen)) {
@@ -702,6 +708,10 @@ static int get_mtu(const int s) {
 	return -1;
     } else
 	return optval;
+#else
+    /* FIXME: very bad hack.*/
+    return 1500;
+#endif
 }
 
 
