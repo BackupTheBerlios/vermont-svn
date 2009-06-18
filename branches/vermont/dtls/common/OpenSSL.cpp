@@ -78,7 +78,7 @@ int check_x509_cert(X509 *peer, int (*cb)(void *context, const char *dnsname), v
     X509_NAME_oneline(X509_get_subject_name(peer),buf,sizeof buf);
     DPRINTF("peer certificate subject: %s",buf);
 #endif
-    STACK_OF(GENERAL_NAME) * gens;
+    const STACK_OF(GENERAL_NAME) * gens;
     const GENERAL_NAME *gn;
     int num;
     size_t len;
@@ -86,6 +86,7 @@ int check_x509_cert(X509 *peer, int (*cb)(void *context, const char *dnsname), v
 
     gens = (STACK_OF(GENERAL_NAME) *) X509_get_ext_d2i(peer, NID_subject_alt_name, 0, 0);
     num = sk_GENERAL_NAME_num(gens);
+    num = sk_num(((_STACK*) (1 ? (gens) : (struct stack_st_GENERAL_NAME*)0)));
 
     for (int i = 0; i < num; ++i) {
 	gn = sk_GENERAL_NAME_value(gens, i);

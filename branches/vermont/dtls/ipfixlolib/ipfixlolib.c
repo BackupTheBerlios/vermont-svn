@@ -35,7 +35,6 @@
  2004-11-12
  jan@petranek.de
  */
-// We need linux/in.h for IP_MTU
 
 #include "ipfixlolib.h"
 #include <netinet/in.h>
@@ -944,7 +943,7 @@ static void update_exporter_mtu(ipfix_exporter *exporter) {
 	if(col->state != C_UNUSED &&
 		(col->protocol == UDP || col->protocol == DTLS_OVER_UDP) &&
 		col->mtu < mtu)
-	    mtu = collector->mtu;
+	    mtu = col->mtu;
     }
     exporter->mtu = mtu;
     DPRINTF("New exporter MTU: %u",mtu);
@@ -1700,10 +1699,10 @@ int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 		exporter->template_sendbuffer->current,
 		(struct sockaddr*)&(exporter->collector_arr[i].addr),
 		sizeof(exporter->collector_arr[i].addr),
-		0,0,
+		0,0, // payload protocol identifier, flags
 		0,//Stream Number
 			0,//packet lifetime in ms (0 = reliable, do not change for templates)
-		0
+		0 // context
 			)) == -1) {
 			msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP sending templates after reconnection failed, %s", strerror(errno));
 			close(exporter->collector_arr[i].data_socket);
@@ -1850,10 +1849,10 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 							exporter->sctp_template_sendbuffer->current,
 							(struct sockaddr*)&(exporter->collector_arr[i].addr),
 							sizeof(exporter->collector_arr[i].addr),
-							0,0,
+							0,0, // payload protocol identifier, flags
 							0,//Stream Number
 							0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
-							0
+							0 // context
 							)) == -1) {
 							// send failed
 							msg(MSG_ERROR, "ipfix_send_templates(): could not send to %s:%d errno: %s  (SCTP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
@@ -1995,10 +1994,10 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 							exporter->data_sendbuffer->committed,
 							(struct sockaddr*)&(exporter->collector_arr[i].addr),
 							sizeof(exporter->collector_arr[i].addr),
-							0,0,
+							0,0, // payload protocol identifier, flags
 							0,//Stream Number
 							exporter->sctp_lifetime,//packet lifetime in ms(0 = reliable )
-							0
+							0 // context
 							)) == -1) {
 							// send failed
 							msg(MSG_ERROR, "ipfix_send_data() could not send to %s:%d errno: %s  (SCTP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
@@ -2581,9 +2580,6 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
 
     // reallocate the memory , i.e. free superfluous memory, as we allocated enough memory to hold
     // all possible vendor specific IDs.
-    /* FIXME: Remove instance of strong profanity from comment below or
-     * apply the Parental Advisory sticker to source code */
-    /* sometime I'll fuck C++ with a serious chainsaw - casting malloc() et al is DUMB */
     templ->template_fields=(char *)realloc(templ->template_fields, templ->fields_length);
     templ->max_fields_length=templ->fields_length;
 

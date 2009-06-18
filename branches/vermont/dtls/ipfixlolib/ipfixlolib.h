@@ -123,7 +123,8 @@ extern "C" {
  * Stevens: The maximum size of an IPv4 datagram is 65535 bytes, including
  * the IPv4 header. This is because of the 16-bit total length field.
  */
-#define IPFIX_DEFAULT_MTU 65535
+// #define IPFIX_DEFAULT_MTU 65535
+#define IPFIX_DEFAULT_MTU 3000
 
 /*
  * This macro appends data to the sendbuffer. If the sendbuffer is too small,
