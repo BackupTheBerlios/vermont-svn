@@ -8,22 +8,24 @@ ADD_LIBRARY(modules
 	idmef/PacketIDMEFReporter.cpp
 	idmef/PacketIDMEFReporterCfg.cpp
 
-	analysis/AutoFocus.cpp
-	analysis/autofocus_report.cpp
 	analysis/autofocus_attribute.cpp
+	analysis/AutoFocus.cpp
 	analysis/autofocus_iprecord.h
-	analysis/TRWPortscanDetector.cpp
-	analysis/RBSWormDetector.cpp
+	analysis/autofocus_report.cpp
 	analysis/FrontPayloadSigMatcher.cpp
+	analysis/P2PDetector.cpp
+	analysis/RBSWormDetector.cpp
+	analysis/TRWPortscanDetector.cpp
+	analysis/AutoFocusCfg.cpp
+	analysis/FrontPayloadSigMatcherCfg.cpp
+	analysis/P2PDetectorCfg.cpp
+	analysis/RBSWormDetectorCfg.cpp
+	analysis/TRWPortscanDetectorCfg.cpp
 	# support files for FrontPayloadSigMatcher
 	analysis/fpsigmatcher/KTree.c
 	analysis/fpsigmatcher/Matcher.c
 	analysis/fpsigmatcher/Signature.c
 	analysis/fpsigmatcher/Utils.c
-	analysis/FrontPayloadSigMatcherCfg.cpp
-	analysis/AutoFocusCfg.cpp
-	analysis/RBSWormDetectorCfg.cpp
-	analysis/TRWPortscanDetectorCfg.cpp
 
 	packet/Observer.cpp
 	packet/ObserverCfg.cpp
