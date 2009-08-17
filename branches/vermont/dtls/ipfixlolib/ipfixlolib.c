@@ -473,7 +473,9 @@ static int dtls_send_helper(ipfix_exporter *exporter,
     for(;;) {
 	len = SSL_write(con->ssl, sendbuf, sendbufcur - sendbuf);
 	error = SSL_get_error(con->ssl,len);
-	DPRINTF("SSL_write() returned: len: %d, SSL_get_error: %s\n",len,get_ssl_error_string(error));
+	DPRINTF("SSL_write(%d bytes of data) returned: len: %d, SSL_get_error: %s, strerror: %s == %d\n",
+		sendbufcur - sendbuf, len,get_ssl_error_string(error),
+		strerror(errno),errno);
 	switch (error) {
 	    case SSL_ERROR_NONE:
 		if (len!=sendbufcur - sendbuf) {
@@ -592,7 +594,8 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 	    close(con->socket);con->socket = -1;
 	    return -1;
 	} else {
-	    SSL_set_cipher_list(con->ssl,"DEFAULT");
+	    // SSL_set_cipher_list(con->ssl,"DEFAULT");
+	    SSL_set_cipher_list(con->ssl,"NULL");
 	    SSL_set_verify(con->ssl,SSL_VERIFY_PEER |
 		    SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
 	    DPRINTF("We are going to request certificates from the collectors "

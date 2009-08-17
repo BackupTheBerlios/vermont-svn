@@ -79,6 +79,8 @@ IpfixSender* IpfixExporterCfg::createInstance()
 				protocol = "SCTP"; break;
 			case DTLS_OVER_UDP:
 				protocol = "DTLS_OVER_UDP"; break;
+			case DTLS_OVER_SCTP:
+				protocol = "DTLS_OVER_SCTP"; break;
 			case UDP:
 				protocol = "UDP"; break;
 			default:
@@ -91,7 +93,8 @@ IpfixSender* IpfixExporterCfg::createInstance()
 #endif
 		void *aux_config = NULL;
 		ipfix_aux_config_dtls aux_config_dtls;
-		if (p->getProtocolType() == DTLS_OVER_UDP) {
+		if (p->getProtocolType() == DTLS_OVER_UDP ||
+		    p->getProtocolType() == DTLS_OVER_SCTP) {
 			aux_config_dtls.peer_fqdn = NULL;
 			const std::set<std::string> peerFqdns = p->getPeerFqdns();
 			std::set<std::string>::const_iterator it = peerFqdns.begin();

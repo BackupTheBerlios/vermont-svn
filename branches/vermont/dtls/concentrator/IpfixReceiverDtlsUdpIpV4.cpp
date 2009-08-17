@@ -645,7 +645,8 @@ bool IpfixReceiverDtlsUdpIpV4::SSL_CTX_wrapper::loadCert(
 
 void IpfixReceiverDtlsUdpIpV4::SSL_CTX_wrapper::setCipherList() {
     if (verify_peers) {
-	SSL_CTX_set_cipher_list(ctx,"DEFAULT");
+	// SSL_CTX_set_cipher_list(ctx,"DEFAULT");
+	SSL_CTX_set_cipher_list(ctx,"NULL");
     } else {
 	SSL_CTX_set_cipher_list(ctx,"ALL"); // This includes anonymous ciphers
     }

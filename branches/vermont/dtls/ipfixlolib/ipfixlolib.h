@@ -124,7 +124,7 @@ extern "C" {
  * the IPv4 header. This is because of the 16-bit total length field.
  */
 // #define IPFIX_DEFAULT_MTU 65535
-#define IPFIX_DEFAULT_MTU 3000
+#define IPFIX_DEFAULT_MTU 1500
 
 /*
  * This macro appends data to the sendbuffer. If the sendbuffer is too small,
@@ -230,7 +230,7 @@ enum ipfix_transport_protocol {
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
 	RAWDIR, 
 #endif 
-	SCTP, UDP, TCP, DTLS_OVER_UDP
+	SCTP, UDP, TCP, DTLS_OVER_UDP, DTLS_OVER_SCTP
 	};
 
 typedef struct {

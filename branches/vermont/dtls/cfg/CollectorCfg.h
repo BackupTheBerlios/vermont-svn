@@ -30,6 +30,8 @@ public:
 				protocolType = SCTP;
 			else if (prot=="DTLS_OVER_UDP")
 				protocolType = DTLS_OVER_UDP;
+			else if (prot=="DTLS_OVER_SCTP")
+				protocolType = DTLS_OVER_SCTP;
 			else 
 				THROWEXCEPTION("Invalid configuration parameter for transportProtocol (%s)", prot.c_str());
 			port = (uint16_t)getInt("port", 4739);			
@@ -60,7 +62,8 @@ public:
 		if ((ipAddress == other->ipAddress) &&
 			//(ipAddressType == other->ipAddressType) &&
 			(protocolType == other->protocolType) &&
-			(port == other->port)) return true;
+			(port == other->port) &&
+			(peerFqdns == other->peerFqdns)) return true;
 		
 		return false;
 	}

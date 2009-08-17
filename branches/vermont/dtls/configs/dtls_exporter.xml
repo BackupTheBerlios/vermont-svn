@@ -126,9 +126,10 @@
 		<CApath>/etc/ssl/certs</CApath>
 		<collector>
 			<ipAddressType>4</ipAddressType>
-			<ipAddress>1.2.3.5</ipAddress>
-			<!-- transportProtocol>DTLS_OVER_UDP</transportProtocol -->
-			<transportProtocol>UDP</transportProtocol>
+			<!-- ipAddress>127.0.0.1</ipAddress -->
+			<ipAddress>192.168.10.9</ipAddress>
+			<transportProtocol>DTLS_OVER_UDP</transportProtocol>
+			<!-- transportProtocol>UDP</transportProtocol -->
 			<port>4433</port>
 			<peerFqdn>collector.example.com</peerFqdn>
 		</collector>
