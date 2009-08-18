@@ -48,6 +48,10 @@
 #include "common/OpenSSL.h"
 #endif
 
+#if defined(SUPPORT_OPENSSL) && defined(SUPPORT_SCTP)
+#define SUPPORT_DTLS_OVER_SCTP
+#endif
+
 #include "encoding.h"
 #include "ipfix_names.h"
 #include "common/msg.h"
@@ -230,6 +234,9 @@ enum ipfix_transport_protocol {
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
 	RAWDIR, 
 #endif 
+#ifdef SCTP
+#undef SCTP
+#endif
 	SCTP, UDP, TCP, DTLS_OVER_UDP, DTLS_OVER_SCTP
 	};
 

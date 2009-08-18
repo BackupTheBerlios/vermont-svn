@@ -553,8 +553,8 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 #endif
 
     /* Create socket
-     init_send_udp_socket() also activates PMTU Discovery. */
-    if ((con->socket = init_send_udp_socket(col->addr)) < 0) {
+     ipfix_init_send_socket() also activates PMTU Discovery. */
+    if ((con->socket = ipfix_init_send_socket(col->addr,col->protocol)) < 0) {
 	return -1;
     }
     DPRINTF("Created socket %d",con->socket);
@@ -603,14 +603,24 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 		    "the peerFqdn option is set");
 	}
     }
-    /* create output abstraction for SSL object */
-    if ( ! (sbio = BIO_new_dgram(con->socket,BIO_NOCLOSE))) {
+    /* create input/output abstraction for SSL object */
+#ifdef SUPPORT_DTLS_OVER_SCTP
+    if (col->protocol == DTLS_OVER_SCTP)
+	sbio = BIO_new_dgram_sctp(con->socket,BIO_NOCLOSE);
+    else /* DTLS_OVER_UDP */
+#endif
+	sbio = BIO_new_dgram(con->socket,BIO_NOCLOSE);
+
+    if ( ! sbio) {
 	msg(MSG_FATAL,"Failed to create datagram BIO.");
 	msg_openssl_errors();
 	SSL_free(con->ssl);con->ssl = NULL;
 	close(con->socket);con->socket = -1;
 	return -1;
     }
+#ifdef SUPPORT_DTLS_OVER_SCTP
+    if (col->protocol != DTLS_OVER_SCTP)
+#endif
     BIO_ctrl(sbio,BIO_CTRL_DGRAM_MTU_DISCOVER,0,0);
     /* Does not return useful value. */
 
@@ -732,6 +742,9 @@ static int get_mtu(const int s) {
 static int init_send_sctp_socket(struct sockaddr_in serv_addr){
 	
 	int s;
+#ifdef SUPPORT_DTLS_OVER_SCTP
+	struct sctp_event_subscribe event;
+#endif
 	
 	//create socket:
 	DPRINTFL(MSG_VDEBUG, "Creating SCTP Socket ...");
@@ -748,6 +761,19 @@ static int init_send_sctp_socket(struct sockaddr_in serv_addr){
 		close(s);
                 return -1;
 	}
+#ifdef SUPPORT_DTLS_OVER_SCTP
+	/* enable the reception of SCTP_SNDRCV information on a per
+	 * message basis. Does not hurt if we do not use DTLS because
+	 * we do not call recvmsg() anyway. IPFIX is a uni directional
+	 * protocol.*/
+	memset(&event, 0, sizeof(event));
+	event.sctp_data_io_event = 1;
+	if (setsockopt(s, IPPROTO_SCTP, SCTP_EVENTS, &event, sizeof(event)) != 0) {
+		msg(MSG_ERROR, "IPFIX: SCTP: setsockopt() failed to enable sctp_data_io_event, %s", strerror(errno));
+		close(s);
+                return -1;
+	}
+#endif
 	// connect (non-blocking, i.e. handshake is initiated, not terminated)
         if((connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr) ) == -1) && (errno != EINPROGRESS)) {
 		msg(MSG_ERROR, "IPFIX: SCTP connect failed, %s", strerror(errno));
@@ -1023,6 +1049,7 @@ int add_collector_dtls(
 	col->peer_fqdn = strdup(aux_config_dtls->peer_fqdn);
 
     if (setup_dtls_connection(exporter,col,&col->dtls_main)) {
+	/* failure */
 	free( (void *) col->peer_fqdn);
 	col->peer_fqdn = NULL;
 	return -1;
@@ -1116,7 +1143,11 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
 
 #ifdef SUPPORT_OPENSSL
     /* It is the duty of add_collector_dtls to set collector->state */
+#ifdef SUPPORT_DTLS_OVER_SCTP
     if (proto ==  DTLS_OVER_UDP)
+#else
+    if (proto == DTLS_OVER_UDP || proto == DTLS_OVER_SCTP)
+#endif
 	return add_collector_dtls(exporter, collector,
 		(ipfix_aux_config_dtls *) aux_config);
 #endif
@@ -1473,6 +1504,7 @@ static int ipfix_init_send_socket(struct sockaddr_in serv_addr, enum ipfix_trans
 
     switch(protocol) {
 	case UDP:
+	case DTLS_OVER_UDP:
 	    sock= init_send_udp_socket( serv_addr );
 	    break;
 
@@ -1480,6 +1512,7 @@ static int ipfix_init_send_socket(struct sockaddr_in serv_addr, enum ipfix_trans
 	    msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
 	    break;
 	case SCTP:
+	case DTLS_OVER_SCTP:
 #ifdef SUPPORT_SCTP
 	    sock= init_send_sctp_socket( serv_addr );
 	    break;
