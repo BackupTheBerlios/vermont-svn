@@ -234,9 +234,6 @@ enum ipfix_transport_protocol {
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
 	RAWDIR, 
 #endif 
-#ifdef SCTP
-#undef SCTP
-#endif
 	SCTP, UDP, TCP, DTLS_OVER_UDP, DTLS_OVER_SCTP
 	};
 
