@@ -49,7 +49,7 @@
 #endif
 
 #if defined(SUPPORT_OPENSSL) && defined(SUPPORT_SCTP)
-#define SUPPORT_DTLS_OVER_SCTP
+// #define SUPPORT_DTLS_OVER_SCTP
 #endif
 
 #include "encoding.h"
@@ -332,20 +332,8 @@ typedef struct {
 	int socket;
 	uint16_t mtu;
 	SSL *ssl;
-	int want_read;
+	/* int want_read; */
 	time_t last_reconnect_attempt_time;
-	/* receive buffer. Size is more or less arbitrary.
-	 * Our peer does not send any payload so we do not expect
-	 * large UDP packets from him. Only DTLS protocol data will be
-	 * received.
-	 * Well, if the peer does send an X.509 certificate then
-	 * we might indeed receive large UDP datagrams.
-	 * Be sure not to mess with this buffer as OpenSSL reads
-	 * directly from this buffer. If there's a datagram in the
-	 * queue then it resides in this buffer.
-	 * BIO_new_mem_buf() does NOT copy this buffer when used as
-	 * the content of the memory BIO. */
-	char recvbuf[10240];
 } ipfix_dtls_connection;
 #endif
 /*
