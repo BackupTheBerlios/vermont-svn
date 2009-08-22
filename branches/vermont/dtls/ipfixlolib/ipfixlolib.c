@@ -997,11 +997,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
 
 #ifdef SUPPORT_OPENSSL
     /* It is the duty of add_collector_dtls to set collector->state */
-#ifdef SUPPORT_DTLS_OVER_SCTP
-    if (proto ==  DTLS_OVER_UDP)
-#else
     if (proto == DTLS_OVER_UDP || proto == DTLS_OVER_SCTP)
-#endif
 	return add_collector_dtls(exporter, collector,
 		(ipfix_aux_config_dtls *) aux_config);
 #endif
@@ -1011,7 +1007,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
 static void remove_collector(ipfix_receiving_collector *collector) {
 #ifdef SUPPORT_OPENSSL
     /* Shutdown DTLS connection */
-    if (collector->protocol == DTLS_OVER_UDP) {
+    if (collector->protocol == DTLS_OVER_UDP || collector->protocol == DTLS_OVER_SCTP) {
 	dtls_shutdown_and_cleanup(&collector->dtls_main);
 	dtls_shutdown_and_cleanup(&collector->dtls_replacement);
 	free( (void *) collector->peer_fqdn);
