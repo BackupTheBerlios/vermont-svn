@@ -144,6 +144,11 @@ void IpfixSender::addCollector(const char *ip, uint16_t port, ipfix_transport_pr
 	    	msg(MSG_INFO, "IpfixSender: adding DTLS over UDP://%s:%d to exporter", ip, port);
 	    	break;
 #endif
+#ifdef SUPPORT_DTLS_OVER_SCTP
+	    case DTLS_OVER_SCTP:
+	    	msg(MSG_INFO, "IpfixSender: adding DTLS over SCTP://%s:%d to exporter", ip, port);
+	    	break;
+#endif
 	    case TCP:
 	        msg(MSG_INFO, "IpfixSender: adding TCP://%s:%d to exporter", ip, port);
 	    default:
