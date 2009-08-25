@@ -3,7 +3,7 @@
 #ifndef OPENSSLINIT_H
 #define OPENSSLINIT_H
 
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,6 +19,6 @@ int verify_ssl_peer(SSL *ssl, int (*cb)(void *context, const char *dnsname), voi
 }
 #endif
 
-#endif /* SUPPORT_OPENSSL */
+#endif /* SUPPORT_DTLS */
 
 #endif

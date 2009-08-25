@@ -53,7 +53,7 @@ extern "C" {
 
 #define bit_set(data, bits) ((data & bits) == bits)
 
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 static int ensure_exporter_set_up_for_dtls(ipfix_exporter *exporter);
 static void deinit_openssl_ctx(ipfix_exporter *exporter);
 static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col, ipfix_dtls_connection *con);
@@ -84,7 +84,7 @@ static void update_exporter_mtu(ipfix_exporter *exporter);
 static int update_collector_mtu(ipfix_exporter *exporter, ipfix_receiving_collector *col);
 static int get_mtu(const int s);
 
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 
 #define SSL_ERR(c) {c,#c}
 
@@ -114,10 +114,10 @@ static const char *get_ssl_error_string(int ret) {
     snprintf(s, sizeof(s), unknown, ret);
     return s;
 }
-#endif /* #ifdef SUPPORT_OPENSSL */
+#endif /* #ifdef SUPPORT_DTLS */
 
 
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 /* A separate SSL_CTX object is created for every ipfix_exporter.
  * Returns 0 on success, -1 on error
  * */
@@ -528,7 +528,7 @@ static void dtls_fail_connection(ipfix_dtls_connection *con) {
     dtls_shutdown_and_cleanup(con);
 }
 
-#endif /* SUPPORT_OPENSSL */
+#endif /* SUPPORT_DTLS */
 
 /*
  * Initializes a UDP-socket to send data to.
@@ -713,7 +713,7 @@ int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter)
 	tmp->mtu = IPFIX_DEFAULT_MTU;
 
         tmp->collector_max_num = 0;
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 	tmp->ssl_ctx = NULL;
 	tmp->certificate_chain_file = NULL;
 	tmp->private_key_file = NULL;
@@ -812,7 +812,7 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter) {
         // deinitialize the collectors
         ret=ipfix_deinit_collector_array(&(exporter->collector_arr));
 
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 	deinit_openssl_ctx(exporter);
 	free( (void *) exporter->certificate_chain_file);
 	free( (void *) exporter->private_key_file);
@@ -885,7 +885,7 @@ int add_collector_rawdir(ipfix_receiving_collector *collector,char *path) {
 }
 #endif
 
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 int add_collector_dtls(
 	ipfix_exporter *exporter,
 	ipfix_receiving_collector *col,
@@ -995,7 +995,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
     collector->addr.sin_port = htons(coll_port);
     collector->addr.sin_addr.s_addr = inet_addr(coll_ip4_addr);
 
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
     /* It is the duty of add_collector_dtls to set collector->state */
     if (proto == DTLS_OVER_UDP || proto == DTLS_OVER_SCTP)
 	return add_collector_dtls(exporter, collector,
@@ -1005,7 +1005,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
 }
 
 static void remove_collector(ipfix_receiving_collector *collector) {
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
     /* Shutdown DTLS connection */
     if (collector->protocol == DTLS_OVER_UDP || collector->protocol == DTLS_OVER_SCTP) {
 	dtls_shutdown_and_cleanup(&collector->dtls_main);
@@ -1310,7 +1310,7 @@ static int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_c
 		c->packet_directory_path = NULL:
 		c->packets_written = 0;
 #endif
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 		c->dtls_main.socket = c->dtls_replacement.socket = -1;
 		c->dtls_main.mtu = c->dtls_replacement.mtu = 0;
 		c->dtls_main.ssl = c->dtls_replacement.ssl = NULL;
@@ -1652,7 +1652,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 			char* packet_directory_path;
 #endif
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 			case DTLS_OVER_UDP:
 				/* ensure that we are connected i.e. DTLS handshake has been finished.
 				 * This function does no harm if we are already connected. */
@@ -1680,7 +1680,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 					ipfix_prepend_header(exporter,
 						exporter->template_sendbuffer->committed_data_length,
 						exporter->template_sendbuffer);
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 					if (exporter->collector_arr[i].protocol == DTLS_OVER_UDP) {
 						dtls_send(exporter,&exporter->collector_arr[i],
 							exporter->template_sendbuffer->entries,
@@ -1707,7 +1707,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 						msg(MSG_VDEBUG, "ipfix_send_templates(): %d Template Bytes sent to UDP collector %s:%d",
 							bytes_sent, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
 					}
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 					}
 #endif
 				}
@@ -1909,7 +1909,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 					msg(MSG_FATAL, "IPFIX: Library compiled without SCTP support.");
 					return -1;
 #endif
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 				case DTLS_OVER_UDP:
 					if((bytes_sent=dtls_send( exporter, &exporter->collector_arr[i],
 						exporter->data_sendbuffer->entries,
@@ -2548,7 +2548,7 @@ int ipfix_set_sctp_reconnect_timer(ipfix_exporter *exporter, uint32_t timer) {
 // See OpenSSL man pages for more details
 int ipfix_set_dtls_certificate(ipfix_exporter *exporter,
 	const char *certificate_chain_file, const char *private_key_file) {
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
     if (exporter->ssl_ctx) {
 	msg(MSG_ERROR, "Too late to set certificate. SSL context already created.");
 	return -1;
@@ -2566,15 +2566,15 @@ int ipfix_set_dtls_certificate(ipfix_exporter *exporter,
 	exporter->private_key_file = strdup(private_key_file);
     }
     return 0;
-#else /* SUPPORT_OPENSSL */
+#else /* SUPPORT_DTLS */
     msg(MSG_FATAL, "IPFIX: Library compiled without OPENSSL support.");
     return -1;
-#endif /* SUPPORT_OPENSSL */
+#endif /* SUPPORT_DTLS */
 }
 
 // Set the locations of the CA certificates. See OpenSSL man pages for more details.
 int ipfix_set_ca_locations(ipfix_exporter *exporter, const char *ca_file, const char *ca_path) {
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
     if (exporter->ssl_ctx) {
 	msg(MSG_ERROR, "Too late to set CA locations. SSL context already created.");
 	return -1;
@@ -2586,7 +2586,7 @@ int ipfix_set_ca_locations(ipfix_exporter *exporter, const char *ca_file, const 
     if (ca_file) exporter->ca_file = strdup(ca_file);
     if (ca_path) exporter->ca_path = strdup(ca_path);
     return 0;
-#else /* SUPPORT_OPENSSL */
+#else /* SUPPORT_DTLS */
     msg(MSG_FATAL, "IPFIX: Library compiled without OPENSSL support.");
     return -1;
 #endif

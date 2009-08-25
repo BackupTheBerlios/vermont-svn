@@ -19,7 +19,7 @@
  *
  */
 
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 #include "IpfixReceiverDtlsUdpIpV4.hpp"
 
 #include "IpfixPacketProcessor.hpp"
@@ -667,5 +667,5 @@ SSL *IpfixReceiverDtlsUdpIpV4::SSL_CTX_wrapper::SSL_new() {
     return ssl;
 }
 
-#endif /*SUPPORT_OPENSSL*/
+#endif /*SUPPORT_DTLS*/
 

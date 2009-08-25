@@ -1,5 +1,5 @@
 /* vim: set sts=4 sw=4 cindent nowrap: This modeline was added by Daniel Mentz */
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 
 #include "OpenSSL.h"
 #include "Mutex.h"
@@ -133,5 +133,5 @@ int check_x509_cert(X509 *peer, int (*cb)(void *context, const char *dnsname), v
 
 } /* unnamed namespace */
 
-#endif /* SUPPORT_OPENSSL */
+#endif /* SUPPORT_DTLS */
 

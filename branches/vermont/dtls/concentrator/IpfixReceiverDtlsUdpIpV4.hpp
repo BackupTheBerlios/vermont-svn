@@ -34,7 +34,7 @@
 #include "IpfixReceiver.hpp"
 #include "IpfixPacketProcessor.hpp"
 
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 
 #include <openssl/ssl.h>
 #ifndef HEADER_DH_H
@@ -52,10 +52,10 @@
 /* Maximum number of concurrent connections */
 #define DTLS_MAX_CONCURRENT_CONNECTIONS 50
 
-#endif /* SUPPORT_OPENSSL */
+#endif /* SUPPORT_DTLS */
 
 class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
     public:
 	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",
 	    const std::string &certificateChainFile = "", const std::string &privateKeyFile = "",
@@ -147,9 +147,9 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	inline void dumpConnections(void) {}
 #endif
 
-#else /* SUPPORT_OPENSSL */
+#else /* SUPPORT_DTLS */
 
-    /* This is the code that gets compiled if SUPPORT_OPENSSL is not set */
+    /* This is the code that gets compiled if SUPPORT_DTLS is not set */
 
     public:
 	IpfixReceiverDtlsUdpIpV4(int port, const std::string ipAddr = "",
@@ -164,7 +164,7 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	virtual void run() {}
 	virtual std::string getStatisticsXML(double interval) { return ""; }
 
-#endif /* SUPPORT_OPENSSL */
+#endif /* SUPPORT_DTLS */
 };
 
 #endif

@@ -41,15 +41,11 @@
 #ifdef SUPPORT_SCTP 
 #include <netinet/sctp.h>
 #endif
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/bio.h>
 #include "common/OpenSSL.h"
-#endif
-
-#if defined(SUPPORT_OPENSSL) && defined(SUPPORT_SCTP)
-// #define SUPPORT_DTLS_OVER_SCTP
 #endif
 
 #include "encoding.h"
@@ -327,7 +323,7 @@ typedef struct {
 					  template sets. */
 } ipfix_sendbuffer;
 
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 typedef struct {
 	int socket;
 	uint16_t mtu;
@@ -356,7 +352,7 @@ typedef struct {
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
 	int packets_written; /**< if protcol==RAWDIR: number of packets written to packet_directory_path. Ignored otherwise. */
 #endif
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 	/* Time in seconds after which a DTLS connection
 	 * will be replaced by a new one. */
 	unsigned dtls_max_connection_age;
@@ -437,7 +433,7 @@ typedef struct {
 	uint32_t sctp_reconnect_timer;
 	int ipfix_lo_template_maxsize;
 	ipfix_lo_template *template_arr;
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 	SSL_CTX *ssl_ctx;
 	const char *certificate_chain_file;
 	const char *private_key_file;

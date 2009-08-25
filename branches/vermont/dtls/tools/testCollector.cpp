@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
 		msg(MSG_INFO, "Creating UDP listener on port %i", lport);
 		ipfixReceiver = new IpfixReceiverUdpIpV4(lport);
 	} else if (proto == "dtls_over_udp") {
-#ifdef SUPPORT_OPENSSL
+#ifdef SUPPORT_DTLS
 		msg(MSG_INFO, "Creating DTLS over UDP listener on port %i", lport);
 		ipfixReceiver = new IpfixReceiverDtlsUdpIpV4(lport,"",certificateChainFile,privateKeyFile,caFile,caPath);
 #else
