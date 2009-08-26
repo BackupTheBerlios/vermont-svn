@@ -48,6 +48,10 @@
 #include "common/OpenSSL.h"
 #endif
 
+#if defined(SUPPORT_OPENSSL) && defined(SUPPORT_SCTP)
+#define SUPPORT_DTLS_OVER_SCTP
+#endif
+
 #include "encoding.h"
 #include "ipfix_names.h"
 #include "common/msg.h"

@@ -127,10 +127,10 @@
 		<collector>
 			<ipAddressType>4</ipAddressType>
 			<ipAddress>127.0.0.1</ipAddress>
-			<transportProtocol>DTLS_OVER_UDP</transportProtocol>
+			<transportProtocol>DTLS_OVER_SCTP</transportProtocol>
 			<!-- transportProtocol>UDP</transportProtocol -->
 			<port>4433</port>
-			<peerFqdn>collector.example.com</peerFqdn>
+			<!-- peerFqdn>collector.example.com</peerFqdn -->
 		</collector>
 	</ipfixExporter>
 </ipfixConfig>

@@ -402,6 +402,25 @@ static int dtls_send(
     return len;
 }
 
+#ifdef SUPPORT_DTLS_OVER_SCTP
+/* Return values:
+ * -1 error
+ *  0 could not write because OpenSSL returned SSL_ERROR_WANT_READ
+ *  n>0 number of bytes written
+ */
+static int dtls_over_sctp_send(
+	ipfix_exporter *exporter,
+	ipfix_receiving_collector *col,
+	const struct iovec *iov, int iovcnt, uint32_t pr_value) {
+
+    struct sctp_sndrcvinfo sinfo;
+    memset(&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
+    sinfo.sinfo_timetolive = pr_value;
+    BIO_ctrl(SSL_get_wbio(col->dtls_main.ssl), BIO_CTRL_DGRAM_SCTP_SET_SNDINFO, sizeof(struct sctp_sndrcvinfo), &sinfo);
+    return dtls_send(exporter,col,iov,iovcnt);
+}
+#endif
+
 /* returns 0 on success and -1 on failure */
 static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col, ipfix_dtls_connection *con) {
     int flags;
@@ -946,6 +965,48 @@ int add_collector_remaining_protocols(
     return 0;
 }
 
+static int valid_transport_protocol(enum ipfix_transport_protocol p) {
+    switch(p) {
+	case DTLS_OVER_UDP:
+#ifdef SUPPORT_DTLS
+	    return 1;
+#else
+	    msg(MSG_FATAL, "IPFIX: Library compiled without DTLS support.");
+	    return 0;
+#endif
+	case DTLS_OVER_SCTP:
+#ifdef SUPPORT_DTLS_OVER_SCTP
+	    return 1;
+#else
+	    msg(MSG_FATAL, "IPFIX: Library compiled without DTLS over SCTP support.");
+	    return 0;
+#endif
+	case SCTP:
+#ifdef SUPPORT_SCTP
+	    return 1;
+#else
+	    msg(MSG_FATAL, "IPFIX: Library compiled without SCTP support.");
+	    return 0;
+#endif
+#ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
+	case RAWDIR:
+	    return 1;
+#else
+	    msg(MSG_FATAL, "IPFIX: Library compiled without RAWDIR support.");
+	    return 0;
+#endif 
+
+	case TCP:
+	    msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
+	    return 0;
+	case UDP:
+	    return 1;
+	default:
+	    msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
+	    return 0;
+    }
+}
+
 /*
  * Add a collector to the exporting process
  * Parameters:
@@ -963,6 +1024,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
 	msg(MSG_FATAL, "IPFIX: add_collector, exporter is NULL");
 	return -1;
     }
+    if ( ! valid_transport_protocol(proto)) return -1;
 
     // get free slot
     ipfix_receiving_collector *collector = get_free_collector_slot(exporter);
@@ -1357,20 +1419,15 @@ static int ipfix_init_send_socket(struct sockaddr_in serv_addr, enum ipfix_trans
 	    sock= init_send_udp_socket( serv_addr );
 	    break;
 
-	case TCP:
-	    msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
-	    break;
+#ifdef SUPPORT_SCTP
 	case SCTP:
 	case DTLS_OVER_SCTP:
-#ifdef SUPPORT_SCTP
 	    sock= init_send_sctp_socket( serv_addr );
-	    break;
-#else
-	    msg(MSG_FATAL, "IPFIX: Library compiled without SCTP support.");
 	    break;
 #endif
 	default:
-	    msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
+	    return -1; /* Should not occur since we check the transport
+			  protocol in valid_transport_protocol()*/
     }
 
     return sock;
@@ -1641,37 +1698,54 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 
 	// send the sendbuffer to all collectors depending on their protocol
 	for (i = 0; i < exporter->collector_max_num; i++) {
+		ipfix_receiving_collector *col = &exporter->collector_arr[i];
 		// is the collector a valid target?
-		if ((*exporter).collector_arr[i].state) {
+		// T_UNUSED evaluates to 0 which in turn evaluates to false
+		// So basically we check if state is something *not* equal to T_UNUSED
+		if (col->state) {
 			DPRINTFL(MSG_VDEBUG, "Sending template to exporter %s:%d Proto: %d",
-				exporter->collector_arr[i].ipv4address,
-				exporter->collector_arr[i].port_number,
-				exporter->collector_arr[i].protocol
+				col->ipv4address,
+				col->port_number,
+				col->protocol
 			);
-			switch(exporter->collector_arr[i].protocol){
-#ifdef IPFIXLOLIB_RAWDIR_SUPPORT
-			char* packet_directory_path;
-#endif
 #ifdef SUPPORT_DTLS
-			case DTLS_OVER_UDP:
+			if (col->protocol == DTLS_OVER_UDP ||
+				col->protocol == DTLS_OVER_SCTP) {
 				/* ensure that we are connected i.e. DTLS handshake has been finished.
 				 * This function does no harm if we are already connected. */
-				if (dtls_manage_connection(exporter,&exporter->collector_arr[i])) {
-					/* break out of switch statement if dtls_manage_connection failed */
-					break;
-				}
+				if (dtls_manage_connection(exporter,col))
+				    /* continue if dtls_manage_connection failed */
+				    continue;
 				/* dtls_manage_connection() might return success even if we're not yet connected.
 				 * This might happen if OpenSSL is still waiting for data from the
 				 * remote end and therefore returned SSL_ERROR_WANT_READ. */
-				if ( exporter->collector_arr[i].state != C_CONNECTED ) {
+				if ( col->state != C_CONNECTED ) {
 				    DPRINTF("We are not yet connected so we can't send templates.");
 				    break;
 				}
-				/* Fall through */
-#else
-				msg(MSG_FATAL, "IPFIX: Library compiled without DTLS support.");
-				return -1;
+			}
+
 #endif
+			switch(col->protocol){
+#ifdef IPFIXLOLIB_RAWDIR_SUPPORT
+			char* packet_directory_path;
+#endif
+#ifdef SUPPORT_DTLS_OVER_SCTP
+			case DTLS_OVER_SCTP:
+				if (exporter->sctp_template_sendbuffer->committed_data_length > 0) {
+					// update the sendbuffer header, as we must set the export time & sequence number!
+					ipfix_prepend_header(exporter,
+						exporter->sctp_template_sendbuffer->committed_data_length,
+						exporter->sctp_template_sendbuffer);
+					dtls_over_sctp_send(exporter,col,
+						exporter->sctp_template_sendbuffer->entries,
+						exporter->sctp_template_sendbuffer->current,
+						0 //packet lifetime in ms (0 = reliable, do not change for templates)
+						);
+				}
+				break;
+#endif
+			case DTLS_OVER_UDP:
 			case UDP:
 				if (expired && (exporter->template_sendbuffer->committed_data_length > 0)){
 					//Timer only used for UDP and DTLS over UDP
@@ -1681,55 +1755,51 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 						exporter->template_sendbuffer->committed_data_length,
 						exporter->template_sendbuffer);
 #ifdef SUPPORT_DTLS
-					if (exporter->collector_arr[i].protocol == DTLS_OVER_UDP) {
-						dtls_send(exporter,&exporter->collector_arr[i],
+					if (col->protocol == DTLS_OVER_UDP) {
+						dtls_send(exporter,col,
 							exporter->template_sendbuffer->entries,
 							exporter->template_sendbuffer->current);
 					} else {
 #endif
-					if((bytes_sent = writev(exporter->collector_arr[i].data_socket,
+					if((bytes_sent = writev(col->data_socket,
 						exporter->template_sendbuffer->entries,
 						exporter->template_sendbuffer->current
 						))  == -1){
 						if (errno == EMSGSIZE) {
 						    msg(MSG_ERROR,
 							    "Unable to send templates to %s:%d b/c message is bigger than MTU. That is a severe problem.",
-							    exporter->collector_arr[i].ipv4address,
-							    exporter->collector_arr[i].port_number);
+							    col->ipv4address,
+							    col->port_number);
 						} else {
 						    msg(MSG_ERROR,
 							    "ipfix_send_templates(): could not send to %s:%d errno: %s  (UDP)... socket not opened at the collector?",
-							    exporter->collector_arr[i].ipv4address,
-							    exporter->collector_arr[i].port_number,
+							    col->ipv4address,
+							    col->port_number,
 							    strerror(errno));
 						}
 					} else {
 						msg(MSG_VDEBUG, "ipfix_send_templates(): %d Template Bytes sent to UDP collector %s:%d",
-							bytes_sent, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
+							bytes_sent, col->ipv4address, col->port_number);
 					}
 #ifdef SUPPORT_DTLS
 					}
 #endif
 				}
 			break;
-
-			case TCP:
-				msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
-				return -1;
-			case SCTP:
 #ifdef SUPPORT_SCTP
-				switch (exporter->collector_arr[i].state){
+			case SCTP:
+				switch (col->state){
 				
 				case C_NEW:	// try to connect to the new collector once per second
-					if (time_now > exporter->collector_arr[i].last_reconnect_attempt_time) {
+					if (time_now > col->last_reconnect_attempt_time) {
 						ipfix_sctp_reconnect(exporter, i);
 					}
 					break;
 				case C_DISCONNECTED: //reconnect attempt if reconnection time reached
 					if(exporter->sctp_reconnect_timer == 0) { // 0 = no more reconnection attempts
-						msg(MSG_ERROR, "ipfix_send_templates(): reconnect failed, removing collector %s:%d (SCTP)", exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
-						remove_collector(&exporter->collector_arr[i]);
-					} else if ((time_now - exporter->collector_arr[i].last_reconnect_attempt_time) >  exporter->sctp_reconnect_timer) {
+						msg(MSG_ERROR, "ipfix_send_templates(): reconnect failed, removing collector %s:%d (SCTP)", col->ipv4address, col->port_number);
+						remove_collector(col);
+					} else if ((time_now - col->last_reconnect_attempt_time) >  exporter->sctp_reconnect_timer) {
 						ipfix_sctp_reconnect(exporter, i);
 					}
 					break;
@@ -1739,25 +1809,25 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 						ipfix_prepend_header(exporter,
 							exporter->sctp_template_sendbuffer->committed_data_length,
 							exporter->sctp_template_sendbuffer);
-						if((bytes_sent = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
+						if((bytes_sent = sctp_sendmsgv(col->data_socket,
 							exporter->sctp_template_sendbuffer->entries,
 							exporter->sctp_template_sendbuffer->current,
-							(struct sockaddr*)&(exporter->collector_arr[i].addr),
-							sizeof(exporter->collector_arr[i].addr),
+							(struct sockaddr*)&(col->addr),
+							sizeof(col->addr),
 							0,0, // payload protocol identifier, flags
 							0,//Stream Number
-							0,//packet lifetime in ms (0 = reliable, do not change for tamplates)
+							0,//packet lifetime in ms (0 = reliable, do not change for templates)
 							0 // context
 							)) == -1) {
 							// send failed
-							msg(MSG_ERROR, "ipfix_send_templates(): could not send to %s:%d errno: %s  (SCTP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
+							msg(MSG_ERROR, "ipfix_send_templates(): could not send to %s:%d errno: %s  (SCTP)",col->ipv4address, col->port_number, strerror(errno));
 							ipfix_sctp_reconnect(exporter, i); //1st reconnect attempt 
 							// if result is C_DISCONNECTED and sctp_reconnect_timer == 0, collector will 
 							// be removed on the next call of ipfix_send_templates()
 						} else {
 							// send was successful
 							msg(MSG_VDEBUG, "ipfix_send_templates(): %d template bytes sent to SCTP collector %s:%d",
-								bytes_sent, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
+								bytes_sent, col->ipv4address, col->port_number);
 						}
 					}
 					break;	
@@ -1766,9 +1836,6 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				return -1;
 				}
 			break;
-#else
-			msg(MSG_FATAL, "IPFIX: Library compiled without SCTP support.");
-			return -1;
 #endif
 
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
@@ -1776,9 +1843,9 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				ipfix_prepend_header(exporter,
 					    exporter->template_sendbuffer->committed_data_length,
 					    exporter->template_sendbuffer);
-				packet_directory_path = exporter->collector_arr[i].packet_directory_path;
+				packet_directory_path = col->packet_directory_path;
 				char fnamebuf[1024];
-				sprintf(fnamebuf, "%s/%08d", packet_directory_path, exporter->collector_arr[i].packets_written++);
+				sprintf(fnamebuf, "%s/%08d", packet_directory_path, col->packets_written++);
 				int f = creat(fnamebuf, S_IRWXU | S_IRWXG);
 				if(f<0)
 				    msg(MSG_ERROR, "IPFIX: could not open RAWDIR file %s", fnamebuf);
@@ -1788,8 +1855,8 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 			break;
 #endif	
 			default:
-				msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
-				return -1;	
+			    return -1; /* Should not occur since we check the transport
+					  protocol in valid_transport_protocol()*/
 			}
 		}
 	} // end exporter loop
@@ -1823,10 +1890,13 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 
                 // send the sendbuffer to all collectors
                 for (i = 0; i < exporter->collector_max_num; i++) {
-                        // is the collector a valid target?
-                        if(exporter->collector_arr[i].state != C_UNUSED) {
+			ipfix_receiving_collector *col = &exporter->collector_arr[i];
+			// is the collector a valid target?
+			// T_UNUSED evaluates to 0 which in turn evaluates to false
+			// So basically we check if state is something *not* equal to T_UNUSED
+			if (col->state) {
 #ifdef DEBUG
-                                DPRINTFL(MSG_VDEBUG, "IPFIX: Sending to exporter %s", exporter->collector_arr[i].ipv4address);
+                                DPRINTFL(MSG_VDEBUG, "IPFIX: Sending to exporter %s", col->ipv4address);
 
                                 // debugging output of data buffer:
 				/* Keep in mind that the IPFIX message header (16 bytes) is not included
@@ -1851,80 +1921,86 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 				   between tested_length and commited_data_length */
                                 DPRINTFL(MSG_VDEBUG, "IPFIX: Sendbuffer really contains %u bytes!", tested_length );
 #endif
-				switch(exporter->collector_arr[i].protocol){
+				switch(col->protocol){
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 				char* packet_directory_path;
 #endif
 				case UDP:
-					if((bytes_sent=writev( exporter->collector_arr[i].data_socket,
+					if((bytes_sent=writev( col->data_socket,
 						exporter->data_sendbuffer->entries,
 						exporter->data_sendbuffer->committed
 							     )) == -1){
-						msg(MSG_VDEBUG, "ipfix_send_data(): could not send to %s:%d errno: %s  (UDP)... socket not opened at the collector?",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
+						msg(MSG_VDEBUG, "ipfix_send_data(): could not send to %s:%d errno: %s  (UDP)... socket not opened at the collector?",col->ipv4address, col->port_number, strerror(errno));
 						if (errno == EMSGSIZE) {
 						    msg(MSG_ERROR, "Updating MTU estimate for collector %s:%d",
-							    exporter->collector_arr[i].ipv4address,
-							    exporter->collector_arr[i].port_number);
+							    col->ipv4address,
+							    col->port_number);
 						    /* If update_collector_mtu fails, it calls
 						       remove_collector(). So keep in mind that
 						       the collector might be gone (set to C_UNUSED)
 						       after calling this function. */
-						    update_collector_mtu(exporter, &exporter->collector_arr[i]);
+						    update_collector_mtu(exporter, col);
 						}
 					}else{
 
 						msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to UDP collector %s:%d",
-								bytes_sent, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
+								bytes_sent, col->ipv4address, col->port_number);
 					}
 					break;
+#ifdef SUPPORT_DTLS_OVER_SCTP
+				case DTLS_OVER_SCTP:
+					if((bytes_sent=dtls_over_sctp_send( exporter, col,
+						exporter->data_sendbuffer->entries,
+						exporter->data_sendbuffer->committed,
+						exporter->sctp_lifetime
+							     )) == -1){
+						msg(MSG_VDEBUG, "ipfix_send_data(): could not send to %s:%d (DTLS over SCTP)",col->ipv4address, col->port_number);
+					}else{
 
-				case TCP:
-					msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
-					return -1;
-				case SCTP:
+						msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to DTLS over SCTP collector %s:%d",
+								bytes_sent, col->ipv4address, col->port_number);
+					}
+					break;
+#endif
+
 #ifdef SUPPORT_SCTP			
-					if(exporter->collector_arr[i].state == C_CONNECTED){
-						if((bytes_sent = sctp_sendmsgv(exporter->collector_arr[i].data_socket,
+				case SCTP:
+					if(col->state == C_CONNECTED){
+						if((bytes_sent = sctp_sendmsgv(col->data_socket,
 							exporter->data_sendbuffer->entries,
 							exporter->data_sendbuffer->committed,
-							(struct sockaddr*)&(exporter->collector_arr[i].addr),
-							sizeof(exporter->collector_arr[i].addr),
+							(struct sockaddr*)&(col->addr),
+							sizeof(col->addr),
 							0,0, // payload protocol identifier, flags
 							0,//Stream Number
 							exporter->sctp_lifetime,//packet lifetime in ms(0 = reliable )
 							0 // context
 							)) == -1) {
 							// send failed
-							msg(MSG_ERROR, "ipfix_send_data() could not send to %s:%d errno: %s  (SCTP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number, strerror(errno));
+							msg(MSG_ERROR, "ipfix_send_data() could not send to %s:%d errno: %s  (SCTP)",col->ipv4address, col->port_number, strerror(errno));
 							// drop data and call ipfix_sctp_reconnect
 							ipfix_sctp_reconnect(exporter, i);
 							// if result is C_DISCONNECTED and sctp_reconnect_timer == 0, collector will 
 							// be removed on the next call of ipfix_send_templates()
 								}
 						msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to SCTP collector %s:%d",
-							bytes_sent, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
+							bytes_sent, col->ipv4address, col->port_number);
 					}
 					break;
-#else
-					msg(MSG_FATAL, "IPFIX: Library compiled without SCTP support.");
-					return -1;
 #endif
 #ifdef SUPPORT_DTLS
 				case DTLS_OVER_UDP:
-					if((bytes_sent=dtls_send( exporter, &exporter->collector_arr[i],
+					if((bytes_sent=dtls_send( exporter, col,
 						exporter->data_sendbuffer->entries,
 						exporter->data_sendbuffer->committed
 							     )) == -1){
-						msg(MSG_VDEBUG, "ipfix_send_data(): could not send to %s:%d (DTLS over UDP)",exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
+						msg(MSG_VDEBUG, "ipfix_send_data(): could not send to %s:%d (DTLS over UDP)",col->ipv4address, col->port_number);
 					}else{
 
 						msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to DTLS over UDP collector %s:%d",
-								bytes_sent, exporter->collector_arr[i].ipv4address, exporter->collector_arr[i].port_number);
+								bytes_sent, col->ipv4address, col->port_number);
 					}
 					break;
-#else
-					msg(MSG_FATAL, "IPFIX: Library compiled without DTLS support.");
-					return -1;
 #endif
 
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
@@ -1932,9 +2008,9 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 					ipfix_prepend_header(exporter,
 						    exporter->template_sendbuffer->committed_data_length,
 						    exporter->template_sendbuffer);
-					packet_directory_path = exporter->collector_arr[i].packet_directory_path;
+					packet_directory_path = col->packet_directory_path;
 					char fnamebuf[1024];
-					sprintf(fnamebuf, "%s/%08d", packet_directory_path, exporter->collector_arr[i].packets_written++);
+					sprintf(fnamebuf, "%s/%08d", packet_directory_path, col->packets_written++);
 					int f = creat(fnamebuf, S_IRWXU | S_IRWXG);
 					if(f<0)
 					    msg(MSG_ERROR, "IPFIX: could not open RAWDIR file %s", fnamebuf);
@@ -1945,7 +2021,8 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 #endif
 				default:
 					msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
-					return -1;	
+					break; /* Should not occur since we check the transport
+						      protocol in valid_transport_protocol()*/
                         	}
                         }
                 } // end exporter loop
