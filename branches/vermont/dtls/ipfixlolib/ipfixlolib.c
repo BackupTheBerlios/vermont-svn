@@ -245,7 +245,8 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
     int ret;
 
     if (col->state == C_CONNECTED) {
-	if( col->dtls_max_connection_age == 0 ||
+	if( col->ipfix_transport_protocol == DTLS_OVER_SCTP ||
+		col->dtls_max_connection_age == 0 ||
 		time(NULL) - col->connect_time < col->dtls_max_connection_age) 
 	return 0;
 	/* Alright, the connection is already very old and needs to be
@@ -899,7 +900,7 @@ int add_collector_rawdir(ipfix_receiving_collector *collector,char *path) {
 
     collector->packet_directory_path = strdup(coll_ip4_addr);
     collector->packets_written = 0;
-    collector->state = C_NEW;
+    collector->state = C_CONNECTED;
     return 0;
 }
 #endif
@@ -1891,10 +1892,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                 // send the sendbuffer to all collectors
                 for (i = 0; i < exporter->collector_max_num; i++) {
 			ipfix_receiving_collector *col = &exporter->collector_arr[i];
-			// is the collector a valid target?
-			// T_UNUSED evaluates to 0 which in turn evaluates to false
-			// So basically we check if state is something *not* equal to T_UNUSED
-			if (col->state) {
+			if (col->state == T_CONNECTED) {
 #ifdef DEBUG
                                 DPRINTFL(MSG_VDEBUG, "IPFIX: Sending to exporter %s", col->ipv4address);
 
@@ -1965,27 +1963,25 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 
 #ifdef SUPPORT_SCTP			
 				case SCTP:
-					if(col->state == C_CONNECTED){
-						if((bytes_sent = sctp_sendmsgv(col->data_socket,
-							exporter->data_sendbuffer->entries,
-							exporter->data_sendbuffer->committed,
-							(struct sockaddr*)&(col->addr),
-							sizeof(col->addr),
-							0,0, // payload protocol identifier, flags
-							0,//Stream Number
-							exporter->sctp_lifetime,//packet lifetime in ms(0 = reliable )
-							0 // context
-							)) == -1) {
-							// send failed
-							msg(MSG_ERROR, "ipfix_send_data() could not send to %s:%d errno: %s  (SCTP)",col->ipv4address, col->port_number, strerror(errno));
-							// drop data and call ipfix_sctp_reconnect
-							ipfix_sctp_reconnect(exporter, i);
-							// if result is C_DISCONNECTED and sctp_reconnect_timer == 0, collector will 
-							// be removed on the next call of ipfix_send_templates()
-								}
-						msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to SCTP collector %s:%d",
-							bytes_sent, col->ipv4address, col->port_number);
-					}
+					if((bytes_sent = sctp_sendmsgv(col->data_socket,
+						exporter->data_sendbuffer->entries,
+						exporter->data_sendbuffer->committed,
+						(struct sockaddr*)&(col->addr),
+						sizeof(col->addr),
+						0,0, // payload protocol identifier, flags
+						0,//Stream Number
+						exporter->sctp_lifetime,//packet lifetime in ms(0 = reliable )
+						0 // context
+						)) == -1) {
+						// send failed
+						msg(MSG_ERROR, "ipfix_send_data() could not send to %s:%d errno: %s  (SCTP)",col->ipv4address, col->port_number, strerror(errno));
+						// drop data and call ipfix_sctp_reconnect
+						ipfix_sctp_reconnect(exporter, i);
+						// if result is C_DISCONNECTED and sctp_reconnect_timer == 0, collector will 
+						// be removed on the next call of ipfix_send_templates()
+							}
+					msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to SCTP collector %s:%d",
+						bytes_sent, col->ipv4address, col->port_number);
 					break;
 #endif
 #ifdef SUPPORT_DTLS
