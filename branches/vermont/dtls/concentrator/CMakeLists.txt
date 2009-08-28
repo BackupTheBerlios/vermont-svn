@@ -26,6 +26,7 @@ ADD_LIBRARY(concentrator
 	PacketHashtable.cpp
 	FlowHashtable.cpp
 	ipfix.cpp
+	SSLCTXWrapper.cpp
 	IpfixReceiverUdpIpV4.cpp
 	IpfixReceiverDtlsUdpIpV4.cpp
 	IpfixReceiverSctpIpV4.cpp

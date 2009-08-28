@@ -27,6 +27,8 @@ IpfixCollectorCfg::IpfixCollectorCfg(XMLElement* elem)
 		XMLElement* e = *it;
 
 		if (e->matches("listener")) {
+			if (listener)
+				THROWEXCEPTION("listener already set. There can only be one <listener> Element per Collector.");
 			listener = new CollectorCfg(e);
 		} else if (e->matches("udpTemplateLifetime")) {
 			msg(MSG_DEBUG, "Don't know how to handle udpTemplateLifetime! Ignored.");

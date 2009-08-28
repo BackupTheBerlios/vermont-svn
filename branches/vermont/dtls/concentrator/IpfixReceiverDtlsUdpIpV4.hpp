@@ -36,6 +36,8 @@
 
 #ifdef SUPPORT_DTLS
 
+#include "SSLCTXWrapper.hpp"
+
 #include <openssl/ssl.h>
 #ifndef HEADER_DH_H
 #include <openssl/dh.h>
@@ -71,7 +73,6 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	const std::set<string> peerFqdns;
 	friend int verify_peer_cb(void *context, const char *dnsname);
 	uint32_t statReceivedPackets;  /**< number of received packets */ 
-	static DH *get_dh2048();
 
 	class DtlsConnection {
 	    public:
@@ -112,33 +113,6 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	static void print_errors(void);
 	void idle_processing();
 
-	class SSL_CTX_wrapper {
-	    public:
-		SSL_CTX_wrapper(
-		    const std::string &certificateChainFile,
-		    const std::string &privateKeyFile,
-		    const std::string &caFile,
-		    const std::string &caPath,
-		    bool requirePeerAuthentication
-			);
-		~SSL_CTX_wrapper();
-		SSL *SSL_new();
-		bool get_verify_peers();
-	    private:
-		SSL_CTX *ctx;
-		bool verify_peers; /* Do we authenticate our peer by verifying its
-				      certificate? */
-		void setDHParams();
-		bool loadVerifyLocations(
-		    const std::string &caFile,
-		    const std::string &caPath
-		);
-		bool loadCert(
-		    const std::string &certificateChainFile,
-		    const std::string &privateKeyFile
-		);
-		void setCipherList();
-	};
 	SSL_CTX_wrapper ssl_ctx;
 
 #ifdef DEBUG

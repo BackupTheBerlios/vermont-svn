@@ -245,7 +245,7 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
     int ret;
 
     if (col->state == C_CONNECTED) {
-	if( col->ipfix_transport_protocol == DTLS_OVER_SCTP ||
+	if( col->protocol == DTLS_OVER_SCTP ||
 		col->dtls_max_connection_age == 0 ||
 		time(NULL) - col->connect_time < col->dtls_max_connection_age) 
 	return 0;
@@ -1892,7 +1892,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                 // send the sendbuffer to all collectors
                 for (i = 0; i < exporter->collector_max_num; i++) {
 			ipfix_receiving_collector *col = &exporter->collector_arr[i];
-			if (col->state == T_CONNECTED) {
+			if (col->state == C_CONNECTED) {
 #ifdef DEBUG
                                 DPRINTFL(MSG_VDEBUG, "IPFIX: Sending to exporter %s", col->ipv4address);
 
