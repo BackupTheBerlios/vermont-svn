@@ -2,6 +2,7 @@
 #include <concentrator/IpfixReceiverUdpIpV4.hpp>
 #include <concentrator/IpfixReceiverDtlsUdpIpV4.hpp>
 #include <concentrator/IpfixReceiverSctpIpV4.hpp>
+#include <concentrator/IpfixReceiverDtlsSctpIpV4.hpp>
 
 IpfixCollectorCfg::IpfixCollectorCfg(XMLElement* elem)
 	: CfgHelper<IpfixCollector, IpfixCollectorCfg>(elem, "ipfixCollector"),
@@ -72,6 +73,10 @@ IpfixCollector* IpfixCollectorCfg::createInstance()
 		ipfixReceiver = new IpfixReceiverSctpIpV4(listener->getPort(), listener->getIpAddress());	
 	else if (listener->getProtocolType() == DTLS_OVER_UDP)
 		ipfixReceiver = new IpfixReceiverDtlsUdpIpV4(listener->getPort(),
+			listener->getIpAddress(), certificateChainFile,
+			privateKeyFile, caFile, caPath, listener->getPeerFqdns());
+	else if (listener->getProtocolType() == DTLS_OVER_SCTP)
+		ipfixReceiver = new IpfixReceiverDtlsSctpIpV4(listener->getPort(),
 			listener->getIpAddress(), certificateChainFile,
 			privateKeyFile, caFile, caPath, listener->getPeerFqdns());
 	else 

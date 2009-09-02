@@ -482,8 +482,7 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 	    close(con->socket);con->socket = -1;
 	    return -1;
 	} else {
-	    // SSL_set_cipher_list(con->ssl,"DEFAULT");
-	    SSL_set_cipher_list(con->ssl,"NULL");
+	    SSL_set_cipher_list(con->ssl,"DEFAULT");
 	    SSL_set_verify(con->ssl,SSL_VERIFY_PEER |
 		    SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
 	    DPRINTF("We are going to request certificates from the collectors "

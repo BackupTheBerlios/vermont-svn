@@ -113,7 +113,7 @@ SSL_CTX_wrapper::SSL_CTX_wrapper(
 	} else {
 	    verify_peers = true;
 	    SSL_CTX_set_verify(ctx,SSL_VERIFY_PEER |
-		    SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
+		    SSL_VERIFY_FAIL_IF_NO_PEER_CERT,&verify_peer_cert_callback);
 	    DPRINTF("We are going to request certificates from the exporters "
 		    "and we are going to verify those b/c "
 		    "the peerFqdn option is set");
@@ -190,14 +190,14 @@ bool SSL_CTX_wrapper::loadCert(
 
 void SSL_CTX_wrapper::setCipherList() {
     if (verify_peers) {
-	// SSL_CTX_set_cipher_list(ctx,"DEFAULT");
-	SSL_CTX_set_cipher_list(ctx,"NULL");
+	SSL_CTX_set_cipher_list(ctx,"DEFAULT");
     } else {
 	SSL_CTX_set_cipher_list(ctx,"ALL"); // This includes anonymous ciphers
     }
 }
 
 SSL_CTX_wrapper::~SSL_CTX_wrapper() {
+    DPRINTF("SSL_CTX_free(ctx)");
     if (ctx) SSL_CTX_free(ctx);
 }
 

@@ -30,6 +30,7 @@ ADD_LIBRARY(concentrator
 	IpfixReceiverUdpIpV4.cpp
 	IpfixReceiverDtlsUdpIpV4.cpp
 	IpfixReceiverSctpIpV4.cpp
+	IpfixReceiverDtlsSctpIpV4.cpp
 	IpfixRawdirReader.cpp
 	IpfixReceiver.cpp
 	IpfixRecord.cpp

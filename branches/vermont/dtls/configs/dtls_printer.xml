@@ -5,11 +5,11 @@
 		<CAfile>configs/example_certs/vermontCA.pem</CAfile>
 		<CApath>/etc/ssl/certs</CApath>
 		<listener>
-			<transportProtocol>DTLS_OVER_UDP</transportProtocol>
+			<transportProtocol>DTLS_OVER_SCTP</transportProtocol>
 			<!-- transportProtocol>UDP</transportProtocol -->
 			<port>4433</port>
 			<peerFqdn>ex352.example.com</peerFqdn>
-			<peerFqdn>exporter.example.com</peerFqdn>
+			<peerFqdn>exporter.example.co</peerFqdn>
 		</listener>
 		<next>2</next>
 	</ipfixCollector>

@@ -137,7 +137,7 @@ const char *IpfixReceiverDtlsUdpIpV4::DtlsConnection::states[] = {
     "ACCEPTING","CONNECTED","SHUTDOWN"
 };
 
-int verify_peer_cb(void *context, const char *dnsname) {
+int verify_peer_cb_udp(void *context, const char *dnsname) {
     IpfixReceiverDtlsUdpIpV4 *receiver =
 	static_cast<IpfixReceiverDtlsUdpIpV4 *>(context);
     string strdnsname(dnsname);
@@ -150,7 +150,7 @@ int verify_peer_cb(void *context, const char *dnsname) {
 }
 
 int IpfixReceiverDtlsUdpIpV4::DtlsConnection::verify_peer() {
-    return verify_ssl_peer(ssl,&verify_peer_cb,&parent);
+    return verify_ssl_peer(ssl,&verify_peer_cb_udp,&parent);
 }
 
 /**

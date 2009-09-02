@@ -71,7 +71,7 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
     private:
 	int listen_socket;
 	const std::set<string> peerFqdns;
-	friend int verify_peer_cb(void *context, const char *dnsname);
+	friend int verify_peer_cb_udp(void *context, const char *dnsname);
 	uint32_t statReceivedPackets;  /**< number of received packets */ 
 
 	class DtlsConnection {

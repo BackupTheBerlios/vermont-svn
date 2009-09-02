@@ -12,6 +12,7 @@ namespace { /* unnamed namespace */
     Mutex m;
     bool initialized = false; /* Determines wether OpenSSL is initialized already */
     int check_x509_cert(X509 *peer, int (*cb)(void *context, const char *dnsname), void *context);
+    int ex_data_idx_vpcd = 0; /* Must be set by to return value from SSL_get_ex_new_index() before use */
 }
 
 void ensure_openssl_init(void) {
@@ -20,6 +21,8 @@ void ensure_openssl_init(void) {
 	initialized = true;
 	SSL_load_error_strings(); /* readable error messages */
 	SSL_library_init(); /* initialize library */
+	ex_data_idx_vpcd = SSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+
 #if 0
 	if (SSL_COMP_add_compression_method(0, COMP_zlib())) {
 	    msg(MSG_ERROR, "OpenSSL: SSL_COMP_add_compression_method() failed.");
@@ -67,6 +70,34 @@ int verify_ssl_peer(SSL *ssl, int (*cb)(void *context, const char *dnsname), voi
     int ret = check_x509_cert(peer, cb, context);
     X509_free(peer);
     return ret;
+}
+
+int verify_peer_cert_callback(int preverify_ok, X509_STORE_CTX *ctx) {
+    char buf[512];
+    SSL *ssl;
+    struct verify_peer_cb_data *cb_data;
+    X509 *cert = X509_STORE_CTX_get_current_cert(ctx);
+    int depth = X509_STORE_CTX_get_error_depth(ctx);
+    int err = X509_STORE_CTX_get_error(ctx);
+    if(!preverify_ok) {
+	msg(MSG_ERROR,"Error with certificate at depth: %i",depth);
+	X509_NAME_oneline(X509_get_issuer_name(cert),buf,sizeof(buf));
+	msg(MSG_ERROR," issuer = %s",buf);
+	X509_NAME_oneline(X509_get_subject_name(cert),buf,sizeof(buf));
+	msg(MSG_ERROR," subject = %s",buf);
+	msg(MSG_ERROR," err %i:%s", err, X509_verify_cert_error_string(err));
+    }
+    if (depth == 0) {
+	ssl = (SSL*) X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
+	cb_data = (verify_peer_cb_data *) SSL_get_ex_data(ssl, get_openssl_ex_data_idx_vpcd());
+	if (cb_data)
+	    return check_x509_cert(cert,cb_data->cb,cb_data->context);
+    }
+    return preverify_ok;
+}
+
+int get_openssl_ex_data_idx_vpcd(void) {
+    return ex_data_idx_vpcd; /* Must be set by to return value from SSL_get_ex_new_index() before use */
 }
 
 namespace {
