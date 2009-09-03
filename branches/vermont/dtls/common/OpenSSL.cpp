@@ -7,12 +7,29 @@
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
+#include <sstream>
 
 namespace { /* unnamed namespace */
     Mutex m;
     bool initialized = false; /* Determines wether OpenSSL is initialized already */
     int check_x509_cert(X509 *peer, int (*cb)(void *context, const char *dnsname), void *context);
     int ex_data_idx_vpcd = 0; /* Must be set by to return value from SSL_get_ex_new_index() before use */
+#define SSL_ERR(c) {c,#c}
+
+    struct sslerror {
+	int code;
+	const char *str;
+    } sslerrors[] = {
+	SSL_ERR(SSL_ERROR_NONE),
+	SSL_ERR(SSL_ERROR_ZERO_RETURN),
+	SSL_ERR(SSL_ERROR_WANT_READ),
+	SSL_ERR(SSL_ERROR_WANT_WRITE),
+	SSL_ERR(SSL_ERROR_WANT_ACCEPT),
+	SSL_ERR(SSL_ERROR_WANT_CONNECT),
+	SSL_ERR(SSL_ERROR_WANT_X509_LOOKUP),
+	SSL_ERR(SSL_ERROR_SYSCALL),
+	SSL_ERR(SSL_ERROR_SSL),
+    };
 }
 
 void ensure_openssl_init(void) {
@@ -50,6 +67,71 @@ void msg_openssl_errors(void) {
     }
 }
 
+void msg_openssl_return_code(int level, const char *fn, int ret, int error) {
+    std::ostringstream oss;
+    oss << fn << " returned: " << ret;
+    if (ret<=0) {
+	oss << ", error: ";
+	unsigned int i;
+	int found=0;
+	for(i=0;i < sizeof(sslerrors) / sizeof(struct sslerror);i++) {
+	    if (sslerrors[i].code==error) {
+		oss << sslerrors[i].str;
+		found=1;
+		break;
+	    }
+	}
+	if (!found) {
+	    oss << error;
+	}
+	if (error == SSL_ERROR_SYSCALL && ret==-1)
+	    oss << ", errno: " << strerror(errno);
+    }
+    msg(level,oss.str().c_str());
+}
+
+#if 0
+void msg_openssl_return_code(const char *fn, int ret, int error) {
+	ostringstream oss;
+	
+	oss << "<receivedPackets>" << statReceivedPackets << "</receivedPackets>" << endl;	
+
+	return oss.str();
+    if (ret > 0) {
+	DPRINTF("%s returned: %d",fn,ret);
+    } else {
+	char buf[16];
+	char *s = 0;
+	unsigned int i;
+	for(i=0;i < sizeof(sslerrors) / sizeof(struct sslerror);i++) {
+	    if (sslerrors[i].code==error) {
+		s = sslerrors[i].str;
+		break;
+	    }
+	}
+	if (!s) {
+	    snprintf(buf,sizeof(buf),"%d",error);
+	    s = buf;
+	}
+	DPRINTF("%s returned: %d, error: %s",
+
+    DPRINTF("SSL_read() returned: %d, error: %d, strerror: %s",ret,error,strerror(errno));
+}
+#endif
+
+
+const char *get_ssl_error_string(int error) {
+    unsigned int i;
+    static char unknown[] = "Unknown error code: %d";
+    static char s[sizeof(unknown) + 20];
+    for(i=0;i < sizeof(sslerrors) / sizeof(struct sslerror);i++) {
+        if (sslerrors[i].code==error) {
+            return sslerrors[i].str;
+        }
+    }
+    snprintf(s, sizeof(s), unknown, error); /* Not thread safe. */
+    return s;
+}
 
 /* returns 1 on success, 0 on error */
 int verify_ssl_peer(SSL *ssl, int (*cb)(void *context, const char *dnsname), void *context) {

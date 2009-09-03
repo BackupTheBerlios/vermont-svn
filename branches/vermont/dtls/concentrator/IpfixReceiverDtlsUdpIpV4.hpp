@@ -110,7 +110,6 @@ class IpfixReceiverDtlsUdpIpV4 : public IpfixReceiver, Sensor {
 	}
 	typedef std::map<IpfixRecord::SourceID,DtlsConnectionPtr,CompareSourceID> connections_map;
 	connections_map connections;
-	static void print_errors(void);
 	void idle_processing();
 
 	SSL_CTX_wrapper ssl_ctx;

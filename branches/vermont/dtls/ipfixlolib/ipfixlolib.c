@@ -86,6 +86,7 @@ static int get_mtu(const int s);
 
 #ifdef SUPPORT_DTLS
 
+#if 0
 #define SSL_ERR(c) {c,#c}
 
 static struct sslerror {
@@ -111,9 +112,10 @@ static const char *get_ssl_error_string(int ret) {
             return sslerrors[i].str;
         }
     }
-    snprintf(s, sizeof(s), unknown, ret);
+    snprintf(s, sizeof(s), unknown, ret); /* Not thread safe. */
     return s;
 }
+#endif
 #endif /* #ifdef SUPPORT_DTLS */
 
 

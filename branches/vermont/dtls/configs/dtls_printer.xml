@@ -9,7 +9,7 @@
 			<!-- transportProtocol>UDP</transportProtocol -->
 			<port>4433</port>
 			<peerFqdn>ex352.example.com</peerFqdn>
-			<peerFqdn>exporter.example.co</peerFqdn>
+			<peerFqdn>exporter.example.com</peerFqdn>
 		</listener>
 		<next>2</next>
 	</ipfixCollector>
