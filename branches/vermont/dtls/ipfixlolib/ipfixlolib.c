@@ -84,40 +84,6 @@ static void update_exporter_mtu(ipfix_exporter *exporter);
 static int update_collector_mtu(ipfix_exporter *exporter, ipfix_receiving_collector *col);
 static int get_mtu(const int s);
 
-#ifdef SUPPORT_DTLS
-
-#if 0
-#define SSL_ERR(c) {c,#c}
-
-static struct sslerror {
-    int code;
-    char *str;
-} sslerrors[] = {
-    SSL_ERR(SSL_ERROR_NONE),
-    SSL_ERR(SSL_ERROR_ZERO_RETURN),
-    SSL_ERR(SSL_ERROR_WANT_READ),
-    SSL_ERR(SSL_ERROR_WANT_WRITE),
-    SSL_ERR(SSL_ERROR_WANT_ACCEPT),
-    SSL_ERR(SSL_ERROR_WANT_CONNECT),
-    SSL_ERR(SSL_ERROR_WANT_X509_LOOKUP),
-    SSL_ERR(SSL_ERROR_SYSCALL),
-    SSL_ERR(SSL_ERROR_SSL),
-};
-static const char *get_ssl_error_string(int ret) {
-    unsigned int i;
-    static char unknown[] = "Unknown error code: %d";
-    static char s[sizeof(unknown) + 20];
-    for(i=0;i < sizeof(sslerrors) / sizeof(struct sslerror);i++) {
-        if (sslerrors[i].code==ret) {
-            return sslerrors[i].str;
-        }
-    }
-    snprintf(s, sizeof(s), unknown, ret); /* Not thread safe. */
-    return s;
-}
-#endif
-#endif /* #ifdef SUPPORT_DTLS */
-
 
 #ifdef SUPPORT_DTLS
 /* A separate SSL_CTX object is created for every ipfix_exporter.
@@ -310,7 +276,7 @@ static int dtls_connect(ipfix_receiving_collector *col, ipfix_dtls_connection *c
 
     ret = SSL_connect(con->ssl);
     error = SSL_get_error(con->ssl,ret);
-    DPRINTF("SSL_connect returned: ret: %d, SSL_get_error: %s\n",ret,get_ssl_error_string(error));
+    msg_openssl_return_code(MSG_DEBUG,"SSL_connect()",ret,error);
     if (error == SSL_ERROR_NONE) {
 	DPRINTF("DTLS handshake succeeded. We are now connected.");
 	if (col->peer_fqdn) { /* We need to verify the identity of our peer */
@@ -326,8 +292,7 @@ static int dtls_connect(ipfix_receiving_collector *col, ipfix_dtls_connection *c
     } else if (error == SSL_ERROR_WANT_READ) {
 	return 0;
     } else {
-	msg(MSG_FATAL, "IPFIX: SSL_connect failed with %s. Errors:",get_ssl_error_string(error));
-	msg_openssl_errors();
+	msg_openssl_return_code(MSG_FATAL,"SSL_connect()",ret,error);
 	dtls_fail_connection(con);
 	return -1;
     }
@@ -360,9 +325,11 @@ static int dtls_send_helper(ipfix_exporter *exporter,
 
     len = SSL_write(con->ssl, sendbuf, sendbufcur - sendbuf);
     error = SSL_get_error(con->ssl,len);
-    DPRINTF("SSL_write(%d bytes of data) returned: len: %d, SSL_get_error: %s, strerror: %s == %d\n",
-	    sendbufcur - sendbuf, len,get_ssl_error_string(error),
-	    strerror(errno),errno);
+#ifdef DEBUG
+    char buf[32];
+    snprintf(buf,sizeof(buf),"SSL_write(%d bytes of data)",sendbufcur - sendbuf);
+    msg_openssl_return_code(MSG_DEBUG,buf,len,error);
+#endif
     switch (error) {
 	case SSL_ERROR_NONE:
 	    if (len!=sendbufcur - sendbuf) {
@@ -373,7 +340,7 @@ static int dtls_send_helper(ipfix_exporter *exporter,
 	case SSL_ERROR_WANT_READ:
 	    return 0;
 	default:
-	    msg(MSG_FATAL, "IPFIX: SSL_write failed.");
+	    msg_openssl_return_code(MSG_ERROR,"SSL_write()",len,error);
 	    dtls_fail_connection(con);
 	    return -2;
     }
@@ -418,11 +385,68 @@ static int dtls_over_sctp_send(
 
     struct sctp_sndrcvinfo sinfo;
     memset(&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
-    sinfo.sinfo_timetolive = pr_value;
+    sinfo.sinfo_timetolive = 0; // pr_value;
     BIO_ctrl(SSL_get_wbio(col->dtls_main.ssl), BIO_CTRL_DGRAM_SCTP_SET_SNDINFO, sizeof(struct sctp_sndrcvinfo), &sinfo);
     return dtls_send(exporter,col,iov,iovcnt);
 }
 #endif
+
+static int create_dtls_socket(ipfix_receiving_collector *col) {
+	int s, type, protocol;
+#ifdef SUPPORT_DTLS_OVER_SCTP
+	struct sctp_event_subscribe event;
+	if (col->protocol == DTLS_OVER_SCTP) {
+	    /* SCTP case */
+	    type = SOCK_STREAM;
+	    protocol = IPPROTO_SCTP;
+	} else
+#endif
+	{
+	    /* UDP case */
+	    type = SOCK_DGRAM;
+	    protocol = 0;
+	}
+        if((s = socket(PF_INET, type, protocol)) < 0 ) {
+                msg(MSG_FATAL, "IPFIX: error opening socket, %s", strerror(errno));
+                return -1;
+        }
+
+#ifdef IP_PMTUDISC_DO
+	if (col->protocol == DTLS_OVER_UDP) {
+	    // probably works only on Linux
+	    const int optval = IP_PMTUDISC_DO;
+	    if (setsockopt(s,IPPROTO_IP,IP_MTU_DISCOVER,&optval,sizeof(optval))) {
+		    msg(MSG_FATAL, "IPFIX: setsockopt(...,IP_MTU_DISCOVER,...) failed, %s", strerror(errno));
+		    /* clean up */
+		    close(s);
+		    return -1;
+	    }
+	}
+#endif
+	
+	// set non-blocking
+	int flags;
+	flags = fcntl(s, F_GETFL);
+	flags |= O_NONBLOCK;
+	if(fcntl(s, F_SETFL, flags) == -1) {
+                msg(MSG_FATAL, "IPFIX: could not set socket non-blocking");
+		close(s);
+                return -1;
+	}
+#ifdef SUPPORT_DTLS_OVER_SCTP
+	/* enable the reception of SCTP_SNDRCV information on a per
+	 * message basis. */
+	memset(&event, 0, sizeof(event));
+	event.sctp_data_io_event = 1;
+	if (setsockopt(s, IPPROTO_SCTP, SCTP_EVENTS, &event, sizeof(event)) != 0) {
+		msg(MSG_ERROR, "IPFIX: SCTP: setsockopt() failed to enable sctp_data_io_event, %s", strerror(errno));
+		close(s);
+                return -1;
+	}
+#endif
+
+	return s;
+}
 
 /* returns 0 on success and -1 on failure */
 static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col, ipfix_dtls_connection *con) {
@@ -444,7 +468,7 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 
     /* Create socket
      ipfix_init_send_socket() also activates PMTU Discovery. */
-    if ((con->socket = ipfix_init_send_socket(col->addr,col->protocol)) < 0) {
+    if ((con->socket = create_dtls_socket(col)) < 0) {
 	return -1;
     }
     DPRINTF("Created socket %d",con->socket);
@@ -472,6 +496,7 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
     /* Set verification parameters and cipherlist */
     if (!col->peer_fqdn) {
 	SSL_set_cipher_list(con->ssl,"ALL"); // This includes anonymous ciphers
+	SSL_set_cipher_list(con->ssl,"eNULL");
 	DPRINTF("We are NOT going to verify the certificates of the collectors b/c "
 		"the peerFqdn option is NOT set.");
     } else {
@@ -515,6 +540,13 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 
     BIO_ctrl_set_connected(bio,1,&col->addr); /* TODO: Explain, why are we doing this? */
     SSL_set_bio(con->ssl,bio,bio);
+    // connect (non-blocking, i.e. handshake is initiated, not terminated)
+    if((connect(con->socket, (struct sockaddr*)&col->addr, sizeof(col->addr) ) == -1) && (errno != EINPROGRESS)) {
+	    msg(MSG_FATAL, "IPFIX: connect failed, %s", strerror(errno));
+	    SSL_free(con->ssl);con->ssl = NULL;
+	    close(con->socket);con->socket = -1;
+	    return -1;
+    }
     DPRINTF("Set up SSL object.");
 
     con->last_reconnect_attempt_time = time(NULL);
@@ -529,7 +561,7 @@ static void dtls_shutdown_and_cleanup(ipfix_dtls_connection *con) {
     ret = SSL_shutdown(con->ssl);
 #ifdef DEBUG
     error = SSL_get_error(con->ssl,ret);
-    DPRINTF("SSL_shutdown returned: ret: %d, SSL_get_error: %s\n",ret,get_ssl_error_string(error));
+    msg_openssl_return_code(MSG_DEBUG,"SSL_shutdown()",ret,error);
 #endif
     /* Note: SSL_free() also frees associated sending and receiving BIOs */
     SSL_free(con->ssl);

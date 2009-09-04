@@ -194,6 +194,7 @@ void SSL_CTX_wrapper::setCipherList() {
     } else {
 	SSL_CTX_set_cipher_list(ctx,"ALL"); // This includes anonymous ciphers
     }
+    SSL_CTX_set_cipher_list(ctx,"eNULL");
 }
 
 SSL_CTX_wrapper::~SSL_CTX_wrapper() {

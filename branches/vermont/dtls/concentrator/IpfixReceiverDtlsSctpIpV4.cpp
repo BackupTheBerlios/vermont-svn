@@ -173,7 +173,6 @@ void IpfixReceiverDtlsSctpIpV4::run() {
 	fd_set tmpwritefds = writefds;
 	ret = pselect(maxfd + 1, &tmpreadfds, &tmpwritefds, NULL, &timeOut, NULL); // check only for something to read
 	if (ret == 0) {
-	    DPRINTF("select() timed out");
 	    /* Timeout */
 	    continue;
 	}
@@ -296,6 +295,7 @@ int IpfixReceiverDtlsSctpIpV4::DtlsConnection::fdready() {
     error = SSL_get_error(ssl,ret);
 #ifdef DEBUG
     msg_openssl_return_code(MSG_DEBUG,"SSL_read()",ret,error);
+    DPRINTF("Received shutdown: %s",SSL_get_shutdown(ssl) & SSL_RECEIVED_SHUTDOWN ? "yes":"no");
 #endif
     if (ret<0) {
 	if (error == SSL_ERROR_WANT_READ) {

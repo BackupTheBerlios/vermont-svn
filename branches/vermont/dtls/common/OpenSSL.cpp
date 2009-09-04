@@ -88,6 +88,7 @@ void msg_openssl_return_code(int level, const char *fn, int ret, int error) {
 	    oss << ", errno: " << strerror(errno);
     }
     msg(level,oss.str().c_str());
+    msg_openssl_errors();
 }
 
 #if 0
