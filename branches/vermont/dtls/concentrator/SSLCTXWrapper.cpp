@@ -213,4 +213,8 @@ SSL *SSL_CTX_wrapper::SSL_new() {
     return ssl;
 }
 
+void SSL_CTX_wrapper::SSL_free(SSL *ssl) {
+    ::SSL_free(ssl);
+}
+
 #endif

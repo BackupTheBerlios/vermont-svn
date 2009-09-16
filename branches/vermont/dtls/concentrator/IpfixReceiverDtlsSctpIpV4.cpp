@@ -114,7 +114,7 @@ IpfixReceiverDtlsSctpIpV4::IpfixReceiverDtlsSctpIpV4(int port, const std::string
 	FD_ZERO(&readfds);
 	FD_ZERO(&writefds);
 	FD_SET(listen_socket,&readfds);
-	maxfd = listen_socket;
+	update_maxfd();
 
 	/* TODO: Find out what this is? */
 	SensorManager::getInstance().addSensor(this, "IpfixReceiverDtlsSctpIpV4", 0);
@@ -171,7 +171,7 @@ void IpfixReceiverDtlsSctpIpV4::run() {
     while(!exitFlag) {
 	fd_set tmpreadfds = readfds;
 	fd_set tmpwritefds = writefds;
-	ret = pselect(maxfd + 1, &tmpreadfds, &tmpwritefds, NULL, &timeOut, NULL); // check only for something to read
+	ret = pselect(maxfd + 1, &tmpreadfds, &tmpwritefds, NULL, &timeOut, NULL);
 	if (ret == 0) {
 	    /* Timeout */
 	    continue;
@@ -182,7 +182,7 @@ void IpfixReceiverDtlsSctpIpV4::run() {
 	    continue;
 	}
 	if (ret < 0) {
-	    msg(MSG_ERROR ,"select() returned with an error");
+	    msg(MSG_ERROR ,"select() returned with an error: %s",strerror(errno));
 	    THROWEXCEPTION("IpfixReceiverDtlsSctpIpV4: terminating listener thread");
 	    break;
 	}
@@ -194,15 +194,13 @@ void IpfixReceiverDtlsSctpIpV4::run() {
 	    if (rfd >= 0){
 		if ( ! isHostAuthorized(&clientAddress.sin_addr,
 			    sizeof(clientAddress.sin_addr))) {
+		    /* Do not accept connections from unauthorized hosts. */
 		    close(rfd);
 		} else {
-		    DPRINTF("New connection");
 		    msg(MSG_DEBUG, "IpfixReceiverDtlsSctpIpV4: Client connected from %s:%d, FD=%d", inet_ntoa(clientAddress.sin_addr), ntohs(clientAddress.sin_port), rfd);
 		    DtlsConnectionPtr conn = DtlsConnectionPtr( new DtlsConnection(*this,&clientAddress,rfd));
 		    connections.insert(make_pair(rfd,conn));
-		    if (rfd > maxfd){
-			maxfd = rfd;
-		    }
+		    update_maxfd();
 		}
 	    }else{
 		msg(MSG_ERROR ,"accept() in ipfixReceiver failed");
@@ -210,7 +208,7 @@ void IpfixReceiverDtlsSctpIpV4::run() {
 	    }
 	}
 	// check all connected sockets for new available data
-	for (rfd = listen_socket + 1; rfd <= maxfd; ++rfd) {
+	for (rfd = 0; rfd <= maxfd; ++rfd) {
 	    if (rfd == listen_socket) continue;
 	    if (FD_ISSET(rfd, &readfds) || FD_ISSET(rfd, &writefds)) {
 		if (FD_ISSET(rfd, &readfds)) DPRINTF("descriptor %d is ready for reading",rfd);
@@ -227,6 +225,7 @@ void IpfixReceiverDtlsSctpIpV4::run() {
 		if (ret == 0) {
 		    DPRINTF("fdready() returned 0. Deleting connection.");
 		    remove_connection(rfd);
+		    update_maxfd();
 		}
 	    }
 	}
@@ -248,6 +247,13 @@ std::string IpfixReceiverDtlsSctpIpV4::getStatisticsXML(double interval)
 
 void IpfixReceiverDtlsSctpIpV4::remove_connection(int socket) {
     connections.erase(socket);
+}
+
+void IpfixReceiverDtlsSctpIpV4::update_maxfd(void) {
+    maxfd = 0;
+    if (listen_socket>=0) maxfd = listen_socket;
+    if (!connections.empty() && connections.rbegin()->first > maxfd)
+	maxfd = connections.rbegin()->first;
 }
 
 IpfixReceiverDtlsSctpIpV4::DtlsConnection::DtlsConnection(IpfixReceiverDtlsSctpIpV4 &_parent,struct sockaddr_in *pclientAddress,int _socket) :
@@ -347,7 +353,7 @@ void IpfixReceiverDtlsSctpIpV4::DtlsConnection::shutdown() {
     msg_openssl_return_code(MSG_DEBUG,"SSL_shutdown()",ret,error);
 #endif
     DPRINTF("SSL_free(ssl)");
-    SSL_free(ssl);
+    parent.ssl_ctx.SSL_free(ssl);
     ssl = NULL;
     FD_CLR(socket,&parent.readfds);
     FD_CLR(socket,&parent.writefds);

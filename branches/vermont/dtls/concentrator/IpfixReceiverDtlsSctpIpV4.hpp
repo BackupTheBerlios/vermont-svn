@@ -88,8 +88,6 @@ class IpfixReceiverDtlsSctpIpV4 : public IpfixReceiver, Sensor {
 	    public:
 		DtlsConnection(IpfixReceiverDtlsSctpIpV4 &parent,struct sockaddr_in *clientAddress, int socket);
 		~DtlsConnection();
-		std::string inspect(bool includeState = true);
-		bool isInactive();
 		int fdready();
 
 	    private:
@@ -109,6 +107,7 @@ class IpfixReceiverDtlsSctpIpV4 : public IpfixReceiver, Sensor {
 	typedef std::map<int,DtlsConnectionPtr> connections_map;
 	connections_map connections;
 	void remove_connection(int socket);
+	void update_maxfd(void);
 
 
 #ifdef DEBUG

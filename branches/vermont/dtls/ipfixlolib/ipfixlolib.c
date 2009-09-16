@@ -64,6 +64,7 @@ static void dtls_fail_connection(ipfix_dtls_connection *con);
 #endif
 #ifdef SUPPORT_SCTP
 static int init_send_sctp_socket(struct sockaddr_in serv_addr);
+static void handle_sctp_event(BIO *bio, void *buf, void *con);
 #endif
 static int init_send_udp_socket(struct sockaddr_in serv_addr);
 static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id);
@@ -385,7 +386,7 @@ static int dtls_over_sctp_send(
 
     struct sctp_sndrcvinfo sinfo;
     memset(&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
-    sinfo.sinfo_timetolive = 0; // pr_value;
+    sinfo.sinfo_timetolive = 0; // pr_value; FIXME
     BIO_ctrl(SSL_get_wbio(col->dtls_main.ssl), BIO_CTRL_DGRAM_SCTP_SET_SNDINFO, sizeof(struct sctp_sndrcvinfo), &sinfo);
     return dtls_send(exporter,col,iov,iovcnt);
 }
@@ -450,7 +451,6 @@ static int create_dtls_socket(ipfix_receiving_collector *col) {
 
 /* returns 0 on success and -1 on failure */
 static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col, ipfix_dtls_connection *con) {
-    int flags;
     BIO *bio;
 /* Resources allocated in this function. Those need to be freed in case of failure:
  * - socket
@@ -467,20 +467,12 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 #endif
 
     /* Create socket
-     ipfix_init_send_socket() also activates PMTU Discovery. */
+     create_dtls_socket() also activates PMTU Discovery. */
     if ((con->socket = create_dtls_socket(col)) < 0) {
 	return -1;
     }
     DPRINTF("Created socket %d",con->socket);
 
-    /* set socket to non-blocking i/o */
-    flags = fcntl(con->socket,F_GETFL,0);
-    flags |= O_NONBLOCK;
-    if (fcntl(con->socket,F_SETFL,flags)<0) {
-	msg(MSG_FATAL, "IPFIX: Failed to set socket to non-blocking i/o");
-	close(con->socket);con->socket = -1;
-	return -1;
-    }
     /* ensure a SSL_CTX object is set up */
     if (ensure_exporter_set_up_for_dtls(exporter)) {
 	close(con->socket);con->socket = -1;
@@ -519,8 +511,10 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
     }
     /* create input/output abstraction for SSL object */
 #ifdef SUPPORT_DTLS_OVER_SCTP
-    if (col->protocol == DTLS_OVER_SCTP)
+    if (col->protocol == DTLS_OVER_SCTP) {
 	bio = BIO_new_dgram_sctp(con->socket,BIO_NOCLOSE);
+	BIO_dgram_sctp_notification_cb(bio, &handle_sctp_event,con);
+    }
     else /* DTLS_OVER_UDP */
 #endif
 	bio = BIO_new_dgram(con->socket,BIO_NOCLOSE);
@@ -563,6 +557,28 @@ static void dtls_shutdown_and_cleanup(ipfix_dtls_connection *con) {
     error = SSL_get_error(con->ssl,ret);
     msg_openssl_return_code(MSG_DEBUG,"SSL_shutdown()",ret,error);
 #endif
+    /* TODO: loop only if ret==-1 and error==WANT_READ or WANT_WRITE */
+    int i = 0;
+    while (ret != 1 && !(SSL_get_shutdown(con->ssl) & SSL_RECEIVED_SHUTDOWN)
+	    && ( (ret == 0 && error == SSL_ERROR_SYSCALL) ||
+		 (ret == -1 && (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE)))) {
+	fd_set readfds;
+	struct timeval timeout;
+	timeout.tv_sec = 3;
+	timeout.tv_usec = 0;
+	FD_ZERO(&readfds);
+	FD_SET(con->socket, &readfds);
+	ret = select(con->socket + 1,&readfds,NULL,NULL,&timeout);
+	DPRINTF("select returned: %d",ret);
+	DPRINTF("Calling SSL_shutdown()");
+	ret = SSL_shutdown(con->ssl);
+	error = SSL_get_error(con->ssl,ret);
+	msg_openssl_return_code(MSG_DEBUG,"SSL_shutdown()",ret,error);
+	if (i++ == 3) {
+	    msg(MSG_ERROR,"Too many calls to select(). Breaking out.");
+	    break;
+	}
+    }
     /* Note: SSL_free() also frees associated sending and receiving BIOs */
     SSL_free(con->ssl);
     con->ssl = NULL;
@@ -570,8 +586,10 @@ static void dtls_shutdown_and_cleanup(ipfix_dtls_connection *con) {
     con->last_reconnect_attempt_time = 0;
     /* Close socket */
     if ( con->socket != -1) {
+	int flags;
 	DPRINTF("Closing socket");
-	close(con->socket);
+	ret = close(con->socket);
+	DPRINTF("close returned %d",ret);
 	con->socket = -1;
     }
 }
@@ -648,49 +666,43 @@ static int get_mtu(const int s) {
  * Returns: a socket to write to. -1 on failure
  */
 static int init_send_sctp_socket(struct sockaddr_in serv_addr){
-	
-	int s;
-#ifdef SUPPORT_DTLS_OVER_SCTP
-	struct sctp_event_subscribe event;
-#endif
-	
-	//create socket:
-	DPRINTFL(MSG_VDEBUG, "Creating SCTP Socket ...");
-	if((s = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP)) < 0 ) {
-                msg(MSG_FATAL, "IPFIX: error opening SCTP socket, %s", strerror(errno));
-                return -1;
-        }
-	// set non.blocking
-	int flags;
-	flags = fcntl(s, F_GETFL);
-	flags |= O_NONBLOCK;
-	if(fcntl(s, F_SETFL, flags) == -1) {
-                msg(MSG_FATAL, "IPFIX: could not set socket non-blocking");
-		close(s);
-                return -1;
-	}
-#ifdef SUPPORT_DTLS_OVER_SCTP
-	/* enable the reception of SCTP_SNDRCV information on a per
-	 * message basis. Does not hurt if we do not use DTLS because
-	 * we do not call recvmsg() anyway. IPFIX is a uni directional
-	 * protocol.*/
-	memset(&event, 0, sizeof(event));
-	event.sctp_data_io_event = 1;
-	if (setsockopt(s, IPPROTO_SCTP, SCTP_EVENTS, &event, sizeof(event)) != 0) {
-		msg(MSG_ERROR, "IPFIX: SCTP: setsockopt() failed to enable sctp_data_io_event, %s", strerror(errno));
-		close(s);
-                return -1;
-	}
-#endif
-	// connect (non-blocking, i.e. handshake is initiated, not terminated)
-        if((connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr) ) == -1) && (errno != EINPROGRESS)) {
-		msg(MSG_ERROR, "IPFIX: SCTP connect failed, %s", strerror(errno));
-		close(s);
-                return -1;
-        }
-	DPRINTFL(MSG_VDEBUG, "SCTP Socket created");
 
-	return s;
+    int s;
+
+    //create socket:
+    DPRINTFL(MSG_VDEBUG, "Creating SCTP Socket ...");
+    if((s = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP)) < 0 ) {
+	msg(MSG_FATAL, "IPFIX: error opening SCTP socket, %s", strerror(errno));
+	return -1;
+    }
+    // set non-blocking
+    int flags;
+    flags = fcntl(s, F_GETFL);
+    flags |= O_NONBLOCK;
+    if(fcntl(s, F_SETFL, flags) == -1) {
+	msg(MSG_FATAL, "IPFIX: could not set socket non-blocking");
+	close(s);
+	return -1;
+    }
+    struct sctp_event_subscribe event;
+    /* enable the reception of SCTP_SNDRCV information on a per
+     * message basis. */
+    memset(&event, 0, sizeof(event));
+    event.sctp_sender_dry_event = 1;
+    if (setsockopt(s, IPPROTO_SCTP, SCTP_EVENTS, &event, sizeof(event)) != 0) {
+	    msg(MSG_ERROR, "IPFIX: SCTP: setsockopt() failed to enable sctp_data_io_event, %s", strerror(errno));
+	    close(s);
+	    return -1;
+    }
+    // connect (non-blocking, i.e. handshake is initiated, not terminated)
+    if((connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr) ) == -1) && (errno != EINPROGRESS)) {
+	msg(MSG_ERROR, "IPFIX: SCTP connect failed, %s", strerror(errno));
+	close(s);
+	return -1;
+    }
+    DPRINTFL(MSG_DEBUG, "SCTP Socket created");
+
+    return s;
 }
 
 /*
@@ -1114,6 +1126,9 @@ static void remove_collector(ipfix_receiving_collector *collector) {
     if (collector->protocol != RAWDIR) {
 #endif
     if ( collector->data_socket != -1) {
+	DPRINTF("Closing data socket");
+	char buf[64000];
+	send(collector->data_socket,buf,sizeof(buf),0);
 	close ( collector->data_socket );
     }
     collector->data_socket = -1;
@@ -1624,7 +1639,9 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
  * i: index of the collector in the exporters collector_arr
  */
 int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
-	int bytes_sent;
+	int bytes_sent, ret;
+	fd_set writefds;
+	struct timeval timeout;
 	time_t time_now = time(NULL);
 	exporter->collector_arr[i].last_reconnect_attempt_time = time_now;
 	// error occured while being connected?
@@ -1638,24 +1655,50 @@ int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 	if(exporter->collector_arr[i].data_socket < 0) {
 		exporter->collector_arr[i].data_socket = init_send_sctp_socket( exporter->collector_arr[i].addr );
 		if( exporter->collector_arr[i].data_socket < 0) {
-		msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP socket creation in reconnect failed, %s", strerror(errno));
-		exporter->collector_arr[i].state = C_DISCONNECTED;
-		return -1;
+		    msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP socket creation in reconnect failed, %s", strerror(errno));
+		    exporter->collector_arr[i].state = C_DISCONNECTED;
+		    return -1;
 		}
+		exporter->collector_arr[i].state = C_NEW;
+	}
+	timeout.tv_sec = timeout.tv_usec = 0;
+	FD_ZERO(&writefds);
+	FD_SET(exporter->collector_arr[i].data_socket, &writefds);
+	ret = select(exporter->collector_arr[i].data_socket + 1,NULL,&writefds,NULL,&timeout);
+	if (ret == 0) {
+	    // connection attempt not yet finished
+	    msg(MSG_DEBUG, "ipfix_sctp_reconnect(): still connecting...");
+	    exporter->collector_arr[i].state = C_NEW;
+	    return -1;
+	} else if (ret>0) {
+	    // connected or connection setup failed.
+	    msg(MSG_DEBUG, "socket is writeable");
+	} else {
+	    // error
+	    msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP (re)connect failed, %s", strerror(errno));
+	    close(exporter->collector_arr[i].data_socket);
+	    exporter->collector_arr[i].data_socket = -1;
+	    exporter->collector_arr[i].state = C_DISCONNECTED;
+	    return -1;
 	}
 
+
+#if 0
 	// connect (non-blocking)
 	// this is the second call of connect (it was already called in init_send_sctp_socket)
 	if(connect(exporter->collector_arr[i].data_socket, (struct sockaddr*)&(exporter->collector_arr[i].addr), sizeof(exporter->collector_arr[i].addr)) == -1) {
+	    msg(MSG_DEBUG,"connect() returned %s",strerror(errno));
 		switch(errno) {
 			case EISCONN:
 				// connected
 				break;
+			case EINPROGRESS:
 			case EALREADY: // is returned if connection establishment has not yet finished
 				// connection attempt not yet finished
 				msg(MSG_DEBUG, "ipfix_sctp_reconnect(): still connecting...");
 				exporter->collector_arr[i].state = C_NEW;
 				return -1;
+#if 0
 			case EINPROGRESS: // is returned only if connect was called for the first time
 				// ==> connect() called in init_send_sctp_socket must have failed
 				msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP connection could not be established");
@@ -1663,6 +1706,7 @@ int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 				exporter->collector_arr[i].data_socket = -1;
 				exporter->collector_arr[i].state = C_DISCONNECTED;
 				return -1;
+#endif
 			default:
 				// error or timeout
 				msg(MSG_ERROR, "ipfix_sctp_reconnect(): SCTP (re)connect failed, %s", strerror(errno));
@@ -1672,6 +1716,7 @@ int ipfix_sctp_reconnect(ipfix_exporter *exporter , int i){
 				return -1;
 		}
 	}
+#endif
 	
 	msg(MSG_INFO, "ipfix_sctp_reconnect(): successfully (re)connected.");
 
@@ -2703,6 +2748,74 @@ int ipfix_enterprise_flag_set(uint16_t id)
 {
         return bit_set(id, IPFIX_ENTERPRISE_FLAG);
 }
+
+#ifdef SUPPORT_SCTP
+static void
+   handle_sctp_event(BIO *bio, void *buf, void *context)
+   {
+       ipfix_dtls_connection *con = (ipfix_dtls_connection *) context;
+       struct sctp_assoc_change *sac;
+       struct sctp_send_failed *ssf;
+       struct sctp_paddr_change *spc;
+       struct sctp_remote_error *sre;
+       struct sctp_sender_dry_event *ssde;
+       union sctp_notification *snp;
+       char addrbuf[INET6_ADDRSTRLEN];
+       const char *ap;
+       struct sockaddr_in *sin;
+       struct sockaddr_in6 *sin6;
+
+       snp = buf;
+
+       switch (snp->sn_header.sn_type) {
+       case SCTP_ASSOC_CHANGE:
+             sac = &snp->sn_assoc_change;
+             msg(MSG_DEBUG,"SCTP Event: assoc_change: state=%hu, error=%hu, instr=%hu "
+                 "outstr=%hu\n", sac->sac_state, sac->sac_error,
+                 sac->sac_inbound_streams, sac->sac_outbound_streams);
+             break;
+       case SCTP_SEND_FAILED:
+             ssf = &snp->sn_send_failed;
+             msg(MSG_DEBUG,"SCTP Event: sendfailed: len=%hu err=%d\n", ssf->ssf_length,
+                 ssf->ssf_error);
+             break;
+
+       case SCTP_PEER_ADDR_CHANGE:
+             spc = &snp->sn_paddr_change;
+             if (spc->spc_aaddr.ss_family == AF_INET) {
+               sin = (struct sockaddr_in *)&spc->spc_aaddr;
+               ap = inet_ntop(AF_INET, &sin->sin_addr,
+                              addrbuf, INET6_ADDRSTRLEN);
+             } else {
+               sin6 = (struct sockaddr_in6 *)&spc->spc_aaddr;
+               ap = inet_ntop(AF_INET6, &sin6->sin6_addr,
+                              addrbuf, INET6_ADDRSTRLEN);
+             }
+             msg(MSG_DEBUG,"SCTP Event: intf_change: %s state=%d, error=%d\n", ap,
+                    spc->spc_state, spc->spc_error);
+             break;
+       case SCTP_REMOTE_ERROR:
+             sre = &snp->sn_remote_error;
+             msg(MSG_DEBUG,"SCTP Event: remote_error: err=%hu len=%hu\n",
+                 ntohs(sre->sre_error), ntohs(sre->sre_length));
+             break;
+       case SCTP_SHUTDOWN_EVENT:
+             msg(MSG_DEBUG,"SCTP Event: shutdown event\n");
+             break;
+       case SCTP_SENDER_DRY_EVENT:
+	     ssde = &snp->sn_sender_dry_event;
+             msg(MSG_DEBUG,"SCTP Event: sender dry event\n");
+             break;
+       case SCTP_AUTHENTICATION_EVENT:
+             msg(MSG_DEBUG,"SCTP Event: authentication event\n");
+             break;
+       default:
+             msg(MSG_DEBUG,"SCTP Event: unknown type: %hu\n", snp->sn_header.sn_type);
+             break;
+       };
+   }
+
+#endif
 
 
 #ifdef __cplusplus

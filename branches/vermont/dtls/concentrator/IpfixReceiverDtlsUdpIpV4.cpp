@@ -284,7 +284,7 @@ IpfixReceiverDtlsUdpIpV4::DtlsConnection::DtlsConnection(IpfixReceiverDtlsUdpIpV
 }
 
 IpfixReceiverDtlsUdpIpV4::DtlsConnection::~DtlsConnection() {
-    if (ssl) SSL_free(ssl);
+    if (ssl) parent.ssl_ctx.SSL_free(ssl);
 }
 
 #ifdef DEBUG

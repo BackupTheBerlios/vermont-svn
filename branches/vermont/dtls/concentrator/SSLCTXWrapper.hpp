@@ -41,6 +41,7 @@ class SSL_CTX_wrapper {
 		);
 	~SSL_CTX_wrapper();
 	SSL *SSL_new();
+	void SSL_free(SSL *ssl);
 	bool get_verify_peers();
     private:
 	SSL_CTX *ctx;

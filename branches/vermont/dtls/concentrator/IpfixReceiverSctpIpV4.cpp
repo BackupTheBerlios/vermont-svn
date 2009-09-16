@@ -148,6 +148,9 @@ void IpfixReceiverSctpIpV4::run() {
 				boost::shared_array<uint8_t> data(new uint8_t[MAX_MSG_LEN]);
       				ret = recvfrom(rfd, data.get(), MAX_MSG_LEN, 0, 
       					(struct sockaddr*)&clientAddress, &clientAddressLen);
+				DPRINTF("recvfrom returned %d",ret);
+				if (ret==-1)
+					DPRINTF("recvfrom returned %s",strerror(errno));
 				if (ret == 0) { // shut down initiated
 					FD_CLR(rfd, &fd_array); // delete dead client
 					msg(MSG_DEBUG, "IpfixReceiverSctpIpV4: Client disconnected");
