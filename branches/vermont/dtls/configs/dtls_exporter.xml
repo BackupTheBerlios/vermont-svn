@@ -126,7 +126,7 @@
 		<CApath>/etc/ssl/certs</CApath>
 		<collector>
 			<ipAddressType>4</ipAddressType>
-			<ipAddress>127.0.0.1</ipAddress>
+			<ipAddress>131.159.20.24</ipAddress>
 			<transportProtocol>DTLS_OVER_SCTP</transportProtocol>
 			<!-- transportProtocol>UDP</transportProtocol -->
 			<port>4433</port>

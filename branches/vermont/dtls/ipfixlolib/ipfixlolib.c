@@ -328,7 +328,7 @@ static int dtls_send_helper(ipfix_exporter *exporter,
     error = SSL_get_error(con->ssl,len);
 #ifdef DEBUG
     char buf[32];
-    snprintf(buf,sizeof(buf),"SSL_write(%d bytes of data)",sendbufcur - sendbuf);
+    snprintf(buf,sizeof(buf),"SSL_write(%d bytes of data)",(int) (sendbufcur - sendbuf) );
     msg_openssl_return_code(MSG_DEBUG,buf,len,error);
 #endif
     switch (error) {
@@ -452,6 +452,7 @@ static int create_dtls_socket(ipfix_receiving_collector *col) {
 /* returns 0 on success and -1 on failure */
 static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col, ipfix_dtls_connection *con) {
     BIO *bio;
+    int ret;
 /* Resources allocated in this function. Those need to be freed in case of failure:
  * - socket
  * - SSL object
@@ -529,7 +530,7 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 #ifdef SUPPORT_DTLS_OVER_SCTP
     if (col->protocol != DTLS_OVER_SCTP)
 #endif
-    BIO_ctrl(bio,BIO_CTRL_DGRAM_MTU_DISCOVER,0,0);
+    ret = BIO_ctrl(bio,BIO_CTRL_DGRAM_MTU_DISCOVER,0,0);
     /* Does not return useful value. */
 
     BIO_ctrl_set_connected(bio,1,&col->addr); /* TODO: Explain, why are we doing this? */
@@ -586,7 +587,6 @@ static void dtls_shutdown_and_cleanup(ipfix_dtls_connection *con) {
     con->last_reconnect_attempt_time = 0;
     /* Close socket */
     if ( con->socket != -1) {
-	int flags;
 	DPRINTF("Closing socket");
 	ret = close(con->socket);
 	DPRINTF("close returned %d",ret);
@@ -2753,7 +2753,9 @@ int ipfix_enterprise_flag_set(uint16_t id)
 static void
    handle_sctp_event(BIO *bio, void *buf, void *context)
    {
+#if 0
        ipfix_dtls_connection *con = (ipfix_dtls_connection *) context;
+#endif
        struct sctp_assoc_change *sac;
        struct sctp_send_failed *ssf;
        struct sctp_paddr_change *spc;

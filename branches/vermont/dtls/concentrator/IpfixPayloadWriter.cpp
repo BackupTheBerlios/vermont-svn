@@ -95,9 +95,9 @@ void IpfixPayloadWriter::dumpEntry(Connection* conn)
 {
 	char filename[2][100];
 	snprintf(filename[0], 100, "%s-%04llu-%s.%d-%s.%d", filenamePrefix.c_str(),
-			connectionID, IPToString(conn->srcIP).c_str(), ntohs(conn->srcPort), IPToString(conn->dstIP).c_str(), ntohs(conn->dstPort));
+			(long long unsigned int) connectionID, IPToString(conn->srcIP).c_str(), ntohs(conn->srcPort), IPToString(conn->dstIP).c_str(), ntohs(conn->dstPort));
 	snprintf(filename[1], 100, "%s-%04llu-%s.%d-%s.%d", filenamePrefix.c_str(),
-			connectionID, IPToString(conn->dstIP).c_str(), ntohs(conn->dstPort), IPToString(conn->srcIP).c_str(), ntohs(conn->srcPort));
+			(long long unsigned int) connectionID, IPToString(conn->dstIP).c_str(), ntohs(conn->dstPort), IPToString(conn->srcIP).c_str(), ntohs(conn->srcPort));
 	connectionID++;
 
 	string filepayload[2] = { path + "/" + string(filename[0]) + ".payload", path + "/" + string(filename[1]) + ".payload" };
@@ -141,17 +141,17 @@ void IpfixPayloadWriter::dumpEntry(Connection* conn)
 	if (fwrite(buf, strnlen(buf, 100), 1, f) != 1) THROWEXCEPTION("failed to write to file '%s', error: %s", fileinfo.c_str(), strerror(errno));
 	snprintf(buf, 100, "dstPort: %u\n", htons(conn->dstPort));
 	if (fwrite(buf, strnlen(buf, 100), 1, f) != 1) THROWEXCEPTION("failed to write to file '%s', error: %s", fileinfo.c_str(), strerror(errno));
-	snprintf(buf, 100, "srcFlowTimes: %llu / %llu\n", conn->srcTimeStart, conn->srcTimeEnd);
+	snprintf(buf, 100, "srcFlowTimes: %llu / %llu\n", (long long unsigned int) conn->srcTimeStart, (long long unsigned int) conn->srcTimeEnd);
 	if (fwrite(buf, strnlen(buf, 100), 1, f) != 1) THROWEXCEPTION("failed to write to file '%s', error: %s", fileinfo.c_str(), strerror(errno));
-	snprintf(buf, 100, "revFlowTimes: %llu / %llu\n", conn->dstTimeStart, conn->dstTimeEnd);
+	snprintf(buf, 100, "revFlowTimes: %llu / %llu\n", (long long unsigned int) conn->dstTimeStart, (long long unsigned int) conn->dstTimeEnd);
 	if (fwrite(buf, strnlen(buf, 100), 1, f) != 1) THROWEXCEPTION("failed to write to file '%s', error: %s", fileinfo.c_str(), strerror(errno));
-	snprintf(buf, 100, "srcOctets: %llu\n", htonll(conn->srcOctets));
+	snprintf(buf, 100, "srcOctets: %llu\n", (long long unsigned int) htonll(conn->srcOctets));
 	if (fwrite(buf, strnlen(buf, 100), 1, f) != 1) THROWEXCEPTION("failed to write to file '%s', error: %s", fileinfo.c_str(), strerror(errno));
-	snprintf(buf, 100, "revOctets: %llu\n", htonll(conn->dstOctets));
+	snprintf(buf, 100, "revOctets: %llu\n", (long long unsigned int) htonll(conn->dstOctets));
 	if (fwrite(buf, strnlen(buf, 100), 1, f) != 1) THROWEXCEPTION("failed to write to file '%s', error: %s", fileinfo.c_str(), strerror(errno));
-	snprintf(buf, 100, "srcPackets: %llu\n", htonll(conn->srcPackets));
+	snprintf(buf, 100, "srcPackets: %llu\n", (long long unsigned int) htonll(conn->srcPackets));
 	if (fwrite(buf, strnlen(buf, 100), 1, f) != 1) THROWEXCEPTION("failed to write to file '%s', error: %s", fileinfo.c_str(), strerror(errno));
-	snprintf(buf, 100, "revPackets: %llu\n", htonll(conn->dstPackets));
+	snprintf(buf, 100, "revPackets: %llu\n", (long long unsigned int) htonll(conn->dstPackets));
 	if (fwrite(buf, strnlen(buf, 100), 1, f) != 1) THROWEXCEPTION("failed to write to file '%s', error: %s", fileinfo.c_str(), strerror(errno));
 	snprintf(buf, 100, "protocol: %d\n", conn->protocol);
 	if (fwrite(buf, strnlen(buf, 100), 1, f) != 1) THROWEXCEPTION("failed to write to file '%s', error: %s", fileinfo.c_str(), strerror(errno));

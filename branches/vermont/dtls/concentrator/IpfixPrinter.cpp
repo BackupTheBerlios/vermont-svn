@@ -119,7 +119,7 @@ static void printUint(IpfixRecord::FieldInfo::Type type, IpfixRecord::Data* data
 		printf("%u",ntohl(*(uint32_t*)data));
 		return;
 	case 8:
-		printf("%Lu",ntohll(*(uint64_t*)data));
+		printf("%Lu",(long long unsigned int)ntohll(*(uint64_t*)data));
 		return;
 	default:
 		for(uint16_t i = 0; i < type.length; i++) {
@@ -272,7 +272,7 @@ void IpfixPrinter::printUint(char* buf, IpfixRecord::FieldInfo::Type type, Ipfix
 		sprintf(buf, "%u",ntohl(*(uint32_t*)data));
 		return;
 	case 8:
-		sprintf(buf, "%Lu",ntohll(*(uint64_t*)data));
+		sprintf(buf, "%Lu",(long long unsigned int) ntohll(*(uint64_t*)data));
 		return;
 	default:
 		msg(MSG_ERROR, "Uint with length %d unparseable", type.length);
