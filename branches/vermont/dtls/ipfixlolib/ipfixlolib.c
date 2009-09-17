@@ -64,7 +64,7 @@ static void dtls_fail_connection(ipfix_dtls_connection *con);
 #endif
 #ifdef SUPPORT_SCTP
 static int init_send_sctp_socket(struct sockaddr_in serv_addr);
-static void handle_sctp_event(BIO *bio, void *buf, void *con);
+static void handle_sctp_event(BIO *bio, void *context, void *buf);
 #endif
 static int init_send_udp_socket(struct sockaddr_in serv_addr);
 static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id);
@@ -2751,7 +2751,7 @@ int ipfix_enterprise_flag_set(uint16_t id)
 
 #ifdef SUPPORT_SCTP
 static void
-   handle_sctp_event(BIO *bio, void *buf, void *context)
+   handle_sctp_event(BIO *bio, void *context, void *buf)
    {
 #if 0
        ipfix_dtls_connection *con = (ipfix_dtls_connection *) context;

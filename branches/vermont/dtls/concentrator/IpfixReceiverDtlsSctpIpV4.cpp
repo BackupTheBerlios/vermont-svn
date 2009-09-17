@@ -204,6 +204,7 @@ void IpfixReceiverDtlsSctpIpV4::run() {
 		}
 	    }else{
 		msg(MSG_ERROR ,"accept() in ipfixReceiver failed");
+		/* TODO: Don't throw an exception here. */
 		THROWEXCEPTION("IpfixReceiverDtlsSctpIpV4: unable to accept new connection");
 	    }
 	}
@@ -301,6 +302,7 @@ int IpfixReceiverDtlsSctpIpV4::DtlsConnection::fdready() {
     error = SSL_get_error(ssl,ret);
 #ifdef DEBUG
     msg_openssl_return_code(MSG_DEBUG,"SSL_read()",ret,error);
+    DPRINTF("Error: %s",strerror(errno));
     DPRINTF("Received shutdown: %s",SSL_get_shutdown(ssl) & SSL_RECEIVED_SHUTDOWN ? "yes":"no");
 #endif
     if (ret<0) {
