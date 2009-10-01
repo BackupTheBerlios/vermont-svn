@@ -33,16 +33,20 @@ Graph::Graph() : reserved(30)
 
 Graph::~Graph()
 {
+	DPRINTF("~Graph()");
 	std::vector<CfgNode*> ts = topoSort();
 	
 	for (size_t i = 0; i < reserved; i++) {
 		for (size_t j = 0; j < nodes.size(); j++) {
 			if (matrix[i][j] != NULL) // free all edges
 				delete matrix[i][j];
+			matrix[i][j] = NULL;
 		}
 		delete [] matrix[i];
+		matrix[i] = NULL;
 	}
 	delete [] matrix;
+	matrix = NULL;
 	
 	// we delete in topological order so that we never get into a race
 	// where a module (which is deleted by the Cfg) is still running and wants to
@@ -51,6 +55,7 @@ Graph::~Graph()
 	for (size_t i = 0; i < ts.size(); i++) {
 		delete ts[i];
 	}
+	DPRINTF("~Graph() done");
 }
 
 CfgNode* Graph::addNode(Cfg* cfg)
