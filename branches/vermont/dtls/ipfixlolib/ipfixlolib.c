@@ -64,7 +64,9 @@ static void dtls_fail_connection(ipfix_dtls_connection *con);
 #endif
 #ifdef SUPPORT_SCTP
 static int init_send_sctp_socket(struct sockaddr_in serv_addr);
+#ifdef SUPPORT_DTLS_OVER_SCTP
 static void handle_sctp_event(BIO *bio, void *context, void *buf);
+#endif
 #endif
 static int init_send_udp_socket(struct sockaddr_in serv_addr);
 static int ipfix_find_template(ipfix_exporter *exporter, uint16_t template_id);
@@ -686,9 +688,13 @@ static int init_send_sctp_socket(struct sockaddr_in serv_addr){
     }
     struct sctp_event_subscribe event;
     /* enable the reception of SCTP_SNDRCV information on a per
-     * message basis. */
+     * message basis.
+     * Also enable sender dry event notifications.*/
     memset(&event, 0, sizeof(event));
+    event.sctp_data_io_event = 1;
+#ifdef SUPPORT_DTLS_OVER_SCTP
     event.sctp_sender_dry_event = 1;
+#endif
     if (setsockopt(s, IPPROTO_SCTP, SCTP_EVENTS, &event, sizeof(event)) != 0) {
 	    msg(MSG_ERROR, "IPFIX: SCTP: setsockopt() failed to enable sctp_data_io_event, %s", strerror(errno));
 	    close(s);
@@ -2749,7 +2755,7 @@ int ipfix_enterprise_flag_set(uint16_t id)
         return bit_set(id, IPFIX_ENTERPRISE_FLAG);
 }
 
-#ifdef SUPPORT_SCTP
+#ifdef SUPPORT_DTLS_OVER_SCTP
 static void
    handle_sctp_event(BIO *bio, void *context, void *buf)
    {
@@ -2760,7 +2766,9 @@ static void
        struct sctp_send_failed *ssf;
        struct sctp_paddr_change *spc;
        struct sctp_remote_error *sre;
+#ifdef SUPPORT_DTLS_OVER_SCTP
        struct sctp_sender_dry_event *ssde;
+#endif
        union sctp_notification *snp;
        char addrbuf[INET6_ADDRSTRLEN];
        const char *ap;
@@ -2804,6 +2812,7 @@ static void
        case SCTP_SHUTDOWN_EVENT:
              msg(MSG_DEBUG,"SCTP Event: shutdown event\n");
              break;
+#ifdef SUPPORT_DTLS_OVER_SCTP
        case SCTP_SENDER_DRY_EVENT:
 	     ssde = &snp->sn_sender_dry_event;
              msg(MSG_DEBUG,"SCTP Event: sender dry event\n");
@@ -2811,6 +2820,7 @@ static void
        case SCTP_AUTHENTICATION_EVENT:
              msg(MSG_DEBUG,"SCTP Event: authentication event\n");
              break;
+#endif
        default:
              msg(MSG_DEBUG,"SCTP Event: unknown type: %hu\n", snp->sn_header.sn_type);
              break;
