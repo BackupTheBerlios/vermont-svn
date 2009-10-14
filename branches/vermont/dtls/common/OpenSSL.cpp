@@ -228,13 +228,17 @@ int check_x509_cert(X509 *peer, int (*cb)(void *context, const char *dnsname), v
 	}
 
     }
-    if (X509_NAME_get_text_by_NID
+    if ((len = X509_NAME_get_text_by_NID
 	    (X509_get_subject_name(peer),
-	     NID_commonName, buf, sizeof buf) <=0 ) {
+	     NID_commonName, buf, sizeof buf)) <=0 ) {
 	DPRINTF("CN not part of certificate");
     } else {
+	if (len != strlen(buf)) {
+	    msg(MSG_ERROR,"malformed X509 cert: CN invalid");
+		    return 0;
+	}
 	DPRINTF("most specific (1st) Common Name: %s",buf);
-	if ( (*cb)(context, dnsname) ) {
+	if ( (*cb)(context, buf) ) {
 	    DPRINTF("Common Name (CN) matched one of the "
 		    "permitted FQDNs");
 	    return 1;
