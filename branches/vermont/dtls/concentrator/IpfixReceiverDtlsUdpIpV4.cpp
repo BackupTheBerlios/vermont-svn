@@ -58,11 +58,12 @@ IpfixReceiverDtlsUdpIpV4::IpfixReceiverDtlsUdpIpV4(int port, const std::string i
 	const std::string &certificateChainFile, const std::string &privateKeyFile,
 	const std::string &caFile, const std::string &caPath,
 	const std::set<string> &peerFqdnsParam)
-    : IpfixReceiver(port),listen_socket(-1),peerFqdns(peerFqdnsParam),
+    : IpfixReceiver(port),listen_socket(-1),
+	ssl_ctx(certificateChainFile,privateKeyFile,caFile,caPath, ! peerFqdnsParam.empty()),
+	peerFqdns(peerFqdnsParam),
 	statReceivedPackets(0),
-	connections(my_CompareSourceID),
-	ssl_ctx(certificateChainFile,privateKeyFile,caFile,caPath,
-		! peerFqdnsParam.empty()) {
+	connections(my_CompareSourceID)
+	 {
     struct sockaddr_in serverAddress;
 
     try {
