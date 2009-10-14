@@ -491,7 +491,6 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
     /* Set verification parameters and cipherlist */
     if (!col->peer_fqdn) {
 	SSL_set_cipher_list(con->ssl,"ALL"); // This includes anonymous ciphers
-	SSL_set_cipher_list(con->ssl,"eNULL");
 	DPRINTF("We are NOT going to verify the certificates of the collectors b/c "
 		"the peerFqdn option is NOT set.");
     } else {
