@@ -31,12 +31,12 @@
 
 
 InstanceManager<IpfixTemplateRecord> IpfixDbReader::templateRecordIM("DbReaderIpfixTemplateRecord", 1);
-InstanceManager<IpfixDataRecord> IpfixDbReader::dataRecordIM("DbReaderIpfixDataRecord");
+InstanceManager<IpfixDataRecord> IpfixDbReader::dataRecordIM("DbReaderIpfixDataRecord", 50);
 InstanceManager<IpfixTemplateDestructionRecord> IpfixDbReader::templateDestructionRecordIM("DbReaderIpfixTemplateDestructionRecord", 1);
 
 /***** Internal Functions ****************************************************/
 
-void copyUintNetByteOrder(IpfixRecord::Data* dest, char* src, TemplateInfo::FieldInfo::Type type);
+void copyUintNetByteOrder(IpfixRecord::Data* dest, char* src, InformationElement::IeInfo type);
 
 /**
  * First send a a new template, then send the dataTemplates for all stored
@@ -104,7 +104,7 @@ int IpfixDbReader::dbReaderSendNewTemplate(boost::shared_ptr<TemplateInfo> templ
 }
 
 
-void copyUintNetByteOrder(IpfixRecord::Data* dest, char* src, TemplateInfo::FieldInfo::Type type) {
+void copyUintNetByteOrder(IpfixRecord::Data* dest, char* src, InformationElement::IeInfo type) {
         switch (type.length) {
         case 1:
 		*(uint8_t*)dest = *(uint8_t*)src;
