@@ -1788,6 +1788,7 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
 				= sizeof(ipfix_compressed_set_header);
 	} else {
 #endif
+		manager->set_header_store[current].set_id = template_id;
 		// link current set header in entries
 		exporter->data_sendbuffer->entries[exporter->data_sendbuffer->current].iov_base
 				= &(manager->set_header_store[current]);
@@ -1845,7 +1846,7 @@ int ipfix_end_data_set(ipfix_exporter *exporter, uint16_t number_of_records)
 			return -1;
 		}
 		manager->compressed_set_header_store[current].length = (uint8_t)record_length;
-	};
+	}
 #endif
 	// update the sendbuffer
 	exporter->data_sendbuffer->committed_data_length += record_length;
@@ -2317,10 +2318,10 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
 	 set pointers:
 	 beginning of the buffer
 	 */
-#ifdef SUPPORT_COMPRESSED_IPFIX
 	p_pos = exporter->template_arr[found_index].template_fields;
-	// end of the buffer
 	p_end = p_pos + exporter->template_arr[found_index].max_fields_length;
+#ifdef SUPPORT_COMPRESSED_IPFIX
+	// end of the buffer
 	if (exporter->compressed_ipfix) {
 		// add offset of 1 bytes to the buffer's beginning: this is, where we will write to.
 		p_pos += 1;
