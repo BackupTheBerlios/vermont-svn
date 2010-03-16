@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+	<xmlBlasters>
+	  <xmlBlaster>
+		  <prop>managerID module-manager</prop>
+		  <prop>plugin/socket/hostname 127.0.0.1</prop>
+		  <prop>plugin/socket/port 7607</prop>
+		  <prop>queue/connection/type RAM</prop>
+		  <prop>xmlBlaster/logging/configFileName log4cplus.properties</prop>
+		  <prop>log4cplus.rootLogger WARN, STDOUT</prop>
+		</xmlBlaster>
+	</xmlBlasters>
+
+	<preferences>
+    <logfile>wkp.log</logfile>
+    <logfile_output_verbosity>0</logfile_output_verbosity>
+    <warning_verbosity>5</warning_verbosity>
+    <accepted_source_ids>all</accepted_source_ids>
+    <alarm_time>10</alarm_time>
+
+    <endpoint_key>
+      <port />
+      <protocol />
+      <address />
+    </endpoint_key>
+    <netmask>32</netmask>
+
+    <offline_file>test.txt</offline_file>
+    <endpoints_to_monitor>all</endpoints_to_monitor>
+
+    <use_pca>false</use_pca>
+    <pca_learning_phase>25</pca_learning_phase>
+    <use_correlation_matrix>false</use_correlation_matrix>
+
+    <metrics>
+      <packets_in />
+      <bytes_in />
+    </metrics>
+
+    <noise_threshold_packets>0</noise_threshold_packets>
+    <noise_threshold_bytes>0</noise_threshold_bytes>
+    <endpointlist_maxsize>1000000</endpointlist_maxsize>
+    <stat_test_frequency>1</stat_test_frequency>
+    <report_only_first_attack>true</report_only_first_attack>
+    <pause_update_when_attack>0</pause_update_when_attack>
+	</preferences>
+
+  <cusum_parameters>
+    <cusum_test>true</cusum_test>
+    <amplitude_percentage>1.66</amplitude_percentage>
+    <repetition_factor>3</repetition_factor>
+    <cusum_learning_phase>50</cusum_learning_phase>
+    <smoothing_constant>0.05</smoothing_constant>
+    <log_variance_ewma>true</log_variance_ewma>
+  </cusum_parameters>
+
+	<wkp_parameters>
+		<wmw_test>true</wmw_test>
+		<ks_test>true</ks_test>
+		<pcs_test>true</pcs_test>
+		<old_sample_size>30</old_sample_size>
+		<new_sample_size>6</new_sample_size>
+		<wmw_one_sided>false</wmw_one_sided>
+		<significance_level>0.01</significance_level>
+	</wkp_parameters>
+
+</configuration>
