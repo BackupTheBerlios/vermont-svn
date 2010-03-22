@@ -66,8 +66,8 @@ extern "C" {
 #define IPFIX_VERSION_NUMBER 0x000a
 
 /*
- * amount of iovec, the header consumes
- * change only, if you change the internal code!
+ * Amount of iovec, the header consumes.
+ * Change only, if you change the internal code!
  */
 #define HEADER_USED_IOVEC_COUNT 1
 
@@ -78,7 +78,7 @@ extern "C" {
 #define IPFIX_MAX_COLLECTORS 16
 
 /*
- * maximum number of templates at a time
+ * maximum number of templates at a time;
  * can be specified by user
  */
 #define IPFIX_MAX_TEMPLATES 16
@@ -123,89 +123,106 @@ extern "C" {
  */
 #define IPFIX_MAX_PACKETSIZE (1<<16)
 
+/* MTU considerations apply to UDP and DTLS over UDP only. */
+
+/* The MTU is set by the user. Path MTU discovery is turned off. */
+#define IPFIX_MTU_FIXED 0
+/* Path MTU discovery is turned on. */
+#define IPFIX_MTU_DISCOVER 1
+
 /*
  * Stevens: The maximum size of an IPv4 datagram is 65535 bytes, including
  * the IPv4 header. This is because of the 16-bit total length field.
  */
-// #define IPFIX_DEFAULT_MTU 65535
-#define IPFIX_DEFAULT_MTU 1500
+#define IPFIX_MTU_MAX UINT16_MAX
+/* Use a very conservative default MTU so that it even works with IPSec over PPPoE */
+#define IPFIX_MTU_CONSERVATIVE_DEFAULT 1400
 
-/*
- * This macro appends data to the sendbuffer. If the sendbuffer is too small,
- * it will print an error message and set errno to -1.
- expoter->mtu = mtu;
- */
+#ifdef IP_MTU_DISCOVER
+/* basically Linux */
+#define IPFIX_MTU_DEFAULT IPFIX_MTU_MAX
+#define IPFIX_MTU_MODE_DEFAULT IPFIX_MTU_DISCOVER
+#else
+/* non-Linux, mostly FreeBSD */
+#define IPFIX_MTU_DEFAULT IPFIX_MTU_CONSERVATIVE_DEFAULT
+#define IPFIX_MTU_MODE_DEFAULT IPFIX_MTU_FIXED
+#endif
 
-/* #define ipfix_add_data2sendbuffer(SENDBUF, POINTER, LENGTH) { \ */
-/*   if ((*SENDBUF).current >= (*SENDBUF).length-2 ) { \ */
-/*     fprintf (stderr, "Error: Sendbuffer too small to handle %i entries!\n", (*SENDBUF).current ); \ */
-/*     errno = -1; \ */
-/*   } \ */
-/*   ((*SENDBUF).entries[ (*SENDBUF).current ]).iov_base = POINTER; \ */
-/*   ((*SENDBUF).entries[ (*SENDBUF).current ]).iov_len =  LENGTH; \ */
-/*   (*SENDBUF).current++; \ */
-/* }   */
-/*
-#define ipfix_put_field2sendbuffer(SENDBUF, POINTER, LENGTH) { \
-  if ((SENDBUF->current + 1) >= IPFIX_MAX_SENDBUFSIZE ) { \
-    msg(MSG_ERROR, "IPFIX: Sendbuffer too small to handle  %i entries!\n", SENDBUF->current ); \
-    errno = -1; \
-  } \
-  (SENDBUF->entries[ SENDBUF->current ]).iov_base = POINTER; \
-  (SENDBUF->entries[ SENDBUF->current ]).iov_len =  LENGTH; \
-  SENDBUF->current++; \
-  (SENDBUF->set_manager).data_length+= LENGTH; \
-}
-*/
 
 /* Struct containing an ipfix-header */
-/*     Header Format (see draft-ietf-ipfix-protocol-03.txt) */
+/*     Header Format (see RFC 5101)
 
-/*     0                   1                   2                   3 */
-/*     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 */
+3.1. Message Header Format
 
-/*    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ */
-/*    |       Version Number          |            Length             | */
-/*    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ */
-/*    |                           Export Time                         | */
-/*    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ */
-/*    |                       Sequence Number                         | */
-/*    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ */
-/*    |                          Source ID                            | */
-/*    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ */
-/*    Message Header Field Descriptions */
 
-/*    Version */
-/*            Version of Flow Record format exported in this message. The */
-/*            value of this field is 0x000a for the current version. */
+   The format of the IPFIX Message Header is shown in Figure F.
 
-/*    Length */
-/*            Total Length is the length of the IPFIX message, measured in */
-/*            octets, including message Header and FlowSet(s). */
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |       Version Number          |            Length             |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                           Export Time                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Sequence Number                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Observation Domain ID                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-/*    Export Time */
-/*            Time in seconds since 0000 UTC 1970, at which the Export */
-/*            Packet leaves the Exporter. */
+   Figure F: IPFIX Message Header Format
 
-/*    Sequence Number */
-/*            Incremental sequence counter of all IPFIX Messages sent from */
-/*            the current Observation Domain by the Exporting Process. */
-/*            This value MUST SHOULD be used by the Collecting Process to */
-/*            identify whether any IPFIX Messages have been missed. */
+   Message Header Field Descriptions:
 
-/*    Source ID */
-/*            A 32-bit value that identifies the Exporter Process */
-/*            Observation Domain. Collecting Process SHOULD use the */
-/*            combination of the source IP address and the Source ID field */
-/*            to separate different export streams originating from the */
-/*            same Exporting Process. */
+   Version
+
+      Version of Flow Record format exported in this message.  The value
+      of this field is 0x000a for the current version, incrementing by
+      one the version used in the NetFlow services export version 9
+      [RFC3954].
+
+   Length
+
+      Total length of the IPFIX Message, measured in octets, including
+      Message Header and Set(s).
+
+   Export Time
+
+      Time, in seconds, since 0000 UTC Jan 1, 1970, at which the IPFIX
+      Message Header leaves the Exporter.
+
+   Sequence Number
+
+      Incremental sequence counter modulo 2^32 of all IPFIX Data Records
+      sent on this PR-SCTP stream from the current Observation Domain by
+      the Exporting Process.  Check the specific meaning of this field
+      in the subsections of Section 10 when UDP or TCP is selected as
+      the transport protocol.  This value SHOULD be used by the
+      Collecting Process to identify whether any IPFIX Data Records have
+      been missed.  Template and Options Template Records do not
+      increase the Sequence Number.
+
+   Observation Domain ID
+
+      A 32-bit identifier of the Observation Domain that is locally
+      unique to the Exporting Process.  The Exporting Process uses the
+      Observation Domain ID to uniquely identify to the Collecting
+      Process the Observation Domain that metered the Flows.  It is
+      RECOMMENDED that this identifier also be unique per IPFIX Device.
+      Collecting Processes SHOULD use the Transport Session and the
+      Observation Domain ID field to separate different export streams
+      originating from the same Exporting Process.  The Observation
+      Domain ID SHOULD be 0 when no specific Observation Domain ID is
+      relevant for the entire IPFIX Message, for example, when exporting
+      the Exporting Process Statistics, or in case of a hierarchy of
+      Collectors when aggregated Data Records are exported.
+      */
 
 typedef struct {
 	uint16_t version;
 	uint16_t length;
 	uint32_t export_time;
 	uint32_t sequence_number;
-	uint32_t source_id;
+	uint32_t observation_domain_id;
 } ipfix_header;
 
 /*  Set Header:
@@ -238,8 +255,23 @@ enum ipfix_transport_protocol {
 	};
 
 typedef struct {
+    uint16_t mtu; /* Maximum transmission unit.
+		     If 0, PMTU discovery will be used.
+		     Applies to UDP and DTLS only. */
+} ipfix_aux_config_udp;
+
+typedef struct {
     const char *peer_fqdn;
 } ipfix_aux_config_dtls;
+
+typedef struct {
+    ipfix_aux_config_dtls dtls;
+    ipfix_aux_config_udp udp;
+} ipfix_aux_config_dtls_over_udp;
+
+typedef struct {
+    ipfix_aux_config_dtls dtls;
+} ipfix_aux_config_dtls_over_sctp;
 
 /*
  * These indicate, if a field is commited (i.e. can be used)
@@ -257,7 +289,7 @@ enum template_state {T_UNUSED, T_UNCLEAN, T_COMMITED, T_SENT, T_WITHDRAWN, T_TOB
  * sets the state to C_CONNECTED. If connection is lost and the socket closed
  * state changes to C_DISCONNECTED and reconnection attempts can take place
 */
-/* The lifecycles of the connections to a collector of type DTLS over UDP
+/* The lifecycles of connections of type DTLS over UDP
  * and plain UDP are as follows:
  *
  * DTLS over UDP:
@@ -302,7 +334,7 @@ typedef struct{
 
 
 /*
- * A struct buffering data of an ipfix packet
+ * A struct buffering data of an IPFIX Message
  */
 typedef struct {
 	struct iovec entries[IPFIX_MAX_SENDBUFSIZE]; /* an array of iovec structs, containing data and length */
@@ -336,6 +368,7 @@ typedef struct {
 	time_t last_reconnect_attempt_time;
 } ipfix_dtls_connection;
 #endif
+
 /*
  * A collector receiving messages from this exporter
  */
@@ -348,10 +381,9 @@ typedef struct {
 	struct sockaddr_in addr;
 	uint32_t last_reconnect_attempt_time; // applies only to SCTP and DTLS at the moment
 	enum collector_state state;
+	int mtu_mode; /* Either IPFIX_MTU_FIXED or IPFIX_MTU_DISCOVER */
 	uint16_t mtu; /* Maximum transmission unit.
-			 Applies to UDP and DTLS only.
-		         mtu is set to IPFIX_DEFAULT_MTU in
-		         ipfix_add_collector(). */
+			 Applies to UDP and DTLS over UDP only. */
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
 	int packets_written; /**< if protcol==RAWDIR: number of packets written to packet_directory_path. Ignored otherwise. */
@@ -365,7 +397,7 @@ typedef struct {
 	ipfix_dtls_connection dtls_replacement;
 	time_t connect_time; /* point in time when the connection setup
 				succeeded. We need this to calculate the
-				age of a connection. If DTLS is used
+				age of a connection. If DTLS is used,
 				a connection rollover is performed when
 				a connection reaches a certain age.*/
 	const char *peer_fqdn;
@@ -404,10 +436,12 @@ typedef struct{
 typedef struct {
 	uint32_t sequence_number; // total number of data records 
 	uint32_t sn_increment; // to be added to sequence number before sending data records
-	uint32_t source_id;
-	uint16_t mtu; /* Maximum transmission unit.
-		       * Applies to UDP and DTLS over UDP only.
-		       * This is the minimum of all collectors' MTUs.
+	uint32_t observation_domain_id;
+	uint16_t max_message_size; /* Maximum size of an IPFIX message.
+		       * This is the maximum size that all collectors allow.
+		       * If a new collector is added that only allows
+		       * smaller IPFIX messages, this value has to be
+		       * updated.
 		       * Only observed when sending messages
 		       * containing data sets. IPFIX messages
 		       * containing template sets might get
@@ -447,8 +481,9 @@ typedef struct {
 } ipfix_exporter;
 
 
+void ipfix_beat(ipfix_exporter *exporter); /* enables ipfixlolib to continue non-blocking connection setup */
 /* generated by genproto */
-int ipfix_init_exporter(uint32_t source_id, ipfix_exporter **exporter);
+int ipfix_init_exporter(uint32_t observation_domain_id, ipfix_exporter **exporter);
 int ipfix_deinit_exporter(ipfix_exporter *exporter);
 
 int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int coll_port, enum ipfix_transport_protocol proto, void *aux_config);
@@ -471,7 +506,6 @@ int ipfix_cancel_data_set(ipfix_exporter *exporter);
 int ipfix_set_data_field_marker(ipfix_exporter *exporter);
 int ipfix_delete_data_fields_upto_marker(ipfix_exporter *exporter);
 int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void* data, uint16_t data_length);
-int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template* templ);
 int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id);
 int ipfix_send(ipfix_exporter *exporter);
 int ipfix_enterprise_flag_set(uint16_t id);
