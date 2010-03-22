@@ -48,6 +48,8 @@ public:
 	void addCollector(const char *ip, uint16_t port, ipfix_transport_protocol proto, void *aux_config);
 	void flushPacket();
 
+	virtual void notifyQueueRunning();
+
 	// inherited from IpfixRecordDestination
 	virtual void onTemplate(IpfixTemplateRecord* record) {
 		// FIXME: not sure how to deal with this
@@ -66,7 +68,6 @@ public:
 	
 	// inherited from Notifiable
 	virtual void onTimeout(void* dataPtr);
-
 
 	virtual void onReconfiguration2();
 	virtual string getStatisticsXML(double interval);
@@ -88,14 +89,16 @@ protected:
 	static void* threadWrapper(void* instance);
 	void processLoop();
 	void removeRecordReferences();
-	void endAndSendDataSet();
+	void endDataSet();
+	void sendDataSet();
 
 	void startDataSet(uint16_t templateId, uint16_t dataLength);
 	bool isTemplateRegistered(IpfixRecord::TemplateInfo* ti);
 	void removeRegisteredTemplate(IpfixRecord::TemplateInfo* ti);
 	void addRegisteredTemplate(boost::shared_ptr<IpfixRecord::TemplateInfo> ti);
-	void sendRecords(bool forcesend = false);
+	void sendRecords();
 	void registerTimeout();
+	void registerBeatTimeout();
 
 
 private:
@@ -105,6 +108,7 @@ private:
 	uint16_t currentTemplateId; /**< Template ID of the unfinished data set */
 	uint16_t remainingSpace; /**< Remaining space in current IPFIX message measured in bytes. */
 	uint16_t noCachedRecords; /**< number of records already passed to ipfixlob, should be equal to recordsToRelease.size() */
+	uint16_t noRecordsInCurrentSet; /**< Number of records in current data set. */
 	list<boost::shared_ptr<IpfixRecord::TemplateInfo> > registeredTemplates; /**< contains all templates which were already registered in ipfixlolib */
 	
 	uint16_t recordCacheTimeout; /**< how long may records be cached until sent, milliseconds */
@@ -114,12 +118,17 @@ private:
 	uint32_t recordsSentStep; /**< number of records sent in timestep (usually 100ms)*/
 	uint32_t maxRecordRate;  /** maximum number of records per seconds to be sent over the wire */
 
+	int timeoutSendRecords; /**< Dummy variable. Used as a pointer destination to distinguish between two dirrent types of timeout */
+	int timeoutIpfixlolibBeat; /**< Dummy variable. Used as a pointer destination to distinguish between two dirrent types of timeout */
+
 	// Set up time after that Templates are going to be resent
 	bool setTemplateTransmissionTimer(uint32_t timer){
 		ipfix_set_template_transmission_timer(ipfixExporter, timer);
 		
 		return true;
 	}
+	void onSendRecordsTimeout(void);
+	void onBeatTimeout(void);
 
 };
 

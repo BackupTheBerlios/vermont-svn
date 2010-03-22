@@ -53,10 +53,13 @@ IpfixSender::IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, u
 	: statSentPackets(0),
 	  remainingSpace(0),
 	  noCachedRecords(0),
+	  noRecordsInCurrentSet(0),
 	  recordCacheTimeout(IS_DEFAULT_RECORDCACHETIMEOUT),
 	  timeoutRegistered(false),
 	  recordsAlreadySent(false),
-	  maxRecordRate(maxRecordRate)
+	  maxRecordRate(maxRecordRate),
+	  timeoutSendRecords(0),
+	  timeoutIpfixlolibBeat(0)
 {
 	const char *certificate_chain_file = NULL;
 	const char *private_key_file = NULL;
@@ -95,8 +98,6 @@ IpfixSender::IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, u
 	if (ca_file || ca_path)
 		ipfix_set_ca_locations(ipfixExporter, ca_file, ca_path);
 
-
-	msg(MSG_DEBUG, "IpfixSender: running");
 	return;
 
 out:
@@ -110,9 +111,7 @@ out:
 IpfixSender::~IpfixSender()
 {
 	shutdown(false);
-
-	ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
-	ipfix_deinit_exporter(exporter);
+	ipfix_deinit_exporter(ipfixExporter);
 }
 
 /**
@@ -160,6 +159,7 @@ void IpfixSender::addCollector(const char *ip, uint16_t port, ipfix_transport_pr
 		msg(MSG_FATAL, "IpfixSender: ipfix_add_collector of %s:%d failed", ip, port);
 		return;
 	}
+
 }
 
 
@@ -342,7 +342,7 @@ void IpfixSender::onDataTemplate(IpfixDataTemplateRecord* record)
 
 	msg(MSG_INFO, "sndIpfix created template with ID %u", my_template_id);
 
-	sendRecords();
+	registerTimeout();
 }
 
 /**
@@ -374,7 +374,7 @@ void IpfixSender::onDataTemplateDestruction(IpfixDataTemplateDestructionRecord* 
 
 	free(record->dataTemplateInfo->userData);
 
-	sendRecords();
+	registerTimeout();
 }
 
 
@@ -388,18 +388,20 @@ void IpfixSender::startDataSet(uint16_t templateId, uint16_t dataLength)
 {
 	ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
 	uint16_t my_n_template_id = htons(templateId);
-
-	/* check if we can use the current Data Set */
-	if((remainingSpace >= dataLength) && (templateId == currentTemplateId))
+	if (currentTemplateId == 0)
+		; /* Do nothing */
+	else if(templateId != currentTemplateId) {
+		endDataSet();
+		if (remainingSpace < dataLength + IPFIX_OVERHEAD_PER_SET) {
+			sendDataSet();
+		}
+	} else if (remainingSpace < dataLength) {
+		endDataSet();
+		sendDataSet();
+	} else {
 		return;
-
-	/* ASK: We can send more than one set in one message */
-	if(noCachedRecords > 0)
-		endAndSendDataSet();
-
-	/* TODO: Check if there's space for the set header
-	 * (IPFIX_OVERHEAD_PER_SET)
-	 * plus dataLength. */
+	}
+		
 	if (ipfix_start_data_set(exporter, my_n_template_id) != 0 ) {
 		THROWEXCEPTION("sndIpfix: ipfix_start_data_set failed!");
 	}
@@ -409,46 +411,41 @@ void IpfixSender::startDataSet(uint16_t templateId, uint16_t dataLength)
 
 
 /**
- * Terminates and sends current Data Set if available.
+ * Terminates current Data Set.
  * @return returns -1 on error, 0 otherwise
  */
-void IpfixSender::endAndSendDataSet()
+void IpfixSender::endDataSet()
 {
-	/* ASK: noCachedRecords==0 does not mean we did not start a data set.
-	 * A data set might still be open. */
-	if(noCachedRecords > 0) {
-		ipfix_exporter* exporter = (ipfix_exporter*)ipfixExporter;
-
-		if (ipfix_end_data_set(exporter, noCachedRecords) != 0) {
-			THROWEXCEPTION("sndIpfix: ipfix_end_data_set failed");
-		}
-
-		// determine if we need to wait (we don't want to exceed the defined packet rate per second)
-		// check in 100ms steps if maximum packet rate is reached - if yes, wait until the 100ms step
-		// is over
-		struct timeval tv;
-		gettimeofday(&tv, 0);
-		if ((tv.tv_sec==curTimeStep.tv_sec) && (tv.tv_usec/100000==curTimeStep.tv_usec/100000)) {
-			if (recordsSentStep>maxRecordRate/10) {
-				// wait until current timestep is over
-				usleep(100000-(tv.tv_usec%100000));
-			}
-		} else {
-			curTimeStep = tv;
-			recordsSentStep = 0;
-		}
-
-		if (ipfix_send(exporter) != 0) {
-			THROWEXCEPTION("sndIpfix: ipfix_send failed");
-		}
-
-		removeRecordReferences();
-
-		currentTemplateId = 0;
+	if (ipfix_end_data_set(ipfixExporter, noRecordsInCurrentSet) != 0) {
+		THROWEXCEPTION("sndIpfix: ipfix_end_data_set failed");
 	}
+	noRecordsInCurrentSet = 0;
+	currentTemplateId = 0;
 }
 
+void IpfixSender::sendDataSet() {
 
+	// determine if we need to wait (we don't want to exceed the defined packet rate per second)
+	// check in 100ms steps if maximum packet rate is reached - if yes, wait until the 100ms step
+	// is over
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	if ((tv.tv_sec==curTimeStep.tv_sec) && (tv.tv_usec/100000==curTimeStep.tv_usec/100000)) {
+		if (recordsSentStep>maxRecordRate/10) {
+			// wait until current timestep is over
+			usleep(100000-(tv.tv_usec%100000));
+		}
+	} else {
+		curTimeStep = tv;
+		recordsSentStep = 0;
+	}
+
+	if (ipfix_send(ipfixExporter) != 0) {
+		THROWEXCEPTION("sndIpfix: ipfix_send failed");
+	}
+
+	removeRecordReferences();
+}
 /**
  * removes references to flows inside buffer recordsToRelease
  */
@@ -517,8 +514,9 @@ void IpfixSender::onDataDataRecord(IpfixDataDataRecord* record)
 	recordsToRelease.push(record);
 
 	noCachedRecords++;
+	noRecordsInCurrentSet++;
 
-	sendRecords();
+	registerTimeout();
 }
 
 /**
@@ -556,17 +554,15 @@ void IpfixSender::onReconfiguration2()
  * sends records to the network
  * @param forcesend to send all records regardless how many were cached
  */
-void IpfixSender::sendRecords(bool forcesend)
+void IpfixSender::sendRecords()
 {
-	if (noCachedRecords == 0) return;
-
-	if (forcesend) {
-		// send packet
-		endAndSendDataSet();
-		statSentPackets++;
-	}
-	// set next timeout
-	addToCurTime(&nextTimeout, recordCacheTimeout);
+	// We cancel the timeout because we're about to send
+	// out all records.
+	timeoutRegistered = false;
+	// send packet
+	endDataSet();
+	sendDataSet();
+	statSentPackets++;
 }
 
 
@@ -576,28 +572,30 @@ void IpfixSender::sendRecords(bool forcesend)
  */
 void IpfixSender::flushPacket()
 {
-	sendRecords(true);
+	sendRecords();
 }
 
 
 /**
  * gets called regularly to send data over the network
  */
+void IpfixSender::onSendRecordsTimeout(void) {
+
+	if (!timeoutRegistered) return;
+	timeval tv;
+	gettimeofday(&tv, 0);
+	if (nextTimeout.tv_sec<tv.tv_sec || (nextTimeout.tv_sec==tv.tv_sec && nextTimeout.tv_nsec<tv.tv_usec*1000)) {
+		sendRecords();
+	}
+}
+void IpfixSender::onBeatTimeout(void) {
+	ipfix_beat(ipfixExporter);
+}
 void IpfixSender::onTimeout(void* dataPtr)
 {
-	timeoutRegistered = false;
-
-	if (recordsAlreadySent) {
-		timeval tv;
-		gettimeofday(&tv, 0);
-		if (nextTimeout.tv_sec>tv.tv_sec || (nextTimeout.tv_sec==tv.tv_sec && nextTimeout.tv_nsec>tv.tv_usec*1000)) {
-			// next timeout is in the future, reregister it
-			timer->addTimeout(this, nextTimeout, NULL);
-			// as the next timeout is not over yet, we don't need to send the records
-			return;
-		}
-	}
-	sendRecords(true);
+	onSendRecordsTimeout();
+	onBeatTimeout();
+	registerBeatTimeout();
 }
 
 /**
@@ -607,10 +605,15 @@ void IpfixSender::onTimeout(void* dataPtr)
 void IpfixSender::registerTimeout()
 {
 	if (timeoutRegistered) return;
-
 	addToCurTime(&nextTimeout, recordCacheTimeout);
-	timer->addTimeout(this, nextTimeout, NULL);
 	timeoutRegistered = true;
+}
+
+void IpfixSender::registerBeatTimeout()
+{
+	timespec to;
+	addToCurTime(&to, 100);
+	timer->addTimeout(this, to, &timeoutIpfixlolibBeat);
 }
 
 /**
@@ -618,7 +621,14 @@ void IpfixSender::registerTimeout()
  */
 void IpfixSender::performShutdown()
 {
-	sendRecords(true);
+	sendRecords();
+}
+
+/**
+ * 
+ */
+void IpfixSender::notifyQueueRunning() {
+	registerBeatTimeout();
 }
 
 /**
@@ -626,7 +636,7 @@ void IpfixSender::performShutdown()
  */
 void IpfixSender::onReconfiguration1()
 {
-	sendRecords(true);
+	sendRecords();
 }
 
 string IpfixSender::getStatisticsXML(double interval)
