@@ -2,6 +2,7 @@
 #define _ANON_MODULE_H_
 
 #include "AnonPrimitive.h"
+#include <stdint.h>
 #include <common/msg.h>
 #include <map>
 #include <vector>
