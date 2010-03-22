@@ -35,16 +35,9 @@ private:
 	uint32_t sctpDataLifetime;
 	uint32_t sctpReconnectInterval;
 
-	/** packet restrictions */
-	uint16_t maxPacketSize;
-	unsigned exportDelay;
-	
 	uint32_t recordRateLimit;
 	uint32_t observationDomainId;
 	
-	int recordsPerPacket;
-	int recordLength;
-
 	/** DTLS parameters */
 	std::string certificateChainFile;
 	std::string privateKeyFile;

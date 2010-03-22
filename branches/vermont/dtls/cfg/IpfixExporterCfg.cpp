@@ -4,7 +4,6 @@ IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 	: CfgHelper<IpfixSender, IpfixExporterCfg>(elem, "ipfixExporter"),
 	templateRefreshTime(IS_DEFAULT_TEMPLATE_TIMEINTERVAL), templateRefreshRate(0),	
 	sctpDataLifetime(0), sctpReconnectInterval(0),
-	maxPacketSize(0), exportDelay(0),
 	recordRateLimit(0), observationDomainId(0)
 {
 
@@ -13,8 +12,8 @@ IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 	}
 	
 	recordRateLimit = getInt("maxRecordRate", IS_DEFAULT_MAXRECORDRATE);
-	observationDomainId = getInt("observationDomainId", 0);
 	msg(MSG_INFO, "Exporter: using maximum rate of %d records/second", recordRateLimit);
+	observationDomainId = getInt("observationDomainId", 0);
 	sctpDataLifetime = getTimeInUnit("sctpDataLifetime", mSEC, IS_DEFAULT_SCTP_DATALIFETIME);
 	sctpReconnectInterval = getTimeInUnit("sctpReconnectInterval", SEC, IS_DEFAULT_SCTP_RECONNECTINTERVAL);
 	templateRefreshRate = getInt("templateRefreshRate", IS_DEFAULT_TEMPLATE_RECORDINTERVAL);
@@ -92,15 +91,37 @@ IpfixSender* IpfixExporterCfg::createInstance()
 				p->getPort());
 #endif
 		void *aux_config = NULL;
-		ipfix_aux_config_dtls aux_config_dtls;
-		if (p->getProtocolType() == DTLS_OVER_UDP ||
-		    p->getProtocolType() == DTLS_OVER_SCTP) {
-			aux_config_dtls.peer_fqdn = NULL;
+		ipfix_aux_config_dtls_over_udp acdou;
+		ipfix_aux_config_dtls_over_sctp acdos;
+		ipfix_aux_config_udp acu;
+		ipfix_aux_config_udp *pacu = NULL;
+		ipfix_aux_config_dtls *pacd = NULL;
+		switch (p->getProtocolType()) {
+			case DTLS_OVER_UDP:
+				pacd = &acdou.dtls;
+				pacu = &acu;
+				aux_config = &acdou;
+				break;
+			case DTLS_OVER_SCTP:
+				pacd = &acdos.dtls;
+				aux_config = &acdos;
+				break;
+			case UDP:
+				aux_config = &acu;
+				pacu = &acu;
+				break;
+			default:
+				break;
+		}
+		if (pacd) {
+			pacd->peer_fqdn = NULL;
 			const std::set<std::string> peerFqdns = p->getPeerFqdns();
 			std::set<std::string>::const_iterator it = peerFqdns.begin();
 			if (it != peerFqdns.end())
-				aux_config_dtls.peer_fqdn = it->c_str();
-			aux_config = &aux_config_dtls;
+				pacd->peer_fqdn = it->c_str();
+		}
+		if (pacu) {
+			pacu->mtu = p->getMtu();
 		}
 		instance->addCollector(
 			p->getIpAddress().c_str(),
@@ -125,8 +146,6 @@ bool IpfixExporterCfg::deriveFrom(IpfixExporterCfg* other)
 
 bool IpfixExporterCfg::equalTo(IpfixExporterCfg* other)
 {
-	if (maxPacketSize != other->maxPacketSize) return false;
-	if (exportDelay != other->exportDelay) return false;
 	if (templateRefreshTime != other->templateRefreshTime) return false;
 	if (templateRefreshRate != other->templateRefreshRate) return false;
 	if (collectors.size() != other->collectors.size()) return false;
