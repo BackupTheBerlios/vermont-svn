@@ -2,14 +2,29 @@ ADD_EXECUTABLE(test_everything
 	test_everything.cc
 )
 
+ADD_EXECUTABLE(mtutest
+	mtutest.c
+)
+
+TARGET_LINK_LIBRARIES(mtutest
+	ipfixlolib
+	common
+	dl
+)
+
 TARGET_LINK_LIBRARIES(test_everything
 	ipfixlolib
 	common
+	dl
 )
 
 IF (WITH_OPENSSL)
 	TARGET_LINK_LIBRARIES(test_everything ${OPENSSL_LIBRARIES})
 	IF (CRYPTO_FOUND)
 		TARGET_LINK_LIBRARIES(test_everything ${CRYPTO_LIBRARIES})
+	ENDIF (CRYPTO_FOUND)
+	TARGET_LINK_LIBRARIES(mtutest ${OPENSSL_LIBRARIES})
+	IF (CRYPTO_FOUND)
+		TARGET_LINK_LIBRARIES(mtutest ${CRYPTO_LIBRARIES})
 	ENDIF (CRYPTO_FOUND)
 ENDIF (WITH_OPENSSL)
