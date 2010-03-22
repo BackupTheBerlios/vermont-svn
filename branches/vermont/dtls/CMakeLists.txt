@@ -328,7 +328,7 @@ OPTION(SUPPORT_DTLS "Enables/Disables encryption support for IPFIX messages." OF
 IF (SUPPORT_DTLS)
 	FIND_PACKAGE(OpenSSL)
 	IF (NOT OPENSSL_FOUND)
-		MESSAGE(FATAL_ERROR "Could not find openssl. Please install the library or turn off WITH_OPENSSL")
+		MESSAGE(FATAL_ERROR "Could not find openssl. Please install the library or turn off SUPPORT_DTLS")
 	ENDIF (NOT OPENSSL_FOUND)
 	INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
 	TARGET_LINK_LIBRARIES(vermont ${OPENSSL_LIBRARIES})
