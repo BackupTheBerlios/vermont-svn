@@ -31,6 +31,10 @@ IpfixCollectorCfg::IpfixCollectorCfg(XMLElement* elem)
 			if (listener)
 				THROWEXCEPTION("listener already set. There can only be one <listener> Element per Collector.");
 			listener = new CollectorCfg(e);
+			if (listener->getMtu() != 0) {
+				delete listener;
+				THROWEXCEPTION("You can not set the MTU for a listener.");
+			}
 		} else if (e->matches("udpTemplateLifetime")) {
 			msg(MSG_DEBUG, "Don't know how to handle udpTemplateLifetime! Ignored.");
 		} else if (e->matches("next")) { // ignore next
