@@ -22,19 +22,25 @@ public:
 		: CfgBase(elem)
 	{
 		try {
+			uint16_t defaultPort;
 			ipAddress = getOptional("ipAddress");
 			string prot = get("transportProtocol");
-			if (prot=="17" || prot=="UDP")
+			if (prot=="17" || prot=="UDP") {
 				protocolType = UDP;
-			else if (prot=="132" || prot=="SCTP")
+				defaultPort = 4739;
+			} else if (prot=="132" || prot=="SCTP") {
 				protocolType = SCTP;
-			else if (prot=="DTLS_OVER_UDP")
+				defaultPort = 4739;
+			} else if (prot=="DTLS_OVER_UDP") {
 				protocolType = DTLS_OVER_UDP;
-			else if (prot=="DTLS_OVER_SCTP")
+				defaultPort = 4740;
+			} else if (prot=="DTLS_OVER_SCTP") {
 				protocolType = DTLS_OVER_SCTP;
-			else 
+				defaultPort = 4740;
+			} else 
 				THROWEXCEPTION("Invalid configuration parameter for transportProtocol (%s)", prot.c_str());
-			port = (uint16_t)getInt("port", 4739);			
+			port = (uint16_t)getInt("port", defaultPort);
+			mtu = (uint16_t)getInt("mtu",0);
 			XMLNode::XMLNodeSet childs = _elem->findChildren("peerFqdn");
 			for (XMLNode::XMLNodeSet::iterator it = childs.begin();
 			     it != childs.end();
@@ -56,6 +62,7 @@ public:
 	ipfix_transport_protocol getProtocolType() { return protocolType; }
 	std::set<std::string> getPeerFqdns() { return peerFqdns; }
 	uint16_t getPort() { return port; }
+	uint16_t getMtu() { return mtu; }
 	
 	bool equalTo(CollectorCfg* other)
 	{
@@ -63,6 +70,7 @@ public:
 			//(ipAddressType == other->ipAddressType) &&
 			(protocolType == other->protocolType) &&
 			(port == other->port) &&
+			(mtu == other->mtu) &&
 			(peerFqdns == other->peerFqdns)) return true;
 		
 		return false;
@@ -73,6 +81,7 @@ private:
 	//unsigned ipAddressType;
 	ipfix_transport_protocol protocolType;
 	uint16_t port;
+	uint16_t mtu;
 	std::set<std::string> peerFqdns;
 };
 
