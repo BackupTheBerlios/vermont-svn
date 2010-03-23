@@ -1907,7 +1907,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 							    col->port_number);
 						} else {
 						    msg(MSG_ERROR,
-							    "ipfix_send_templates(): could not send to %s:%d errno: %s  (UDP)... socket not opened at the collector?",
+							    "ipfix_send_templates(): could not send to %s:%d errno: %s  (UDP)",
 							    col->ipv4address,
 							    col->port_number,
 							    strerror(errno));
@@ -2032,7 +2032,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 
                                 // debugging output of data buffer:
 				/* Keep in mind that the IPFIX message header (16 bytes) is not included
-				   in commited_data_length */
+				   in committed_data_length */
                                 DPRINTFL(MSG_VDEBUG, "Sendbuffer contains %u bytes",  exporter->data_sendbuffer->committed_data_length );
                                 DPRINTFL(MSG_VDEBUG, "Sendbuffer contains %u fields",  exporter->data_sendbuffer->committed );
                                 int tested_length = 0;
@@ -2049,8 +2049,8 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                                         }
                                 }
 				/* Keep in mind that the IPFIX message header (16 bytes) is not included
-				   in commited_data_length. So there should be a difference of 16 bytes
-				   between tested_length and commited_data_length */
+				   in committed_data_length. So there should be a difference of 16 bytes
+				   between tested_length and committed_data_length */
                                 DPRINTFL(MSG_VDEBUG, "IPFIX: Sendbuffer really contains %u bytes!", tested_length );
 #endif
 				switch(col->protocol){
@@ -2062,7 +2062,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						exporter->data_sendbuffer->entries,
 						exporter->data_sendbuffer->committed
 							     )) == -1){
-						msg(MSG_ERROR, "ipfix_send_data(): could not send to %s:%d errno: %s  (UDP)... socket not opened at the collector?",col->ipv4address, col->port_number, strerror(errno));
+						msg(MSG_ERROR, "ipfix_send_data(): could not send to %s:%d errno: %s  (UDP)",col->ipv4address, col->port_number, strerror(errno));
 						if (errno == EMSGSIZE) {
 						    msg(MSG_ERROR, "Updating MTU estimate for collector %s:%d",
 							    col->ipv4address,

@@ -116,7 +116,7 @@ extern "C" {
  * maximum size of a sendbuffer
  * TODO: This value is delibaretely chosen, adapt it if you need it or make it dynamic.
  */
-#define IPFIX_MAX_SENDBUFSIZE 8192
+#define IPFIX_MAX_SENDBUFSIZE (32 * 1024)
 
 /*
  * maximum size of an IPFIX packet
@@ -274,7 +274,7 @@ typedef struct {
 } ipfix_aux_config_dtls_over_sctp;
 
 /*
- * These indicate, if a field is commited (i.e. can be used)
+ * These indicate, if a field is committed (i.e. can be used)
  * unused or unclean (i.e. data is not complete yet)
  * T_SENT (Template was sent) and T_WITHDRAWN (Template destroyed) 
  * are used with SCTP, since Templates are sent only once
@@ -320,7 +320,7 @@ enum collector_state {C_UNUSED, C_NEW, C_DISCONNECTED, C_CONNECTED};
  */
 typedef struct{
 	/* number of the current set. */
-	/* There's a maximum which is IPFIX_MAX_SETS_PER_PACKET.
+	/* The maximum is IPFIX_MAX_SETS_PER_PACKET.
 	 * set_counter also serves as an index into set_header_store. */
 	unsigned set_counter;
 
@@ -345,7 +345,7 @@ typedef struct {
 	     * individual fields of the sets/records
 	 */
 	unsigned current; /* last accessed entry in entries */
-	unsigned committed; /* last commited entry in entries, i.e. when end_data_set was called for the last time */
+	unsigned committed; /* last committed entry in entries, i.e. when end_data_set was called for the last time */
 	unsigned marker; /* marker that allows to delete recently added entries */
 	unsigned committed_data_length; /* length of the contained data (in bytes)
 					 * not including the IPFIX message header. */
@@ -353,7 +353,6 @@ typedef struct {
 				       opinion. Should be message_header
 				       since it's the header of an
 				       IPFIX Message. */
-	//  int uncommited_data_length; /* length of data not yet commited */
 	ipfix_set_manager set_manager; /* Only relevant when sendbuffer used
 					  for data. Not relevant if used for
 					  template sets. */
