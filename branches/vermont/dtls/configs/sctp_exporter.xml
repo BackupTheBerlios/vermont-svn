@@ -120,18 +120,11 @@
 	</ipfixQueue>
 	
 	<ipfixExporter id="8">
-		<cert>configs/example_certs/exporter_cert.pem</cert>
-		<key>configs/example_certs/exporter_key.pem</key>
-		<CAfile>configs/example_certs/vermontCA.pem</CAfile>
-		<CApath>/etc/ssl/certs</CApath>
 		<collector>
 			<ipAddressType>4</ipAddressType>
-			<!-- ipAddress>131.159.20.24</ipAddress -->
 			<ipAddress>127.0.0.1</ipAddress>
-			<transportProtocol>DTLS_OVER_SCTP</transportProtocol>
-			<!-- transportProtocol>UDP</transportProtocol -->
+			<transportProtocol>SCTP</transportProtocol>
 			<port>4433</port>
-			<!-- peerFqdn>collector.example.com</peerFqdn -->
 		</collector>
 	</ipfixExporter>
 </ipfixConfig>
