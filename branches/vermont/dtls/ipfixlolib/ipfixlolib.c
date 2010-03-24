@@ -132,9 +132,7 @@ static int ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
 	}
 	DPRINTF("We successfully loaded our certificate.");
     } else {
-	DPRINTF("We do NOT have a certificate. This means that we can only use "
-		"the anonymous modes of DTLS. This also implies that we can not "
-		"authenticate the client (exporter).");
+	DPRINTF("We do NOT have a certificate.");
     }
     /* We leave the certificate_authorities list of the Certificate Request
      * empty. See RFC 4346 7.4.4. Certificate request. */
@@ -186,10 +184,13 @@ static int dtls_send_templates(
 	ipfix_exporter *exporter,
 	ipfix_receiving_collector *col) {
 
+    if (exporter->template_sendbuffer->committed_data_length == 0)
+	return 0;
+
     ipfix_prepend_header(exporter,
 	exporter->template_sendbuffer->committed_data_length,
 	exporter->template_sendbuffer);
-    DPRINTF("Sending templates.");
+    DPRINTF("Sending templates over DTLS.");
     return dtls_send(exporter,col,
 	exporter->template_sendbuffer->entries,
 	exporter->template_sendbuffer->current);
@@ -233,7 +234,7 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
 	    col->connect_time = time(NULL);
 	    ret = dtls_send_templates(exporter, col);
 	    /* We do not need to check the return value because
-	     * dtls_send_templates already shutdown the DTLS connection
+	     * dtls_send_templates already shuts down the DTLS connection
 	     * in case of failure.
 	     * It also sets state to C_DISCONNECTED in this case. */
 	}
@@ -246,6 +247,13 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
 	    /* SUCCESS */
 	    col->state = C_CONNECTED;
 	    col->connect_time = time(NULL);
+	    /* TODO: Removing the collector might be a bad idea. */
+	    if (update_collector_mtu(exporter, col)) {
+		/* update_collector_mtu calls remove_collector
+		   in case of failure which in turn sets
+		   col->state to C_UNUSED. */
+		return -1;
+	    }
 	    ret = dtls_send_templates(exporter, col);
 	    /* dtls_send (inside dtls_send_templates) calls
 	     * dtls_fail_connection() and sets col->state
@@ -283,6 +291,7 @@ static int dtls_connect(ipfix_receiving_collector *col, ipfix_dtls_connection *c
     error = SSL_get_error(con->ssl,ret);
     msg_openssl_return_code(MSG_DEBUG,"SSL_connect()",ret,error);
     if (error == SSL_ERROR_NONE) {
+	msg(MSG_INFO,"TLS Cipher: %s",SSL_get_cipher_name(con->ssl));
 	DPRINTF("DTLS handshake succeeded. We are now connected.");
 	if (col->peer_fqdn) { /* We need to verify the identity of our peer */
 	    if (verify_ssl_peer(con->ssl,&dtls_verify_peer_cb,col)) {
@@ -311,8 +320,7 @@ static int dtls_connect(ipfix_receiving_collector *col, ipfix_dtls_connection *c
  *	You should set state to C_DISCONNECT
  */
 
-static int dtls_send_helper(ipfix_exporter *exporter,
-	ipfix_dtls_connection *con,
+static int dtls_send_helper( ipfix_dtls_connection *con,
 	const struct iovec *iov, int iovcnt) {
     int len, error, i;
     char sendbuf[IPFIX_MAX_PACKETSIZE];
@@ -369,7 +377,7 @@ static int dtls_send(
 	return -1;
     }
 
-    len = dtls_send_helper(exporter, &col->dtls_main, iov, iovcnt);
+    len = dtls_send_helper(&col->dtls_main, iov, iovcnt);
     if (len == -2) {
 	col->state = C_DISCONNECTED;
 	return -1;
@@ -933,17 +941,15 @@ static void update_exporter_max_message_size(ipfix_exporter *exporter) {
 	col = &exporter->collector_arr[i];
 	if(col->state != C_UNUSED &&
 		(col->protocol == UDP || col->protocol == DTLS_OVER_UDP)) {
-	    uint16_t overhead = 0;
+	    uint16_t maxsize = 0;
 	    switch (col->protocol) {
 		case UDP:
 		    /* IP header: 20 bytes
 		     * UDP header: 8 bytes */
-		    overhead = 20 + 8;
+		    maxsize = col->mtu - (20 + 8);
 		    break;
 		case DTLS_OVER_UDP:
-		    /* IP header: 20 bytes
-		     * UDP header: 8 bytes
-		     * DTLS record header:
+		    /* DTLS record header:
 		     *   ContentType: 1 byte
 		     *   ProtocolVersion: 2 bytes
 		     *   epoch: 2 bytes
@@ -954,13 +960,18 @@ static void update_exporter_max_message_size(ipfix_exporter *exporter) {
 		     *   MAC: 32 bytes
 		     *   padding: 15 bytes (worst case)
 		     *   padding_length: 1 byte */
-		    overhead = 20 + 8 + 77;
+		    /* In the DTLS case, .mtu defines the maximum size
+		     * of a UDP datagram. OpenSSL already subtracted
+		     * the overhead for IP and UDP.*/
+		    maxsize = col->mtu - 77;
+		    if (maxsize > IPFIX_DTLS_MAX_RECORD_LENGTH)
+			maxsize = IPFIX_DTLS_MAX_RECORD_LENGTH;
 		    break;
 		default:
 		    break;
 	    }
-	    if (max_message_size > col->mtu - overhead)
-		max_message_size = col->mtu - overhead;
+	    if (max_message_size > maxsize)
+		max_message_size = maxsize;
 
 	}
     }
@@ -968,7 +979,6 @@ static void update_exporter_max_message_size(ipfix_exporter *exporter) {
     DPRINTF("New exporter max_message_size: %u",max_message_size);
 }
 
-/* UDP only? What about DTLS over UDP? */
 static int update_collector_mtu(ipfix_exporter *exporter,
 	ipfix_receiving_collector *col) {
     if (col->protocol == UDP && col->mtu_mode == IPFIX_MTU_DISCOVER) {
@@ -978,6 +988,11 @@ static int update_collector_mtu(ipfix_exporter *exporter,
 	    remove_collector(col);
 	    return -1;
 	}
+	col->mtu = mtu;
+	update_exporter_max_message_size(exporter);
+    } else if (col->protocol == DTLS_OVER_UDP && col->mtu_mode == IPFIX_MTU_DISCOVER) {
+	int mtu = col->dtls_main.ssl->d1->mtu;
+	DPRINTF("MTU fetched from SSL object: %d",mtu);
 	col->mtu = mtu;
 	update_exporter_max_message_size(exporter);
     }
@@ -1839,11 +1854,6 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 		// T_UNUSED evaluates to 0 which in turn evaluates to false
 		// So basically we check if state is something *not* equal to T_UNUSED
 		if (col->state) {
-			DPRINTFL(MSG_VDEBUG, "Sending template to exporter %s:%d Proto: %d",
-				col->ipv4address,
-				col->port_number,
-				col->protocol
-			);
 #ifdef SUPPORT_DTLS
 			if (col->protocol == DTLS_OVER_UDP ||
 				col->protocol == DTLS_OVER_SCTP) {
@@ -2265,6 +2275,10 @@ uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter) {
 
 int ipfix_put_data_field(ipfix_exporter *exporter,void *data, unsigned length) {
     ipfix_sendbuffer *dsb = exporter->data_sendbuffer;
+    if(exporter->data_sendbuffer->current == exporter->data_sendbuffer->committed) {
+	msg(MSG_ERROR, "IPFIX: ipfix_put_data_field called but there is no started set.");
+	return -1;
+    }
     if (dsb->current >= IPFIX_MAX_SENDBUFSIZE) {
 	msg(MSG_ERROR, "IPFIX: Sendbuffer too small to handle  %i entries!\n", dsb->current );
 	return -1;

@@ -48,8 +48,8 @@
 #include "common/OpenSSL.h"
 #endif
 
-#if defined(SUPPORT_OPENSSL) && defined(SUPPORT_SCTP)
-#define SUPPORT_DTLS_OVER_SCTP
+#if defined(SUPPORT_DTLS) && defined(SUPPORT_SCTP)
+// #define SUPPORT_DTLS_OVER_SCTP
 #endif
 
 #include "encoding.h"
@@ -110,7 +110,7 @@ extern "C" {
  * maximum number of sets per IPFIX packet
  * TODO: This value is delibaretely chosen, adapt it if you need it or make it dynamic.
  */
-#define IPFIX_MAX_SETS_PER_PACKET 4
+#define IPFIX_MAX_SETS_PER_PACKET 128
 
 /*
  * maximum size of a sendbuffer
@@ -148,6 +148,9 @@ extern "C" {
 #define IPFIX_MTU_MODE_DEFAULT IPFIX_MTU_FIXED
 #endif
 
+#ifdef SUPPORT_DTLS
+#define IPFIX_DTLS_MAX_RECORD_LENGTH 16384
+#endif
 
 /* Struct containing an ipfix-header */
 /*     Header Format (see RFC 5101)
@@ -319,9 +322,11 @@ enum collector_state {C_UNUSED, C_NEW, C_DISCONNECTED, C_CONNECTED};
  *
  */
 typedef struct{
-	/* number of the current set. */
+	/* index of the current set.
+	 * If no set is open, then .set_counter specifies the next free entry
+	 * in .set_header_store */
 	/* The maximum is IPFIX_MAX_SETS_PER_PACKET.
-	 * set_counter also serves as an index into set_header_store. */
+	 * set_counter serves as an index into set_header_store. */
 	unsigned set_counter;
 
 	/* buffer to store set headers */
@@ -343,9 +348,25 @@ typedef struct {
 	   - the remaining entries are used for
 	     * set headers
 	     * individual fields of the sets/records
+	 * Example:
+	 * entries[0]: IPFIX Message header
+	 * entries[1]: Set header
+	 * entries[2]: Field 1 of Data Record 1
+	 * entries[3]: Field 2 of Data Record 1
+	 * entries[4]: Field 1 of Data Record 2
+	 * entries[5]: Field 2 of Data Record 2
+	 * entries[6]: Field 1 of Data Record 3
+	 * entries[7]: Field 2 of Data Record 3
 	 */
-	unsigned current; /* last accessed entry in .entries */
-	unsigned committed; /* last committed entry in .entries, i.e. when end_data_set was called for the last time */
+	unsigned current; /* next free entry in .entries */
+	unsigned committed; /* number of committed entries in .entries
+			     * If ipfix_end_data_set is called, all entries
+			     * that belong to that specific data set will be 
+			     * committed. This includes the set header as well
+			     * as all data fields.
+			     * If .current == .committed, then there's no
+			     * open data set. Otherwise, there is an open
+			     * data set. */
 	unsigned marker; /* marker that allows to delete recently added entries */
 	unsigned committed_data_length; /* length of the contained data (in bytes)
 					 * not including the IPFIX message header.
@@ -386,7 +407,10 @@ typedef struct {
 	enum collector_state state;
 	int mtu_mode; /* Either IPFIX_MTU_FIXED or IPFIX_MTU_DISCOVER */
 	uint16_t mtu; /* Maximum transmission unit.
-			 Applies to UDP and DTLS over UDP only. */
+			 Applies to UDP and DTLS over UDP only.
+			 If DTLS is used, .mtu defines the maximum
+			 size of a UDP datagram. OpenSSL already accounted
+			 for the overhead incurred by IP and UDP. */
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
 	int packets_written; /**< if protcol==RAWDIR: number of packets written to packet_directory_path. Ignored otherwise. */
