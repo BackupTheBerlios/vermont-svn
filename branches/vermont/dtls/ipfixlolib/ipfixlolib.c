@@ -2034,8 +2034,8 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                                 // debugging output of data buffer:
 				/* Keep in mind that the IPFIX message header (16 bytes) is not included
 				   in committed_data_length */
-                                DPRINTFL(MSG_VDEBUG, "Sendbuffer contains %u bytes",  exporter->data_sendbuffer->committed_data_length );
-                                DPRINTFL(MSG_VDEBUG, "Sendbuffer contains %u fields",  exporter->data_sendbuffer->committed );
+                                DPRINTFL(MSG_VDEBUG, "Sendbuffer contains %u bytes (Set headers + records)",  exporter->data_sendbuffer->committed_data_length );
+                                DPRINTFL(MSG_VDEBUG, "Sendbuffer contains %u fields (IPFIX Message header + set headers + records)",  exporter->data_sendbuffer->committed );
                                 int tested_length = 0;
                                 int j;
                                 /*int k;*/
@@ -2251,11 +2251,16 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
 }
 
 uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter) {
+    uint16_t space;
+    space = exporter->max_message_size
 	// 16 bytes for IPFIX header
-    return exporter->max_message_size
 	- 16
-	- exporter->data_sendbuffer->committed_data_length
-	- exporter->data_sendbuffer->set_manager.data_length;
+	- exporter->data_sendbuffer->committed_data_length;
+    if(exporter->data_sendbuffer->current != exporter->data_sendbuffer->committed) {
+	space -= sizeof(ipfix_set_header);
+	space -= exporter->data_sendbuffer->set_manager.data_length;
+    }
+    return space;
 }
 
 int ipfix_put_data_field(ipfix_exporter *exporter,void *data, unsigned length) {

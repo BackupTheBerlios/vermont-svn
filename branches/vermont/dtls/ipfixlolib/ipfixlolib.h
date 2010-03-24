@@ -344,11 +344,15 @@ typedef struct {
 	     * set headers
 	     * individual fields of the sets/records
 	 */
-	unsigned current; /* last accessed entry in entries */
-	unsigned committed; /* last committed entry in entries, i.e. when end_data_set was called for the last time */
+	unsigned current; /* last accessed entry in .entries */
+	unsigned committed; /* last committed entry in .entries, i.e. when end_data_set was called for the last time */
 	unsigned marker; /* marker that allows to delete recently added entries */
 	unsigned committed_data_length; /* length of the contained data (in bytes)
-					 * not including the IPFIX message header. */
+					 * not including the IPFIX message header.
+					 * This value only includes data sets for which
+					 * ipfix_end_data_set has been called i.e.
+					 * it does not include data sets that are still
+					 * "open". */
 	ipfix_header packet_header; /* A misnomer in my (Daniel Mentz's)
 				       opinion. Should be message_header
 				       since it's the header of an
