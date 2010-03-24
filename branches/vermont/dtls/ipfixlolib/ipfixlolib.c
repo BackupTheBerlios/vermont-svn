@@ -1038,6 +1038,7 @@ static int add_collector_dtls(
     if (col->protocol == DTLS_OVER_SCTP) {
 	aux_config_dtls = &((ipfix_aux_config_dtls_over_sctp*)aux_config)->dtls;
     } else if (col->protocol == DTLS_OVER_UDP) {
+	aux_config_dtls = &((ipfix_aux_config_dtls_over_udp*)aux_config)->dtls;
 	ipfix_aux_config_udp *aux_config_udp;
 	aux_config_udp = &((ipfix_aux_config_dtls_over_udp*)aux_config)->udp;
 	/* Sets col->mtu_mode and col->mtu */
