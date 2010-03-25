@@ -12,6 +12,10 @@ TARGET_LINK_LIBRARIES(mtutest
 	dl
 )
 
+SET_TARGET_PROPERTIES(mtutest
+	PROPERTIES
+	LINKER_LANGUAGE CXX)
+
 TARGET_LINK_LIBRARIES(test_everything
 	ipfixlolib
 	common
