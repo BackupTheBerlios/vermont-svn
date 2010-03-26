@@ -210,13 +210,16 @@ static void dtls_swap_connections(ipfix_dtls_connection *a, ipfix_dtls_connectio
  * If we are in state C_DISCONNECT then it sets up a new main connection.
  *
  * Return values:
- * returns 0 on success and -1 on error.
+ * returns 0 on success
+ * returns 1 if a connection setup procedure is still ongoing. Then, this
+ *           function should be called again after a short period of time.
+ * returns -1 on error.
  * Note that success does not mean that we are connected because the
  * connection setup might still be ongoing. Therefore you still have
  * to check the state member of ipfix_receiving_collector to determine
  * if we are connected. */
 static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_collector *col) {
-    int ret;
+    int ret, rc = 0;
 
     if (col->state == C_CONNECTED) {
 	if( col->protocol == DTLS_OVER_SCTP ||
@@ -226,7 +229,9 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
 	/* Alright, the connection is already very old and needs to be
 	 * replaced. Let's get the replacement / backup connection ready. */
 	ret = dtls_get_replacement_connection_ready(exporter, col);
+	rc = 1;
 	if (ret == 1) { /* Connection setup completed */
+	    rc = 0;
 	    DPRINTF("Swapping connections.");
 	    dtls_swap_connections(&col->dtls_main,&col->dtls_replacement);
 	    DPRINTF("Shutting down old DTLS connection.");
@@ -241,13 +246,13 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
 	/* We ignore all other return values of dtls_get_replacement_connection_ready() */
     }
     if (col->state == C_NEW) {
+	rc = 1;
 	/* Connection setup is still ongoing. Let's push it forward. */
 	ret = dtls_connect(col,&col->dtls_main);
 	if (ret == 1) {
 	    /* SUCCESS */
 	    col->state = C_CONNECTED;
 	    col->connect_time = time(NULL);
-	    /* TODO: Removing the collector might be a bad idea. */
 	    if (update_collector_mtu(exporter, col)) {
 		/* update_collector_mtu calls remove_collector
 		   in case of failure which in turn sets
@@ -269,6 +274,7 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
 	}
     }
     if (col->state == C_DISCONNECTED) {
+	rc = 1;
 	if (setup_dtls_connection(exporter,col,&col->dtls_main)) {
 	    /* col->state stays in C_DISCONNECTED in this case
 	     * setup_dtls_connection() does not alter it. */
@@ -276,7 +282,7 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
 	}
 	col->state = C_NEW;
     }
-    return 0;
+    return rc;
 }
 
 /* Return values:
@@ -617,8 +623,13 @@ static void dtls_fail_connection(ipfix_dtls_connection *con) {
 
 #endif /* SUPPORT_DTLS */
 
-void ipfix_beat(ipfix_exporter *exporter) {
+/* returns 1 if this function should be called again after a short period
+ * of time. This is usually the case if there is an ongoing connection setup
+ * procecure.
+ * returns 0 otherwise. */
+int ipfix_beat(ipfix_exporter *exporter) {
 #ifdef SUPPORT_DTLS
+    int ret = 0;
     int i;
     for (i = 0; i < exporter->collector_max_num; i++) {
 	ipfix_receiving_collector *col = &exporter->collector_arr[i];
@@ -628,10 +639,12 @@ void ipfix_beat(ipfix_exporter *exporter) {
 	if (col->state != T_UNUSED) {
 	    if (col->protocol == DTLS_OVER_UDP ||
 		    col->protocol == DTLS_OVER_SCTP) {
-		dtls_manage_connection(exporter,col);
+		if (dtls_manage_connection(exporter,col))
+		    ret = 1;
 	    }
 	}
     }
+    return ret;
 #endif
 }
 
@@ -1020,6 +1033,8 @@ static int update_collector_mtu(ipfix_exporter *exporter,
 	    update_exporter_max_message_size(exporter);
 	} else {
 	    DPRINTF("Unable to get MTU from SSL object.");
+	    remove_collector(col);
+	    return -1;
 	}
     }
     return 0;
@@ -1885,7 +1900,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				col->protocol == DTLS_OVER_SCTP) {
 				/* ensure that we are connected i.e. DTLS handshake has been finished.
 				 * This function does no harm if we are already connected. */
-				if (dtls_manage_connection(exporter,col))
+				if (dtls_manage_connection(exporter,col) < 0)
 				    /* continue if dtls_manage_connection failed */
 				    continue;
 				/* dtls_manage_connection() might return success even if we're not yet connected.

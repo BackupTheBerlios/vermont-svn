@@ -57,10 +57,8 @@ void add_dtls_over_udp_collector(ipfix_exporter *exporter) {
 		fprintf(stderr, "ipfix_add_collector() failed.\n");
 		exit(1);
 	}
-	for (i=0;i<90;i++) {
-		ipfix_beat(exporter);
+	while(ipfix_beat(exporter))
 		usleep(10000);
-	}
 }
 
 int main(int argc, char **argv) {
