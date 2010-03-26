@@ -407,10 +407,7 @@ typedef struct {
 	enum collector_state state;
 	int mtu_mode; /* Either IPFIX_MTU_FIXED or IPFIX_MTU_DISCOVER */
 	uint16_t mtu; /* Maximum transmission unit.
-			 Applies to UDP and DTLS over UDP only.
-			 If DTLS is used, .mtu defines the maximum
-			 size of a UDP datagram. OpenSSL already accounted
-			 for the overhead incurred by IP and UDP. */
+			 Applies to UDP and DTLS over UDP only. */
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 	char* packet_directory_path; /**< if protocol==RAWDIR: path to a directory to store packets in. Ignored otherwise. */
 	int packets_written; /**< if protcol==RAWDIR: number of packets written to packet_directory_path. Ignored otherwise. */

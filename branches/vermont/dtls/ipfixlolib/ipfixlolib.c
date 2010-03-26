@@ -984,10 +984,7 @@ static void update_exporter_max_message_size(ipfix_exporter *exporter) {
 		     *   MAC: 32 bytes
 		     *   padding: 15 bytes (worst case)
 		     *   padding_length: 1 byte */
-		    /* In the DTLS case, .mtu defines the maximum size
-		     * of a UDP datagram. OpenSSL already subtracted
-		     * the overhead for IP and UDP.*/
-		    maxsize = col->mtu - 77;
+		    maxsize = col->mtu - 77 - (20 + 8);
 		    if (maxsize > IPFIX_DTLS_MAX_RECORD_LENGTH)
 			maxsize = IPFIX_DTLS_MAX_RECORD_LENGTH;
 		    break;
@@ -1029,7 +1026,12 @@ static int update_collector_mtu(ipfix_exporter *exporter,
 	    if (mtu_bio > 0 && (mtu == -1 || mtu_bio < mtu)) mtu = mtu_bio;
 	}
 	if (mtu>0) {
-	    col->mtu = mtu;
+	    /* OpenSSL defines the MTU as the maximum payload length
+	     * of UDP datagrams.
+	     * We define MTU differently: the maximum size of an IP packet.
+	     * The difference is 28 bytes (20 bytes for the IP header and
+	     * 8 bytes for the UDP header) */
+	    col->mtu = mtu + 20 + 8;
 	    update_exporter_max_message_size(exporter);
 	} else {
 	    DPRINTF("Unable to get MTU from SSL object.");
@@ -1113,6 +1115,20 @@ static int add_collector_dtls(
     }
     col->state = C_NEW; /* By setting the state to C_NEW we are
 				 basically allocation the slot. */
+    /* col->state must *not* be C_UNUSED when we call
+       update_collector_mtu(). That's why we call this function
+       after setting state to C_NEW. */
+    if (update_collector_mtu(exporter, col)) {
+	/* update_collector_mtu calls remove_collector
+	   in case of failure which in turn sets
+	   col->state to C_UNUSED. */
+	return -1;
+    }
+    /* We have to call update_exporter_max_message_size()
+     * because update_collector_mtu *only* calls
+     * update_exporter_max_message_size() if the MTU
+     * mode is IPFIX_MTU_DISCOVER. */
+    update_exporter_max_message_size(exporter);
     /* Initiate connection setup */
     dtls_manage_connection(exporter, col);
     return 0;
@@ -2302,7 +2318,7 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
 }
 
 uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter) {
-    uint16_t space;
+    int32_t space;
     space = exporter->max_message_size
 	// 16 bytes for IPFIX header
 	- 16
@@ -2311,6 +2327,8 @@ uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter) {
 	space -= sizeof(ipfix_set_header);
 	space -= exporter->data_sendbuffer->set_manager.data_length;
     }
+    if (space < 0) space = 0;
+    if (space > UINT16_MAX) space = UINT16_MAX;
     return space;
 }
 

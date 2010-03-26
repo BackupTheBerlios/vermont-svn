@@ -26,12 +26,18 @@ void put_data(ipfix_exporter *exporter) {
 
 	ipfix_start_data_set(exporter, htons(TEMPLATE_ID));
 	while ((s = ipfix_get_remaining_space(exporter))){
-		if (ipfix_put_data_field(exporter,&data[i], sizeof(*data))) break;
-		i++;
 		if (i == 0) {
 			ipfix_end_data_set(exporter, 1);
-			ipfix_start_data_set(exporter, htons(TEMPLATE_ID));
+			if (s>IPFIX_OVERHEAD_PER_SET) {
+				printf("Starting new data set. Remaining space: %d\n",s);
+				ipfix_start_data_set(exporter, htons(TEMPLATE_ID));
+			} else {
+				printf("Can't start new data set. Remaining Space: %d\n",s);
+				break;
+			}
 		}
+		if (ipfix_put_data_field(exporter,&data[i], sizeof(*data))) break;
+		i++;
 	}
 	ipfix_end_data_set(exporter, 1);
 	ipfix_send(exporter);
