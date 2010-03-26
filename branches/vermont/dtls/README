@@ -15,6 +15,13 @@ REQUIREMENTS
 Optional:
 - mysql
 
+Debian packages you probably want to install:
+
+- cmake
+- libboost-dev
+- libxml2-dev
+- libpcap-dev
+- libsctp-dev
 
 INSTALLATION
 

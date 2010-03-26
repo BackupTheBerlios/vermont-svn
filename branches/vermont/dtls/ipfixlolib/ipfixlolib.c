@@ -318,6 +318,9 @@ static int dtls_connect(ipfix_receiving_collector *col, ipfix_dtls_connection *c
  * -1: Recoverable error
  * -2: Bad Error. DTLS connection has been shutdown already.
  *	You should set state to C_DISCONNECT
+ * -3: Message too long. You should query the current MTU
+ *     estimate in this case and update the corresponding
+ *     property of the collector.
  */
 
 static int dtls_send_helper( ipfix_dtls_connection *con,
@@ -352,6 +355,11 @@ static int dtls_send_helper( ipfix_dtls_connection *con,
 	    return sendbufcur - sendbuf; /* SUCCESS */
 	case SSL_ERROR_WANT_READ:
 	    return 0;
+	case SSL_ERROR_SYSCALL:
+	    if (errno == EMSGSIZE) {
+		return -3;
+	    }
+	    /* fall through */
 	default:
 	    msg_openssl_return_code(MSG_ERROR,"SSL_write()",len,error);
 	    dtls_fail_connection(con);
@@ -380,6 +388,9 @@ static int dtls_send(
     len = dtls_send_helper(&col->dtls_main, iov, iovcnt);
     if (len == -2) {
 	col->state = C_DISCONNECTED;
+	return -1;
+    } else if (len == -3) {
+	update_collector_mtu(exporter,col);
 	return -1;
     }
     return len;
@@ -991,10 +1002,25 @@ static int update_collector_mtu(ipfix_exporter *exporter,
 	col->mtu = mtu;
 	update_exporter_max_message_size(exporter);
     } else if (col->protocol == DTLS_OVER_UDP && col->mtu_mode == IPFIX_MTU_DISCOVER) {
-	int mtu = col->dtls_main.ssl->d1->mtu;
-	DPRINTF("MTU fetched from SSL object: %d",mtu);
-	col->mtu = mtu;
-	update_exporter_max_message_size(exporter);
+	int mtu = -1;
+	int mtu_ssl;
+	int mtu_bio;
+	if (col->dtls_main.ssl) {
+	    mtu_ssl = col->dtls_main.ssl->d1->mtu;
+	    DPRINTF("MTU got from SSL object: %d",mtu_ssl);
+	    if (mtu_ssl > 0) {
+		mtu = mtu_ssl;
+	    }
+	    mtu_bio = BIO_ctrl(SSL_get_wbio(col->dtls_main.ssl),BIO_CTRL_DGRAM_QUERY_MTU,0,0);
+	    DPRINTF("MTU got from BIO object: %d",mtu_bio);
+	    if (mtu_bio > 0 && (mtu == -1 || mtu_bio < mtu)) mtu = mtu_bio;
+	}
+	if (mtu>0) {
+	    col->mtu = mtu;
+	    update_exporter_max_message_size(exporter);
+	} else {
+	    DPRINTF("Unable to get MTU from SSL object.");
+	}
     }
     return 0;
 }

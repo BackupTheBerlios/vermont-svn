@@ -8,7 +8,7 @@
 			<!-- transportProtocol>DTLS_OVER_SCTP</transportProtocol -->
 			<transportProtocol>DTLS_OVER_UDP</transportProtocol>
 			<!-- peerFqdn>ex352.example.com</peerFqdn -->
-			<peerFqdn>exporter.example.com</peerFqdn>
+			<!-- peerFqdn>exporter.example.com</peerFqdn -->
 		</listener>
 		<next>2</next>
 	</ipfixCollector>

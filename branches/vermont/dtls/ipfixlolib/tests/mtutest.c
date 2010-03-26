@@ -5,7 +5,8 @@
 
 #define OBSERVATION_DOMAIN_ID 1
 #define TEMPLATE_ID 260
-#define COLLECTOR_IP_ADDRESS "127.0.0.1"
+// #define COLLECTOR_IP_ADDRESS "127.0.0.1"
+#define COLLECTOR_IP_ADDRESS "87.230.53.17"
 // #define COLLECTOR_IP_ADDRESS "8.8.8.8"
 #define MTU 0
 
@@ -36,7 +37,7 @@ void put_data(ipfix_exporter *exporter) {
 	ipfix_send(exporter);
 }
 
-void setup_udp_collector(ipfix_exporter *exporter) {
+void add_udp_collector(ipfix_exporter *exporter) {
 	ipfix_aux_config_udp acu = {
 		.mtu = 0
 	};
@@ -46,7 +47,7 @@ void setup_udp_collector(ipfix_exporter *exporter) {
 	}
 }
 
-void setup_dtls_over_udp_collector(ipfix_exporter *exporter) {
+void add_dtls_over_udp_collector(ipfix_exporter *exporter) {
 	int i;
 	ipfix_aux_config_dtls_over_udp acu = {
 		.udp = { .mtu = MTU},
@@ -56,7 +57,7 @@ void setup_dtls_over_udp_collector(ipfix_exporter *exporter) {
 		fprintf(stderr, "ipfix_add_collector() failed.\n");
 		exit(1);
 	}
-	for (i=0;i<40;i++) {
+	for (i=0;i<90;i++) {
 		ipfix_beat(exporter);
 		usleep(10000);
 	}
@@ -72,8 +73,8 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "ipfix_init_exporter() failed.\n");
 		exit(1);
 	};
-	setup_dtls_over_udp_collector(exporter);
-	// setup_udp_collector(exporter);
+	add_dtls_over_udp_collector(exporter);
+	// add_udp_collector(exporter);
 	define_template(exporter);
 	for(i=0;i<3;i++) {
 		put_data(exporter);
