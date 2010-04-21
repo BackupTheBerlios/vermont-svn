@@ -36,6 +36,12 @@
  jan@petranek.de
  */
 
+/*! \file ipfixlolib.c
+    \brief Main interface to ipfixlolib
+    
+    Implements an IPFIX Exporter. Supports UDP, SCTP and DTLS.
+*/
+
 #include "ipfixlolib.h"
 #include <netinet/in.h>
 #include <sys/types.h>
@@ -623,10 +629,21 @@ static void dtls_fail_connection(ipfix_dtls_connection *con) {
 
 #endif /* SUPPORT_DTLS */
 
-/* returns 1 if this function should be called again after a short period
- * of time. This is usually the case if there is an ongoing connection setup
- * procecure.
- * returns 0 otherwise. */
+/**
+ * \brief Should be called on a regular basis to push forward connection setup procedures.
+ *
+ * ipfixlolib depends on the user to call this function regularly
+ * if there is an ongoing connection setup procedure. This is
+ * necessary because<ul>
+ * <li>ipfixlolib is <em>not</em> allowed to block the calling thread,</li>
+ * <li>ipfixlolib does not run in a dedicated thread and</li>
+ * <li>a DTLS connection setup (i.e. handshake) may take an</li>
+ * extended period of time.
+ * </ul>
+ * This function returns 1 if it should be called again after a short period
+ * of time.
+ * returns 0 otherwise.
+ */
 int ipfix_beat(ipfix_exporter *exporter) {
 #ifdef SUPPORT_DTLS
     int ret = 0;
@@ -634,8 +651,6 @@ int ipfix_beat(ipfix_exporter *exporter) {
     for (i = 0; i < exporter->collector_max_num; i++) {
 	ipfix_receiving_collector *col = &exporter->collector_arr[i];
 	// is the collector a valid target?
-	// T_UNUSED evaluates to 0 which in turn evaluates to false
-	// So basically we check if state is something *not* equal to T_UNUSED
 	if (col->state != T_UNUSED) {
 	    if (col->protocol == DTLS_OVER_UDP ||
 		    col->protocol == DTLS_OVER_SCTP) {
@@ -826,6 +841,12 @@ static int sctp_sendmsgv(int s, struct iovec *vector, int v_len, struct sockaddr
  * sourceID The source ID, to which the exporter will be initialized to.
  * exporter an ipfix_exporter* to be initialized
  */
+/**
+ * \brief Initialize a new exporter.
+ *
+ * @param observation_domain_id the observation Domain ID that should be included in the IPFIX Message Header
+ * @param exporter a pointer to a pointer to the exporter struct
+ */
 int ipfix_init_exporter(uint32_t observation_domain_id, ipfix_exporter **exporter)
 {
         ipfix_exporter *tmp;
@@ -910,8 +931,10 @@ out:
 }
 
 
-/*
- * cleanup an exporter process
+/**
+ * \brief Cleanup previously initialized exporter and free memory.
+ *
+ * @param exporter pointer to exporter struct 
  */
 int ipfix_deinit_exporter(ipfix_exporter *exporter) {
         // cleanup processes
