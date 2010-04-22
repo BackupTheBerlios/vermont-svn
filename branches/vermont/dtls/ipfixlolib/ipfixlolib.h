@@ -258,22 +258,29 @@ enum ipfix_transport_protocol {
 	};
 
 typedef struct {
-    uint16_t mtu; /* Maximum transmission unit.
-		     If 0, PMTU discovery will be used.
-		     Applies to UDP and DTLS only. */
+    uint16_t mtu; /*!< Maximum transmission unit (MTU).
+		     If set to 0, PMTU discovery will be used.
+		     (Only available on the Linux platform)
+		     Applies to UDP and DTLS over UDP only. */
 } ipfix_aux_config_udp;
 
 typedef struct {
-    const char *peer_fqdn;
+    const char *peer_fqdn; /*!< The Fully Qualified Domain Name (FQDN)
+			     of the peer. If set, the peer <em>must</em>
+			     present a certificate that carries this name.
+			     There is no support for wildcard matching.
+			     If set to NULL, anonymous cipher suites will
+			     be added to the list of permissible cipher suites.
+			     The identity of the peer will not be verified.*/
 } ipfix_aux_config_dtls;
 
 typedef struct {
-    ipfix_aux_config_dtls dtls;
-    ipfix_aux_config_udp udp;
+    ipfix_aux_config_dtls dtls; /*!< DTLS specific configuration */
+    ipfix_aux_config_udp udp; /*!< UDP specific configuration */
 } ipfix_aux_config_dtls_over_udp;
 
 typedef struct {
-    ipfix_aux_config_dtls dtls;
+    ipfix_aux_config_dtls dtls; /*!< DTLS specific configuration */
 } ipfix_aux_config_dtls_over_sctp;
 
 /*
@@ -344,7 +351,7 @@ typedef struct{
 typedef struct {
 	struct iovec entries[IPFIX_MAX_SENDBUFSIZE]; /* an array of iovec structs, containing data and length */
 	/* usage of entries:
-	   - the first HEADER_USED_IOVEC_COUNT=1 entries are reserved for the ipfix header
+	   - the first HEADER_USED_IOVEC_COUNT=1 entries are reserved for the IPFIX header
 	   - the remaining entries are used for
 	     * set headers
 	     * individual fields of the sets/records
