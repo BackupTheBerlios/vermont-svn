@@ -24,6 +24,10 @@
  jan@petranek.de
  */
 
+/*! \file ipfixlolib.h
+    \brief ipfixlolib header file
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -249,13 +253,18 @@ typedef struct {
 
 #define IPFIX_OVERHEAD_PER_SET 4
 
-
+/** \brief The transport protocol used to transmit IPFIX data
+ */
 enum ipfix_transport_protocol {
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
 	RAWDIR, 
 #endif 
-	SCTP, UDP, TCP, DTLS_OVER_UDP, DTLS_OVER_SCTP
-	};
+	SCTP, /**< SCTP, most favorable */
+	UDP, /**< UDP, available on all platforms, may result in MTU issues */
+	TCP, /**< TCP, currently unsupported by ipfixlolib */
+	DTLS_OVER_UDP, /**< DTLS over UDP, requires OpenSSL */
+	DTLS_OVER_SCTP /**< DTLS over SCTP, requires OpenSSL w/ SCTP patches from sctp.fh-muenster.de and recent version of FreeBSD */
+};
 
 typedef struct {
     uint16_t mtu; /*!< Maximum transmission unit (MTU).
@@ -265,13 +274,20 @@ typedef struct {
 } ipfix_aux_config_udp;
 
 typedef struct {
-    const char *peer_fqdn; /*!< The Fully Qualified Domain Name (FQDN)
-			     of the peer. If set, the peer <em>must</em>
-			     present a certificate that carries this name.
-			     There is no support for wildcard matching.
-			     If set to NULL, anonymous cipher suites will
-			     be added to the list of permissible cipher suites.
-			     The identity of the peer will not be verified.*/
+    const char *peer_fqdn; /*!< The Fully Qualified Domain Name (FQDN) of the
+			     peer. If set, the peer i.e. the Collector
+			     <em>must</em> present a certificate of which
+			     either the subject's Common Name (CN) or one of
+			     the subject alternative names matches the FQDN.
+			     There is no support for wildcard matching. For the
+			     certificate verification to work, the user must
+			     also call <tt>ipfix_set_ca_locations()</tt> to
+			     specify the locations of the root CA certificates.
+			   
+			     If set to NULL, anonymous cipher suites will be
+			     added to the list of permissible cipher suites.
+			     The identity of the peer will not be verified
+			     then.*/
 } ipfix_aux_config_dtls;
 
 typedef struct {
