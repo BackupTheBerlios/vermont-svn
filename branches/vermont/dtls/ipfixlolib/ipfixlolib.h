@@ -555,7 +555,6 @@ int ipfix_delete_data_fields_upto_marker(ipfix_exporter *exporter);
 int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void* data, uint16_t data_length);
 int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id);
 int ipfix_send(ipfix_exporter *exporter);
-int ipfix_enterprise_flag_set(uint16_t id);
 // Set up time after that Templates are going to be resent
 int ipfix_set_template_transmission_timer(ipfix_exporter *exporter, uint32_t timer); 	 
 // Sets a packet lifetime for SCTP data packets (lifetime > 0 : unreliable packets) 	 
