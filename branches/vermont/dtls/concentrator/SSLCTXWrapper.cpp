@@ -68,7 +68,7 @@ SSL_CTX_wrapper::SSL_CTX_wrapper(
     const std::string &caFile,
     const std::string &caPath,
     bool requirePeerAuthentication
-	) {
+	) : verify_peers(false) {
     /* Several conditions have to be met before I can authenticate my peer
      * (exporter):
      *  - [ CAfile has to be set since I have to send a Certificate
