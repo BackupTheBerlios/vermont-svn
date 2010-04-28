@@ -631,7 +631,7 @@ static void dtls_fail_connection(ipfix_dtls_connection *con) {
 #endif /* SUPPORT_DTLS */
 
 /**
- * \brief Should be called on a regular basis to push forward connection setup procedures.
+ * \brief Should be called on a regular basis to push forward DTLS connection setup procedures.
  *
  * ipfixlolib depends on the user to call this function regularly
  * if there is an ongoing connection setup procedure. This is
@@ -643,7 +643,8 @@ static void dtls_fail_connection(ipfix_dtls_connection *con) {
  * </ul>
  *
  * @param exporter pointer to previously initialized exporter struct
- * @return 1 if it should be called again after a short period of time. 0 otherwise.  
+ * \return 1 this function should be called again after a short period of time
+ * \return 0 otherwise
  */
 int ipfix_beat(ipfix_exporter *exporter) {
     int ret = 0;
@@ -847,10 +848,10 @@ static int sctp_sendmsgv(int s, struct iovec *vector, int v_len, struct sockaddr
  *
  * Make sure to call <tt>ipfix_deinit_exporter()</tt> when done.
  *
- * @param observation_domain_id the observation Domain ID that will be included in every IPFIX Message Header
+ * @param observation_domain_id the Observation Domain ID that will be included in every IPFIX Message Header
  * @param exporter a pointer to a pointer to exporter struct
  * \return 0 success
- * \return -1 failure
+ * \return -1 failure. Usually due to failed memory allocation requests.
  */
 int ipfix_init_exporter(uint32_t observation_domain_id, ipfix_exporter **exporter)
 {
@@ -1259,7 +1260,7 @@ static int valid_transport_protocol(enum ipfix_transport_protocol p) {
 
 /** \brief Add a Collector to the given Exporter and trigger connection setup.
  *
- * Multiple Collectors can be added to a single Exporter. Data Records are sent
+ * Multiple Collectors may be added to a single Exporter. Data Records are sent
  * to all Collectors in parallel. All active Templates are transmitted to a
  * given Collector before Data Records are sent to the this Collector.
  *
@@ -1284,8 +1285,8 @@ static int valid_transport_protocol(enum ipfix_transport_protocol p) {
  * </table>
 
  * @param exporter pointer to previously initialized exporter struct
- * @param coll_ip4_addr IP address of receiving collector in dotted notation (e.g. "1.2.3.4")
- * @param coll_port port number of receiving collector
+ * @param coll_ip4_addr IP address of receiving Collector in dotted notation (e.g. "1.2.3.4")
+ * @param coll_port port number of receiving Collector
  * @param proto transport protocol to use, either RAWDIR, SCTP, UDP,
  * DTLS_OVER_UDP or DTLS_OVER_SCTP. See <tt>ipfix_transport_protocol</tt> for
  * more details.
@@ -1372,7 +1373,10 @@ static void remove_collector(ipfix_receiving_collector *collector) {
 }
 
 /**
- * \brief Remove a collector from the exporting process
+ * \brief Remove a Collector from the exporting process
+ *
+ * This call removes the given Collector from the set of Collectors. This
+ * includes shutting down the transport connection.
  *
  * @param exporter pointer to previously initialized exporter struct
  * \return 0 success
@@ -1380,7 +1384,7 @@ static void remove_collector(ipfix_receiving_collector *collector) {
  */
 /*
  */
-int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_port) {
+int ipfix_remove_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int coll_port) {
     int i;
     for(i=0;i<exporter->collector_max_num;i++) {
 	ipfix_receiving_collector *collector = &exporter->collector_arr[i];
@@ -1441,7 +1445,7 @@ static int ipfix_get_free_template_slot(ipfix_exporter *exporter) {
 }
 
 /**
- * \brief Remove a template from the exporting process but create a withdrawal message first
+ * \brief Remove a Template from the Exporting process but create a withdrawal message first
  *
  * This will free the templates data store!
  * @param exporter pointer to previously initialized exporter struct
@@ -2308,7 +2312,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 
 
 /**
- * \brief Send data to collectors.
+ * \brief Send data to Collectors.
  *
  * Sends all data committed via <tt>ipfix_put_data_field</tt> to this exporter.
  * If necessary, sends all associated templates.
@@ -2342,13 +2346,22 @@ int ipfix_send(ipfix_exporter *exporter)
 /**
  * \brief Marks the beginning of a data set
  *
- * The set ID MUST match a previously sent template ID! This is the user's
- * responsibility, as the library will not perform any checks. There can only
- * be one open data set at any given time. It is not possible to start multiple
- * data sets in parallel.
+ * The set ID <em>must</em> match a previously defined template ID! It is the
+ * user's responsibility to make sure that the corresponding template has been
+ * defined using <tt>ipfix_start_template_set()</tt> and other functions in
+ * advance as the library will not perform any checks. There can only be one
+ * open data set at any given time. It is not possible to start multiple data
+ * sets in parallel.
+ *
+ * Note that the <tt>template_id</tt> parameter has to be in <em>network byte
+ * order</em>. This is in contrast to the corresponding parameter of
+ * <tt>ipfix_start_template_set()</tt>
  *
  * @param exporter pointer to previously initialized exporter struct
- * @param template_id ID of the used template (in network byte order)
+ * @param template_id ID of the used template <em>(in network byte order)</em>
+ * \return 0 success
+ * \return -1 failure. Reasons include:<ul><li>There is already an open data
+ * set</li><li>Insufficient buffer space</li></ul>
  */
 /*
  */
@@ -2413,7 +2426,7 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
  *
  *
  * @param exporter pointer to previously initialized exporter struct
- * @return remaining space in bytes. This value will never be negativ even if the IPFIX message is already longer than the maximum length.
+ * @return remaining space in bytes. This value will never be negativ. If the IPFIX message is already longer than the maximum length, 0 is returned.
  */
 uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter) {
     int32_t space;
@@ -2455,6 +2468,9 @@ uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter) {
  * given memory location until the IPFIX message has been sent via
  * ipfix_send().
  * @param length length of data pointed to by <tt>data</tt>
+ * \return 0 success
+ * \return -1 failure. Reasons include:<ul><li>no open data set</li><li>send
+ * buffer too small</li></ul>
  */
 int ipfix_put_data_field(ipfix_exporter *exporter,void *data, unsigned length) {
     ipfix_sendbuffer *dsb = exporter->data_sendbuffer;
@@ -2478,6 +2494,8 @@ int ipfix_put_data_field(ipfix_exporter *exporter,void *data, unsigned length) {
  *
  * @param exporter pointer to previously initialized exporter struct
  * @param number_of_records number of data records in this set (used to calculate the sequence number)
+ * \return 0 success
+ * \return -1 failure. Reasons include:<ul><li>No open data set</li></ul>
  */
 int ipfix_end_data_set(ipfix_exporter *exporter, uint16_t number_of_records)
 {
@@ -2514,7 +2532,12 @@ int ipfix_end_data_set(ipfix_exporter *exporter, uint16_t number_of_records)
 /**
  * \brief Cancel a previously started data set
  *
+ * This call ends a previously started data set and discards all data that has
+ * been added since the call to ipfix_start_data_set().
+ *
  * @param exporter pointer to previously initialized exporter struct
+ * \return 0 success
+ * \return -1 failure. Reasons include:<ul><li>no open data set i.e. no data set to cancel</li></ul>
  */
 /*
  */
@@ -2551,6 +2574,7 @@ int ipfix_cancel_data_set(ipfix_exporter *exporter)
  * deletion of newly added fields
  *
  * @param exporter pointer to previously initialized exporter struct
+ * \return 0 This value is <em>always</em> returned.
  */
 int ipfix_set_data_field_marker(ipfix_exporter *exporter)
 {
@@ -2562,6 +2586,8 @@ int ipfix_set_data_field_marker(ipfix_exporter *exporter)
  * \brief Delete recently added fields up to the marker
  *
  * @param exporter pointer to previously initialized exporter struct
+ * \return 0 success
+ * \return -1 failure. Reasons include:<ul><li>no open data set</li></ul>
  */
 int ipfix_delete_data_fields_upto_marker(ipfix_exporter *exporter)
 {
@@ -2596,13 +2622,17 @@ out:
 /*******************************************************************/
 
 /**
- * \brief Marks the beginning of a data template set and a template record
+ * \brief Marks the beginning of a data Template set and a Template record
  *
  * @param exporter pointer to previously initialized exporter struct
- * @param template_id the template's ID (in host byte order)
+ * @param template_id the Template's ID (in host byte order)
  * @param preceding
- * @param field_count number of template fields in this template (in host byte order)
+ * @param field_count number of Template fields in this template (in host byte order)
  * @param fixedfield_count
+ * \return 0 success
+ * \return -1 failure. Reasons include:<ul><li><tt>template_id</tt> is not
+ * great than 255</li><li>maximum number of defined templates has been
+ * exceeded</li></ul>
  */
 
 /*
@@ -2642,7 +2672,7 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
 		ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]));
 		break;
 	    default:
-		DPRINTFL(MSG_VDEBUG, "template valid flag is T_UNUSED or wrong\n");	
+		DPRINTFL(MSG_VDEBUG, "template valid flag is T_UNUSED or invalid\n");	
 		break;
 	}
     } else {
@@ -2705,12 +2735,13 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
     return 0;
 }
 /**
- * \brief Marks the beginning of an option template set
+ * \brief Marks the beginning of an option template set. (Not yet implemented)
  *
  * @param exporter pointer to previously initialized exporter struct
  * @param template_id the template's ID (in host byte order)
  * @param scope_length the option scope length (in host byte oder)
  * @param option_length the option scope length (in host byte oder)
+ * \return -1 Not yet implemented. This value is <em>always</em> returned.
  */
 int ipfix_start_optionstemplate_set(ipfix_exporter *exporter,
 	uint16_t template_id, uint16_t scope_length, uint16_t option_length)
@@ -2728,12 +2759,16 @@ int ipfix_start_optionstemplate_set(ipfix_exporter *exporter,
  *
  * @param exporter pointer to previously initialized exporter struct
  * @param template_id the ID specified on call to ipfix_start_template_set()
- * @param type field or scope type (in host byte order) "A numeric value that represents the type of Information Element.  Refer to [RFC5102]."
- * <em>Note:</em> The enterprise id will only be used, if type has the enterprise bit set.
+ * @param type field or scope type (in host byte order) "A numeric value that
+ * represents the type of Information Element.  Refer to [RFC5102]."
+ * <em>Note:</em> The enterprise id will only be used, if type has the
+ * enterprise bit set.
  * @param length length of the field or scope (in host byte order)
  * @param enterprise enterprise type (in host byte order)
  * \return 0 success
- * \return -1 failure
+ * \return -1 failure. Reasons include:<ul><li>template ID
+ * unknown</li><li>number of fields exceeds the number that was announced when
+ * starting the template.</li></ul>
  */
 int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
 	uint16_t type, uint16_t length, uint32_t enterprise_id) {
@@ -2796,18 +2831,25 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
 
 
 /**
- * \brief Start defining a new template.
+ * \brief Start defining a new Template.
  *
- * ipfixlolib supports only one template record per template set. So this
- * function basically means 'start template set and one template record'.
+ * ipfixlolib supports only one Template record per template set. So this
+ * function basically means 'start Template set and one template record'.
  *
- * <em>NOTE:</em> It is not possible to start and define multiple templates in parallel.
- * ipfix_end_template_set() has to be called first before a new template can be
+ * <em>NOTE:</em> It is not possible to start and define multiple Templates in parallel.
+ * ipfix_end_template_set() has to be called first before a new Template can be
  * defined.
  *
+ * Individual fields can be added to the Template by calling
+ * ipfix_put_data_field() before calling ipfix_end_template_set() to end the
+ * Template.
+ *
  * @param exporter pointer to previously initialized exporter struct
- * @param template_id ID for this template. Must be > 255.
+ * @param template_id ID for this Template. Must be > 255.
  * @param field_count number of fields to add
+ * \return 0 success
+ * \return -1 failure. Reasons might be that <tt>template_id</tt> is not great than 255
+ *   or that the maximum number of defined templates has been exceeded.
 **/
 int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count) {
         return ipfix_start_datatemplate_set(exporter, template_id, 0, field_count, 0);
@@ -2823,6 +2865,8 @@ int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  u
  * @param length length of field, in bytes
  * @param type type of field; see template fields
  * @param enterprise enterprise number (set to 0 if not used)
+ * \return 0 success
+ * \return -1 failure
 */
 int ipfix_put_template_fixedfield(ipfix_exporter *exporter, uint16_t template_id, uint16_t type, uint16_t length, uint32_t enterprise_id) {
         return ipfix_put_template_field(exporter, template_id, type, length, enterprise_id);
@@ -2836,6 +2880,8 @@ int ipfix_put_template_fixedfield(ipfix_exporter *exporter, uint16_t template_id
  * @param template_id ID of the template
  * @param data pointer to the data (data must be in network byte order)
  * @param data_length length of data to be added, in bytes
+ * \return 0 success
+ * \return -1 failure
 */
 int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void* data, uint16_t data_length) {
         int found_index;
@@ -2888,6 +2934,8 @@ int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void
  *
  * @param exporter pointer to previously initialized exporter struct
  * @param template_id ID of the template
+ * \return 0 success
+ * \return -1 failure. Reasons include:<ul><li>Template ID unknown</li><li>number of Template fields added does not match number announced when calling <tt>ipfix_start_template_set()</tt></li></ul>
  */
 int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
 {
@@ -2960,9 +3008,12 @@ static int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template
     return 0;
 }
 /**
- * \brief Set up time after that Templates are going to be resent
+ * \brief Set time after that Templates are going to be resent
  *
+ * If UDP is used as the transport protocol, this value determines the interval
+ * in which active Templates are retransmitted.
  * @param exporter pointer to previously initialized exporter struct
+ * \return 0 This value is always returned.
  */
 int ipfix_set_template_transmission_timer(ipfix_exporter *exporter, uint32_t timer){
 	
@@ -2974,6 +3025,7 @@ int ipfix_set_template_transmission_timer(ipfix_exporter *exporter, uint32_t tim
  * \brief Set up SCTP packet lifetime
  *
  * @param exporter pointer to previously initialized exporter struct
+ * \return 0 This value is always returned.
  */
 int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime) {
     exporter->sctp_lifetime = lifetime;
@@ -2982,10 +3034,11 @@ int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime) {
 /**
  * \brief Set up SCTP reconnect timer
  *
- * Time after that a reconnection attempt is made,
- * if connection to the collector was lost.
+ * Time after which a reconnection attempt is made in case the connection to
+ * the Collector is lost.
  *
  * @param exporter pointer to previously initialized exporter struct
+ * \return 0 This value is always returned.
  */
 int ipfix_set_sctp_reconnect_timer(ipfix_exporter *exporter, uint32_t timer) {
     exporter->sctp_reconnect_timer = timer;
@@ -3000,11 +3053,17 @@ int ipfix_set_sctp_reconnect_timer(ipfix_exporter *exporter, uint32_t timer) {
  * certificate chain file will be searched for the private key.  See OpenSSL
  * man pages for more details
  *
+ * The certificate can only be set once per exporter. Calling this function
+ * twice for the same exporter is an error. This function must not be called
+ * after the first DTLS connection has been set up.
+ *
  * @param exporter pointer to previously initialized exporter struct
- * @param certificate_chain_file name of file in which certificate chain is stored in PEM format
+ * @param certificate_chain_file name of file in which the certificate chain is
+ * stored in PEM format
  * @param private_key_file name of file in which the private key is stored in
- *   PEM format. If NULL, private key is read from certificate_chain_file.
- * @return 0 on success, -1 on failure
+ *   PEM format. If NULL, the private key is read from certificate_chain_file.
+ * \return 0 success
+ * \return -1 failure
  */
 int ipfix_set_dtls_certificate(ipfix_exporter *exporter,
 	const char *certificate_chain_file, const char *private_key_file) {
@@ -3035,7 +3094,9 @@ int ipfix_set_dtls_certificate(ipfix_exporter *exporter,
 /**
  * \brief Set the locations of the CA certificates.
  *
- * See <tt>SSL_CTX_load_verify_locations(3)</tt> for more details.
+ * See <tt>SSL_CTX_load_verify_locations(3)</tt> for more details. These
+ * locations can only be set once per exporter. Calling this function twice for
+ * the same exporter is an error.
  *
  * @param exporter pointer to previously initialized exporter struct
  * @param ca_file All CA certificates found in this <em>file</em> are trusted
@@ -3044,6 +3105,8 @@ int ipfix_set_dtls_certificate(ipfix_exporter *exporter,
  * trusted for verification of the peer's certificate. See
  * <tt>SSL_CTX_load_verify_locations(3)</tt> for details about how the files
  * have to be named. All files need to be in PEM format.
+ * \return 0 success
+ * \return -1 failure
  */
 int ipfix_set_ca_locations(ipfix_exporter *exporter, const char *ca_file, const char *ca_path) {
 #ifdef SUPPORT_DTLS

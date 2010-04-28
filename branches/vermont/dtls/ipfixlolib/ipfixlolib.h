@@ -281,8 +281,9 @@ typedef struct {
 			     the subject alternative names matches the FQDN.
 			     There is no support for wildcard matching. For the
 			     certificate verification to work, the user must
-			     also call <tt>ipfix_set_ca_locations()</tt> to
-			     specify the locations of the root CA certificates.
+			     also call <tt>ipfix_set_ca_locations()</tt> in
+			     advance to specify the locations of the root CA
+			     certificates.
 			   
 			     If set to NULL, anonymous cipher suites will be
 			     added to the list of permissible cipher suites.
@@ -534,7 +535,7 @@ int ipfix_init_exporter(uint32_t observation_domain_id, ipfix_exporter **exporte
 int ipfix_deinit_exporter(ipfix_exporter *exporter);
 
 int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int coll_port, enum ipfix_transport_protocol proto, void *aux_config);
-int ipfix_remove_collector(ipfix_exporter *exporter, char *coll_ip4_addr, int coll_port);
+int ipfix_remove_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int coll_port);
 
 int ipfix_start_template_set(ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count);
 int ipfix_start_optionstemplate_set(ipfix_exporter *exporter, uint16_t template_id, uint16_t scope_length, uint16_t option_length);
