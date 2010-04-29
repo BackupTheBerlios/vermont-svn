@@ -65,6 +65,7 @@ int add_collector(ipfix_exporter *exporter);
 int get_sample_data1(meter_data *mdat);
 int get_sample_data2(meter_data *mdat);
 int set_config_on_exporter(ipfix_exporter *exporter);
+void print_usage(char *argv0);
 
 
 /*
@@ -524,6 +525,7 @@ int parse_command_line_arguments(int argc, char **argv) {
 	{"CApath",required_argument,0,CApath},
 	{"collector",required_argument,0,collector},
 	{"port",required_argument,0,port},
+	{"help",no_argument,0,'h'},
 	{0, 0, 0, 0}
     };
     while (1) {
@@ -533,11 +535,14 @@ int parse_command_line_arguments(int argc, char **argv) {
 	char *endptr;
 	struct in_addr tmpaddr;
 
-	c = getopt_long (argc, argv, "d", long_options, &option_index);
+	c = getopt_long (argc, argv, "dh", long_options, &option_index);
 	if (c == -1) break;
 	switch (c) {
 	    case 0:
 		break;
+	    case 'h':
+		print_usage(argv[0]);
+		exit(EXIT_SUCCESS);
 	    case 'd':
 		debug_level++;
 		break;
@@ -605,4 +610,28 @@ int set_config_on_exporter(ipfix_exporter *exporter) {
     if (myconfig.certificate_chain_file)
 	ret = ipfix_set_dtls_certificate(exporter, myconfig.certificate_chain_file, myconfig.private_key_file);
     return ret;
+}
+
+void print_usage(char *argv0) {
+    printf(
+"Usage: %s [OPTIONS]\n"
+"  --collector IPADDR  connect to collector at IP address IPADDR.\n"
+"                      Default is 127.0.0.1\n"
+"  --port P            use port P instead of standard port number\n"
+"                      which is 4739 or 4740 if DTLS is used.\n"
+"  --udp               use UDP as transport protocol (default)\n"
+"  --sctp              use SCTP as transport protocol\n"
+"  --dtls_over_udp     use DTLS over UDP as transport protocol\n"
+"  --dtls_over_sctp    use DTLS over SCTP as transport protocol\n"
+"  --mtu V             set maximum transmission unit (MTU) to V\n"
+"The following options apply to DTLS only\n"
+"  --peer_fqdn N       peer must present certificate which contains\n"
+"                      the FQDN N.\n"
+"  --cert F            X.509 certificate chain in PEM format is stored in F\n"
+"  --key F             private key for certificate is stored in F\n"
+"  --CAfile F          search F for CA certificates\n"
+"  --CApath D          search directory D for CA certificates\n"
+,
+argv0
+);
 }
