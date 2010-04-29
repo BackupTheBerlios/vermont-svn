@@ -345,7 +345,7 @@ static int dtls_send_helper( ipfix_dtls_connection *con,
     /* Collect data form iovecs */
     for (i=0;i<iovcnt;i++) {
 	if (sendbufcur + iov[i].iov_len > sendbuf + maxsendbuflen) {
-	    msg(MSG_FATAL, "IPFIX: sendbuffer for dtls_send too small.");
+	    msg(MSG_FATAL, "sendbuffer for dtls_send too small.");
 	    return -1;
 	}
 	memcpy(sendbufcur,iov[i].iov_base,iov[i].iov_len);
@@ -362,7 +362,7 @@ static int dtls_send_helper( ipfix_dtls_connection *con,
     switch (error) {
 	case SSL_ERROR_NONE:
 	    if (len!=sendbufcur - sendbuf) {
-		msg(MSG_FATAL, "IPFIX: len!=sendbuflen when calling SSL_write()");
+		msg(MSG_FATAL, "len!=sendbuflen when calling SSL_write()");
 		return -1;
 	    }
 	    return sendbufcur - sendbuf; /* SUCCESS */
@@ -444,7 +444,7 @@ static int create_dtls_socket(ipfix_receiving_collector *col) {
 	    protocol = 0;
 	}
         if((s = socket(PF_INET, type, protocol)) < 0 ) {
-                msg(MSG_FATAL, "IPFIX: error opening socket, %s", strerror(errno));
+                msg(MSG_FATAL, "error opening socket, %s", strerror(errno));
                 return -1;
         }
 
@@ -460,7 +460,7 @@ static int create_dtls_socket(ipfix_receiving_collector *col) {
 	flags = fcntl(s, F_GETFL);
 	flags |= O_NONBLOCK;
 	if(fcntl(s, F_SETFL, flags) == -1) {
-                msg(MSG_FATAL, "IPFIX: could not set socket non-blocking");
+                msg(MSG_FATAL, "could not set socket non-blocking");
 		close(s);
                 return -1;
 	}
@@ -470,7 +470,7 @@ static int create_dtls_socket(ipfix_receiving_collector *col) {
 	memset(&event, 0, sizeof(event));
 	event.sctp_data_io_event = 1;
 	if (setsockopt(s, IPPROTO_SCTP, SCTP_EVENTS, &event, sizeof(event)) != 0) {
-		msg(MSG_ERROR, "IPFIX: SCTP: setsockopt() failed to enable sctp_data_io_event, %s", strerror(errno));
+		msg(MSG_ERROR, "SCTP: setsockopt() failed to enable sctp_data_io_event, %s", strerror(errno));
 		close(s);
                 return -1;
 	}
@@ -566,7 +566,7 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
     SSL_set_bio(con->ssl,bio,bio);
     // connect (non-blocking, i.e. handshake is initiated, not terminated)
     if((connect(con->socket, (struct sockaddr*)&col->addr, sizeof(col->addr) ) == -1) && (errno != EINPROGRESS)) {
-	    msg(MSG_FATAL, "IPFIX: connect failed, %s", strerror(errno));
+	    msg(MSG_FATAL, "connect failed, %s", strerror(errno));
 	    SSL_free(con->ssl);con->ssl = NULL;
 	    close(con->socket);con->socket = -1;
 	    return -1;
@@ -677,13 +677,13 @@ static int init_send_udp_socket(struct sockaddr_in serv_addr){
         int s;
         // create socket
         if((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-                msg(MSG_FATAL, "IPFIX: error opening socket, %s", strerror(errno));
+                msg(MSG_FATAL, "error opening socket, %s", strerror(errno));
                 return -1;
         }
 
         // connect to server
         if(connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr) ) < 0) {
-                msg(MSG_FATAL, "IPFIX: connect failed, %s", strerror(errno));
+                msg(MSG_FATAL, "connect failed, %s", strerror(errno));
                 /* clean up */
                 close(s);
                 return -1;
@@ -701,14 +701,14 @@ static int enable_pmtu_discovery(int s) {
     // Linux
     const int optval = IP_PMTUDISC_DO;
     if (setsockopt(s,IPPROTO_IP,IP_MTU_DISCOVER,&optval,sizeof(optval))) {
-	    msg(MSG_FATAL, "IPFIX: setsockopt(...,IP_MTU_DISCOVER,...) failed, %s", strerror(errno));
+	    msg(MSG_FATAL, "setsockopt(...,IP_MTU_DISCOVER,...) failed, %s", strerror(errno));
 	    return -1;
     }
 #elif IP_DONTFRAG
     // FreeBSD
     const int optval = 1;
     if (setsockopt(s,IPPROTO_IP,IP_DONTFRAG,&optval,sizeof(optval))) {
-	    msg(MSG_FATAL, "IPFIX: setsockopt(...,IP_DONTFRAG,...) failed, %s", strerror(errno));
+	    msg(MSG_FATAL, "setsockopt(...,IP_DONTFRAG,...) failed, %s", strerror(errno));
 	    return -1;
     }
 #endif
@@ -720,7 +720,7 @@ static int get_mtu(const int s) {
     int optval = 0;
     socklen_t optlen = sizeof(optval);
     if (getsockopt(s,IPPROTO_IP,IP_MTU,&optval,&optlen)) {
-	msg(MSG_FATAL, "IPFIX: getsockopt(...,IP_MTU,...) failed, %s", strerror(errno));
+	msg(MSG_FATAL, "getsockopt(...,IP_MTU,...) failed, %s", strerror(errno));
 	return -1;
     } else
 	return optval;
@@ -749,7 +749,7 @@ static int init_send_sctp_socket(struct sockaddr_in serv_addr){
     //create socket:
     DPRINTFL(MSG_VDEBUG, "Creating SCTP Socket ...");
     if((s = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP)) < 0 ) {
-	msg(MSG_FATAL, "IPFIX: error opening SCTP socket, %s", strerror(errno));
+	msg(MSG_FATAL, "error opening SCTP socket, %s", strerror(errno));
 	return -1;
     }
     // set non-blocking
@@ -757,7 +757,7 @@ static int init_send_sctp_socket(struct sockaddr_in serv_addr){
     flags = fcntl(s, F_GETFL);
     flags |= O_NONBLOCK;
     if(fcntl(s, F_SETFL, flags) == -1) {
-	msg(MSG_FATAL, "IPFIX: could not set socket non-blocking");
+	msg(MSG_FATAL, "could not set socket non-blocking");
 	close(s);
 	return -1;
     }
@@ -771,13 +771,13 @@ static int init_send_sctp_socket(struct sockaddr_in serv_addr){
     event.sctp_sender_dry_event = 1;
 #endif
     if (setsockopt(s, IPPROTO_SCTP, SCTP_EVENTS, &event, sizeof(event)) != 0) {
-	    msg(MSG_ERROR, "IPFIX: SCTP: setsockopt() failed to enable sctp_data_io_event, %s", strerror(errno));
+	    msg(MSG_ERROR, "SCTP: setsockopt() failed to enable sctp_data_io_event, %s", strerror(errno));
 	    close(s);
 	    return -1;
     }
     // connect (non-blocking, i.e. handshake is initiated, not terminated)
     if((connect(s, (struct sockaddr*)&serv_addr, sizeof(serv_addr) ) == -1) && (errno != EINPROGRESS)) {
-	msg(MSG_ERROR, "IPFIX: SCTP connect failed, %s", strerror(errno));
+	msg(MSG_ERROR, "SCTP connect failed, %s", strerror(errno));
 	close(s);
 	return -1;
     }
@@ -880,26 +880,26 @@ int ipfix_init_exporter(uint32_t observation_domain_id, ipfix_exporter **exporte
         // initialize the sendbuffers
         ret=ipfix_init_sendbuffer(&(tmp->data_sendbuffer));
         if (ret != 0) {
-                msg(MSG_FATAL, "IPFIX: initializing data sendbuffer failed");
+                msg(MSG_FATAL, "initializing data sendbuffer failed");
                 goto out1;
         }
 
         ret=ipfix_init_sendbuffer(&(tmp->template_sendbuffer));
         if (ret != 0) {
-                msg(MSG_FATAL, "IPFIX: initializing template sendbuffer failed");
+                msg(MSG_FATAL, "initializing template sendbuffer failed");
                 goto out2;
         }
 	
 	ret=ipfix_init_sendbuffer(&(tmp->sctp_template_sendbuffer));
         if (ret != 0) {
-                msg(MSG_FATAL, "IPFIX: initializing sctp template sendbuffer failed");
+                msg(MSG_FATAL, "initializing sctp template sendbuffer failed");
                 goto out5;
         }
 	
         // intialize the collectors to zero
         ret=ipfix_init_collector_array( &(tmp->collector_arr), IPFIX_MAX_COLLECTORS);
         if (ret !=0) {
-                msg(MSG_FATAL, "IPFIX: initializing collectors failed");
+                msg(MSG_FATAL, "initializing collectors failed");
                 goto out3;
         }
 
@@ -1191,7 +1191,7 @@ static int add_collector_remaining_protocols(
     col->data_socket = ipfix_init_send_socket(col->addr, col->protocol);
     // error handling, in case we were unable to open the port:
     if(col->data_socket < 0 ) {
-	msg(MSG_ERROR, "IPFIX: add collector, initializing socket failed");
+	msg(MSG_ERROR, "add collector, initializing socket failed");
 	return -1;
     }
     // now, we may set the collector to valid;
@@ -1211,6 +1211,11 @@ static int add_collector_remaining_protocols(
 	   col->state to C_UNUSED. */
 	return -1;
     }
+    /* We have to call update_exporter_max_message_size()
+     * because update_collector_mtu *only* calls
+     * update_exporter_max_message_size() if the MTU
+     * mode is IPFIX_MTU_DISCOVER. */
+    update_exporter_max_message_size(exporter);
     col->last_reconnect_attempt_time = time(NULL);
 
     return 0;
@@ -1222,38 +1227,38 @@ static int valid_transport_protocol(enum ipfix_transport_protocol p) {
 #ifdef SUPPORT_DTLS
 	    return 1;
 #else
-	    msg(MSG_FATAL, "IPFIX: Library compiled without DTLS support.");
+	    msg(MSG_FATAL, "Library compiled without DTLS support.");
 	    return 0;
 #endif
 	case DTLS_OVER_SCTP:
 #ifdef SUPPORT_DTLS_OVER_SCTP
 	    return 1;
 #else
-	    msg(MSG_FATAL, "IPFIX: Library compiled without DTLS over SCTP support.");
+	    msg(MSG_FATAL, "Library compiled without DTLS over SCTP support.");
 	    return 0;
 #endif
 	case SCTP:
 #ifdef SUPPORT_SCTP
 	    return 1;
 #else
-	    msg(MSG_FATAL, "IPFIX: Library compiled without SCTP support.");
+	    msg(MSG_FATAL, "Library compiled without SCTP support.");
 	    return 0;
 #endif
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
 	case RAWDIR:
 	    return 1;
 #else
-	    msg(MSG_FATAL, "IPFIX: Library compiled without RAWDIR support.");
+	    msg(MSG_FATAL, "Library compiled without RAWDIR support.");
 	    return 0;
 #endif 
 
 	case TCP:
-	    msg(MSG_FATAL, "IPFIX: Transport Protocol TCP not implemented");
+	    msg(MSG_FATAL, "Transport Protocol TCP not implemented");
 	    return 0;
 	case UDP:
 	    return 1;
 	default:
-	    msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
+	    msg(MSG_FATAL, "Transport Protocol not supported");
 	    return 0;
     }
 }
@@ -1300,7 +1305,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
 {
     // check, if exporter is valid
     if(exporter == NULL) {
-	msg(MSG_FATAL, "IPFIX: add_collector, exporter is NULL");
+	msg(MSG_FATAL, "add_collector, exporter is NULL");
 	return -1;
     }
     if ( ! valid_transport_protocol(proto)) return -1;
@@ -1308,7 +1313,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
     // get free slot
     ipfix_receiving_collector *collector = get_free_collector_slot(exporter);
     if( ! collector) {
-	msg(MSG_FATAL, "IPFIX: no more free slots for new collectors available, limit %d reached",
+	msg(MSG_FATAL, "no more free slots for new collectors available, limit %d reached",
 		exporter->collector_max_num
 	   );
 	return -1;
@@ -1394,7 +1399,7 @@ int ipfix_remove_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, 
 	    return 0;
 	}
     }
-    msg(MSG_ERROR, "IPFIX: remove_collector, exporter %s not found", coll_ip4_addr);
+    msg(MSG_ERROR, "remove_collector, exporter %s not found", coll_ip4_addr);
     return -1;
 }
 
@@ -1416,13 +1421,13 @@ static int ipfix_find_template(
 	ipfix_exporter *exporter,
 	uint16_t template_id) {
 
-    DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_find_template with ID: %d",template_id);
+    DPRINTFL(MSG_VDEBUG, "ipfix_find_template with ID: %d",template_id);
 
     int i=0;
     for (;i<exporter->ipfix_lo_template_maxsize;i++) {
 	if(exporter->template_arr[i].template_id == template_id) {
 	    DPRINTFL(MSG_VDEBUG,
-		    "IPFIX: ipfix_find_template with ID: %d, validity %d found at %d",
+		    "ipfix_find_template with ID: %d, validity %d found at %d",
 		    template_id, exporter->template_arr[i].state, i);
 	    return i;
 	}
@@ -1431,16 +1436,16 @@ static int ipfix_find_template(
 }
 
 static int ipfix_get_free_template_slot(ipfix_exporter *exporter) {
-    DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_get_free_template_slot");
+    DPRINTFL(MSG_VDEBUG, "ipfix_get_free_template_slot");
 
     int i=0;
     for (;i<exporter->ipfix_lo_template_maxsize;i++) {
 	if(exporter->template_arr[i].state == T_UNUSED) {
-	    DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_get_free_template_slot found at %d",i);
+	    DPRINTFL(MSG_VDEBUG, "ipfix_get_free_template_slot found at %d",i);
 	    return i;
 	}
     }
-    DPRINTFL(MSG_DEBUG, "IPFIX: ipfix_get_free_template_slot failed.");
+    DPRINTFL(MSG_DEBUG, "ipfix_get_free_template_slot failed.");
     return -1;
 }
 
@@ -1458,12 +1463,12 @@ static int ipfix_get_free_template_slot(ipfix_exporter *exporter) {
 int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id) {
     int found_index = ipfix_find_template(exporter,template_id);
     if (found_index < 0) {
-	msg(MSG_ERROR, "IPFIX: remove_template ID %u not found", template_id);
+	msg(MSG_ERROR, "remove_template ID %u not found", template_id);
 	return -1;
     }
     if(exporter->template_arr[found_index].state == T_SENT){
 	DPRINTFL(MSG_VDEBUG,
-		"IPFIX: ipfix_remove_template_set: creating withdrawal msg for ID: %d, validity %d",
+		"creating withdrawal msg for ID: %d, validity %d",
 		template_id, exporter->template_arr[found_index].state);
 	char *p_pos;
 	char *p_end;
@@ -1487,7 +1492,7 @@ int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id) {
 	exporter->template_arr[found_index].field_count = 0;
 	exporter->template_arr[found_index].fields_added = 0;
 	exporter->template_arr[found_index].state = T_WITHDRAWN;
-	DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_remove_template_set: ... Withdrawn");
+	DPRINTFL(MSG_VDEBUG, "... Withdrawn");
     } else {
 	ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]) );
     }
@@ -1551,7 +1556,7 @@ static void ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ip
         if(export_time == (time_t)-1) {
                 // survive
                 export_time=0;
-                msg(MSG_ERROR,"IPFIX: prepend_header, time() failed, using %d", export_time);
+                msg(MSG_ERROR,"prepend_header, time() failed, using %d", export_time);
         }
         //  global_last_export_time = (uint32_t) export_time;
         (sendbuf->packet_header).export_time = htonl((uint32_t)export_time);
@@ -1734,7 +1739,6 @@ static int ipfix_init_template_array(ipfix_exporter *exporter, int template_capa
 {
         int i;
 
-        DPRINTFL(MSG_VDEBUG, "IPFIX - ipfix_init_template_array with elem %d", template_capacity);
         // allocate the memory for template_capacity elements:
         exporter->ipfix_lo_template_maxsize  = template_capacity;
         exporter->template_arr =  (ipfix_lo_template*) malloc (template_capacity * sizeof(ipfix_lo_template) );
@@ -1773,7 +1777,7 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter)
                 // try to free all templates:
                 ret = ipfix_deinit_template_set(exporter, &(exporter->template_arr[i]) );
                 // for debugging:
-                DPRINTFL(MSG_VDEBUG, "ipfix_deinit_template_array deinitialized template %i with success %i ", i, ret);
+                DPRINTFL(MSG_VDEBUG, "deinitialized template %i with success %i ", i, ret);
                 // end debugging
         }
         free(exporter->template_arr);
@@ -1821,11 +1825,11 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 				break;
 			case (T_COMMITED): // send to SCTP and UDP collectors and mark as T_SENT
 				if (sctp_sendbuf->current >= IPFIX_MAX_SENDBUFSIZE-2 ) {
-					msg(MSG_ERROR, "IPFIX: SCTP template sendbuffer too small to handle more than %i entries", sctp_sendbuf->current);
+					msg(MSG_ERROR, "SCTP template sendbuffer too small to handle more than %i entries", sctp_sendbuf->current);
 					return -1;
                         	}
                         	if (t_sendbuf->current >= IPFIX_MAX_SENDBUFSIZE-2 ) {
-					msg(MSG_ERROR, "IPFIX: UDP template sendbuffer too small to handle more than %i entries", t_sendbuf->current);
+					msg(MSG_ERROR, "UDP template sendbuffer too small to handle more than %i entries", t_sendbuf->current);
 					return -1;
                         	}
 				sctp_sendbuf->entries[ sctp_sendbuf->current ].iov_base = exporter->template_arr[i].template_fields;
@@ -1842,7 +1846,7 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
                         	break;
                 	case (T_SENT): // only to UDP collectors
                 		if (t_sendbuf->current >= IPFIX_MAX_SENDBUFSIZE-2 ) {
-					msg(MSG_ERROR, "IPFIX: UDP template sendbuffer too small to handle more than %i entries", t_sendbuf->current);
+					msg(MSG_ERROR, "UDP template sendbuffer too small to handle more than %i entries", t_sendbuf->current);
 					return -1;
                         	}
                 		t_sendbuf->entries[ t_sendbuf->current ].iov_base = exporter->template_arr[i].template_fields;
@@ -1852,7 +1856,7 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 				break;
                 	case (T_WITHDRAWN): // put the SCTP withdrawal message and mark T_TOBEDELETED
                 		if (sctp_sendbuf->current >= IPFIX_MAX_SENDBUFSIZE-2 ) {
-					msg(MSG_ERROR, "IPFIX: SCTP template sendbuffer too small to handle more than %i entries", sctp_sendbuf->current);
+					msg(MSG_ERROR, "SCTP template sendbuffer too small to handle more than %i entries", sctp_sendbuf->current);
 					return -1;
 				}
 				sctp_sendbuf->entries[ sctp_sendbuf->current ].iov_base = exporter->template_arr[i].template_fields;
@@ -1862,7 +1866,7 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 				
 				/* ASK: We don't we just delete the template? */
 				exporter->template_arr[i].state = T_TOBEDELETED;
-				DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_update_template_sendbuffer: Withdrawal for template ID: %d added to sctp_sendbuffer", exporter->template_arr[i].template_id);
+				DPRINTFL(MSG_VDEBUG, "Withdrawal for template ID: %d added to sctp_sendbuffer", exporter->template_arr[i].template_id);
 				break;
 			default : // Do nothing : T_UNUSED or T_UNCLEAN
 				break;
@@ -1896,7 +1900,7 @@ static int sctp_reconnect(ipfix_exporter *exporter , int i){
 	if(exporter->collector_arr[i].data_socket < 0) {
 		exporter->collector_arr[i].data_socket = init_send_sctp_socket( exporter->collector_arr[i].addr );
 		if( exporter->collector_arr[i].data_socket < 0) {
-		    msg(MSG_ERROR, "sctp_reconnect(): SCTP socket creation in reconnect failed, %s", strerror(errno));
+		    msg(MSG_ERROR, "SCTP socket creation in reconnect failed, %s", strerror(errno));
 		    exporter->collector_arr[i].state = C_DISCONNECTED;
 		    return -1;
 		}
@@ -1908,7 +1912,7 @@ static int sctp_reconnect(ipfix_exporter *exporter , int i){
 	ret = select(exporter->collector_arr[i].data_socket + 1,NULL,&writefds,NULL,&timeout);
 	if (ret == 0) {
 	    // connection attempt not yet finished
-	    msg(MSG_DEBUG, "sctp_reconnect(): still connecting...");
+	    msg(MSG_DEBUG, "still connecting...");
 	    exporter->collector_arr[i].state = C_NEW;
 	    return -1;
 	} else if (ret>0) {
@@ -1916,14 +1920,14 @@ static int sctp_reconnect(ipfix_exporter *exporter , int i){
 	    msg(MSG_DEBUG, "socket is writeable");
 	} else {
 	    // error
-	    msg(MSG_ERROR, "sctp_reconnect(): SCTP (re)connect failed, %s", strerror(errno));
+	    msg(MSG_ERROR, "SCTP (re)connect failed, %s", strerror(errno));
 	    close(exporter->collector_arr[i].data_socket);
 	    exporter->collector_arr[i].data_socket = -1;
 	    exporter->collector_arr[i].state = C_DISCONNECTED;
 	    return -1;
 	}
 
-	msg(MSG_INFO, "sctp_reconnect(): successfully (re)connected.");
+	msg(MSG_INFO, "successfully (re)connected.");
 
 	//reconnected -> resend all active templates
 	ipfix_prepend_header(exporter,
@@ -1940,13 +1944,13 @@ static int sctp_reconnect(ipfix_exporter *exporter , int i){
 			0,//packet lifetime in ms (0 = reliable, do not change for templates)
 		0 // context
 			)) == -1) {
-			msg(MSG_ERROR, "sctp_reconnect(): SCTP sending templates after reconnection failed, %s", strerror(errno));
+			msg(MSG_ERROR, "SCTP sending templates after reconnection failed, %s", strerror(errno));
 			close(exporter->collector_arr[i].data_socket);
 		exporter->collector_arr[i].data_socket = -1;
 			exporter->collector_arr[i].state = C_DISCONNECTED;
 			return -1;
 	}
-	msg(MSG_VDEBUG, "sctp_reconnect(): %d template bytes sent to SCTP collector",bytes_sent);
+	msg(MSG_VDEBUG, "%d template bytes sent to SCTP collector",bytes_sent);
 
 	// we are done
 	exporter->collector_arr[i].state = C_CONNECTED;
@@ -2051,13 +2055,13 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 							    col->port_number);
 						} else {
 						    msg(MSG_ERROR,
-							    "ipfix_send_templates(): could not send to %s:%d errno: %s  (UDP)",
+							    "could not send to %s:%d errno: %s  (UDP)",
 							    col->ipv4address,
 							    col->port_number,
 							    strerror(errno));
 						}
 					} else {
-						msg(MSG_VDEBUG, "ipfix_send_templates(): %d Template Bytes sent to UDP collector %s:%d",
+						msg(MSG_VDEBUG, "%d Template Bytes sent to UDP collector %s:%d",
 							bytes_sent, col->ipv4address, col->port_number);
 					}
 #ifdef SUPPORT_DTLS
@@ -2076,7 +2080,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 					break;
 				case C_DISCONNECTED: //reconnect attempt if reconnection time reached
 					if(exporter->sctp_reconnect_timer == 0) { // 0 = no more reconnection attempts
-						msg(MSG_ERROR, "ipfix_send_templates(): reconnect failed, removing collector %s:%d (SCTP)", col->ipv4address, col->port_number);
+						msg(MSG_ERROR, "reconnect failed, removing collector %s:%d (SCTP)", col->ipv4address, col->port_number);
 						remove_collector(col);
 					} else if ((time_now - col->last_reconnect_attempt_time) >  exporter->sctp_reconnect_timer) {
 						sctp_reconnect(exporter, i);
@@ -2099,19 +2103,19 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 							0 // context
 							)) == -1) {
 							// send failed
-							msg(MSG_ERROR, "ipfix_send_templates(): could not send to %s:%d errno: %s  (SCTP)",col->ipv4address, col->port_number, strerror(errno));
+							msg(MSG_ERROR, "could not send to %s:%d errno: %s  (SCTP)",col->ipv4address, col->port_number, strerror(errno));
 							sctp_reconnect(exporter, i); //1st reconnect attempt 
 							// if result is C_DISCONNECTED and sctp_reconnect_timer == 0, collector will 
 							// be removed on the next call of ipfix_send_templates()
 						} else {
 							// send was successful
-							msg(MSG_VDEBUG, "ipfix_send_templates(): %d template bytes sent to SCTP collector %s:%d",
+							msg(MSG_VDEBUG, "%d template bytes sent to SCTP collector %s:%d",
 								bytes_sent, col->ipv4address, col->port_number);
 						}
 					}
 					break;	
 				default:
-				msg(MSG_FATAL, "IPFIX: Unknown collector socket state");
+				msg(MSG_FATAL, "Unknown collector socket state");
 				return -1;
 				}
 			break;
@@ -2127,9 +2131,9 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				sprintf(fnamebuf, "%s/%08d", packet_directory_path, col->packets_written++);
 				int f = creat(fnamebuf, S_IRWXU | S_IRWXG);
 				if(f<0)
-				    msg(MSG_ERROR, "IPFIX: could not open RAWDIR file %s", fnamebuf);
+				    msg(MSG_ERROR, "could not open RAWDIR file %s", fnamebuf);
 				else if(writev(f, exporter->template_sendbuffer->entries, exporter->template_sendbuffer->current)<0)
-				    msg(MSG_ERROR, "IPFIX: could not write to RAWDIR file %s", fnamebuf);
+				    msg(MSG_ERROR, "could not write to RAWDIR file %s", fnamebuf);
 				close(f);
 			break;
 #endif	
@@ -2172,7 +2176,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 			ipfix_receiving_collector *col = &exporter->collector_arr[i];
 			if (col->state == C_CONNECTED) {
 #ifdef DEBUG
-                                DPRINTFL(MSG_VDEBUG, "IPFIX: Sending to exporter %s", col->ipv4address);
+                                DPRINTFL(MSG_VDEBUG, "Sending to exporter %s", col->ipv4address);
 
                                 // debugging output of data buffer:
 				/* Keep in mind that the IPFIX message header (16 bytes) is not included
@@ -2185,17 +2189,12 @@ static int ipfix_send_data(ipfix_exporter* exporter)
                                 for (j =0; j <  exporter->data_sendbuffer->committed; j++) {
                                         if(exporter->data_sendbuffer->entries[j].iov_len > 0 ) {
                                                 tested_length += exporter->data_sendbuffer->entries[j].iov_len;
-                                                // DPRINTFL(MSG_VDEBUG, "Data Buffer [%i] has %u bytes", j, exporter->data_sendbuffer->entries[j].iov_len);
-
-                                                /*for (k=0; k < exporter->data_sendbuffer->entries[j].iov_len; k++) {
-                                                        DPRINTFL (MSG_VDEBUG, "Data at  buf_vector[%i] pos %i is 0x%hx", j,k,   *(  (char*) ( (*(*exporter).data_sendbuffer).entries[j].iov_base+k) ) );
-                                                }*/
                                         }
                                 }
 				/* Keep in mind that the IPFIX message header (16 bytes) is not included
 				   in committed_data_length. So there should be a difference of 16 bytes
 				   between tested_length and committed_data_length */
-                                DPRINTFL(MSG_VDEBUG, "IPFIX: Sendbuffer really contains %u bytes!", tested_length );
+                                DPRINTFL(MSG_VDEBUG, "Total length of sendbuffer: %u bytes (IPFIX Message header + set headers + records)", tested_length );
 #endif
 				switch(col->protocol){
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
@@ -2206,7 +2205,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						exporter->data_sendbuffer->entries,
 						exporter->data_sendbuffer->committed
 							     )) == -1){
-						msg(MSG_ERROR, "ipfix_send_data(): could not send to %s:%d errno: %s  (UDP)",col->ipv4address, col->port_number, strerror(errno));
+						msg(MSG_ERROR, "could not send to %s:%d errno: %s  (UDP)",col->ipv4address, col->port_number, strerror(errno));
 						if (errno == EMSGSIZE) {
 						    msg(MSG_ERROR, "Updating MTU estimate for collector %s:%d",
 							    col->ipv4address,
@@ -2219,7 +2218,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						}
 					}else{
 
-						msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to UDP collector %s:%d",
+						msg(MSG_VDEBUG, "%d data bytes sent to UDP collector %s:%d",
 								bytes_sent, col->ipv4address, col->port_number);
 					}
 					break;
@@ -2230,10 +2229,10 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						exporter->data_sendbuffer->committed,
 						exporter->sctp_lifetime
 							     )) == -1){
-						msg(MSG_VDEBUG, "ipfix_send_data(): could not send to %s:%d (DTLS over SCTP)",col->ipv4address, col->port_number);
+						msg(MSG_VDEBUG, "could not send to %s:%d (DTLS over SCTP)",col->ipv4address, col->port_number);
 					}else{
 
-						msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to DTLS over SCTP collector %s:%d",
+						msg(MSG_VDEBUG, "%d data bytes sent to DTLS over SCTP collector %s:%d",
 								bytes_sent, col->ipv4address, col->port_number);
 					}
 					break;
@@ -2252,13 +2251,13 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						0 // context
 						)) == -1) {
 						// send failed
-						msg(MSG_ERROR, "ipfix_send_data() could not send to %s:%d errno: %s  (SCTP)",col->ipv4address, col->port_number, strerror(errno));
+						msg(MSG_ERROR, "could not send to %s:%d errno: %s  (SCTP)",col->ipv4address, col->port_number, strerror(errno));
 						// drop data and call sctp_reconnect
 						sctp_reconnect(exporter, i);
 						// if result is C_DISCONNECTED and sctp_reconnect_timer == 0, collector will 
 						// be removed on the next call of ipfix_send_templates()
 							}
-					msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to SCTP collector %s:%d",
+					msg(MSG_VDEBUG, "%d data bytes sent to SCTP collector %s:%d",
 						bytes_sent, col->ipv4address, col->port_number);
 					break;
 #endif
@@ -2268,10 +2267,10 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 						exporter->data_sendbuffer->entries,
 						exporter->data_sendbuffer->committed
 							     )) == -1){
-						msg(MSG_VDEBUG, "ipfix_send_data(): could not send to %s:%d (DTLS over UDP)",col->ipv4address, col->port_number);
+						msg(MSG_VDEBUG, "could not send to %s:%d (DTLS over UDP)",col->ipv4address, col->port_number);
 					}else{
 
-						msg(MSG_VDEBUG, "ipfix_send_data(): %d data bytes sent to DTLS over UDP collector %s:%d",
+						msg(MSG_VDEBUG, "%d data bytes sent to DTLS over UDP collector %s:%d",
 								bytes_sent, col->ipv4address, col->port_number);
 					}
 					break;
@@ -2287,14 +2286,14 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 					sprintf(fnamebuf, "%s/%08d", packet_directory_path, col->packets_written++);
 					int f = creat(fnamebuf, S_IRWXU | S_IRWXG);
 					if(f<0)
-					    msg(MSG_ERROR, "IPFIX: could not open RAWDIR file %s", fnamebuf);
+					    msg(MSG_ERROR, "could not open RAWDIR file %s", fnamebuf);
 					else if(writev(f, exporter->data_sendbuffer->entries, exporter->data_sendbuffer->current)<0)
-					    msg(MSG_ERROR, "IPFIX: could not write to RAWDIR file %s", fnamebuf);
+					    msg(MSG_ERROR, "could not write to RAWDIR file %s", fnamebuf);
 					close(f);
 					break;
 #endif
 				default:
-					msg(MSG_FATAL, "IPFIX: Transport Protocol not supported");
+					msg(MSG_FATAL, "Transport Protocol not supported");
 					break; /* Should not occur since we check the transport
 						      protocol in valid_transport_protocol()*/
                         	}
@@ -2328,11 +2327,11 @@ int ipfix_send(ipfix_exporter *exporter)
         int ret = 0;
 
         if(ipfix_send_templates(exporter) < 0) {
-                msg(MSG_ERROR, "IPFIX: sending templates failed");
+                msg(MSG_ERROR, "sending templates failed");
                 ret = -1;
         }
         if(ipfix_send_data(exporter) < 0) {
-                msg(MSG_ERROR, "IPFIX: sending data failed");
+                msg(MSG_ERROR, "sending data failed");
                 ret = -1;
         }
 
@@ -2372,14 +2371,14 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
 	
 	// security check
 	if(exporter->data_sendbuffer->current != exporter->data_sendbuffer->committed) {
-                msg(MSG_ERROR, "IPFIX: start_data_set called twice.");
+                msg(MSG_ERROR, "start_data_set called twice.");
                 return -1;
         }
     
         // check, if there is enough space in the data set buffer
         // the -1 is because, we expect, we want to add at least one data field.
         if(exporter->data_sendbuffer->current >= IPFIX_MAX_SENDBUFSIZE-1 ) {
-                msg(MSG_ERROR, "IPFIX: start_data_set sendbuffer too small to handle more than %i entries",
+                msg(MSG_ERROR, "start_data_set sendbuffer too small to handle more than %i entries",
                     exporter->data_sendbuffer->current
                    );
                 return -1;
@@ -2387,7 +2386,7 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
 
 	// check if we do have space for another set header
         if((current + 1) >= IPFIX_MAX_SETS_PER_PACKET ) {
-                msg(MSG_ERROR, "IPFIX: start_data_set set_header_store too small to handle more than %i entries",
+                msg(MSG_ERROR, "start_data_set set_header_store too small to handle more than %i entries",
                     current + 1
                    );
                 return -1;
@@ -2475,11 +2474,11 @@ uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter) {
 int ipfix_put_data_field(ipfix_exporter *exporter,void *data, unsigned length) {
     ipfix_sendbuffer *dsb = exporter->data_sendbuffer;
     if(exporter->data_sendbuffer->current == exporter->data_sendbuffer->committed) {
-	msg(MSG_ERROR, "IPFIX: ipfix_put_data_field called but there is no started set.");
+	msg(MSG_ERROR, "ipfix_put_data_field called but there is no started set.");
 	return -1;
     }
     if (dsb->current >= IPFIX_MAX_SENDBUFSIZE) {
-	msg(MSG_ERROR, "IPFIX: Sendbuffer too small to handle  %i entries!\n", dsb->current );
+	msg(MSG_ERROR, "Sendbuffer too small to handle  %i entries!\n", dsb->current );
 	return -1;
     }
     dsb->entries[ dsb->current ].iov_base = data;
@@ -2504,7 +2503,7 @@ int ipfix_end_data_set(ipfix_exporter *exporter, uint16_t number_of_records)
 	uint16_t record_length;
 
 	if(exporter->data_sendbuffer->current == exporter->data_sendbuffer->committed) {
-                msg(MSG_ERROR, "IPFIX: ipfix_end_data_set called but there is no started set to end.");
+                msg(MSG_ERROR, "ipfix_end_data_set called but there is no started set to end.");
                 return -1;
         }
 
@@ -2549,7 +2548,7 @@ int ipfix_cancel_data_set(ipfix_exporter *exporter)
 
 	// security check
 	if(exporter->data_sendbuffer->current == exporter->data_sendbuffer->committed) {
-                msg(MSG_ERROR, "IPFIX: cancel_data_set called but there is no set to cancel.");
+                msg(MSG_ERROR, "cancel_data_set called but there is no set to cancel.");
                 return -1;
         }
     
@@ -2596,7 +2595,7 @@ int ipfix_delete_data_fields_upto_marker(ipfix_exporter *exporter)
 
 	// security check
 	if(exporter->data_sendbuffer->current == exporter->data_sendbuffer->committed) {
-                msg(MSG_ERROR, "IPFIX: delete_data_fields_upto_marker called but there is no set.");
+                msg(MSG_ERROR, "delete_data_fields_upto_marker called but there is no set.");
                 goto out;
         }
 
@@ -2647,7 +2646,7 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
 
     /* Make sure that template_id is > 255 */
     if ( ! template_id > 255 ) {
-	msg(MSG_ERROR, "IPFIX: start_datatemplate_set: Template id has to be > 255. Start of template cancelled.");
+	msg(MSG_ERROR, "Template id has to be > 255. Start of template cancelled.");
 	return -1;
     }
     int found_index = ipfix_find_template(exporter, template_id);
@@ -2746,7 +2745,7 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
 int ipfix_start_optionstemplate_set(ipfix_exporter *exporter,
 	uint16_t template_id, uint16_t scope_length, uint16_t option_length)
 {
-        msg(MSG_FATAL, "IPFIX: start_optionstemplate_set() not implemented");
+        msg(MSG_FATAL, "start_optionstemplate_set() not implemented");
         return -1;
 }
 
@@ -2783,12 +2782,12 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
 
     /* test for a valid slot */
     if(found_index < 0) {
-	msg(MSG_VDEBUG, "IPFIX: put_template_field, template ID %u not found", template_id);
+	msg(MSG_VDEBUG, "template ID %u not found", template_id);
 	return -1;
     }
     if (exporter->template_arr[found_index].fields_added >=
 	    exporter->template_arr[found_index].field_count) {
-	msg(MSG_ERROR, "IPFIX: Can not add more template fields.");
+	msg(MSG_ERROR, "Can not add more template fields.");
 	return -1;
     }
 
@@ -2797,15 +2796,15 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
     // end of the buffer
     p_end = p_pos + exporter->template_arr[found_index].max_fields_length;
 
-    DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: template found at %d", found_index);
-    DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: A p_pos %p, p_end %p", p_pos, p_end);
-    DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: max_fields_len %d", exporter->template_arr[found_index].max_fields_length);
-    DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: fieldss_len %d", exporter->template_arr[found_index].fields_length);
+    DPRINTFL(MSG_VDEBUG, "template found at %d", found_index);
+    DPRINTFL(MSG_VDEBUG, "A p_pos %p, p_end %p", p_pos, p_end);
+    DPRINTFL(MSG_VDEBUG, "max_fields_length %d", exporter->template_arr[found_index].max_fields_length);
+    DPRINTFL(MSG_VDEBUG, "fields_length %d", exporter->template_arr[found_index].fields_length);
 
     // add offset to the buffer's beginning: this is, where we will write to.
     p_pos += exporter->template_arr[found_index].fields_length;
 
-    DPRINTFL(MSG_VDEBUG, "ipfix_put_template_field: B p_pos %p, p_end %p", p_pos, p_end);
+    DPRINTFL(MSG_VDEBUG, "B p_pos %p, p_end %p", p_pos, p_end);
 
     if(enterprise_bit_set) {
 	DPRINTFL(MSG_VDEBUG, "Notice: using enterprise ID %d with data %d", template_id, enterprise_id);
@@ -2896,7 +2895,7 @@ int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void
 
         /* test for a valid slot */
         if (found_index < 0) {
-                msg(MSG_VDEBUG, "IPFIX: put_template_field, template ID %u not found", template_id);
+                msg(MSG_VDEBUG, "template ID %u not found", template_id);
                 return -1;
         }
 
@@ -2909,15 +2908,15 @@ int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void
         // end of the buffer
         p_end = p_pos + (*exporter).template_arr[found_index].max_fields_length;
 
-        DPRINTFL(MSG_VDEBUG, "ipfix_put_template_data: template found at %i", found_index);
-        DPRINTFL(MSG_VDEBUG, "ipfix_put_template_data: A p_pos %p, p_end %p", p_pos, p_end);
-        DPRINTFL(MSG_VDEBUG, "ipfix_put_template_data: max_fields_len %u ", (*exporter).template_arr[found_index].max_fields_length);
-        DPRINTFL(MSG_VDEBUG, "ipfix_put_template_data: fieldss_len %u ", (*exporter).template_arr[found_index].fields_length);
+        DPRINTFL(MSG_VDEBUG, "template found at %i", found_index);
+        DPRINTFL(MSG_VDEBUG, "A p_pos %p, p_end %p", p_pos, p_end);
+        DPRINTFL(MSG_VDEBUG, "max_fields_len %u ", (*exporter).template_arr[found_index].max_fields_length);
+        DPRINTFL(MSG_VDEBUG, "fieldss_len %u ", (*exporter).template_arr[found_index].fields_length);
 
         // add offset to the buffer's beginning: this is, where we will write to.
         p_pos += (*exporter).template_arr[found_index].fields_length;
 
-        DPRINTFL(MSG_VDEBUG, "ipfix_put_template_data: B p_pos %p, p_end %p", p_pos, p_end);
+        DPRINTFL(MSG_VDEBUG, "B p_pos %p, p_end %p", p_pos, p_end);
 
 	for(i = 0; i < data_length; i++) {
 		ret = write_octet(&p_pos, p_end, *(((uint8_t*)data)+i) );
@@ -2947,12 +2946,12 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
 
     // test for a valid slot:
     if (found_index < 0) {
-	msg(MSG_ERROR, "IPFIX: template %u not found", template_id);
+	msg(MSG_ERROR, "template %u not found", template_id);
 	return -1;
     }
     ipfix_lo_template *templ=(&exporter->template_arr[found_index]);
     if (templ->fields_added != templ->field_count) {
-	msg(MSG_ERROR, "IPFIX: Number of added template fields does not match number passed to ipfix_start_template_set");
+	msg(MSG_ERROR, "Number of added template fields does not match number passed to ipfix_start_template_set");
 	ipfix_deinit_template_set(exporter, templ);
 	return -1;
     }
@@ -3000,7 +2999,7 @@ static int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template
     // first test, if we can free this template
     if (templ->state == T_UNUSED)
 	return -1;
-    DPRINTFL(MSG_VDEBUG, "IPFIX: ipfix_deinit_template_set: deleting Template ID: %d validity: %d", templ->template_id, templ->state);
+    DPRINTFL(MSG_VDEBUG, "deleting Template ID: %d validity: %d", templ->template_id, templ->state);
     templ->state = T_UNUSED;
     free(templ->template_fields);
     templ->template_fields = 0;
@@ -3086,7 +3085,7 @@ int ipfix_set_dtls_certificate(ipfix_exporter *exporter,
     }
     return 0;
 #else /* SUPPORT_DTLS */
-    msg(MSG_FATAL, "IPFIX: Library compiled without DTLS support.");
+    msg(MSG_FATAL, "Library compiled without DTLS support.");
     return -1;
 #endif /* SUPPORT_DTLS */
 }
@@ -3122,7 +3121,7 @@ int ipfix_set_ca_locations(ipfix_exporter *exporter, const char *ca_file, const 
     if (ca_path) exporter->ca_path = strdup(ca_path);
     return 0;
 #else /* SUPPORT_DTLS */
-    msg(MSG_FATAL, "IPFIX: Library compiled without OPENSSL support.");
+    msg(MSG_FATAL, "Library compiled without DTLS support.");
     return -1;
 #endif
 }
