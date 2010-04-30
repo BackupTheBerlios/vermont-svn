@@ -120,7 +120,7 @@ meter_data *alloc_meter_data(void) {
 }
 
 
-/* generate constant data for testing / example purposes It is important to
+/* generate constant data for testing / example purposes. It is important to
  * understand that all of this data has to be in *network byte order*.
  * ipfixlolib will not perform this transformation for you.  */
 int get_sample_data1(meter_data *mdat) {
@@ -180,7 +180,7 @@ int main(int argc, char **argv)
      * We choose 12345 as the Template ID.
 
      The template shall contain the following fields:
-    # |  IPFIX name of field      |  IPFIX field ID | length of associated datatype
+    # |  IPFIX name of field      |  IPFIX field ID | length of associated data type
     -------------------------------------------------------------------------------
     1 |  sourceAddressV4          |   8             | 4
     2 |  destinationAddressV4     |   12            | 4
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
     exporter: the exporter
     template_id: the template ID chosen beforehand
     type: the IPFIX field ID for this entry
-    length: sizeof() datatype
+    length: sizeof() data type
     enterprise: FIXME ???
     */
     printf("Putting data fields.\n");
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
     /*
      * We decide to define another Template with ID 6789.
      The template shall contain the following fields:
-    # |  IPFIX name of field      |  IPFIX field ID | length of associated datatype
+    # |  IPFIX name of field      |  IPFIX field ID | length of associated data type
     -------------------------------------------------------------------------------
     1 |  sourceAddressV4          |   8             | 4
     2 |  destinationAddressV4     |   12            | 4
@@ -257,7 +257,7 @@ int main(int argc, char **argv)
     exporter: the exporter
     template_id: the template ID chosen beforehand
     type: the IPFIX field ID for this entry
-    length: sizeof() datatype
+    length: sizeof() data type
     enterprise: FIXME ???
     */
     printf("Putting data fields.\n");
@@ -372,7 +372,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "ipfix_start_data_set failed!\n");	
 		goto out;
 	    }
-	    /* Remaing space should now be 4 bytes less than before because the
+	    /* Remaining space should now be 4 bytes less than before because the
 	     * Data Set header is 4 bytes long. */
 	    sp = ipfix_get_remaining_space(my_exporter);
 	    printf("Remaining available space in IPFIX Message after ipfix_start_data_set(): %d\n", sp);
@@ -391,7 +391,7 @@ int main(int argc, char **argv)
 	NOTE: supplied data is NOT copied and has to
 	stay valid until the ipfix_send() below!
 
-	NOTE: It's the user's responsability to ensure that
+	NOTE: It's the user's responsibility to ensure that
 	the added data is conform to the indicated template.
 	*/
 	printf("Passing flow data to ipfixlolib.\n");

@@ -524,8 +524,8 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
     } else {
 	if ( ! ((exporter->ca_file || exporter->ca_path) &&
 		    exporter->certificate_chain_file) ) {
-	    msg(MSG_ERROR,"Can not verify certificates of collectors because prerequesites not met. "
-		    "Prerequesites are: 1. CApath or CAfile or both set, "
+	    msg(MSG_ERROR,"Can not verify certificates of collectors because prerequisites not met. "
+		    "Prerequisites are: 1. CApath or CAfile or both set, "
 		    "2. We have a certificate including the private key");
 	    SSL_free(con->ssl);con->ssl = NULL;
 	    close(con->socket);con->socket = -1;
@@ -669,7 +669,7 @@ int ipfix_beat(ipfix_exporter *exporter) {
  * Initializes a UDP-socket to send data to.
  * Parameters:
  * char* serv_ip4_addr IP-Address of the recipient (e.g. "123.123.123.123")
- * serv_port the UDP-portnumber of the server.
+ * serv_port the UDP port number of the server.
  * Returns: a socket to write to. -1 on failure
  */
 static int init_send_udp_socket(struct sockaddr_in serv_addr){
@@ -736,10 +736,10 @@ static int get_mtu(const int s) {
 ** SCTP Extension Code:
 *********************************************************************/
 /*
- * Initializes a SCTP-socket to send data to.
+ * Initializes a SCTP socket to send data to.
  * Parameters:
  * char* serv_ip4_addr IP-Address of the recipient (e.g. "123.123.123.123")
- * serv_port the SCTP-portnumber of the server.
+ * serv_port the SCTP port number of the server.
  * Returns: a socket to write to. -1 on failure
  */
 static int init_send_sctp_socket(struct sockaddr_in serv_addr){
@@ -791,7 +791,7 @@ static int init_send_sctp_socket(struct sockaddr_in serv_addr){
  * Parameters:
  * s 		: socket
  * *vector 	: iovec struct containing the buffer to send
- * v_len 	: lenght of the buffer
+ * v_len 	: length of the buffer
  * *to 		: address where data is going to be sent
  * tolen 	: length of the address
  * ppid, flags, stream_no, timetolive, context : sctp parameters
@@ -896,7 +896,7 @@ int ipfix_init_exporter(uint32_t observation_domain_id, ipfix_exporter **exporte
                 goto out5;
         }
 	
-        // intialize the collectors to zero
+        // initialize the collectors to zero
         ret=ipfix_init_collector_array( &(tmp->collector_arr), IPFIX_MAX_COLLECTORS);
         if (ret !=0) {
                 msg(MSG_FATAL, "initializing collectors failed");
@@ -1265,16 +1265,17 @@ static int valid_transport_protocol(enum ipfix_transport_protocol p) {
 
 /** \brief Add a Collector to the given Exporter and trigger connection setup.
  *
- * Multiple Collectors may be added to a single Exporter. Data Records are sent
- * to all Collectors in parallel. All active Templates are transmitted to a
- * given Collector before Data Records are sent to the this Collector.
+ * Up to IPFIX_MAX_COLLECTORS Collectors may be added to a single Exporter.
+ * Data Records are sent to all Collectors in parallel. All active Templates
+ * are transmitted to a given Collector before Data Records are sent to the
+ * this Collector.
  *
  * If one of the DTLS variants is chosen as the transport protocol, a DTLS
  * handshake with the Collector is initiated.  This handshake procedure may
  * take a while. Because this function never blocks the calling thread, it
  * usually returns before the handshake is completed. In order to give this
  * library a chance to complete the ongoing handshake, the user should call
- * <tt>ipfix_beat()</tt> regurlarly (e.g., every 10 milliseconds).
+ * <tt>ipfix_beat()</tt> regularly (e.g., every 10 milliseconds).
  *
  * Depending on the transport protocol, additional configuration data
  * must be passed via the <tt>aux_config</tt> parameter which in turn points to
@@ -1411,7 +1412,7 @@ int ipfix_remove_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, 
 
 /*
  * Helper function: Finds a template in the exporter
- * Parmeters:
+ * Parameters:
  * exporter: Exporter to search for the template
  * template_id: ID of the template we search
  * Returns: the index of the template in the exporter or -1 on failure.
@@ -1480,9 +1481,9 @@ int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id) {
 	p_end = p_pos + 8;
 
 	// set ID is 2 for a template, 4 for a template with fixed fields:
-	// for withdrawal masseges we keep the template set ID
+	// for withdrawal messages we keep the template set ID
 	p_pos +=  2;
-	// write 8 to the lenght field
+	// write 8 to the length field
 	write_unsigned16 (&p_pos, p_end, 8);
 	// keep the template ID:
 	p_pos +=  2;
@@ -1539,7 +1540,7 @@ static void ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ip
                         total_length += sendbuf->entries[i].iov_len;
                 }
 
-                // add the header lenght to the total length:
+                // add the header length to the total length:
                 total_length += sizeof(ipfix_header);
         }
 
@@ -1566,7 +1567,7 @@ static void ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ip
 
 /*
  * Create and initialize an ipfix_sendbuffer for at most maxelements
- * Parameters: ipfix_sendbuffer** sendbuf pointerpointer to an ipfix-sendbuffer
+ * Parameters: ipfix_sendbuffer** sendbuf pointer to a pointer to an ipfix-sendbuffer
  */
 static int ipfix_init_sendbuffer(ipfix_sendbuffer **sendbuf)
 {
@@ -1880,7 +1881,7 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
 #ifdef SUPPORT_SCTP
 /*
  * function used by SCTP to reconnect to a collector, if connection
- * was lost. After succesful reconnection resend all active templates.
+ * was lost. After successful reconnection resend all active templates.
  * i: index of the collector in the exporters collector_arr
  */
 static int sctp_reconnect(ipfix_exporter *exporter , int i){
@@ -1889,7 +1890,7 @@ static int sctp_reconnect(ipfix_exporter *exporter , int i){
 	struct timeval timeout;
 	time_t time_now = time(NULL);
 	exporter->collector_arr[i].last_reconnect_attempt_time = time_now;
-	// error occured while being connected?
+	// error occurred while being connected?
 	if(exporter->collector_arr[i].state == C_CONNECTED) {
 		// the socket has not yet been closed
 		close(exporter->collector_arr[i].data_socket);
@@ -1917,7 +1918,7 @@ static int sctp_reconnect(ipfix_exporter *exporter , int i){
 	    return -1;
 	} else if (ret>0) {
 	    // connected or connection setup failed.
-	    msg(MSG_DEBUG, "socket is writeable");
+	    msg(MSG_DEBUG, "socket is writable");
 	} else {
 	    // error
 	    msg(MSG_ERROR, "SCTP (re)connect failed, %s", strerror(errno));
@@ -2416,8 +2417,8 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
  * <ul>
  * <li>The maximum transmission unit (MTU) if UDP is used as the transport
  * protocol.</li>
- * <li>The maximum record size imposed by DTLS. It goes without
- * saying that this limitation only applies if DTLS is used.</li>
+ * <li>The maximum DTLS record size. It goes without saying that this
+ * limitation only applies if DTLS is used.</li>
  * <li>The maximum message size imposed by IPFIX itself. This is due to the 16
  * bit length field.</li>
  * </ul>
@@ -2425,7 +2426,7 @@ int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id)
  *
  *
  * @param exporter pointer to previously initialized exporter struct
- * @return remaining space in bytes. This value will never be negativ. If the IPFIX message is already longer than the maximum length, 0 is returned.
+ * @return remaining space in bytes. This value will never be negative. If the IPFIX message is already longer than the maximum length, 0 is returned.
  */
 uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter) {
     int32_t space;
@@ -2602,7 +2603,7 @@ int ipfix_delete_data_fields_upto_marker(ipfix_exporter *exporter)
 	// if marker is before current, clean the entries and set current back 
 	if(exporter->data_sendbuffer->marker < exporter->data_sendbuffer->current) {
 	    for(i=exporter->data_sendbuffer->marker; i<exporter->data_sendbuffer->current; i++) {
-		// alse decrease data_length
+		// decrease data_length
 		manager->data_length -= exporter->data_sendbuffer->entries[i].iov_len;
 		exporter->data_sendbuffer->entries[i].iov_base = NULL;
 		exporter->data_sendbuffer->entries[i].iov_len = 0;
@@ -2701,7 +2702,7 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
     exporter->template_arr[found_index].field_count = field_count;
     exporter->template_arr[found_index].fields_added = 0;
 
-    // also, write the template header fields into the buffer (except the lenght field);
+    // also, write the template header fields into the buffer (except the length field);
 
     // beginning of the buffer
     p_pos = exporter->template_arr[found_index].template_fields;
@@ -2712,7 +2713,7 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
     // set ID is 2 for a template set, 4 for a template with fixed fields:
     // see RFC 5101: 3.3.2 Set Header Format
     write_unsigned16 (&p_pos, p_end, datatemplate ? 4 : 2);
-    // write 0 to the lenght field; this will be overwritten with end_template
+    // write 0 to the length field; this will be overwritten with end_template
     write_unsigned16 (&p_pos, p_end, 0);
     // ++ End of Set Header
 
@@ -2972,7 +2973,7 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
     // add offset of 2 bytes to the buffer's beginning: this is, where we will write to.
     p_pos += 2;
 
-    // write the lenght field
+    // write the length field
     write_unsigned16 (&p_pos, p_end, templ->fields_length);
     // call the template valid
     templ->state = T_COMMITED;

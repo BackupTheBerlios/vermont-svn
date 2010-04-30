@@ -112,13 +112,13 @@ extern "C" {
 
 /*
  * maximum number of sets per IPFIX packet
- * TODO: This value is delibaretely chosen, adapt it if you need it or make it dynamic.
+ * TODO: This value is deliberately chosen, adapt it if you need it or make it dynamic.
  */
 #define IPFIX_MAX_SETS_PER_PACKET 128
 
 /*
  * maximum size of a sendbuffer
- * TODO: This value is delibaretely chosen, adapt it if you need it or make it dynamic.
+ * TODO: This value is deliberately chosen, adapt it if you need it or make it dynamic.
  */
 #define IPFIX_MAX_SENDBUFSIZE (32 * 1024)
 
@@ -316,7 +316,7 @@ enum template_state {T_UNUSED, T_UNCLEAN, T_COMMITED, T_SENT, T_WITHDRAWN, T_TOB
  * sets the state to C_CONNECTED. If connection is lost and the socket closed
  * state changes to C_DISCONNECTED and reconnection attempts can take place
 */
-/* The lifecycles of connections of type DTLS over UDP
+/* The life cycles of connections of type DTLS over UDP
  * and plain UDP are as follows:
  *
  * DTLS over UDP:
