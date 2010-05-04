@@ -105,9 +105,6 @@ extern "C" {
  */
 #define IPFIX_DEFAULT_SCTP_DATA_LIFETIME 0
 
-#define TRUE 1
-#define FALSE 0
-
 /*
  * maximum number of sets per IPFIX packet
  * TODO: This value is deliberately chosen, adapt it if you need it or make it dynamic.
