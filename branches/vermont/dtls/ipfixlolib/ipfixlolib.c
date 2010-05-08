@@ -1363,8 +1363,6 @@ static void remove_collector(ipfix_receiving_collector *collector) {
 #endif
     if ( collector->data_socket != -1) {
 	DPRINTF("Closing data socket");
-	char buf[64000];
-	send(collector->data_socket,buf,sizeof(buf),0);
 	close ( collector->data_socket );
     }
     collector->data_socket = -1;

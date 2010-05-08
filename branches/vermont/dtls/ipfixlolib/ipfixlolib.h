@@ -25,9 +25,63 @@
  */
 
 /*! \file ipfixlolib.h
-    \brief Main interface to ipfixlolib
+    \brief Interface to ipfixlolib
     
-    Implements an IPFIX Exporter. Supports UDP, SCTP and DTLS.
+    ipfixlolib implements an IPFIX Exporter. It supports the following
+    protocols
+     - UDP
+     - SCTP
+     - DTLS over UDP
+     - DTLS over SCTP
+
+    ipfixlolib should be used in the following way:
+
+    - Applications start out by creating an exporter object using
+    ipfix_init_exporter(). The exporter object is the abstraction for a common
+    set of active Templates, a common send buffer, an observation domain id, a
+    sequence number and further information. Most of the functions described
+    below require a previously initialized exporter as the first argument.
+    - Multiple Collectors can be added to the exporter by using
+    ipfix_add_collector(). The transport protocol, the Collector's IP address
+    and port as well as other configuration details will be passed to
+    ipfix_add_collector(). ipfixlolib will start the connection setup procedure
+    immediately which includes triggering the DTLS handshake if one of the DTLS
+    variants has been chosen as the transport protocol.
+    - ipfix_start_template_set(), ipfix_put_template_field() and
+    ipfix_end_template_set() can be used at any time throughout the life cycle
+    of an exporter to define new Templates. These Template definitions will not
+    be sent immediately, but when ipfix_send() is called the next time. If UDP
+    is used as the transport protocol, the library makes sure that active
+    Templates are retransmitted on a regular basis as required by RFC 5101. It
+    should be noted that the library supports only one Template per Template
+    Set even though RFC 5101 allows multiple Templates per Set. Templates can
+    only be defined on a per Exporter basis i.e. <em>all</em> Templates will be
+    send to <em>all</em> Collectors. You cannot define a Template that is valid
+    only for a specific Collector.
+    - ipfix_remove_template_set() removes previously defined Templates that are
+    no longer needed. A corresponding withdrawal message is sent to all
+    Collectors using SCTP.
+    - The functions ipfix_start_data_set(), ipfix_put_data_field(),
+    ipfix_end_data_set() are used to append Data Sets to the send buffer. Again,
+    there is only a single send buffer per exporter. As soon as ipfix_send() is
+    called, all Data Sets will be sent to all Collectors in parallel.
+    - Depending on the transport protocols used and the network infrastructure
+    (e.g., the Maximum Transmission Unit (MTU)), IPFIX Messages might be
+    limited to a certain length. As a result, the application has to ensure
+    that it does not overshoot this length by appending too much data to the
+    send buffer. ipfix_get_remaining_space() should be used to query how many
+    bytes still may be added. It should be noted that there is a 4 bytes
+    overhead per Data Set i.e. calling ipfix_start_data_set() adds 4 extra
+    bytes to the send buffer. The macro IPFIX_OVERHEAD_PER_SET which is equal to
+    4 should be used instead of hard wiring the value 4.
+    - ipfix_send() transmits all Templates that have been previously defined
+    but not yet transmitted. This function also retransmits Templates to UDP
+    Collectors on a regular basis as required by RFC 5101. In addition, all
+    Data Sets waiting in the send buffer are transmitted. The length of this
+    buffer is reset to zero afterwards.
+    - ipfix_remove_collector() can be used at any time to remove a Collector
+    that has been previously added with ipfix_add_collector(). This includes
+    closing the transport connection.
 */
 
 #include <stdio.h>
