@@ -24,6 +24,19 @@
  jan@petranek.de
  */
 
+/*! \mainpage ipfixlolib documentation
+
+ipfixlolib is a library that implements an IPFIX Exporter as defined in RFC 5101. It supports the following transport protocols
+
+- UDP
+- SCTP
+- DTLS over UDP
+- DTLS over SCTP
+
+See ipfixlolib.h for details on how to use this library.
+
+ */
+
 /*! \file ipfixlolib.h
     \brief Interface to ipfixlolib
     
@@ -108,8 +121,8 @@
 #include "common/OpenSSL.h"
 #endif
 
-#include "encoding.h"
-#include "ipfix_names.h"
+//#include "encoding.h"
+//#include "ipfix_names.h"
 #include "common/msg.h"
 
 #ifdef __cplusplus
@@ -120,6 +133,11 @@ extern "C" {
  * version number of the ipfix-protocol
  */
 #define IPFIX_VERSION_NUMBER 0x000a
+
+/*
+ * enterprise flag in IE ID field
+ */
+#define IPFIX_ENTERPRISE_BIT (1 << 15)
 
 /*
  * Amount of iovec, the header consumes.
@@ -309,6 +327,7 @@ enum ipfix_transport_protocol {
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT 
 	RAWDIR, 
 #endif 
+	DATAFILE,
 	SCTP, /*!< SCTP, most favorable */
 	UDP, /*!< UDP, available on all platforms, may result in MTU issues */
 	TCP, /*!< TCP, currently unsupported by ipfixlolib */
@@ -472,13 +491,18 @@ typedef struct {
  */
 typedef struct {
 	char ipv4address[16];
-	int port_number;
+	uint32_t port_number;
 	enum ipfix_transport_protocol protocol;
 	int data_socket; // socket data and templates are sent to
 	/* data_socket is NOT used for DTLS connections */
 	struct sockaddr_in addr;
 	uint32_t last_reconnect_attempt_time; // applies only to SCTP and DTLS at the moment
 	enum collector_state state;
+	char *basename;  /**< for protocol==DATAFILE, this variable contains the basename for the filename */
+	int fh; /**< for protocol==DATAFILE, this variable contains the file handle */
+	int filenum; /**< for protocol==DATAFILE, this variable contains the current filenumber: 'filename = basename + filenum'*/
+	uint64_t bytes_written; /**< for protocol==DATAFILE, this variable contains the current filesize */
+	uint32_t maxfilesize; /**< for protocol==DATAFILE, this variable contains the maximum filesize given in KiB*/
 	int mtu_mode; /* Either IPFIX_MTU_FIXED or IPFIX_MTU_DISCOVER */
 	uint16_t mtu; /* Maximum transmission unit.
 			 Applies to UDP and DTLS over UDP only. */

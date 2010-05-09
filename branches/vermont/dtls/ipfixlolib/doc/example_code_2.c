@@ -239,7 +239,7 @@ int main(int argc, char **argv)
 
     uint16_t my_template2_id = 6789;
     uint16_t my_n_template2_id = htons(my_template2_id); /* Same Template ID in network byte order */
-    uint16_t my_template2_length = 4+4+2+2; /* cumulative length of all Template fields */
+    /* uint16_t my_template2_length = 4+4+2+2; */ /* cumulative length of all Template fields */
 
     /*
        Now start the adding of fields.

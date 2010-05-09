@@ -37,6 +37,8 @@
  */
 
 #include "ipfixlolib.h"
+#include "encoding.h"
+#include "common/msg.h"
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -85,6 +87,7 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter);
 static int ipfix_update_template_sendbuffer(ipfix_exporter *exporter);
 static int ipfix_send_templates(ipfix_exporter* exporter);
 static int ipfix_send_data(ipfix_exporter* exporter);
+static int ipfix_new_file(ipfix_receiving_collector* recvcoll);
 static void update_exporter_max_message_size(ipfix_exporter *exporter);
 static int update_collector_mtu(ipfix_exporter *exporter, ipfix_receiving_collector *col);
 static int get_mtu(const int s);
@@ -1088,6 +1091,21 @@ static ipfix_receiving_collector *get_free_collector_slot(ipfix_exporter *export
     return NULL;
 }
 
+static int add_collector_datafile(ipfix_receiving_collector *collector, const char *basename, uint32_t maxfilesize) {
+    collector->ipv4address[0] = '\0';
+    collector->port_number = 0;
+    collector->data_socket = -1;
+    memset(&(collector->addr), 0, sizeof(collector->addr));
+    collector->last_reconnect_attempt_time = 0;
+
+    collector->basename = strdup(basename);
+    collector->filenum = -1;
+    collector->maxfilesize = maxfilesize;
+    ipfix_new_file(collector); 
+    collector->state = C_CONNECTED;
+    return 0;
+}
+
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 static int add_collector_rawdir(ipfix_receiving_collector *collector,char *path) {
     collector->ipv4address[0] = '\0';
@@ -1253,6 +1271,7 @@ static int valid_transport_protocol(enum ipfix_transport_protocol p) {
 	    msg(MSG_FATAL, "Transport Protocol TCP not implemented");
 	    return 0;
 	case UDP:
+	case DATAFILE:
 	    return 1;
 	default:
 	    msg(MSG_FATAL, "Transport Protocol not supported");
@@ -1322,6 +1341,7 @@ int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr,
     /* It is the duty of add_collector_rawdir to set collector->state */
     if (proto==RAWDIR) return add_collector_rawdir(collector,coll_ip4_addr);
 #endif
+    if (proto==DATAFILE) return add_collector_datafile(collector, coll_ip4_addr, coll_port);
     /*
     FIXME: only a quick fix to make that work
     Must be copied, else pointered data must be around forever
@@ -1372,6 +1392,9 @@ static void remove_collector(ipfix_receiving_collector *collector) {
 	free(collector->packet_directory_path);
     }
 #endif
+    if (collector->protocol == DATAFILE) {
+	free(collector->basename);
+    }
     collector->state = C_UNUSED;
 }
 
@@ -1564,6 +1587,45 @@ static void ipfix_prepend_header(ipfix_exporter *p_exporter, int data_length, ip
         (sendbuf->packet_header).export_time = htonl((uint32_t)export_time);
 }
 
+
+/*create a new filehandle and set recvcoll->fh, recvcoll->byteswritten, recvcoll->filenum 
+ * to their new values
+ * returns the newly created filehandle*/
+static int ipfix_new_file(ipfix_receiving_collector* recvcoll){
+	int f = -1;
+	if (recvcoll->fh > 0) close(recvcoll->fh);
+	recvcoll->filenum++;
+	recvcoll->bytes_written = 0;
+
+	/*11 == maximum length of uint32_t including terminating \0*/
+	char *filename = malloc(sizeof(char)*(strlen(recvcoll->basename)+11)); 
+	if(! filename){
+		msg(MSG_ERROR, "could not malloc filename\n");
+		goto out;
+	}
+	sprintf(filename, "%s%010d", recvcoll->basename, recvcoll->filenum);
+	while(1){
+		f = open(filename, O_WRONLY | O_CREAT | O_EXCL,
+					 S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP);
+		if (f<0) { 
+			if (errno == EEXIST){ //increase the filenumber and try again
+				recvcoll->filenum++; //if the current file already exists
+				msg(MSG_VDEBUG, "Skipping %s", filename);
+				sprintf(filename, "%s%010d", recvcoll->basename, recvcoll->filenum);
+				continue;
+			}
+			msg(MSG_ERROR, "could not open DATAFILE file %s", filename);
+			f = -1;
+			goto out;
+		}
+		break;
+	}
+	msg(MSG_INFO, "Created new file: %s", filename);
+out:
+	free(filename);
+	recvcoll->fh = f;
+	return f;
+}
 
 
 /*
@@ -1974,6 +2036,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 	int i;
 	int bytes_sent;
 	int expired;
+	uint32_t n = 0;
 	// determine, if we need to send the template data:
 	time_t time_now = time(NULL);
 
@@ -2139,6 +2202,36 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				close(f);
 			break;
 #endif	
+			case DATAFILE:
+				ipfix_prepend_header(exporter,
+						exporter->template_sendbuffer->committed_data_length,
+						exporter->template_sendbuffer);
+
+				if(col->bytes_written>0 && (col->bytes_written +
+					ntohs(exporter->template_sendbuffer->packet_header.length)
+					> (uint64_t)(col->maxfilesize) * 1024))
+					    ipfix_new_file(col);
+
+				if (col->fh < 0) {
+					msg(MSG_ERROR, "invalid file handle for DATAFILE file (==0!)");
+					break;
+				}
+				if (exporter->template_sendbuffer->packet_header.length == 0) {
+					msg(MSG_ERROR, "packet size == 0!");
+					break;
+				}
+				if ((n = writev(col->fh, exporter->template_sendbuffer->entries,
+						exporter->template_sendbuffer->current)) < 0) {
+					msg(MSG_ERROR, "could not write to DATAFILE file");
+					break;
+				}
+				col->bytes_written += ntohs(exporter->template_sendbuffer->packet_header.length);
+				msg(MSG_DEBUG, "packet_header.length: %d \t bytes_written: %d \t Total: %llu",
+					 ntohs(exporter->template_sendbuffer->packet_header.length), n,
+					 	col->bytes_written );
+
+				break;
+
 			default:
 			    return -1; /* Should not occur since we check the transport
 					  protocol in valid_transport_protocol()*/
@@ -2280,20 +2373,44 @@ static int ipfix_send_data(ipfix_exporter* exporter)
 
 #ifdef IPFIXLOLIB_RAWDIR_SUPPORT
 				case RAWDIR:
-					ipfix_prepend_header(exporter,
-						    exporter->template_sendbuffer->committed_data_length,
-						    exporter->template_sendbuffer);
 					packet_directory_path = col->packet_directory_path;
 					char fnamebuf[1024];
 					sprintf(fnamebuf, "%s/%08d", packet_directory_path, col->packets_written++);
 					int f = creat(fnamebuf, S_IRWXU | S_IRWXG);
 					if(f<0)
 					    msg(MSG_ERROR, "could not open RAWDIR file %s", fnamebuf);
-					else if(writev(f, exporter->data_sendbuffer->entries, exporter->data_sendbuffer->current)<0)
+					else if(writev(f, exporter->data_sendbuffer->entries, exporter->data_sendbuffer->committed)<0)
 					    msg(MSG_ERROR, "could not write to RAWDIR file %s", fnamebuf);
 					close(f);
 					break;
 #endif
+				case DATAFILE:
+					if(col->bytes_written>0 && (col->bytes_written +
+						ntohs(exporter->data_sendbuffer->packet_header.length)
+						> (uint64_t)(col->maxfilesize) * 1024))
+						    ipfix_new_file(col);
+
+					if (col->fh < 0) {
+						msg(MSG_ERROR, "invalid file handle for DATAFILE file (==0!)");
+						break;
+					}
+					if (exporter->data_sendbuffer->packet_header.length == 0) {
+						msg(MSG_ERROR, "packet size == 0!");
+						break;
+					}
+					if ((bytes_sent = writev(col->fh, exporter->data_sendbuffer->entries,
+							exporter->data_sendbuffer->committed)) < 0) {
+						msg(MSG_ERROR, "could not write to DATAFILE file");
+						break;
+					}
+
+					col->bytes_written += ntohs(exporter->data_sendbuffer->packet_header.length);
+
+					msg(MSG_DEBUG, "packet_header.length: %d \t bytes_written: %d \t Total: %llu",
+					 ntohs(exporter->data_sendbuffer->packet_header.length), bytes_sent,
+					 	col->bytes_written);
+					break;
+
 				default:
 					msg(MSG_FATAL, "Transport Protocol not supported");
 					break; /* Should not occur since we check the transport
@@ -2809,7 +2926,14 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
     /* set pointers to the buffer */
     char *p_pos;
     char *p_end;
-    int enterprise_bit_set = ipfix_enterprise_flag_set(type);
+    int enterprise_specific = 0;
+
+    /* test if this is an enterprise-specific field */
+    if ((enterprise_id != 0) || ipfix_enterprise_flag_set(type)) {
+	    enterprise_specific = 1;
+	    /* make sure that enterprise bit is set */
+	    type |= IPFIX_ENTERPRISE_BIT;
+    }
 
     found_index = ipfix_find_template(exporter, template_id);
 
@@ -2839,7 +2963,7 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
 
     DPRINTFL(MSG_VDEBUG, "B p_pos %p, p_end %p", p_pos, p_end);
 
-    if(enterprise_bit_set) {
+    if(enterprise_specific) {
 	DPRINTFL(MSG_VDEBUG, "Notice: using enterprise ID %d with data %d", template_id, enterprise_id);
     }
 
@@ -2852,7 +2976,7 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
     exporter->template_arr[found_index].fields_length += 4;
 
     // write the vendor specific id
-    if (enterprise_bit_set) {
+    if (enterprise_specific) {
 	write_unsigned32(&p_pos, p_end, enterprise_id);
 	exporter->template_arr[found_index].fields_length += 4;
     }
@@ -3011,6 +3135,8 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
     write_unsigned16 (&p_pos, p_end, templ->fields_length);
     // call the template valid
     templ->state = T_COMMITED;
+    // force resending templates to UDP collectors by resetting transmission time
+    exporter->last_template_transmission_time = 0;
 
     return 0;
 }
@@ -3171,7 +3297,7 @@ int ipfix_set_ca_locations(ipfix_exporter *exporter, const char *ca_file, const 
 /* check if the enterprise bit in an ID is set */
 static int ipfix_enterprise_flag_set(uint16_t id)
 {
-        return bit_set(id, IPFIX_ENTERPRISE_FLAG);
+        return bit_set(id, IPFIX_ENTERPRISE_BIT);
 }
 
 #ifdef SUPPORT_DTLS_OVER_SCTP
