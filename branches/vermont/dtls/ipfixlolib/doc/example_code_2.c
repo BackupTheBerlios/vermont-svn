@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include "ipfixlolib/ipfixlolib.h"
+#include "common/msg.h"
 
 #define MY_OBSERVATION_DOMAIN_ID 70538
 #define DEFAULT_COLLECTOR_IP_ADDRESS "127.0.0.1"

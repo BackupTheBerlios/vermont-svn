@@ -121,10 +121,6 @@ See ipfixlolib.h for details on how to use this library.
 #include "common/OpenSSL.h"
 #endif
 
-//#include "encoding.h"
-//#include "ipfix_names.h"
-#include "common/msg.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

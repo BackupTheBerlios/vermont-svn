@@ -2139,9 +2139,10 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 				switch (col->state){
 				
 				case C_NEW:	// try to connect to the new collector once per second
-					if (time_now > col->last_reconnect_attempt_time) {
+					// once per second is not useful here, new collectors must be connected quickly
+					//if (time_now > col->last_reconnect_attempt_time) {
 						sctp_reconnect(exporter, i);
-					}
+					//}
 					break;
 				case C_DISCONNECTED: //reconnect attempt if reconnection time reached
 					if(exporter->sctp_reconnect_timer == 0) { // 0 = no more reconnection attempts
@@ -2177,7 +2178,7 @@ static int ipfix_send_templates(ipfix_exporter* exporter)
 							msg(MSG_VDEBUG, "%d template bytes sent to SCTP collector %s:%d",
 								bytes_sent, col->ipv4address, col->port_number);
 						}
-					}
+					} else DPRINTF("No Template to send to SCTP collector");
 					break;	
 				default:
 				msg(MSG_FATAL, "Unknown collector socket state");
@@ -2909,8 +2910,6 @@ int ipfix_start_optionstemplate_set(ipfix_exporter *exporter,
  * \param template_id the ID specified on call to ipfix_start_template_set()
  * \param type field or scope type (in host byte order) "A numeric value that
  * represents the type of Information Element.  Refer to [RFC5102]."
- * <em>Note:</em> The enterprise id will only be used, if type has the
- * enterprise bit set.
  * \param length length of the field or scope (in host byte order)
  * \param enterprise_id enterprise type (in host byte order)
  * \return 0 success
