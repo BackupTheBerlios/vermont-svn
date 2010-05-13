@@ -123,7 +123,9 @@ int main(int argc, char *argv[])
 #endif
 		case 'u':
 			// add UDP collector
-			ret=ipfix_add_collector(my_exporter, "127.0.0.1", 4711, UDP, NULL);
+			ipfix_aux_config_udp aux_config;
+			aux_config.mtu = 1500;
+			ret=ipfix_add_collector(my_exporter, "127.0.0.1", 4711, UDP, &aux_config);
 			if (ret != 0) {
 				fprintf(stderr, "ipfix_add_collector failed!\n");
 				exit(-1);
