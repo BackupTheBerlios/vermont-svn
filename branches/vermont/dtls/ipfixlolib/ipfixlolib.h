@@ -60,8 +60,8 @@ See ipfixlolib.h for details on how to use this library.
     ipfix_add_collector(). ipfixlolib will start the connection setup procedure
     immediately which includes triggering the DTLS handshake if one of the DTLS
     variants has been chosen as the transport protocol.
-    - ipfix_start_template_set(), ipfix_put_template_field() and
-    ipfix_end_template_set() can be used at any time throughout the life cycle
+    - ipfix_start_template(), ipfix_put_template_field() and
+    ipfix_end_template() can be used at any time throughout the life cycle
     of an exporter to define new Templates. These Template definitions will not
     be sent immediately, but when ipfix_send() is called the next time. If UDP
     is used as the transport protocol, the library makes sure that active
@@ -306,7 +306,7 @@ typedef struct {
 */
 /* Note that this ipfix_set_header struct is only used for data sets.
  * The header of template sets is built up in a char array.
- * (See ipfix_start_datatemplate_set)
+ * (See ipfix_start_datatemplate)
  */
 
 typedef struct {
@@ -475,9 +475,8 @@ typedef struct {
 #ifdef SUPPORT_DTLS
 typedef struct {
 	int socket;
-	uint16_t mtu;
+	// uint16_t mtu;
 	SSL *ssl;
-	/* int want_read; */
 	time_t last_reconnect_attempt_time;
 } ipfix_dtls_connection;
 #endif
@@ -529,7 +528,7 @@ typedef struct{
 	enum template_state state; // indicates, whether this template is valid.
 	uint16_t template_id;
 	uint16_t field_count;	// the number of fields the user announced
-				// when calling ipfix_start_template_set
+				// when calling ipfix_start_template
 	uint16_t fields_added;	// make sure the user does not add more
 				// fields than he told us to add in the
 				// first place.
@@ -606,13 +605,12 @@ int ipfix_deinit_exporter(ipfix_exporter *exporter);
 
 int ipfix_add_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int coll_port, enum ipfix_transport_protocol proto, void *aux_config);
 int ipfix_remove_collector(ipfix_exporter *exporter, const char *coll_ip4_addr, int coll_port);
-
-int ipfix_start_template_set(ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count);
+int ipfix_start_template(ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count);
 int ipfix_start_optionstemplate_set(ipfix_exporter *exporter, uint16_t template_id, uint16_t scope_length, uint16_t option_length);
-int ipfix_start_datatemplate_set(ipfix_exporter *exporter, uint16_t template_id, uint16_t preceding, uint16_t field_count, uint16_t fixedfield_count);
+int ipfix_start_datatemplate(ipfix_exporter *exporter, uint16_t template_id, uint16_t preceding, uint16_t field_count, uint16_t fixedfield_count);
 int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id, uint16_t type, uint16_t length, uint32_t enterprise_id);
 int ipfix_put_template_fixedfield(ipfix_exporter *exporter, uint16_t template_id, uint16_t type, uint16_t length, uint32_t enterprise_id);
-int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id );
+int ipfix_end_template(ipfix_exporter *exporter, uint16_t template_id );
 int ipfix_start_data_set(ipfix_exporter *exporter, uint16_t template_id);
 uint16_t ipfix_get_remaining_space(ipfix_exporter *exporter);
 int ipfix_put_data_field(ipfix_exporter *exporter,void *data, unsigned length);
@@ -621,7 +619,7 @@ int ipfix_cancel_data_set(ipfix_exporter *exporter);
 int ipfix_set_data_field_marker(ipfix_exporter *exporter);
 int ipfix_delete_data_fields_upto_marker(ipfix_exporter *exporter);
 int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void* data, uint16_t data_length);
-int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id);
+int ipfix_remove_template(ipfix_exporter *exporter, uint16_t template_id);
 int ipfix_send(ipfix_exporter *exporter);
 int ipfix_set_template_transmission_timer(ipfix_exporter *exporter, uint32_t timer); 	 
 int ipfix_set_sctp_lifetime(ipfix_exporter *exporter, uint32_t lifetime);

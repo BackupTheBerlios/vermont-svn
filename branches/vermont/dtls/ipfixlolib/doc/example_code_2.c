@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include "ipfixlolib/ipfixlolib.h"
+#include "ipfixlolib/encoding.h"
 #include "common/msg.h"
 
 #define MY_OBSERVATION_DOMAIN_ID 70538
@@ -203,7 +204,7 @@ int main(int argc, char **argv)
     field_count: # of entries/fields
     */
     printf("Starting template with id %d.\n",my_template1_id);
-    ret = ipfix_start_template_set(my_exporter, my_template1_id, 6);
+    ret = ipfix_start_template(my_exporter, my_template1_id, 6);
 
     /*
        Add fields to the exporter.
@@ -224,7 +225,7 @@ int main(int argc, char **argv)
 
     /* Finalize the template */
     printf("Ending template.\n");
-    ret = ipfix_end_template_set(my_exporter, my_template1_id);
+    ret = ipfix_end_template(my_exporter, my_template1_id);
 
 
     /*
@@ -250,7 +251,7 @@ int main(int argc, char **argv)
     field_count: # of entries/fields
     */
     printf("Starting template with id %d.\n",my_template2_id);
-    ret = ipfix_start_template_set(my_exporter, my_template2_id, 4);
+    ret = ipfix_start_template(my_exporter, my_template2_id, 4);
 
     /*
        Add fields to the exporter.
@@ -269,7 +270,7 @@ int main(int argc, char **argv)
 
     /* Finalize the template */
     printf("Ending template.\n");
-    ret = ipfix_end_template_set(my_exporter, my_template2_id);
+    ret = ipfix_end_template(my_exporter, my_template2_id);
 
     printf("++ Sending Data ++.\n");
     /*
@@ -363,7 +364,7 @@ int main(int argc, char **argv)
 	    /* start a data-set.
 	     * NOTE: The Template ID has to be passed in *network byte order*.
 	     * This is in contrast to the corresponding parameter of
-	     * ipfix_start_template_set()
+	     * ipfix_start_template()
 	     * */
 	    printf("ipfix_start_data_set()\n");
 	    ret = ipfix_start_data_set(my_exporter, my_n_template1_id);

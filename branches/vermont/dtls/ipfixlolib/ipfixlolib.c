@@ -82,7 +82,7 @@ static void remove_collector(ipfix_receiving_collector *collector);
 static int ipfix_deinit_collector_array(ipfix_receiving_collector **col);
 static int ipfix_init_send_socket(struct sockaddr_in serv_addr , enum ipfix_transport_protocol protocol);
 static int ipfix_init_template_array(ipfix_exporter *exporter, int template_capacity);
-static int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template* templ);
+static int ipfix_deinit_template(ipfix_exporter *exporter, ipfix_lo_template* templ);
 static int ipfix_deinit_template_array(ipfix_exporter *exporter);
 static int ipfix_update_template_sendbuffer(ipfix_exporter *exporter);
 static int ipfix_send_templates(ipfix_exporter* exporter);
@@ -109,6 +109,7 @@ static int ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
 	msg_openssl_errors();
 	return -1;
     }
+    DPRINTF("SSL_CTX_new() succeeded.");
     SSL_CTX_set_read_ahead(e->ssl_ctx,1);
 
     if ( (e->ca_file || e->ca_path) &&
@@ -144,7 +145,7 @@ static int ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
 }
 
 static void deinit_openssl_ctx(ipfix_exporter *e) {
-    if (e->ssl_ctx) SSL_CTX_free(e->ssl_ctx);
+    if (e->ssl_ctx) { SSL_CTX_free(e->ssl_ctx); DPRINTF("SSL_CTX_free()."); }
     e->ssl_ctx = NULL;
 }
 
@@ -532,7 +533,7 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
 	    SSL_set_verify(con->ssl,SSL_VERIFY_PEER |
 		    SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
 	    DPRINTF("We are going to request certificates from the collectors "
-		    "and we are going to verify those b/c "
+		    "and we are going to verify these b/c "
 		    "the peerFqdn option is set");
 	}
     }
@@ -609,7 +610,6 @@ static void dtls_shutdown_and_cleanup(ipfix_dtls_connection *con) {
     /* Note: SSL_free() also frees associated sending and receiving BIOs */
     SSL_free(con->ssl);
     con->ssl = NULL;
-    con->mtu = 0;
     con->last_reconnect_attempt_time = 0;
     /* Close socket */
     if ( con->socket != -1) {
@@ -714,7 +714,7 @@ static int enable_pmtu_discovery(int s) {
 }
 
 static int get_mtu(const int s) {
-#ifdef __linux__
+#ifdef IP_MTU
     int optval = 0;
     socklen_t optlen = sizeof(optval);
     if (getsockopt(s,IPPROTO_IP,IP_MTU,&optval,&optlen)) {
@@ -723,8 +723,8 @@ static int get_mtu(const int s) {
     } else
 	return optval;
 #else
-    /* FIXME: very bad hack.*/
-    return 1500;
+    /* Should not be called if PMTU discovery is unsupported. */
+    return -1;
 #endif
 }
 
@@ -1036,6 +1036,10 @@ static void update_exporter_max_message_size(ipfix_exporter *exporter) {
     DPRINTF("New exporter max_message_size: %u",max_message_size);
 }
 
+/* Gets MTU estimate of collector.
+ * Calls update_exporter_max_message_size()
+ * Calls remove_collector() if an error occurs.
+ */
 static int update_collector_mtu(ipfix_exporter *exporter,
 	ipfix_receiving_collector *col) {
     if (col->protocol == UDP && col->mtu_mode == IPFIX_MTU_DISCOVER) {
@@ -1140,7 +1144,6 @@ static int add_collector_dtls(
 
     col->dtls_replacement.socket = -1;
     col->dtls_replacement.ssl = NULL;
-    col->dtls_replacement.mtu = 0;
 
     col->dtls_max_connection_age = 10;
     col->dtls_connect_timeout = 30;
@@ -1449,7 +1452,8 @@ static int ipfix_find_template(
 
     int i=0;
     for (;i<exporter->ipfix_lo_template_maxsize;i++) {
-	if(exporter->template_arr[i].template_id == template_id) {
+	if(exporter->template_arr[i].state != T_UNUSED &&
+		exporter->template_arr[i].template_id == template_id) {
 	    DPRINTFL(MSG_VDEBUG,
 		    "ipfix_find_template with ID: %d, validity %d found at %d",
 		    template_id, exporter->template_arr[i].state, i);
@@ -1481,11 +1485,11 @@ static int ipfix_get_free_template_slot(ipfix_exporter *exporter) {
  * \param template_id ID of the template to remove
  * \return 0 success
  * \return -1 failure
- * \sa ipfix_start_template_set()
+ * \sa ipfix_start_template()
  */
 /*
  */
-int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id) {
+int ipfix_remove_template(ipfix_exporter *exporter, uint16_t template_id) {
     int found_index = ipfix_find_template(exporter,template_id);
     if (found_index < 0) {
 	msg(MSG_ERROR, "remove_template ID %u not found", template_id);
@@ -1519,7 +1523,7 @@ int ipfix_remove_template_set(ipfix_exporter *exporter, uint16_t template_id) {
 	exporter->template_arr[found_index].state = T_WITHDRAWN;
 	DPRINTFL(MSG_VDEBUG, "... Withdrawn");
     } else {
-	ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]) );
+	ipfix_deinit_template(exporter, &(exporter->template_arr[found_index]) );
     }
     return 0;
 }
@@ -1733,7 +1737,6 @@ static int ipfix_init_collector_array(ipfix_receiving_collector **col, int col_c
 #endif
 #ifdef SUPPORT_DTLS
 		c->dtls_main.socket = c->dtls_replacement.socket = -1;
-		c->dtls_main.mtu = c->dtls_replacement.mtu = 0;
 		c->dtls_main.ssl = c->dtls_replacement.ssl = NULL;
 		c->dtls_main.last_reconnect_attempt_time =
 		    c->dtls_replacement.last_reconnect_attempt_time = 0;
@@ -1831,7 +1834,7 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter)
         for(i=0; i< exporter->ipfix_lo_template_maxsize; i++) {
                 // if template was sent we need a withdrawal message first
                 if (exporter->template_arr[i].state == T_SENT){
-                 	ipfix_remove_template_set(exporter, exporter->template_arr[i].template_id );
+                 	ipfix_remove_template(exporter, exporter->template_arr[i].template_id );
                 }
         }
         // send all created withdrawal messages
@@ -1839,7 +1842,7 @@ static int ipfix_deinit_template_array(ipfix_exporter *exporter)
         
 	for(i=0; i< exporter->ipfix_lo_template_maxsize; i++) {
                 // try to free all templates:
-                ret = ipfix_deinit_template_set(exporter, &(exporter->template_arr[i]) );
+                ret = ipfix_deinit_template(exporter, &(exporter->template_arr[i]) );
                 // for debugging:
                 DPRINTFL(MSG_VDEBUG, "deinitialized template %i with success %i ", i, ret);
                 // end debugging
@@ -1885,7 +1888,7 @@ static int ipfix_update_template_sendbuffer (ipfix_exporter *exporter)
                 switch (exporter->template_arr[i].state) {
                 	case (T_TOBEDELETED):
 				// free memory and mark T_UNUSED
-				ipfix_deinit_template_set(exporter, &(exporter->template_arr[i]) );
+				ipfix_deinit_template(exporter, &(exporter->template_arr[i]) );
 				break;
 			case (T_COMMITED): // send to SCTP and UDP collectors and mark as T_SENT
 				if (sctp_sendbuf->current >= IPFIX_MAX_SENDBUFSIZE-2 ) {
@@ -2439,7 +2442,7 @@ static int ipfix_send_data(ipfix_exporter* exporter)
  * \param exporter pointer to previously initialized exporter struct
  * \return >=0 success
  * \return -1 failure
- * \sa ipfix_start_template_set(), ipfix_start_data_set()
+ * \sa ipfix_start_template(), ipfix_start_data_set()
  */
 /*
  */
@@ -2468,7 +2471,7 @@ int ipfix_send(ipfix_exporter *exporter)
  *
  * The set ID <em>must</em> match a previously defined template ID! It is the
  * user's responsibility to make sure that the corresponding template has been
- * defined using <tt>ipfix_start_template_set()</tt> and other functions in
+ * defined using <tt>ipfix_start_template()</tt> and other functions in
  * advance as the library will not perform any checks. There can only be one
  * open data set at any given time. It is not possible to start multiple data
  * sets in parallel.
@@ -2481,7 +2484,7 @@ int ipfix_send(ipfix_exporter *exporter)
  *
  * The <tt>template_id</tt> parameter has to be in <em>network byte order</em>.
  * This is in contrast to the corresponding parameter of
- * <tt>ipfix_start_template_set()</tt>
+ * <tt>ipfix_start_template()</tt>
  *
  * \param exporter pointer to previously initialized exporter struct
  * \param template_id ID of the used template <em>(in network byte order)</em>
@@ -2786,9 +2789,9 @@ out:
 
 /*
  * Allocate memory for a new template
- * end_data_template_set will add this template to the exporter
+ * end_data_template will add this template to the exporter
  */
-int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
+int ipfix_start_datatemplate (ipfix_exporter *exporter,
 	uint16_t template_id, uint16_t preceding, uint16_t field_count,
 	uint16_t fixedfield_count) {
     // are we updating an existing template?
@@ -2808,7 +2811,7 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
 	switch (exporter->template_arr[found_index].state){
 	    case T_SENT:
 		// create a withdrawal message first
-		ipfix_remove_template_set(exporter, exporter->template_arr[found_index].template_id);
+		ipfix_remove_template(exporter, exporter->template_arr[found_index].template_id);
 		/* fall through */
 	    case T_WITHDRAWN:
 		// send withdrawal messages
@@ -2818,7 +2821,7 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
 	    case T_UNCLEAN:
 	    case T_TOBEDELETED:
 		// nothing to do, template can be deleted
-		ipfix_deinit_template_set(exporter, &(exporter->template_arr[found_index]));
+		ipfix_deinit_template(exporter, &(exporter->template_arr[found_index]));
 		break;
 	    default:
 		DPRINTFL(MSG_VDEBUG, "template valid flag is T_UNUSED or invalid\n");	
@@ -2892,10 +2895,10 @@ int ipfix_start_datatemplate_set (ipfix_exporter *exporter,
  * \param option_length the option scope length (in host byte oder)
  * \return -1 Not yet implemented. This value is <em>always</em> returned.
  */
-int ipfix_start_optionstemplate_set(ipfix_exporter *exporter,
+int ipfix_start_optionstemplate(ipfix_exporter *exporter,
 	uint16_t template_id, uint16_t scope_length, uint16_t option_length)
 {
-        msg(MSG_FATAL, "start_optionstemplate_set() not implemented");
+        msg(MSG_FATAL, "start_optionstemplate() not implemented");
         return -1;
 }
 
@@ -2903,11 +2906,11 @@ int ipfix_start_optionstemplate_set(ipfix_exporter *exporter,
  * \brief Add a field to the previously started template, options template, or data
  * template.
  *
- * This function is called after <tt>ipfix_start_template_set()</tt>
- * or <tt>ipfix_start_optionstemplate_set</tt>.
+ * This function is called after <tt>ipfix_start_template()</tt>
+ * or <tt>ipfix_start_optionstemplate</tt>.
  *
  * \param exporter pointer to previously initialized exporter struct
- * \param template_id the ID specified on call to ipfix_start_template_set()
+ * \param template_id the ID specified on call to ipfix_start_template()
  * \param type field or scope type (in host byte order) "A numeric value that
  * represents the type of Information Element.  Refer to [RFC5102]."
  * \param length length of the field or scope (in host byte order)
@@ -2916,7 +2919,7 @@ int ipfix_start_optionstemplate_set(ipfix_exporter *exporter,
  * \return -1 failure. Reasons include:<ul><li>template ID
  * unknown</li><li>number of fields exceeds the number that was announced when
  * starting the template.</li></ul>
- * \sa ipfix_start_template_set(), ipfix_start_optionstemplate_set()
+ * \sa ipfix_start_template(), ipfix_start_optionstemplate()
  */
 int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
 	uint16_t type, uint16_t length, uint32_t enterprise_id) {
@@ -2992,11 +2995,11 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
  * function basically means 'start Template Set and one Template Record'.
  *
  * <em>Note:</em> It is not possible to start and define multiple Templates in parallel.
- * ipfix_end_template_set() has to be called first before a new Template can be
+ * ipfix_end_template() has to be called first before a new Template can be
  * defined.
  *
  * Individual fields can be added to the Template by calling
- * ipfix_put_data_field() before calling ipfix_end_template_set() to end the
+ * ipfix_put_data_field() before calling ipfix_end_template() to end the
  * Template.
  *
  * \param exporter pointer to previously initialized exporter struct
@@ -3005,10 +3008,10 @@ int ipfix_put_template_field(ipfix_exporter *exporter, uint16_t template_id,
  * \return 0 success
  * \return -1 failure. Reasons might be that <tt>template_id</tt> is not great than 255
  *   or that the maximum number of defined templates has been exceeded.
- * \sa ipfix_end_template_set(), ipfix_put_template_field(), ipfix_send()
+ * \sa ipfix_end_template(), ipfix_put_template_field(), ipfix_send()
 **/
-int ipfix_start_template_set (ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count) {
-        return ipfix_start_datatemplate_set(exporter, template_id, 0, field_count, 0);
+int ipfix_start_template (ipfix_exporter *exporter, uint16_t template_id,  uint16_t field_count) {
+        return ipfix_start_datatemplate(exporter, template_id, 0, field_count, 0);
 }
 
 
@@ -3091,10 +3094,10 @@ int ipfix_put_template_data(ipfix_exporter *exporter, uint16_t template_id, void
  * \param exporter pointer to previously initialized exporter struct
  * \param template_id ID of the template
  * \return 0 success
- * \return -1 failure. Reasons include:<ul><li>Template ID unknown</li><li>number of Template fields added does not match number announced when calling <tt>ipfix_start_template_set()</tt></li></ul>
- * \sa ipfix_start_template_set(), ipfix_put_template_field(), ipfix_send()
+ * \return -1 failure. Reasons include:<ul><li>Template ID unknown</li><li>number of Template fields added does not match number announced when calling <tt>ipfix_start_template()</tt></li></ul>
+ * \sa ipfix_start_template(), ipfix_put_template_field(), ipfix_send()
  */
-int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
+int ipfix_end_template(ipfix_exporter *exporter, uint16_t template_id)
 {
     int found_index;
     char *p_pos;
@@ -3109,8 +3112,8 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
     }
     ipfix_lo_template *templ=(&exporter->template_arr[found_index]);
     if (templ->fields_added != templ->field_count) {
-	msg(MSG_ERROR, "Number of added template fields does not match number passed to ipfix_start_template_set");
-	ipfix_deinit_template_set(exporter, templ);
+	msg(MSG_ERROR, "Number of added template fields does not match number passed to ipfix_start_template");
+	ipfix_deinit_template(exporter, templ);
 	return -1;
     }
 
@@ -3149,7 +3152,7 @@ int ipfix_end_template_set(ipfix_exporter *exporter, uint16_t template_id)
  * Returns: 0  on success, -1 on failure
  * This is an internal function.
  */
-static int ipfix_deinit_template_set(ipfix_exporter *exporter, ipfix_lo_template *templ) {
+static int ipfix_deinit_template(ipfix_exporter *exporter, ipfix_lo_template *templ) {
     // note: ipfix_deinit_template_array tries to free all possible templates, many of them
     // won't be initialized. So you'll get a lot of warning messages, which are just fine...
 

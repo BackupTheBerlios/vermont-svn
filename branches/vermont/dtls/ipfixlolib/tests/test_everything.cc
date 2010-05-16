@@ -73,9 +73,9 @@ int main(int argc, char *argv[])
 			
 			ret=0;
 		
-			ret|=ipfix_start_template_set(my_exporter, create_id, 1);
+			ret|=ipfix_start_template(my_exporter, create_id, 1);
 			ret|=ipfix_put_template_field(my_exporter, create_id, 2, 8, 0);
-			ret|=ipfix_end_template_set(my_exporter, create_id);
+			ret|=ipfix_end_template(my_exporter, create_id);
 		
 			if (ret != 0) {
 				fprintf(stderr, "create template failed!\n");
@@ -89,9 +89,9 @@ int main(int argc, char *argv[])
 			my_template_id=4711;
 			ret=0;
 		
-			ret|=ipfix_start_template_set(my_exporter, my_template_id, 1);
+			ret|=ipfix_start_template(my_exporter, my_template_id, 1);
 			ret|=ipfix_put_template_field(my_exporter, my_template_id, 2, 8, 0);
-			ret|=ipfix_end_template_set(my_exporter, my_template_id);
+			ret|=ipfix_end_template(my_exporter, my_template_id);
 		
 			if (ret != 0) {
 				fprintf(stderr, "create template failed!\n");
@@ -136,10 +136,10 @@ int main(int argc, char *argv[])
 			scanf("%d",&delete_id);
 			printf("Start testing Template destruction ID : %d!\n", delete_id);
 			
-			ret=ipfix_remove_template_set(my_exporter, delete_id);
+			ret=ipfix_remove_template(my_exporter, delete_id);
 			
 			if (ret != 0) {
-				fprintf(stderr, "ipfix_remove_template_set failed!\n");
+				fprintf(stderr, "ipfix_remove_template failed!\n");
 			}
 			break;
 		case 'r':
