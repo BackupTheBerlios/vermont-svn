@@ -51,6 +51,7 @@ IpfixSender::IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, u
 		const std::string &privateKeyFile, const std::string &caFile, const std::string &caPath)
 
 	: statSentPackets(0),
+	  ringbufferPos(0),
 	  remainingSpace(0),
 	  noCachedRecords(0),
 	  noRecordsInCurrentSet(0),
@@ -265,8 +266,8 @@ void IpfixSender::onDataTemplate(IpfixDataTemplateRecord* record)
 		}
 	}
 
-	if (0 != ipfix_start_datatemplate_set(exporter, my_template_id, my_preceding, dataTemplateInfo->fieldCount + splitFields, dataTemplateInfo->dataCount + splitFixedfields)) {
-		THROWEXCEPTION("sndIpfix: ipfix_start_datatemplate_set failed");
+	if (0 != ipfix_start_datatemplate(exporter, my_template_id, my_preceding, dataTemplateInfo->fieldCount + splitFields, dataTemplateInfo->dataCount + splitFixedfields)) {
+		THROWEXCEPTION("sndIpfix: ipfix_start_datatemplate failed");
 	}
 
 	for (i = 0; i < dataTemplateInfo->fieldCount; i++) {
@@ -336,8 +337,8 @@ void IpfixSender::onDataTemplate(IpfixDataTemplateRecord* record)
 	}
 	free(data);
 
-	if (0 != ipfix_end_template_set(exporter, my_template_id)) {
-		THROWEXCEPTION("sndIpfix: ipfix_end_template_set failed");
+	if (0 != ipfix_end_template(exporter, my_template_id)) {
+		THROWEXCEPTION("sndIpfix: ipfix_end_template failed");
 	}
 
 	msg(MSG_INFO, "sndIpfix created template with ID %u", my_template_id);
@@ -364,8 +365,8 @@ void IpfixSender::onDataTemplateDestruction(IpfixDataTemplateDestructionRecord* 
 
 
 	/* Remove template from ipfixlolib */
-	if (0 != ipfix_remove_template_set(exporter, my_template_id)) {
-		msg(MSG_FATAL, "sndIpfix: ipfix_remove_template_set failed");
+	if (0 != ipfix_remove_template(exporter, my_template_id)) {
+		msg(MSG_FATAL, "sndIpfix: ipfix_remove_template failed");
 	}
 	else
 	{
@@ -403,7 +404,7 @@ void IpfixSender::startDataSet(uint16_t templateId, uint16_t dataLength)
 	}
 		
 	if (ipfix_start_data_set(exporter, my_n_template_id) != 0 ) {
-		THROWEXCEPTION("sndIpfix: ipfix_start_data_set failed!");
+		THROWEXCEPTION("ipfix_start_data_set failed!");
 	}
 	remainingSpace = ipfix_get_remaining_space(exporter);
 	currentTemplateId = templateId;
@@ -417,7 +418,7 @@ void IpfixSender::startDataSet(uint16_t templateId, uint16_t dataLength)
 void IpfixSender::endDataSet()
 {
 	if (ipfix_end_data_set(ipfixExporter, noRecordsInCurrentSet) != 0) {
-		THROWEXCEPTION("sndIpfix: ipfix_end_data_set failed");
+		THROWEXCEPTION("ipfix_end_data_set failed");
 	}
 	noRecordsInCurrentSet = 0;
 	currentTemplateId = 0;
@@ -484,7 +485,6 @@ void IpfixSender::onDataDataRecord(IpfixDataDataRecord* record)
 		/* Split IPv4 fields with length 5, i.e. fields with network mask attached */
 		if ((fi->type.id == IPFIX_TYPEID_sourceIPv4Address) && (fi->type.length == 5)) {
 			uint8_t* mask = &conversionRingbuffer[ringbufferPos++];
-			// ASK: check for overflow of ringbuffer
 			*mask = 32 - *(uint8_t*)(data + fi->offset + 4);
 			ipfix_put_data_field(exporter, data + fi->offset, 4);
 			ipfix_put_data_field(exporter, mask, 1);
@@ -536,8 +536,8 @@ void IpfixSender::onReconfiguration2()
 			uint16_t id = iter->get()->templateId;
 
 			// Remove template from ipfixlolib
-			if (0 != ipfix_remove_template_set(exporter, id)) {
-				msg(MSG_FATAL, "sndIpfix: ipfix_remove_template_set failed");
+			if (0 != ipfix_remove_template(exporter, id)) {
+				msg(MSG_FATAL, "sndIpfix: ipfix_remove_template failed");
 			} else {
 				msg(MSG_INFO, "sndIpfix removed template with ID %u", id);
 			}
