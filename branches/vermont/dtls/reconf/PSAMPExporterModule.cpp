@@ -43,14 +43,14 @@ PSAMPExporterModule::PSAMPExporterModule(Template *tmpl, uint32_t observationDom
 
         // generate the ipfix template
         tmplid = templ->getTemplateID();
-        ret =  ipfix_start_template_set(exporter, tmplid, templ->getFieldCount());
+        ret =  ipfix_start_template(exporter, tmplid, templ->getFieldCount());
 
         for(i = 0; i < templ->getFieldCount(); i++) {
 		templ->getFieldInfo(i, &ttype, &tlength, &toffset, &theader);
 		ipfix_put_template_field(exporter, tmplid, ttype, tlength, 0);
         }
 
-        ipfix_end_template_set(exporter, tmplid);
+        ipfix_end_template(exporter, tmplid);
 }
 
 PSAMPExporterModule::~PSAMPExporterModule()
