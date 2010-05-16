@@ -109,7 +109,6 @@ static int ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
 	msg_openssl_errors();
 	return -1;
     }
-    DPRINTF("SSL_CTX_new() succeeded.");
     SSL_CTX_set_read_ahead(e->ssl_ctx,1);
 
     if ( (e->ca_file || e->ca_path) &&
@@ -145,7 +144,7 @@ static int ensure_exporter_set_up_for_dtls(ipfix_exporter *e) {
 }
 
 static void deinit_openssl_ctx(ipfix_exporter *e) {
-    if (e->ssl_ctx) { SSL_CTX_free(e->ssl_ctx); DPRINTF("SSL_CTX_free()."); }
+    if (e->ssl_ctx) { SSL_CTX_free(e->ssl_ctx); }
     e->ssl_ctx = NULL;
 }
 
@@ -228,8 +227,8 @@ static int dtls_manage_connection(ipfix_exporter *exporter, ipfix_receiving_coll
 
     if (col->state == C_CONNECTED) {
 	if( col->protocol == DTLS_OVER_SCTP ||
-		col->dtls_max_connection_age == 0 ||
-		time(NULL) - col->connect_time < col->dtls_max_connection_age) 
+		col->dtls_max_connection_lifetime == 0 ||
+		time(NULL) - col->connect_time < col->dtls_max_connection_lifetime) 
 	return 0;
 	/* Alright, the connection is already very old and needs to be
 	 * replaced. Let's get the replacement / backup connection ready. */
@@ -420,7 +419,7 @@ static int dtls_over_sctp_send(
 
     struct sctp_sndrcvinfo sinfo;
     memset(&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
-    sinfo.sinfo_timetolive = 0; // pr_value; FIXME
+    sinfo.sinfo_timetolive = pr_value; // pr_value; FIXME
     BIO_ctrl(SSL_get_wbio(col->dtls_main.ssl), BIO_CTRL_DGRAM_SCTP_SET_SNDINFO, sizeof(struct sctp_sndrcvinfo), &sinfo);
     return dtls_send(exporter,col,iov,iovcnt);
 }
@@ -1145,7 +1144,7 @@ static int add_collector_dtls(
     col->dtls_replacement.socket = -1;
     col->dtls_replacement.ssl = NULL;
 
-    col->dtls_max_connection_age = 10;
+    col->dtls_max_connection_lifetime = 0;
     col->dtls_connect_timeout = 30;
 
     ipfix_aux_config_dtls *aux_config_dtls;
@@ -1153,6 +1152,7 @@ static int add_collector_dtls(
 	aux_config_dtls = &((ipfix_aux_config_dtls_over_sctp*)aux_config)->dtls;
     } else if (col->protocol == DTLS_OVER_UDP) {
 	aux_config_dtls = &((ipfix_aux_config_dtls_over_udp*)aux_config)->dtls;
+	col->dtls_max_connection_lifetime = ((ipfix_aux_config_dtls_over_udp*)aux_config)->max_connection_lifetime;
 	ipfix_aux_config_udp *aux_config_udp;
 	aux_config_udp = &((ipfix_aux_config_dtls_over_udp*)aux_config)->udp;
 	/* Sets col->mtu_mode and col->mtu */

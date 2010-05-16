@@ -359,6 +359,10 @@ typedef struct {
 typedef struct {
     ipfix_aux_config_dtls dtls; /*!< DTLS specific configuration */
     ipfix_aux_config_udp udp; /*!< UDP specific configuration */
+    unsigned max_connection_lifetime; /*!< Time in seconds after which the DTLS
+				 connection is replaced by a new one.
+				 This mechanism aims to overcome the
+				 dead peer problem.*/
 } ipfix_aux_config_dtls_over_udp;
 
 typedef struct {
@@ -508,7 +512,7 @@ typedef struct {
 #ifdef SUPPORT_DTLS
 	/* Time in seconds after which a DTLS connection
 	 * will be replaced by a new one. */
-	unsigned dtls_max_connection_age;
+	unsigned dtls_max_connection_lifetime;
 	unsigned dtls_connect_timeout;
 	ipfix_dtls_connection dtls_main;
 	ipfix_dtls_connection dtls_replacement;

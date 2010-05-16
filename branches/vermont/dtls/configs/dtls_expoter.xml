@@ -66,6 +66,7 @@
 		<key>configs/example_certs/exporter_key.pem</key>
 		<CAfile>configs/example_certs/vermontCA.pem</CAfile>
 		<CApath>/etc/ssl/certs</CApath>
+		<dtlsMaxConnectionLifetime unit="sec">10</dtlsMaxConnectionLifetime>
 		<collector>
 			<ipAddressType>4</ipAddressType>
 			<ipAddress>127.0.0.1</ipAddress>

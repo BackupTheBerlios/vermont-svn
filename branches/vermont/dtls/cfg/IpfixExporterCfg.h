@@ -43,6 +43,8 @@ private:
 	std::string privateKeyFile;
 	std::string caFile;
 	std::string caPath;
+
+	unsigned dtlsMaxConnectionLifetime;
 };
 
 #endif /*IPFIXEXPORTERCFG_H_*/

@@ -4,7 +4,8 @@ IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 	: CfgHelper<IpfixSender, IpfixExporterCfg>(elem, "ipfixExporter"),
 	templateRefreshTime(IS_DEFAULT_TEMPLATE_TIMEINTERVAL), templateRefreshRate(0),	
 	sctpDataLifetime(0), sctpReconnectInterval(0),
-	recordRateLimit(0), observationDomainId(0)
+	recordRateLimit(0), observationDomainId(0),
+	dtlsMaxConnectionLifetime(0)
 {
 
 	if (!elem) {
@@ -23,6 +24,7 @@ IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 	privateKeyFile = getOptional("key");
 	caFile = getOptional("CAfile");
 	caPath = getOptional("CApath");
+	dtlsMaxConnectionLifetime = getTimeInUnit("dtlsMaxConnectionLifetime", SEC, IS_DEFAULT_DTLS_CONNECTIONLIFETIME);
 	
 
 	XMLNode::XMLSet<XMLElement*> set = elem->getElementChildren();
@@ -47,7 +49,9 @@ IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 				e->matches("cert") ||
 				e->matches("key") ||
 				e->matches("CAfile") ||
-				e->matches("CApath") ) {
+				e->matches("CApath") ||
+				e->matches("dtlsMaxConnectionLifetime")
+				) {
 			// already done!
 		} else {
 			THROWEXCEPTION("Illegal Exporter config entry \"%s\" found",
@@ -98,6 +102,7 @@ IpfixSender* IpfixExporterCfg::createInstance()
 		ipfix_aux_config_dtls *pacd = NULL;
 		switch (p->getProtocolType()) {
 			case DTLS_OVER_UDP:
+				acdou.max_connection_lifetime = dtlsMaxConnectionLifetime;
 				pacd = &acdou.dtls;
 				pacu = &acu;
 				aux_config = &acdou;
