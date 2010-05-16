@@ -502,7 +502,7 @@ static int setup_dtls_connection(ipfix_exporter *exporter, ipfix_receiving_colle
     }
     DPRINTF("Created socket %d",con->socket);
 
-    /* ensure a SSL_CTX object is set up */
+    /* ensure an SSL_CTX object is set up */
     if (ensure_exporter_set_up_for_dtls(exporter)) {
 	close(con->socket);con->socket = -1;
 	return -1;
@@ -1177,7 +1177,7 @@ static int add_collector_dtls(
     if (update_collector_mtu(exporter, col)) {
 	/* update_collector_mtu calls remove_collector
 	   in case of failure which in turn sets
-	   col->state to C_UNUSED. */
+	   col->state to C_UNUSED and frees col->peer_fqdn. */
 	return -1;
     }
     /* We have to call update_exporter_max_message_size()
