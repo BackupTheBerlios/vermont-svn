@@ -2,7 +2,7 @@
 
 IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 	: CfgHelper<IpfixSender, IpfixExporterCfg>(elem, "ipfixExporter"),
-	templateRefreshTime(IS_DEFAULT_TEMPLATE_TIMEINTERVAL), templateRefreshRate(0),	
+	templateRefreshTime(IS_DEFAULT_TEMPLATE_TIMEINTERVAL), /* templateRefreshRate(0), */
 	sctpDataLifetime(0), sctpReconnectInterval(0),
 	recordRateLimit(0), observationDomainId(0),
 	dtlsMaxConnectionLifetime(0)
@@ -17,7 +17,7 @@ IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 	observationDomainId = getInt("observationDomainId", 0);
 	sctpDataLifetime = getTimeInUnit("sctpDataLifetime", mSEC, IS_DEFAULT_SCTP_DATALIFETIME);
 	sctpReconnectInterval = getTimeInUnit("sctpReconnectInterval", SEC, IS_DEFAULT_SCTP_RECONNECTINTERVAL);
-	templateRefreshRate = getInt("templateRefreshRate", IS_DEFAULT_TEMPLATE_RECORDINTERVAL);
+	/* templateRefreshRate = getInt("templateRefreshRate", IS_DEFAULT_TEMPLATE_RECORDINTERVAL); */
 	templateRefreshTime = getTimeInUnit("templateRefreshInterval", SEC, IS_DEFAULT_TEMPLATE_TIMEINTERVAL);
 	// Config for DTLS
 	certificateChainFile = getOptional("cert");
@@ -43,7 +43,7 @@ IpfixExporterCfg::IpfixExporterCfg(XMLElement* elem)
 		} else if (	e->matches("maxRecordRate") ||
 				e->matches("sctpDataLifetime") ||
 				e->matches("sctpReconnectInterval") ||
-				e->matches("templateRefreshRate") ||
+				/* e->matches("templateRefreshRate") || */
 				e->matches("templateRefreshInterval") ||
 				e->matches("observationDomainId") ||
 				e->matches("cert") ||
@@ -69,7 +69,7 @@ IpfixExporterCfg::~IpfixExporterCfg()
 IpfixSender* IpfixExporterCfg::createInstance()
 {
 	instance = new IpfixSender(observationDomainId, recordRateLimit, sctpDataLifetime, 
-			sctpReconnectInterval, templateRefreshTime, templateRefreshRate,
+			sctpReconnectInterval, templateRefreshTime, /* templateRefreshRate, */
 			certificateChainFile, privateKeyFile, caFile, caPath);
 
 	std::vector<CollectorCfg*>::const_iterator it;
@@ -152,7 +152,7 @@ bool IpfixExporterCfg::deriveFrom(IpfixExporterCfg* other)
 bool IpfixExporterCfg::equalTo(IpfixExporterCfg* other)
 {
 	if (templateRefreshTime != other->templateRefreshTime) return false;
-	if (templateRefreshRate != other->templateRefreshRate) return false;
+	/* if (templateRefreshRate != other->templateRefreshRate) return false; */ /* TODO */
 	if (collectors.size() != other->collectors.size()) return false;
 	std::vector<CollectorCfg*>::const_iterator iter = collectors.begin();
 	while (iter != collectors.end()) {

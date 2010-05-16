@@ -29,7 +29,7 @@ private:
 
 	/** template management */
 	unsigned templateRefreshTime;
-	unsigned templateRefreshRate;
+	/* unsigned templateRefreshRate; */ /* TODO */
 	
 	/** sctp parameters */
 	uint32_t sctpDataLifetime;

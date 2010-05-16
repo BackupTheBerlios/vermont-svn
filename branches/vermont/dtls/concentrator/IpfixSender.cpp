@@ -47,7 +47,7 @@ using namespace std;
  * @return handle to use when calling @c destroyIpfixSender()
  */
 IpfixSender::IpfixSender(uint32_t observationDomainId, uint32_t maxRecordRate, uint32_t sctpDataLifetime, uint32_t sctpReconnectInterval,
-		uint32_t templateRefreshInterval, uint32_t templateRefreshRate, const std::string &certificateChainFile,
+		uint32_t templateRefreshInterval, /* uint32_t templateRefreshRate, */ const std::string &certificateChainFile,
 		const std::string &privateKeyFile, const std::string &caFile, const std::string &caPath)
 
 	: statSentPackets(0),

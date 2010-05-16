@@ -122,7 +122,6 @@
 		</ipfixPacketRestrictions>
 		<udpTemplateManagement>
 			<templateRefreshTimeout>10</templateRefreshTimeout>
-			<templateRefreshRate>100</templateRefreshRate>
 		</udpTemplateManagement>
 		-->
 		<collector>
