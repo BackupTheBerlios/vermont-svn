@@ -124,5 +124,10 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 
+/**
+ * disable alignment in structure
+ */
+#define DISABLE_ALIGNMENT __attribute__((packed));
+
 
 #endif /*DEFS_H*/
