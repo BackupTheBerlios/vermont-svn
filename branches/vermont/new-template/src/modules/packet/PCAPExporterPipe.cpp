@@ -50,7 +50,8 @@ PCAPExporterPipe::PCAPExporterPipe(const std::string& logfile)
 	  dummy(NULL),
 	  sigKillTimeout(1),
 	  counter(0),
-	  last_check(0)
+	  last_check(0),
+	  statPktsForwarded(0)
 {
 }
 
@@ -293,6 +294,7 @@ void PCAPExporterPipe::receive(Packet* packet)
 		 return;
 	}
 	writePCAP(packet);
+	statPktsForwarded++;
 }
 void PCAPExporterPipe::handleSigPipe(int sig)
 {
@@ -436,7 +438,26 @@ void PCAPExporterPipe::kill_all(int ppid)
 		msg(MSG_DEBUG, "Killing Pid %d", *it);
 		kill_pid(*it);
 	}
-	return;
 }
 
 
+/**
+ * statistics function called by StatisticsManager
+ */
+std::string PCAPExporterPipe::getStatisticsXML(double interval)
+{
+	ostringstream oss;
+	oss << "<forwarded type=\"packets\">" << statPktsForwarded << "</forwarded>";
+	if (isRunning(fifoReaderPid)) {
+		oss << "<processInfo pid=\"" << fifoReaderPid << "\">";
+		try {
+			ThreadCPUInterface::JiffyTime jt = ThreadCPUInterface::getProcessJiffies(fifoReaderPid);
+			oss << "totalJiffies type=\"system\">" << jt.sysJiffies << "</totalJiffies>";
+			oss << "<totalJiffies type=\"user\">" << jt.userJiffies << "</totalJiffies></processInfo>";
+		}
+		catch (std::runtime_error& re) { 
+			// do not fail miserably when statistics were not retrieved correctly ...
+		}
+	}
+	return oss.str();
+}
