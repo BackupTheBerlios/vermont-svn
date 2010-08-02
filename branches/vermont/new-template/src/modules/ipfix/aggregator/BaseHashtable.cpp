@@ -324,6 +324,7 @@ void BaseHashtable::expireFlows(bool all)
 				exportList.remove(node);
 				destroyBucket(bucket);
 				node->removeReference();
+				statTotalEntries--;
 			}//end if
 			else
 				break;
