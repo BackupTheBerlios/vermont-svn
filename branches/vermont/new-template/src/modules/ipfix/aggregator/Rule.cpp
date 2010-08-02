@@ -73,7 +73,10 @@ void Rule::initialize()
 		validProtocols = Packet::IPProtocolType(validProtocols & f->type.getValidProtocols());
 	}
 	// small exception: if protocol id is inside the template, we assume that all types of protocols are valid
-	if (protocolid) validProtocols = Packet::ALL;
+	if (protocolid) {
+		validProtocols = Packet::ALL;
+		msg(MSG_INFO, "IPFIX IE protocolIdentifier is contained in template %hu, accepting all protocol types for this template", id);
+	}
 
 	DPRINTF("valid protocols for this template: %02X", validProtocols);
 
