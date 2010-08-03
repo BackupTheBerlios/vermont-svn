@@ -108,21 +108,40 @@ void IpfixCsExporter::onDataRecord(IpfixDataRecord* record)
 	TemplateInfo::FieldInfo* fi;
 
 	csRecord->record_length			= htons(sizeof(Ipfix_basic_flow)-2);		/* total length of this record in bytes minus this element*/
-	csRecord->src_export_mode		= exportMode;				/* expected to match enum cs_export_mode */
-	csRecord->dst_export_mode		= exportMode;				/* expected to match enum cs_export_mode */
+	csRecord->src_export_mode		= CS_E_PLAIN;
+	csRecord->dst_export_mode		= CS_E_PLAIN;
 	csRecord->ipversion				= 4;						/* expected 4 (for now) */
 
-	fi = record->templateInfo->getFieldInfo(IPFIX_TYPEID_sourceIPv4Address, 0);
-	if (fi != 0) {
+	int idx;
+	idx = record->templateInfo->getFieldIndex(IPFIX_TYPEID_sourceIPv4Address, 0);
+	if (idx >= 0) {
+		fi = &record->templateInfo->fieldInfo[idx];
 		csRecord->source_ipv4_address		= *(uint32_t*)(record->data + fi->offset);
+		// set export mode if anonymisationType IE is directly after this field
+		if (idx<record->templateInfo->fieldCount-1) {
+			fi = &record->templateInfo->fieldInfo[idx+1];
+			if (fi->type==InformationElement::IeInfo(IPFIX_ETYPEID_anonymisationType, IPFIX_PEN_vermont)
+					&& *(uint8_t*)(record->data + fi->offset)==1) {
+				csRecord->src_export_mode = exportMode;
+			}
+		}
 	} else {
 		msg(MSG_DEBUG, "failed to determine source ip for record, assuming 0.0.0.0");
 		csRecord->source_ipv4_address		= 0;
 	}
 
-	fi = record->templateInfo->getFieldInfo(IPFIX_TYPEID_destinationIPv4Address, 0);
-	if (fi != 0) {
+	idx = record->templateInfo->getFieldIndex(IPFIX_TYPEID_destinationIPv4Address, 0);
+	if (idx >= 0) {
+		fi = &record->templateInfo->fieldInfo[idx];
 		csRecord->destination_ipv4_address	= *(uint32_t*)(record->data + fi->offset);
+		// set export mode if anonymisationType IE is directly after this field
+		if (idx<record->templateInfo->fieldCount-1) {
+			fi = &record->templateInfo->fieldInfo[idx+1];
+			if (fi->type==InformationElement::IeInfo(IPFIX_ETYPEID_anonymisationType, IPFIX_PEN_vermont)
+					&& *(uint8_t*)(record->data + fi->offset)==1) {
+				csRecord->dst_export_mode = exportMode;
+			}
+		}
 	} else {
 		msg(MSG_DEBUG, "failed to determine destination ip for record, assuming 0.0.0.0");
 		csRecord->destination_ipv4_address	= 0;

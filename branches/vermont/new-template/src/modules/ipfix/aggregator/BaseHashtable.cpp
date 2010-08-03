@@ -546,8 +546,10 @@ void BaseHashtable::genBiflowStructs()
 					case IPFIX_ETYPEID_dpaForcedExport:
 					case IPFIX_ETYPEID_dpaFlowCount:
 					case IPFIX_ETYPEID_dpaReverseStart:
+					case IPFIX_ETYPEID_anonymisationType:
 						mapReverseElement(fi->type);
 						break;
+
 					default:
 						defaultassign = true;
 						break;

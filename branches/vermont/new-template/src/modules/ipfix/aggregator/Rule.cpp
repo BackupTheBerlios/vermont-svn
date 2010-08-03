@@ -388,7 +388,7 @@ int Rule::dataRecordMatches(IpfixDataRecord* record) {
 	boost::shared_ptr<TemplateInfo> dataTemplateInfo = record->templateInfo;
 
 	/* for all patterns of this rule, check if they are matched */
-        for(i = 0; i < fieldCount; i++) {
+	for(i = 0; i < fieldCount; i++) {
 		Rule::Field* ruleField = field[i];
 
 		/* no check for biflow fields */
@@ -503,7 +503,11 @@ int Rule::dataRecordMatches(IpfixDataRecord* record) {
 				}
 			}
 
-			msg(MSG_VDEBUG, "No corresponding DataRecord field for RuleField of type %s", ruleField->type.toString().c_str());
+			// anonymisationType is filled by the anonymizer, so we ignore it quietly
+			if (ruleField->type==InformationElement::IeInfo(IPFIX_ETYPEID_anonymisationType, IPFIX_PEN_vermont))
+				continue;
+
+			msg(MSG_INFO, "No corresponding DataRecord field for RuleField of type %s", ruleField->type.toString().c_str());
 			return 0;
 		}
 	}
