@@ -517,6 +517,7 @@ void BaseHashtable::genBiflowStructs()
 			case 0:
 				switch (fi->type.id) {
 					case IPFIX_TYPEID_protocolIdentifier:
+					case IPFIX_TYPEID_icmpTypeCodeIPv4:
 						mapReverseElement(fi->type);
 						break;
 					case IPFIX_TYPEID_sourceIPv4Address:
