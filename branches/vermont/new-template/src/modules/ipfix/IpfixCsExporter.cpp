@@ -175,9 +175,8 @@ void IpfixCsExporter::onDataRecord(IpfixDataRecord* record)
 	fi = record->templateInfo->getFieldInfo(IPFIX_TYPEID_icmpTypeCodeIPv4, 0);
 	if (fi != 0) {
 		csRecord->icmp_type_ipv4 		= *(uint8_t*)(record->data + fi->offset);
-		csRecord->icmp_code_ipv4		= *(uint8_t*)(record->data + fi->offset + 8);
+		csRecord->icmp_code_ipv4		= *(uint8_t*)(record->data + fi->offset + 1);
 	} else {
-		msg(MSG_DEBUG, "failed to determine icmp type and code for record, assuming 0");
 		csRecord->icmp_type_ipv4                = 0;
 		csRecord->icmp_code_ipv4                = 0;
 	}
